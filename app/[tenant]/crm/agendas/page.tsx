@@ -70,6 +70,7 @@ import {
   isNoShow,
 } from '@/lib/appointments/status'
 import { appointmentLeadScore } from '@/lib/appointments/lead-score'
+import { resolveAppointmentLeadOrigin } from '@/lib/appointments/lead-origin'
 import type { LeadScore } from '@/lib/metrics/cualificacion'
 
 const cls =
@@ -83,25 +84,6 @@ const filteredRowModel = getFilteredRowModel()
 const DAY_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 const CALENDAR_HOURS = Array.from({ length: 14 }, (_, i) => 8 + i) // 8..21
 const PX_PER_HOUR = 52 // debe coincidir con min-h de la celda de hora
-
-// Paleta estable por closer: en vista semana con varios closers solapados, el color
-// distingue a quién pertenece cada cita (antes todas usaban el mismo tono brand-300).
-const CLOSER_DOT_COLORS = [
-  'bg-sky-400',
-  'bg-amber-400',
-  'bg-violet-400',
-  'bg-rose-400',
-  'bg-lime-400',
-  'bg-cyan-400',
-  'bg-fuchsia-400',
-  'bg-orange-400',
-]
-function closerColorClass(closerId: string | null | undefined): string {
-  if (!closerId) return 'bg-muted-foreground'
-  let hash = 0
-  for (let i = 0; i < closerId.length; i++) hash = (hash * 31 + closerId.charCodeAt(i)) >>> 0
-  return CLOSER_DOT_COLORS[hash % CLOSER_DOT_COLORS.length]
-}
 
 function getMondayOfWeek(date: Date): Date {
   const d = new Date(date)
@@ -129,7 +111,7 @@ function isSameDay(a: Date, b: Date): boolean {
 }
 
 const LEAD_SCORE_DOT: Record<LeadScore['nivel'], string> = {
-  alto: 'bg-sky-400',
+  alto: 'bg-emerald-400',
   medio: 'bg-amber-400',
   bajo: 'bg-red-400',
   sin_datos: 'bg-muted-foreground/50',
@@ -145,6 +127,8 @@ export default function AppointmentsPage() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithRelations | null>(null)
+  const [collaboratorOrigins, setCollaboratorOrigins] = useState<Record<string, { name: string | null }>>({})
+  const [attributionLoaded, setAttributionLoaded] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [currentUserRole, setCurrentUserRole] = useState<string>('')
   const [currentUserId, setCurrentUserId] = useState<string>('')
@@ -316,6 +300,23 @@ export default function AppointmentsPage() {
       }
     }
 
+    const loadAllContactAttributions = async () => {
+      const rows: { contact_id: string; collaborator_id: string | null }[] = []
+      for (let from = 0; ; from += APPOINTMENTS_PAGE_SIZE) {
+        const page = await supabase
+          .from('contact_attributions')
+          .select('contact_id, collaborator_id')
+          .eq('tenant_id', tenantId)
+          .order('is_primary', { ascending: false })
+          .order('last_touch_at', { ascending: false })
+          .range(from, from + APPOINTMENTS_PAGE_SIZE - 1)
+        if (page.error) return { data: null, error: page.error }
+        const batch = (page.data ?? []) as { contact_id: string; collaborator_id: string | null }[]
+        rows.push(...batch)
+        if (batch.length < APPOINTMENTS_PAGE_SIZE) return { data: rows, error: null }
+      }
+    }
+
     // Consulta auxiliar de ventas (pinta las citas con compra). Para un colaborador, acotada a SUS
     // contactos: sin esto, su navegador recibiría ventas de contactos ajenos y podría inferir los
     // importes del tenant entero (§17/§49 — también las fugas indirectas).
@@ -328,10 +329,12 @@ export default function AppointmentsPage() {
       salesQuery = salesQuery.in('contact_id', contactIdsVentas ?? [])
     }
 
-    const [appRes, usersRes, salesRes] = await Promise.all([
+    const [appRes, usersRes, salesRes, attributionRes, collaboratorProfilesRes] = await Promise.all([
       loadAllAppointments(),
       supabase.from('users').select('*, roles(key)').eq('is_active', true),
       salesQuery,
+      loadAllContactAttributions(),
+      supabase.from('collaborator_profiles').select('id, name').eq('tenant_id', tenantId),
     ])
 
     if (appRes.error) {
@@ -346,6 +349,30 @@ export default function AppointmentsPage() {
     // en silencio: las citas con venta real dejaban de pintarse en verde ("compra") sin aviso.
     if (usersRes.error) toast.error('Error al cargar usuarios', { description: usersRes.error.message })
     if (salesRes.error) toast.error('Error al cargar ventas', { description: salesRes.error.message })
+    if (attributionRes.error) {
+      setAttributionLoaded(false)
+      setCollaboratorOrigins({})
+      toast.error('No se pudo cargar la procedencia de los leads', { description: attributionRes.error.message })
+    } else {
+      const profileNames = new Map(
+        ((collaboratorProfilesRes.data ?? []) as { id: string; name: string | null }[]).map((profile) => [
+          profile.id,
+          profile.name,
+        ])
+      )
+      const origins: Record<string, { name: string | null }> = {}
+      for (const attribution of attributionRes.data ?? []) {
+        if (!attribution.collaborator_id || origins[attribution.contact_id]) continue
+        origins[attribution.contact_id] = { name: profileNames.get(attribution.collaborator_id) ?? null }
+      }
+      setCollaboratorOrigins(origins)
+      setAttributionLoaded(true)
+      if (collaboratorProfilesRes.error) {
+        toast.error('No se pudieron cargar los nombres de colaboradores', {
+          description: collaboratorProfilesRes.error.message,
+        })
+      }
+    }
     setUsers(usersRes.data ?? [])
     setSales((salesRes.data as Sale[]) ?? [])
     setLoading(false)
@@ -593,6 +620,24 @@ export default function AppointmentsPage() {
         return key === 'closer' || key === 'admin'
       }),
     [users]
+  )
+
+  const leadOriginFor = useCallback(
+    (appointment: AppointmentWithRelations) => {
+      const collaborator = collaboratorOrigins[appointment.contact_id]
+      return resolveAppointmentLeadOrigin({
+        setterId: appointment.setter_id,
+        setterName: appointment.setter?.full_name,
+        contactSetSource: appointment.contacts?.set_source,
+        collaboratorName: collaborator?.name,
+        hasCollaboratorAttribution: !!collaborator,
+        attributionLoaded,
+        source: appointment.source,
+        externalSource: appointment.external_source,
+        utmSource: appointment.utm_source,
+      })
+    },
+    [attributionLoaded, collaboratorOrigins]
   )
 
   // Posibles duplicadas: mismo contacto con más de una agenda EL MISMO DÍA. Es el patrón que dejan
@@ -1758,6 +1803,7 @@ export default function AppointmentsPage() {
                       {dayAppointments.map(({ appt, top, height, colIndex, colCount }) => {
                         const category = getAppointmentCategory(appt.status, hasPurchased(appt))
                         const leadScore = appointmentLeadScore(appt)
+                        const leadOrigin = leadOriginFor(appt)
                         const isCancelled = category === 'cancelada'
                         const draggable = !isCancelled && canDragAppointment(appt)
                         // Contenido adaptativo a la altura real del bloque: el formato completo ocupa
@@ -1782,7 +1828,7 @@ export default function AppointmentsPage() {
                               setSelectedAppointment(appt)
                               setSheetOpen(true)
                             }}
-                            title={`${new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit' }).format(new Date(appt.appointment_datetime))} · ${appt.contacts?.full_name || '—'} · Closer: ${appt.closer?.full_name || 'Sin closer'} · ${CATEGORY_LABELS[category]} · Lead score: ${leadScore.puntuacion === null ? 'sin datos' : `${leadScore.puntuacion}/100`}`}
+                            title={`${new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit' }).format(new Date(appt.appointment_datetime))} · ${appt.contacts?.full_name || '—'} · Closer: ${appt.closer?.full_name || 'Sin closer'} · ${leadOrigin.detail} · ${CATEGORY_LABELS[category]} · Lead score: ${leadScore.puntuacion === null ? 'sin datos' : `${leadScore.puntuacion}/100`}`}
                             style={{
                               top: `${top}px`,
                               height: `${height}px`,
@@ -1806,13 +1852,12 @@ export default function AppointmentsPage() {
                                 {appt.contacts?.full_name || '—'}
                                 {tier === 'xs' && (
                                   <span className="ml-auto flex shrink-0 items-center gap-1">
+                                    <span className="text-[9px] font-semibold tracking-wide text-muted-foreground">
+                                      {leadOrigin.shortLabel}
+                                    </span>
                                     <span
                                       className={`inline-block h-2 w-2 rounded-full ${LEAD_SCORE_DOT[leadScore.nivel]}`}
                                       title={`Lead score: ${leadScore.puntuacion ?? 'sin datos'}`}
-                                    />
-                                    <span
-                                      className={`inline-block h-2 w-2 rounded-full ${closerColorClass(appt.closer_id)}`}
-                                      title={appt.closer?.full_name || 'Sin closer'}
                                     />
                                   </span>
                                 )}
@@ -1820,12 +1865,15 @@ export default function AppointmentsPage() {
                             ) : null}
                             {tier !== 'xs' ? (
                               <p className="text-3xs text-brand-300 truncate flex items-center gap-1">
-                                <span
-                                  className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${closerColorClass(appt.closer_id)}`}
-                                />
                                 {appt.closer?.full_name || 'Sin closer'}
                                 <span
-                                  className={`ml-auto inline-block h-1.5 w-1.5 shrink-0 rounded-full ${LEAD_SCORE_DOT[leadScore.nivel]}`}
+                                  className="ml-auto rounded border border-border/70 bg-background/30 px-1 py-0.5 text-[9px] font-semibold leading-none tracking-wide text-muted-foreground"
+                                  title={leadOrigin.detail}
+                                >
+                                  {leadOrigin.shortLabel}
+                                </span>
+                                <span
+                                  className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${LEAD_SCORE_DOT[leadScore.nivel]}`}
                                   title={`Lead score: ${leadScore.puntuacion ?? 'sin datos'}`}
                                 />
                               </p>
@@ -1863,6 +1911,38 @@ export default function AppointmentsPage() {
                 })}
               </div>
             </div>
+          </div>
+          <div
+            className="flex flex-wrap items-center gap-x-4 gap-y-2 px-1 text-xs text-muted-foreground"
+            aria-label="Leyenda del calendario"
+          >
+            <span className="font-medium text-foreground">Lead score</span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-emerald-400" />
+              Alto
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-amber-400" />
+              Medio
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-red-400" />
+              Bajo
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-muted-foreground/50" />
+              Sin datos
+            </span>
+            <span className="hidden h-4 w-px bg-border sm:block" aria-hidden="true" />
+            <span>
+              <strong className="font-semibold text-foreground">SET</strong> setter
+            </span>
+            <span>
+              <strong className="font-semibold text-foreground">COLAB</strong> colaborador
+            </span>
+            <span>
+              <strong className="font-semibold text-foreground">WEB</strong> web/directo
+            </span>
           </div>
         </div>
       )}
@@ -1933,6 +2013,7 @@ export default function AppointmentsPage() {
                 // reinicializa ese estado.
                 key={selectedAppointment.id}
                 appointment={selectedAppointment}
+                leadOrigin={leadOriginFor(selectedAppointment)}
                 canChangeStatus={canChangeStatus}
                 currentUserName={currentUserName}
                 canDelete={isAdmin}

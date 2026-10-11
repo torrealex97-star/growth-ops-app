@@ -1,3 +1,19 @@
+# VALIDADO EN RAMA · Calendario con semáforo y procedencia visible (11-oct-2026, Codex)
+
+- **Rama:** `codex/calendar-lead-origin`, desde `origin/main` posterior al PR #446.
+- **Reclamación:** `crm/agendas`, `AppointmentDetail`, resolución visual de procedencia y sus tests.
+  No toca sincronizaciones, esquema, finanzas, VSL ni otros conectores.
+- **Objetivo:** dejar un solo punto de lead score con semáforo verde/amarillo/rojo, añadir leyenda
+  compacta y mostrar `SET`/`COLAB`/`WEB` tanto en el calendario como al abrir la agenda.
+- **Implementado:** eliminado el color redundante del closer; el punto único usa alto=verde,
+  medio=amarillo, bajo=rojo y sin datos=gris. Cada tarjeta muestra su procedencia textual y el
+  detalle conserva además el nombre real del setter/colaborador o el canal web disponible.
+  La atribución de colaborador usa `contact_attributions.collaborator_id`; si esa fuente falla,
+  muestra «origen no disponible» en vez de inventar WEB.
+- **TESTED:** `npm run quality` PASS (incluye 4 regresiones nuevas y toda la suite); `npm run build`
+  PASS con acceso de red. Revisión local de navegador bloqueada por la sesión/CSP de localhost
+  (pantalla sin hidratar); no se presenta como verificación visual.
+
 # CERRADO, FUSIONADO Y VERIFICADO · Guardas de sincronización y presupuesto Vercel (11-oct-2026, Codex)
 
 - **Rama:** `codex/sync-vercel-guardrails`, desde `origin/main` posterior al PR #444.
