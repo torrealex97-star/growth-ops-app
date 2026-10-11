@@ -1,4 +1,4 @@
-# LISTO PARA FUSIONAR · Guardas de sincronización y presupuesto Vercel (11-oct-2026, Codex)
+# CERRADO, FUSIONADO Y VERIFICADO · Guardas de sincronización y presupuesto Vercel (11-oct-2026, Codex)
 
 - **Rama:** `codex/sync-vercel-guardrails`, desde `origin/main` posterior al PR #444.
 - **Reclamación:** presupuesto global del cron Calendly/GHL, regresiones de coste y documentación
@@ -17,6 +17,9 @@
   por lo que el consumo mensual exacto queda `NOT AVAILABLE`, no asumido.
 - **TESTED:** focales 21/21 PASS; `npm run quality` PASS (1565 tests + 3 skipped; métricas 788/788);
   `npm run build` PASS con acceso de red. Solo aparecen warnings preexistentes de lint/build.
+- **Producción:** PR #445 fusionada (`fc99fdb7`); deployment
+  `dpl_DPTHNBucKipQ4pFgtuxCQaGyjoXw` READY y `app.scalixsystems.com` asignado. El workflow real
+  `cron-calendly-ghl` (`38158219659`) terminó correctamente en 40 s, por debajo del corte de 60 s.
 
 # LISTO PARA FUSIONAR · Agendas completas Calendly + GHL (11-oct-2026, Codex)
 
