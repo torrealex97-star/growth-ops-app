@@ -41,7 +41,7 @@ test('el cron recorre subcuentas con su config explícita y registra la corrida 
   assert.match(code, /from\('tenants'\)\.select\('id, slug'\)\.eq\('status', 'active'\)/)
   assert.match(code, /getTenantConfigWithFallback\(tn\.id/, 'la config de la subcuenta se lee, no se hereda')
   assert.doesNotMatch(code, /ensureConfig\(/, 'prohibido volcar credenciales en process.env')
-  assert.match(code, /syncCalendly\(sb, tn\.id, cfg/, 'la sync de Calendly recibe la config de SU subcuenta')
+  assert.match(code, /syncCalendly\(sb, tn\.id, tn\.cfg/, 'la sync de Calendly recibe la config de SU subcuenta')
   // GHL va en modo 'soloEventos': su sync COMPLETA lista todos los contactos antes de tocar
   // eventos (dos pasadas en producción: 504 y run colgado). El modo soloEventos consulta
   // eventos por ventana temporal y crea perezosamente solo el contacto de cada evento nuevo.
@@ -76,6 +76,24 @@ test('la lib de citas es idempotente y acotada por presupuesto', () => {
   const inserts = code.match(/\.insert\(\{[^}]*\}/g) || []
   assert.ok(inserts.length >= 2, 'hay inserts de contactos y citas')
   for (const ins of inserts) assert.match(ins, /tenant_id/, 'todo insert lleva tenant_id explícito')
+})
+
+test('el cron comparte un presupuesto global justo entre todos los tenants y proveedores', () => {
+  const code = sinComentarios(read(ROUTE))
+  assert.match(code, /const stopAt = Date\.now\(\) \+ REQUEST_WORK_BUDGET_MS/)
+  assert.match(code, /REQUEST_WORK_BUDGET_MS = 48_000/, 'deja 12 s frente al maxDuration de 60 s')
+  assert.match(code, /providerDeadline\(stopAt, pendingJobs/)
+  assert.match(
+    code,
+    /remainingForWork \/ Math\.max\(1, pendingJobs\)/,
+    'cada job recibe una parte justa del tiempo restante'
+  )
+  assert.match(code, /Presupuesto global agotado/, 'un corte queda declarado en la respuesta')
+  assert.doesNotMatch(
+    code,
+    /deadlineMs: Date\.now\(\) \+ (20_000|18_000)/,
+    'prohibido reiniciar el presupuesto completo por cada subcuenta'
+  )
 })
 
 test('el workflow delegado existe, apunta a la ruta real y usa el secret', () => {

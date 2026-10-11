@@ -48,6 +48,7 @@ Fuentes: [precios de Supabase](https://supabase.com/pricing) y
 | `git.deploymentEnabled` desactiva Dependabot                 | Evita despliegues automáticos que no se quieren publicar                      |
 | Preview de solo documentación omite el build                 | Ahorra CPU de build; producción nunca se omite                                |
 | `POSTGRES_URL` documentada para Supavisor transaction pooler | Evita agotar conexiones directas desde serverless                             |
+| Presupuesto global de 48 s en el cron Calendly/GHL           | Impide que cada tenant reinicie 20+18 s y exceda la Function de 60 s          |
 
 `ignoreCommand` no evita que una creación de deployment cuente en todos los casos: un build
 cancelado puede seguir contando. Por eso Dependabot se bloquea además en `git.deploymentEnabled`.
@@ -163,6 +164,9 @@ cuando una señal relevante no pueda medirse.
 
 - **En cada PR:** quality gate proporcional, diff de `vercel.json`/migraciones y comparación con
   esta guía.
+- **Crons multitenant:** el deadline es global por invocación y se reparte entre todos los trabajos;
+  nunca se reinicia el presupuesto completo por tenant o proveedor. Un corte se declara y la siguiente
+  ejecución continúa mediante upsert/cursor idempotente.
 - **Mensual:** tamaño por tabla/bucket, top queries acumuladas, advisors, conexiones, egress, CPU e
   invocaciones Vercel, duración/errores de crons y número de deployments.
 - **Al 70% de un límite:** abrir acción concreta con responsable y tendencia; no esperar al corte.

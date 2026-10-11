@@ -1,3 +1,23 @@
+# LISTO PARA FUSIONAR · Guardas de sincronización y presupuesto Vercel (11-oct-2026, Codex)
+
+- **Rama:** `codex/sync-vercel-guardrails`, desde `origin/main` posterior al PR #444.
+- **Reclamación:** presupuesto global del cron Calendly/GHL, regresiones de coste y documentación
+  operativa asociada. No toca esquema, finanzas, VSL ni otros conectores.
+- **Objetivo:** impedir que la suma de subcuentas/proveedores supere la ventana de la Function y
+  fijar automáticamente paginación, idempotencia y margen de corte para evitar agendas omitidas.
+- **Causa corregida:** el cron tenía deadlines locales de 20 s (Calendly) + 18 s (GHL) que se
+  reiniciaban por subcuenta; con dos tenants podía prometer 76 s dentro de `maxDuration=60`.
+- **Implementado:** presupuesto global de 48 s desde la entrada de la petición, 4 s de reserva interna
+  y reparto justo del tiempo restante entre todos los proveedores configurados. Si no queda margen,
+  el trabajo se declara omitido para la próxima corrida; nunca se oculta como cero ni se inicia una
+  llamada que ya no cabe. Los upserts/cursors existentes mantienen la reanudación idempotente.
+- **Coste inspeccionado:** Vercel lista un único proyecto `growth-ops-app`; `vercel.json` mantiene
+  `fluid`, 60 s globales, solo dos crons Vercel diarios, Dependabot sin deploy e ignore de builds
+  documentales. El conector permitió inventariar el proyecto pero devolvió 403 al pedir despliegues,
+  por lo que el consumo mensual exacto queda `NOT AVAILABLE`, no asumido.
+- **TESTED:** focales 21/21 PASS; `npm run quality` PASS (1565 tests + 3 skipped; métricas 788/788);
+  `npm run build` PASS con acceso de red. Solo aparecen warnings preexistentes de lint/build.
+
 # LISTO PARA FUSIONAR · Agendas completas Calendly + GHL (11-oct-2026, Codex)
 
 - **Rama:** `codex/agendas-completas`, desde `origin/main` (`8d99433a`).
@@ -305,6 +325,7 @@
   contacto → `contact_attributions`. El histórico sin UTMs no es reconstruible; el pixel actual
   tiene 36 sesiones/touchpoints y cero vínculos deterministas a contacto, por lo que identity
   stitching first-party sigue siendo un bloque separado.
+
 # EN CURSO · VSL Precision Tracking + heatmaps (9-oct-2026, Codex)
 
 - **Rama única:** `codex/vsl-precision-tracking`. Alcance: dual-write del reproductor VSL,
