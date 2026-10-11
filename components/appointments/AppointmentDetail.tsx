@@ -18,6 +18,7 @@ import { extraerRespuestas } from '@/lib/metrics/respuestas-formulario'
 import { evaluarCualificacion, evaluarLeadScore } from '@/lib/metrics/cualificacion'
 import { guessContactTimezone, TIMEZONE_OPTIONS } from '@/lib/timezone'
 import { useTenant } from '@/lib/tenant-context'
+import { resolveAppointmentLeadOrigin, type AppointmentLeadOrigin } from '@/lib/appointments/lead-origin'
 
 // Campos IA (aún no están en el tipo Appointment global — se acceden vía cast local)
 type AiAnalysis = {
@@ -67,6 +68,7 @@ const ACTIVITY_RESULT_LABELS: Record<string, string> = Object.fromEntries(
 
 interface AppointmentDetailProps {
   appointment: AppointmentWithRelations
+  leadOrigin?: AppointmentLeadOrigin
   canChangeStatus: boolean
   currentUserName?: string
   /** Solo admin: permite borrar la agenda si está duplicada (deja de contar en KPIs). */
@@ -90,6 +92,7 @@ interface AppointmentDetailProps {
 
 export function AppointmentDetail({
   appointment: appointmentProp,
+  leadOrigin,
   canChangeStatus,
   currentUserName,
   canDelete,
@@ -107,6 +110,17 @@ export function AppointmentDetail({
 }: AppointmentDetailProps) {
   const tenant = useTenant()
   const appointment = appointmentProp as AppointmentWithAi
+  const displayedLeadOrigin =
+    leadOrigin ??
+    resolveAppointmentLeadOrigin({
+      setterId: appointment.setter_id,
+      setterName: appointment.setter?.full_name,
+      contactSetSource: appointment.contacts?.set_source,
+      attributionLoaded: true,
+      source: appointment.source,
+      externalSource: appointment.external_source,
+      utmSource: appointment.utm_source,
+    })
   const [updating, setUpdating] = useState(false)
   const [updatingFollowUp, setUpdatingFollowUp] = useState(false)
   const [notes, setNotes] = useState(appointment.notes ?? '')
@@ -649,6 +663,7 @@ export function AppointmentDetail({
     { label: 'Telefono', value: appointment.contacts?.phone },
     { label: 'Instagram', value: appointment.contacts?.instagram },
     { label: 'Fecha y hora', value: formatDateTime(appointment.appointment_datetime) },
+    { label: 'Procedencia', value: displayedLeadOrigin.detail },
     { label: 'Fuente', value: appointment.source ?? '—' },
     { label: 'Pipeline', value: appointment.pipeline_name ?? '—' },
     { label: 'Etapa Pipeline', value: appointment.pipeline_stage ?? '—' },
@@ -678,6 +693,12 @@ export function AppointmentDetail({
             Reagenda / Show
           </Badge>
         )}
+        <Badge
+          className="border border-border bg-muted/60 px-2 py-1 text-xs text-foreground"
+          title={displayedLeadOrigin.detail}
+        >
+          {displayedLeadOrigin.shortLabel} · {displayedLeadOrigin.label}
+        </Badge>
 
         {canChangeStatus && (
           <Select defaultValue={appointment.status} onValueChange={handleStatusChange} disabled={updating}>
