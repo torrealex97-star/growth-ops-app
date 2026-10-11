@@ -405,8 +405,14 @@ export const NAV_SECTIONS: NavSection[] = [
 export function makeNavFilter(
   role: AppRole,
   deptOverrides?: string[] | null,
-  pageOverrides?: string[] | null
+  pageOverrides?: string[] | null,
+  isSuperAdmin = false
 ): (item: NavItem) => boolean {
+  // El superadmin es un rol de plataforma, no el rol funcional guardado en `users`. El layout ya
+  // le permite entrar en cualquier ruta; el menú y la búsqueda deben reflejar ese mismo permiso en
+  // vez de esconder páginas por el rol/overrides de su perfil dentro de una subcuenta concreta.
+  if (isSuperAdmin) return () => true
+
   const zones = allowedPrefixesFor(role, deptOverrides, pageOverrides)
   const hasExplicitOverride = !!((pageOverrides && pageOverrides.length) || (deptOverrides && deptOverrides.length))
   return (item: NavItem) => {

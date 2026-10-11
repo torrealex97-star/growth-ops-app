@@ -1,3 +1,17 @@
+# VALIDADO EN RAMA · Navegación completa de superadministrador (11-oct-2026, Codex)
+
+- **Rama:** `codex/superadmin-full-navigation`, desde `origin/main` posterior al PR #447.
+- **Reclamación:** filtro canónico de navegación, Sidebar, búsqueda global, layout y regresiones
+  relacionadas. No toca autorización RLS, datos, sincronizaciones ni módulos de negocio.
+- **Objetivo:** que un superadministrador vea y encuentre todas las pantallas —incluido Funnels—
+  aunque su perfil de usuario tenga un rol u overrides más restrictivos. La autorización de ruta ya
+  lo permitía; se alinea la navegación con ese permiso real.
+- **Implementado:** el filtro canónico recibe el estado de superadministrador y, cuando está activo,
+  expone el árbol completo. El layout propaga esa identidad tanto al Sidebar como a la búsqueda
+  global; usuarios normales siguen sujetos a rol y overrides.
+- **TESTED:** regresiones focales 3/3 PASS; `npm run quality` PASS (1.570 tests + 3 skipped y
+  métricas 788/788); `npm run build` PASS con acceso de red. Solo warnings preexistentes.
+
 # VALIDADO EN RAMA · Calendario con semáforo y procedencia visible (11-oct-2026, Codex)
 
 - **Rama:** `codex/calendar-lead-origin`, desde `origin/main` posterior al PR #446.

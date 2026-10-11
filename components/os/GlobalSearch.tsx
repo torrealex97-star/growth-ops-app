@@ -33,7 +33,13 @@ type Result =
 
 const MIN_REMOTE_QUERY = 2
 
-export function GlobalSearch({ user }: { user: User & { roles: { key: string; name: string } } }) {
+export function GlobalSearch({
+  user,
+  isSuperAdmin = false,
+}: {
+  user: User & { roles: { key: string; name: string } }
+  isSuperAdmin?: boolean
+}) {
   const tenant = useTenant()
   const tenantId = useTenantId()
   const router = useRouter()
@@ -50,8 +56,8 @@ export function GlobalSearch({ user }: { user: User & { roles: { key: string; na
 
   // Pantallas permitidas para este usuario (mismo filtro que el menú lateral).
   const pages = useMemo<NavItem[]>(
-    () => visibleNavItems(makeNavFilter(role, u?.dept_overrides, u?.page_overrides)),
-    [role, u?.dept_overrides, u?.page_overrides]
+    () => visibleNavItems(makeNavFilter(role, u?.dept_overrides, u?.page_overrides, isSuperAdmin)),
+    [role, u?.dept_overrides, u?.page_overrides, isSuperAdmin]
   )
 
   // Atajo de teclado: Cmd+K / Ctrl+K en cualquier pantalla.
