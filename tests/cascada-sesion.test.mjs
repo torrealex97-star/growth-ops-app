@@ -60,8 +60,8 @@ test('agendas ya no encadena getUser + users antes de pedir las agendas', () => 
   // El filtro por rol sigue aplicándose: quitarlo habría convertido una mejora de rendimiento en una
   // fuga de agendas de otros closers.
   assert.match(codigo, /if \(userId && role && !isLeadership\(role as AppRole\) && scope !== 'team'\)/)
-  assert.match(codigo, /appointmentsQuery\.eq\('closer_id', userId\)/)
-  assert.match(codigo, /appointmentsQuery\.eq\('setter_id', userId\)/)
+  assert.match(codigo, /query = query\.eq\('closer_id', userId\)/)
+  assert.match(codigo, /query = query\.eq\('setter_id', userId\)/)
 })
 
 // El scoping por data_scope es una regla de acceso, no una preferencia: si se perdiera al refactorizar,

@@ -74,6 +74,23 @@ test('el cron corta sin gastar la llamada de invitees del evento que no va a pro
   assert.ok(guardInvitees > 0 && fetchInvitees > guardInvitees, 'el guard de reloj precede al fetch de invitees')
 })
 
+test('Calendly sincroniza toda la organización y el cron prioriza las reservas nuevas', () => {
+  const calendly = sync.slice(sync.indexOf('export async function syncCalendly'))
+  assert.ok(calendly.includes('current_organization?: string'), 'lee la organización actual devuelta por /users/me')
+  assert.ok(
+    calendly.includes("url.searchParams.set('organization', organizationUri)"),
+    'consulta los eventos de todos los hosts de la organización'
+  )
+  assert.ok(
+    !calendly.includes("url.searchParams.set('user', me.resource.uri)"),
+    'no limita la agenda al propietario personal del token'
+  )
+  assert.ok(
+    calendly.includes("opts.desdeInicio ? 'start_time:desc' : 'start_time:asc'"),
+    'el cron incremental procesa primero la cola reciente y el histórico conserva un cursor estable'
+  )
+})
+
 test('las protecciones existentes siguen intactas (rellenar huecos, nunca reasignar)', () => {
   const bucleCalendly = sync.slice(sync.indexOf("const url = new URL('https://api.calendly.com/scheduled_events')"))
   assert.ok(

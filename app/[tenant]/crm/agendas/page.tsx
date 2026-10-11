@@ -273,23 +273,6 @@ export default function AppointmentsPage() {
       setCurrentUserId(sesion.userId)
     }
 
-    let appointmentsQuery = supabase
-      .from('appointments')
-      .select(`*, contacts(*), setter:setter_id(id, full_name), closer:closer_id(id, full_name)`)
-      .eq('tenant_id', tenantId)
-      .order('appointment_datetime', { ascending: false })
-
-    // Filtro por rol: liderazgo y quien tiene visibilidad de equipo (data_scope='team') ven todo;
-    // el resto (scope 'own') solo lo suyo. Coherente con la RLS de SELECT y con los endpoints de
-    // gestión/reprogramación, que ya respetan el scope 'team'.
-    if (userId && role && !isLeadership(role as AppRole) && scope !== 'team') {
-      if (role === 'closer') {
-        appointmentsQuery = appointmentsQuery.eq('closer_id', userId)
-      } else if (role === 'setter') {
-        appointmentsQuery = appointmentsQuery.eq('setter_id', userId)
-      }
-    }
-
     // SCOPE DE COLABORADOR (capa de datos): un colaborador activo ve SOLO las
     // agendas de SUS contactos atribuidos — no hay selector que quitar ni query
     // param que lo esquive (el backstop es la policy RLS enmendada). Se aplica
@@ -298,9 +281,39 @@ export default function AppointmentsPage() {
     const scopeColab = sesion
       ? await resolverScopeColaborador(supabase, sesion.userId, tenantId)
       : { tipo: 'none' as const }
+    let collaboratorContactIds: string[] = []
     if (scopeColab.tipo === 'collaborator') {
       const contactIds = await contactIdsDeScope(supabase, tenantId, scopeColab)
-      appointmentsQuery = appointmentsQuery.in('contact_id', contactIds ?? [])
+      collaboratorContactIds = contactIds ?? []
+    }
+
+    // Supabase limita por defecto cada SELECT a 1.000 filas. La pantalla no paginaba la consulta:
+    // al crecer el histórico, citas válidas desaparecían sin error. Leemos por páginas con orden
+    // determinista y conservamos exactamente los mismos filtros de rol/tenant en CADA página.
+    // Los lotes de 500 evitan respuestas grandes y el bucle termina en cuanto llega el último.
+    const APPOINTMENTS_PAGE_SIZE = 500
+    const loadAllAppointments = async () => {
+      const rows: AppointmentWithRelations[] = []
+      for (let from = 0; ; from += APPOINTMENTS_PAGE_SIZE) {
+        let query = supabase
+          .from('appointments')
+          .select(`*, contacts(*), setter:setter_id(id, full_name), closer:closer_id(id, full_name)`)
+          .eq('tenant_id', tenantId)
+          .order('appointment_datetime', { ascending: false })
+          .order('id', { ascending: false })
+
+        if (userId && role && !isLeadership(role as AppRole) && scope !== 'team') {
+          if (role === 'closer') query = query.eq('closer_id', userId)
+          else if (role === 'setter') query = query.eq('setter_id', userId)
+        }
+        if (scopeColab.tipo === 'collaborator') query = query.in('contact_id', collaboratorContactIds)
+
+        const page = await query.range(from, from + APPOINTMENTS_PAGE_SIZE - 1)
+        if (page.error) return { data: null, error: page.error }
+        const batch = (page.data ?? []) as AppointmentWithRelations[]
+        rows.push(...batch)
+        if (batch.length < APPOINTMENTS_PAGE_SIZE) return { data: rows, error: null }
+      }
     }
 
     // Consulta auxiliar de ventas (pinta las citas con compra). Para un colaborador, acotada a SUS
@@ -316,7 +329,7 @@ export default function AppointmentsPage() {
     }
 
     const [appRes, usersRes, salesRes] = await Promise.all([
-      appointmentsQuery,
+      loadAllAppointments(),
       supabase.from('users').select('*, roles(key)').eq('is_active', true),
       salesQuery,
     ])

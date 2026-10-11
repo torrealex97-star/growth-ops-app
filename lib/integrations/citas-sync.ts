@@ -681,8 +681,22 @@ export async function syncCalendly(
   if (!token) throw new Error('Falta CALENDLY_API_TOKEN')
   const headers = { Authorization: `Bearer ${token}`, Accept: 'application/json' }
   const meResponse = await fetch('https://api.calendly.com/users/me', { headers, signal: AbortSignal.timeout(15_000) })
-  const me = (await meResponse.json().catch(() => ({}))) as { resource?: { uri?: string }; message?: string }
+  const me = (await meResponse.json().catch(() => ({}))) as {
+    resource?: { uri?: string; current_organization?: string }
+    message?: string
+  }
   if (!meResponse.ok || !me.resource?.uri) throw new Error(me.message || 'Calendly no devolvió el usuario')
+
+  // La agenda del CRM es la agenda de la SUBCUENTA, no la agenda personal de quien creó el
+  // token. `user=<me>` solo devuelve los eventos organizados por esa persona y dejó fuera a los
+  // demás hosts del equipo (48 huecos en una sola semana en WDC). Calendly expone la organización
+  // actual en /users/me; con un token de admin/owner, `organization` devuelve todas sus agendas.
+  // No hacemos fallback silencioso a `user`: mostrar una sincronización verde pero incompleta es
+  // peor que un error accionable. La pantalla de Integraciones debe pedir reconectar con un token
+  // que pueda leer la organización si el proveedor devuelve 403.
+  const organizationUri = text(me.resource.current_organization)
+  if (!organizationUri)
+    throw new Error('Calendly no devolvió la organización. Reconecta Calendly con un usuario administrador.')
 
   // DUEÑO POR MEMBERSHIP, CON MEMORIA. Resolver el email del host eran 2 queries por EVENTO (dos
   // ilike con escape) — la mitad del coste de la pasada, repetido para el mismo host en cada
@@ -708,9 +722,13 @@ export async function syncCalendly(
       break
     }
     const url = new URL('https://api.calendly.com/scheduled_events')
-    url.searchParams.set('user', me.resource.uri)
+    url.searchParams.set('organization', organizationUri)
     url.searchParams.set('count', String(pageSize))
-    url.searchParams.set('sort', 'start_time:asc')
+    // El histórico conserva el orden ascendente para que el cursor recorra todo de forma estable.
+    // El cron incremental empieza por lo más reciente: con el orden ascendente y un deadline de
+    // 20 s reprocesaba diariamente la misma cabeza antigua de la ventana y nunca alcanzaba las
+    // reservas nuevas.
+    url.searchParams.set('sort', opts.desdeInicio ? 'start_time:desc' : 'start_time:asc')
     // Ventana: el botón deja sin min/max (5 años atrás → +1 año); el cron acota por desde.
     url.searchParams.set('min_start_time', new Date(desde).toISOString())
     url.searchParams.set('max_start_time', new Date(hasta).toISOString())
