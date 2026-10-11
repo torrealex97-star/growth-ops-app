@@ -43,7 +43,8 @@ test('contactos y agendas de la vista CRM llevan el scope sin escapatoria', () =
   assert.match(crm, /\.in\('id', contactIds\)/)
   assert.match(crm, /\.in\('contact_id', contactIds\)/)
   const agendas = sinComentarios(leer('app/[tenant]/crm/agendas/page.tsx'))
-  assert.match(agendas, /appointmentsQuery = appointmentsQuery\.in\('contact_id', contactIds \?\? \[\]\)/)
+  assert.match(agendas, /collaboratorContactIds = contactIds \?\? \[\]/)
+  assert.match(agendas, /query = query\.in\('contact_id', collaboratorContactIds\)/)
 })
 
 test('ventas y pagos llevan el scope; la venta auxiliar de agendas también', () => {

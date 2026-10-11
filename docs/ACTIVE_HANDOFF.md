@@ -1,3 +1,23 @@
+# LISTO PARA FUSIONAR · Agendas completas Calendly + GHL (11-oct-2026, Codex)
+
+- **Rama:** `codex/agendas-completas`, desde `origin/main` (`8d99433a`).
+- **Reclamación:** lectura de `crm/agendas`, sincronización Calendly/GHL y regresiones estrictamente
+  relacionadas. No toca MCP, finanzas, VSL ni datos de otros módulos.
+- **Objetivo:** demostrar por qué reuniones existentes en Calendly/GHL no aparecen en CRM, corregir
+  la causa raíz sin duplicar ni inventar citas y verificar proveedor → Supabase → pantalla por tenant.
+- **Hallazgo probado:** para la semana auditada, Calendly devolvía `73` eventos de la organización y
+  Supabase solo tenía `25` de Calendly. La sync pedía `user=<propietario del token>` y omitía a los
+  demás hosts; además el cron recorría la ventana ascendente y el deadline repetía la cabeza antigua.
+- **Corrección:** Calendly usa `current_organization`, el cron incremental prioriza los eventos
+  recientes y el histórico conserva orden ascendente/cursor. La agenda pagina en lotes de 500 con
+  orden determinista, conservando tenant, rol y scope de colaborador, para no perder filas al superar
+  el máximo por respuesta de Supabase. GHL sigue recorriendo todos los calendarios de la ubicación;
+  la corrida observada acabó completa (`cortado=false`).
+- **Verificación:** `npm test` (`1564 pass`, `3 skipped`), `npm run test:metrics` (`788 pass`),
+  `npm run typecheck` y `npm run build` en verde. El build solo conserva warnings preexistentes.
+- **Operación posterior al despliegue:** ejecutar el histórico de Calendly hasta agotar su cursor y el
+  histórico de GHL; después conciliar por semana/proveedor y verificar el calendario en producción.
+
 # CERRADO EN RAMA · Advisors de Supabase cerrados en producción (10-oct-2026, Buffy)
 
 - **Migración `advisor_cleanup` (`20261010100000`) aplicada en producción vía MCP Supabase
