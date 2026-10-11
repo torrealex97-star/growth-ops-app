@@ -18,9 +18,10 @@ interface SidebarProps {
   user: User & { roles: { key: string; name: string } }
   isOpen: boolean
   onClose: () => void
+  isSuperAdmin?: boolean
 }
 
-export function Sidebar({ user, isOpen, onClose }: SidebarProps) {
+export function Sidebar({ user, isOpen, onClose, isSuperAdmin = false }: SidebarProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const tenant = useTenant()
@@ -32,8 +33,8 @@ export function Sidebar({ user, isOpen, onClose }: SidebarProps) {
   const deptOverrides = u?.dept_overrides
   const pageOverrides = u?.page_overrides
   const isVisible = useMemo(
-    () => makeNavFilter(role, deptOverrides, pageOverrides),
-    [role, deptOverrides, pageOverrides]
+    () => makeNavFilter(role, deptOverrides, pageOverrides, isSuperAdmin),
+    [role, deptOverrides, pageOverrides, isSuperAdmin]
   )
   // NAV_SECTIONS es estática y `isVisible` solo cambia si cambian rol/overrides — sin memo, cada
   // render del Sidebar (incluido cada toggle de una sola sección) recorría y filtraba TODO el

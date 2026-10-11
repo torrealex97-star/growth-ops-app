@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+import { makeNavFilter, visibleNavItems } from '../lib/nav.ts'
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
 const read = (p) => readFileSync(join(root, p), 'utf8')
@@ -28,6 +29,35 @@ test('Funnels está en el menú, en los prefijos y en el catálogo de páginas',
   const permissions = read('lib/auth/permissions.ts')
   assert.match(permissions, /'\/funnels'/)
   assert.match(permissions, /href: '\/funnels', label: 'Funnels'/)
+})
+
+test('el superadmin ve Funnels y toda la navegación aunque su perfil tenga overrides restrictivos', () => {
+  const filtro = makeNavFilter('closer', ['/crm'], ['/crm/agendas'], true)
+  const visibles = visibleNavItems(filtro)
+
+  assert.ok(
+    visibles.some((item) => item.href === '/funnels'),
+    'Funnels queda oculto para el superadmin'
+  )
+  assert.ok(
+    visibles.some((item) => item.href === '/settings'),
+    'Configuración queda oculta para el superadmin'
+  )
+  assert.ok(
+    visibles.some((item) => item.href === '/finanzas/analitica/resumen'),
+    'Finanzas queda oculta para el superadmin'
+  )
+})
+
+test('un usuario normal conserva el filtro de rol y overrides', () => {
+  const filtro = makeNavFilter('closer', ['/crm'], ['/crm/agendas'])
+  const visibles = visibleNavItems(filtro)
+
+  assert.ok(visibles.some((item) => item.href === '/crm/agendas'))
+  assert.equal(
+    visibles.some((item) => item.href === '/funnels'),
+    false
+  )
 })
 
 // La capa canónica distingue cuatro estados. Si la pantalla los pintara igual, distinguirlos en el

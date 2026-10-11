@@ -259,7 +259,7 @@ export function Header({ user, onMenuClick, title, isSuperAdmin }: HeaderProps) 
       </div>
 
       <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-        <GlobalSearch user={user} />
+        <GlobalSearch user={user} isSuperAdmin={isSuperAdmin} />
         <FeedbackDialog />
         <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
           <PopoverTrigger asChild>

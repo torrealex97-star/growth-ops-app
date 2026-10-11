@@ -466,7 +466,12 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
       <ScriptQueueProvider>
         <VerComoShim tenant={tenant}>
           <div className="flex h-screen bg-background text-foreground overflow-hidden" data-theme="os">
-            <Sidebar user={user} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+            <Sidebar
+              user={user}
+              isOpen={sidebarOpen}
+              onClose={() => setSidebarOpen(false)}
+              isSuperAdmin={isSuperAdmin}
+            />
             <div className="flex flex-col flex-1 overflow-hidden">
               <Header user={user} onMenuClick={() => setSidebarOpen(true)} isSuperAdmin={isSuperAdmin} />
               <main className="flex-1 overflow-y-auto p-4 lg:p-6">{children}</main>
