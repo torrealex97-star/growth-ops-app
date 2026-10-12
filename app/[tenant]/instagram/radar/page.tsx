@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { AlertTriangle, ArrowUpRight, Gauge, Loader2, RefreshCw, Sparkles, TrendingUp } from 'lucide-react'
 import { useTenant } from '@/lib/tenant-context'
 import { formatNumber } from '@/lib/utils'
+import { ExternalThumbnail } from '@/components/social/ExternalThumbnail'
 
 type RadarPost = {
   id: string
@@ -140,9 +141,7 @@ export default function RadarPage() {
                         {index + 1}
                       </div>
                       <div className="aspect-[4/5] overflow-hidden rounded-lg bg-muted">
-                        {post.thumbnail_url ? (
-                          <img src={post.thumbnail_url} alt="" className="h-full w-full object-cover" />
-                        ) : null}
+                        <ExternalThumbnail src={post.thumbnail_url} className="h-full w-full object-cover" />
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">

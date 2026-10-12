@@ -27,6 +27,7 @@ import {
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar } from 'recharts'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { formatNumber, formatDateTime } from '@/lib/utils'
+import { ExternalThumbnail } from '@/components/social/ExternalThumbnail'
 
 type Media = {
   id: string
@@ -594,13 +595,10 @@ export default function InstagramPage() {
           {sorted.map((m) => (
             <div key={m.id} className="rounded-xl border border-border bg-card/50">
               <div className="flex gap-4 p-3">
-                {m.thumbnail_url ? (
-                  <img src={m.thumbnail_url} alt="" className="w-16 h-20 object-cover rounded-lg bg-muted shrink-0" />
-                ) : (
-                  <div className="w-16 h-20 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                    <Play className="w-5 h-5 text-muted-foreground" />
-                  </div>
-                )}
+                <ExternalThumbnail
+                  src={m.thumbnail_url}
+                  className="h-20 w-16 shrink-0 rounded-lg bg-muted object-cover"
+                />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-sm text-foreground line-clamp-2">
@@ -967,17 +965,10 @@ export default function InstagramPage() {
               <DialogContent className="max-w-2xl w-full max-h-[85vh] overflow-y-auto gap-0 p-5">
                 <DialogHeader className="flex-row items-start justify-between gap-3 space-y-0">
                   <div className="flex gap-3 min-w-0">
-                    {detail.thumbnail_url ? (
-                      <img
-                        src={detail.thumbnail_url}
-                        alt=""
-                        className="w-14 h-14 object-cover rounded-lg bg-muted shrink-0"
-                      />
-                    ) : (
-                      <div className="w-14 h-14 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                        <Play className="w-5 h-5 text-muted-foreground" />
-                      </div>
-                    )}
+                    <ExternalThumbnail
+                      src={detail.thumbnail_url}
+                      className="h-14 w-14 shrink-0 rounded-lg bg-muted object-cover"
+                    />
                     <div className="min-w-0">
                       <DialogTitle asChild>
                         <p className="text-sm text-foreground line-clamp-2">{detail.caption || 'Sin descripción'}</p>
