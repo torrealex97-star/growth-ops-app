@@ -1,6 +1,8 @@
-# VALIDADO EN RAMA · Radar diario seguro y observable (12-oct-2026, Codex)
+# CERRADO, FUSIONADO, DESPLEGADO Y VERIFICADO · Radar diario seguro y observable (12-oct-2026, Codex)
 
-- **Rama:** `codex/instagram-radar-automation`, desde `origin/main` (`892836e6`).
+- **Git/producción:** PR #453 fusionado en `main` (`8f7a8b75`). Vercel
+  `growth-ops-app` desplegado `Ready` como `dpl_DFuoZCtRBpMGEgcKjwNwmPdJFZDP` y verificado en
+  `app.scalixsystems.com`.
 - **Alcance:** automatización y salud del Radar externo de Instagram, configuración Apify,
   `SYNC_DEFS`, workflow delegado y pruebas. No toca la sync oficial de la cuenta propia, VSL, CRM,
   finanzas ni esquema de Supabase.
@@ -16,10 +18,15 @@
   la hora real de la última observación. Apify incorpora la sync `social-radar` a su salud operativa;
   un hueco sigue sin convertirse en cero.
 - **TESTED:** 37/37 focales PASS; `npm run quality` PASS (1.584 tests + 3 skipped y métricas);
-  `npm run build` PASS. Sin migración y sin ejecutar ningún Actor de pago.
-- **Siguiente exacto:** revisar diff, abrir PR, fusionar solo con CI verde, verificar el deployment
-  de `growth-ops-app` y hacer smoke autenticado de Radar e Integraciones. Para empezar a consumir
-  datos diarios, un administrador debe activar el toggle y guardar los perfiles conscientemente.
+  `npm run build` PASS; CI, secretos, build con entorno real, Smoke E2E y release gate PASS. Smoke
+  autenticado de Radar e Integraciones PASS, sin errores ni warnings de consola. Sin migración y sin
+  ejecutar ningún Actor de pago.
+- **Estado operativo:** el Radar permanece correctamente desactivado y con coste cero en WDC. Para
+  empezar a consumir datos diarios, un administrador debe activar conscientemente el toggle y
+  guardar los perfiles de referencia; la cuenta propia seguirá excluida.
+- **Siguiente exacto:** decidir y autorizar los perfiles públicos a vigilar; después activar el
+  Radar en WDC y comprobar al día siguiente cobertura, coste real y salud `social-radar` antes de
+  ampliar límites.
 
 # DESPLEGADO Y VERIFICADO · Instagram Intelligence + fallback de miniaturas (12-oct-2026, Codex)
 
