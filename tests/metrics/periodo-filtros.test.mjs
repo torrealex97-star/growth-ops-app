@@ -196,7 +196,7 @@ test('las vistas operativas reutilizan el mismo selector visual de rango', () =>
 })
 
 test('los filtros de un solo día también usan el calendario visual compartido', () => {
-  for (const rel of ['components/kpi/KPIReportPanel.tsx', 'app/[tenant]/instagram/reels/page.tsx']) {
+  for (const rel of ['components/kpi/KPIReportPanel.tsx', 'components/social/ReelsWorkspace.tsx']) {
     const page = readFileSync(new URL(`../../${rel}`, import.meta.url), 'utf8')
     assert.match(page, /CalendarPopover/, `${rel} no usa el calendario visual compartido`)
     assert.doesNotMatch(page, /type="date"/, `${rel} conserva un filtro de fecha nativo`)

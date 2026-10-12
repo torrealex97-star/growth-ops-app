@@ -315,7 +315,8 @@ test('la UI de investigación declara la fuente y no mezcla la cuenta propia', (
 test('la pestaña Investigación está en el layout sin tocar las pestañas oficiales', () => {
   const layout = read('app/[tenant]/instagram/layout.tsx')
   assert.ok(layout.includes('/instagram/investigacion'))
-  assert.ok(layout.includes('/instagram/reels'))
+  assert.ok(layout.includes('/instagram/radar'))
+  assert.ok(!layout.includes('/instagram/reels'))
   assert.ok(layout.includes('/instagram/competencia'))
 })
 

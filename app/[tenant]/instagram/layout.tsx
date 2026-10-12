@@ -8,7 +8,6 @@ const TABS: RouteTab[] = [
   { label: 'Rendimiento', href: '/instagram', match: '/instagram', exact: true },
   { label: 'Radar diario', href: '/instagram/radar', match: '/instagram/radar' },
   { label: 'Analizar reel', href: '/instagram/investigacion', match: '/instagram/investigacion' },
-  { label: 'Reels del día', href: '/instagram/reels', match: '/instagram/reels' },
   { label: 'Carruseles y Flyers', href: '/instagram/carruseles', match: '/instagram/carruseles' },
   { label: 'Competencia', href: '/instagram/competencia', match: '/instagram/competencia' },
 ]

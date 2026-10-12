@@ -12,7 +12,7 @@ export interface RouteTab {
   /**
    * Si es true, solo se marca activa con coincidencia EXACTA (no por prefijo). Necesario cuando
    * la ruta de esta pestaña es también el prefijo del grupo entero (p.ej. '/instagram' es a la vez
-   * la pestaña "Rendimiento" y el prefijo de '/instagram/reels', '/instagram/carruseles'...).
+   * la pestaña "Rendimiento" y el prefijo de '/instagram/radar', '/instagram/carruseles'...).
    */
   exact?: boolean
 }

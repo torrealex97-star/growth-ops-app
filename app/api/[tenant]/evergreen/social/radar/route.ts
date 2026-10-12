@@ -5,7 +5,7 @@ import { engagementRate, rankRadarPosts } from '@/lib/social/intelligence'
 import { getTenantConfig } from '@/lib/config'
 import { isRadarAutoEnabled, parseRadarUsernames, RADAR_AUTO_JOB } from '@/lib/social/radar-auto'
 
-const ALLOWED_ROLES = ['admin', 'director', 'manager', 'marketing']
+const ALLOWED_ROLES = ['admin', 'director', 'manager', 'marketing', 'editor']
 const svc = () => createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
