@@ -88,6 +88,19 @@ export type ApifyRun = {
   statusMessage?: string | null
 }
 
+export type ApifyFinalStatus = 'completed' | 'failed' | 'aborted'
+
+/** Traduce únicamente estados terminales documentados por Apify. Los estados transitorios
+ * (`READY`, `RUNNING`, `TIMING-OUT`, `ABORTING`) permanecen pendientes y nunca fuerzan una
+ * descarga prematura del dataset. */
+export function apifyFinalStatus(status: string): ApifyFinalStatus | null {
+  const normalized = status.trim().toUpperCase()
+  if (normalized === 'SUCCEEDED') return 'completed'
+  if (normalized === 'FAILED' || normalized === 'TIMED-OUT') return 'failed'
+  if (normalized === 'ABORTED') return 'aborted'
+  return null
+}
+
 export const ApifyService = {
   /** §4: valida conexión sin gastar dinero — lee los datos de usuario del token. */
   async validateConnection(token: string): Promise<{ ok: boolean; username?: string; error?: string }> {
@@ -581,4 +594,73 @@ export async function processRunResults(
     if (stateError) console.error('No se pudo guardar el fallo del job Apify:', stateError.message)
     return { ok: false, error: msg, jobId: job.id }
   }
+}
+
+export type ReconcileResearchJobsResult = {
+  checked: number
+  completed: number
+  failed: number
+  aborted: number
+  pending: number
+  errors: number
+}
+
+/**
+ * Red de seguridad para runs cuyo webhook no llegó o no pudo entregarse. Consulta un conjunto
+ * pequeño de jobs ya conocidos por la app, lee SU estado en Apify y reutiliza el mismo procesador
+ * idempotente del webhook. No crea runs ni aumenta consumo del proveedor.
+ */
+export async function reconcileResearchJobs(
+  sb: SupabaseClient,
+  cfg: ApifyConfig,
+  tenantId: string,
+  maxJobs = 3
+): Promise<ReconcileResearchJobsResult> {
+  const summary: ReconcileResearchJobsResult = {
+    checked: 0,
+    completed: 0,
+    failed: 0,
+    aborted: 0,
+    pending: 0,
+    errors: 0,
+  }
+  const limit = Math.min(Math.max(1, maxJobs), 5)
+  const { data: jobs, error } = await sb
+    .from('social_research_jobs')
+    .select('provider_run_id')
+    .eq('tenant_id', tenantId)
+    .eq('provider', 'apify')
+    .in('status', ['pending', 'processing'])
+    .not('provider_run_id', 'is', null)
+    .order('created_at', { ascending: true })
+    .limit(limit)
+  if (error) throw new Error('No se pudieron consultar los trabajos pendientes de Apify')
+
+  for (const job of jobs || []) {
+    const runId = job.provider_run_id as string | null
+    if (!runId) continue
+    summary.checked++
+    try {
+      const run = await ApifyService.getRun(runId, cfg.token)
+      const finalStatus = apifyFinalStatus(run.status)
+      if (!finalStatus) {
+        summary.pending++
+        continue
+      }
+      const result = await processRunResults(sb, cfg, runId, {
+        finalStatus,
+        errorMessage: run.statusMessage || undefined,
+      })
+      if (!result.ok) {
+        summary.errors++
+        continue
+      }
+      summary[finalStatus]++
+    } catch {
+      // Un fallo de red no debe convertir un run válido en failed ni provocar otro Actor. La
+      // siguiente ejecución vuelve a consultar exactamente el mismo provider_run_id.
+      summary.errors++
+    }
+  }
+  return summary
 }

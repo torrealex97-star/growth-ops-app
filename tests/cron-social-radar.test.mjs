@@ -55,6 +55,7 @@ test('el cron exige CRON_SECRET, lee el opt-in local y limita el gasto global', 
   assert.equal(RADAR_AUTO_MAX_JOBS_PER_RUN, 3)
   assert.match(route, /Promise\.allSettled/)
   assert.match(route, /recordSyncRun/)
+  assert.match(route, /reconcileResearchJobs\(sb, cfg, tenant\.id\)/)
   assert.match(route, /dedupeScope: radarDailyDedupeScope\(\)/)
   assert.doesNotMatch(route, /process\.env\.APIFY_RADAR_AUTO_ENABLED/)
 })
