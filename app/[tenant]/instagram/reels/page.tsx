@@ -24,6 +24,7 @@ import Link from 'next/link'
 import { testimonioPitch, type Testimonio } from '@/lib/testimonios-shared'
 import { useTenant } from '@/lib/tenant-context'
 import { CalendarPopover } from '@/components/ui/calendar-popover'
+import { ExternalThumbnail } from '@/components/social/ExternalThumbnail'
 
 type Draft = {
   id: string
@@ -222,13 +223,10 @@ export default function ReelsDelDiaPage() {
             return (
               <div key={d.id} className="rounded-xl border border-border bg-card/50 flex flex-col overflow-hidden">
                 <div className="flex gap-3 p-4 border-b border-border">
-                  {d.thumbnail_url ? (
-                    <img src={d.thumbnail_url} alt="" className="w-16 h-20 object-cover rounded-lg bg-muted shrink-0" />
-                  ) : (
-                    <div className="w-16 h-20 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                      <Play className="w-5 h-5 text-muted-foreground" />
-                    </div>
-                  )}
+                  <ExternalThumbnail
+                    src={d.thumbnail_url}
+                    className="h-20 w-16 shrink-0 rounded-lg bg-muted object-cover"
+                  />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-medium text-foreground truncate">

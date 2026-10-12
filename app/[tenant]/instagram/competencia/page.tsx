@@ -33,6 +33,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useScriptQueue } from '@/components/os/ScriptQueue'
 import { useTenant, useTenantId } from '@/lib/tenant-context'
 import { formatNumber, formatDateTime } from '@/lib/utils'
+import { ExternalThumbnail } from '@/components/social/ExternalThumbnail'
 
 type Competitor = {
   id: string
@@ -625,13 +626,10 @@ export default function CompetenciaPage() {
                   </span>
                 )}
                 <div className="flex gap-3 p-3 pl-10">
-                  {m.thumbnail_url ? (
-                    <img src={m.thumbnail_url} alt="" className="w-16 h-20 object-cover rounded-lg bg-muted shrink-0" />
-                  ) : (
-                    <div className="w-16 h-20 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                      <Play className="w-5 h-5 text-muted-foreground" />
-                    </div>
-                  )}
+                  <ExternalThumbnail
+                    src={m.thumbnail_url}
+                    className="h-20 w-16 shrink-0 rounded-lg bg-muted object-cover"
+                  />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-foreground line-clamp-3">
                       {m.caption || <span className="text-muted-foreground">Sin descripción</span>}

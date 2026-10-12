@@ -16,6 +16,7 @@ import { toast } from 'sonner'
 import { useTenant } from '@/lib/tenant-context'
 import { formatNumber } from '@/lib/utils'
 import { SOURCE_LABEL } from '@/lib/social/types'
+import { ExternalThumbnail } from '@/components/social/ExternalThumbnail'
 
 type Job = { id: string; status: string; created_at: string }
 type Analysis = { hook: string; estructura: string; tema: string; por_que_funciona: string; tags: string[] }
@@ -155,18 +156,13 @@ export default function AnalyzeReelPage() {
       {latest ? (
         <section className="grid gap-6 xl:grid-cols-[minmax(280px,0.8fr)_minmax(0,1.6fr)]">
           <article className="dashboard-card overflow-hidden p-0">
-            <div className="aspect-[4/5] bg-muted">
-              {latest.thumbnail_url ? (
-                <img
-                  src={latest.thumbnail_url}
-                  alt="Miniatura del reel analizado"
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center text-muted-foreground">
-                  <Play className="h-10 w-10" />
-                </div>
-              )}
+            <div className="aspect-[4/5] overflow-hidden bg-muted">
+              <ExternalThumbnail
+                src={latest.thumbnail_url}
+                alt="Miniatura del reel analizado"
+                className="h-full w-full object-cover"
+                showLabel
+              />
             </div>
             <div className="space-y-3 p-5">
               <div className="flex items-center justify-between gap-3">
