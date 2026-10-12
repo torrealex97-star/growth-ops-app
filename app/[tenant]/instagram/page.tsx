@@ -597,6 +597,7 @@ export default function InstagramPage() {
               <div className="flex gap-4 p-3">
                 <ExternalThumbnail
                   src={m.thumbnail_url}
+                  permalink={m.permalink}
                   className="h-20 w-16 shrink-0 rounded-lg bg-muted object-cover"
                 />
                 <div className="flex-1 min-w-0">
@@ -967,6 +968,7 @@ export default function InstagramPage() {
                   <div className="flex gap-3 min-w-0">
                     <ExternalThumbnail
                       src={detail.thumbnail_url}
+                      permalink={detail.permalink}
                       className="h-14 w-14 shrink-0 rounded-lg bg-muted object-cover"
                     />
                     <div className="min-w-0">

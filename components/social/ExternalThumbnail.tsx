@@ -1,22 +1,33 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ImageOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { instagramThumbnailFromPermalink } from '@/lib/social/thumbnail'
 
 type ExternalThumbnailProps = {
   src: string | null | undefined
+  permalink?: string | null
   alt?: string
   className?: string
   showLabel?: boolean
 }
 
-export function ExternalThumbnail({ src, alt = '', className, showLabel = false }: ExternalThumbnailProps) {
-  const [failed, setFailed] = useState(false)
+export function ExternalThumbnail({ src, permalink, alt = '', className, showLabel = false }: ExternalThumbnailProps) {
+  const sources = useMemo(
+    () =>
+      Array.from(
+        new Set([src, instagramThumbnailFromPermalink(permalink)].filter((value): value is string => !!value))
+      ),
+    [permalink, src]
+  )
+  const [attempt, setAttempt] = useState(0)
 
-  useEffect(() => setFailed(false), [src])
+  useEffect(() => setAttempt(0), [permalink, src])
 
-  if (!src || failed) {
+  const currentSrc = sources[attempt]
+
+  if (!currentSrc) {
     return (
       <div
         role={alt ? 'img' : undefined}
@@ -35,13 +46,13 @@ export function ExternalThumbnail({ src, alt = '', className, showLabel = false 
   return (
     // eslint-disable-next-line @next/next/no-img-element -- URLs externas efímeras: no se proxyfican para evitar coste y cachear recursos caducados.
     <img
-      src={src}
+      src={currentSrc}
       alt={alt}
       className={className}
       loading="lazy"
       decoding="async"
       referrerPolicy="no-referrer"
-      onError={() => setFailed(true)}
+      onError={() => setAttempt((current) => current + 1)}
     />
   )
 }

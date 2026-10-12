@@ -676,6 +676,7 @@ export function CompetitorWorkspace() {
                 <div className="flex gap-3 p-3 pl-10">
                   <ExternalThumbnail
                     src={m.thumbnail_url}
+                    permalink={m.permalink}
                     className="h-20 w-16 shrink-0 rounded-lg bg-muted object-cover"
                   />
                   <div className="flex-1 min-w-0">
