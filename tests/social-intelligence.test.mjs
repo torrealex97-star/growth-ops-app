@@ -94,7 +94,7 @@ test('las miniaturas externas caducadas prueban una portada fresca antes del est
   assert.equal(instagramThumbnailFromPermalink('https://www.instagram.com/paulattier/'), null)
   assert.equal(
     instagramThumbnailResolverFromPermalink('https://www.instagram.com/reel/ABC_123/'),
-    '/api/social/instagram-thumbnail?code=ABC_123'
+    '/api/social/instagram-thumbnail?code=ABC_123&v=2'
   )
 
   for (const sourcePath of [
