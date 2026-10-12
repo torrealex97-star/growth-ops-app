@@ -1,14 +1,29 @@
-# EN CURSO · Workspace diario de Instagram: Radar + Competidores + Producción (12-oct-2026, Codex)
+# CERRADO, FUSIONADO, DESPLEGADO Y VERIFICADO · Workspace diario de Instagram (12-oct-2026, Codex)
 
-- **Rama única:** `codex/unify-instagram-workspace`, desde `origin/main` (`69788ee7`).
-- **Reclamación:** `app/[tenant]/instagram/{layout,radar,competencia}`, `components/social/ContentRadarWorkspace`,
-  extracción de la UI existente de Competencia, navegación/permisos y regresiones del módulo.
-- **Objetivo:** una sola superficie diaria con el recorrido `Detectar → Vigilar → Producir`, sin
-  mezclar ni reinterpretar las fuentes de Meta Business Discovery y la investigación externa.
-- **Guardas:** sin migraciones ni cambios de ingesta; cada modo carga solo cuando se abre; error,
-  vacío y carga deben ser estados distintos; las URLs históricas redirigen sin romper favoritos.
-- **Siguiente exacto:** extraer Competencia a un workspace cargado bajo demanda, añadir el tercer
-  modo URL-backed, retirar la navegación duplicada y verificar funcionalidad, responsive y build.
+- **Git/producción:** PR #461 fusionado en `main` (`b11a96cc`). Vercel `growth-ops-app` desplegado
+  `Ready` como `dpl_FTyG5V4G5qYyUgpY6Znhd6CeuN7A`; alias `app.scalixsystems.com` confirmado sin
+  error. Se usó únicamente el despliegue automático del merge, sin lanzar builds duplicados.
+- **Resultado:** `Radar de contenido` es la única superficie diaria y ordena el trabajo en tres modos
+  URL-backed: `Oportunidades → Competidores → Producción`. Competidores conserva alta, borrado,
+  actualización, filtrado, selección múltiple, transcripción, creación de guiones, CTAs, testimonios
+  y guardado como idea. La URL histórica `/instagram/competencia` redirige al modo correcto y los
+  overrides de permisos antiguos se normalizan sin perder acceso.
+- **Claridad de datos:** Oportunidades mantiene la investigación externa y Competidores declara Meta
+  Business Discovery como fuente. La interfaz explicita que la API no ofrece visualizaciones de
+  terceros; no mezcla cifras ni presenta ausencia como cero. Carga, vacío y error tienen estados
+  separados con reintento visible.
+- **Rendimiento/UX:** Competidores y Producción se cargan bajo demanda. `Actualizar todos` sincroniza
+  perfiles de forma acotada y refresca la biblioteca una sola vez. Formularios, acciones y filtros son
+  responsive, accesibles y conservan la jerarquía `Detectar → Vigilar → Producir`.
+- **TESTED:** 50/50 regresiones focales PASS; `npm run quality`, typecheck, lint, build y dead-code
+  PASS; CI completo, secretos, build con entorno real, Smoke E2E Playwright y release gate PASS.
+  La ruta Radar queda en 8,54 kB / 124 kB First Load JS. Sin migraciones ni cambios de ingesta.
+- **Smoke autenticado de producción:** redirect histórico correcto; Competidores carga la biblioteca
+  real de `@paulattier`; Oportunidades carga 9 candidatos, 92% de cobertura y 3 perfiles automáticos;
+  Producción carga filtros y empty state accionable. Verificado a 400 px sin overflow horizontal y
+  sin errores ni warnings de consola.
+- **Siguiente exacto:** uso diario y observación normal. No se necesita ninguna acción de Alex ni
+  queda trabajo funcional abierto en esta consolidación.
 
 # CERRADO, FUSIONADO, DESPLEGADO Y VERIFICADO · Radar diario + Reels del día (12-oct-2026, Codex)
 
