@@ -1,3 +1,20 @@
+# EN CURSO · Recuperación de miniaturas caducadas de Instagram (12-oct-2026, Codex)
+
+- **Rama:** `codex/instagram-thumbnail-recovery`, nacida de `origin/main` (`7948d7c2`).
+- **Causa:** Meta/Instagram guarda miniaturas como URLs firmadas de CDN con caducidad. La interfaz
+  solo probaba esa URL y, al expirar, degradaba directamente a `Miniatura no disponible` aunque el
+  reel siguiera siendo público.
+- **Solución:** `ExternalThumbnail` conserva la URL almacenada como primera opción y deriva del
+  permalink una segunda portada fresca mediante el endpoint público de media de Instagram. El
+  fallback se aplica en Rendimiento, detalle, Radar, Competidores, Producción e Investigación.
+- **Guardas:** hostname validado contra `instagram.com`, shortcode validado, máximo dos intentos,
+  `no-referrer`, carga lazy y placeholder final honesto para reels privados, borrados o inaccesibles.
+  No hay proxy, almacenamiento, migración ni consumo adicional de Vercel Functions.
+- **TESTED local:** endpoint público comprobado con respuesta `200 image/jpeg`; 28/28 regresiones
+  sociales PASS; `npm run quality`, typecheck, lint, build y dead-code PASS.
+- **Siguiente exacto:** fusionar en `main`, esperar el único deployment automático de Vercel y
+  comprobar en producción que las URLs caducadas avanzan al fallback y renderizan píxeles reales.
+
 # CERRADO, FUSIONADO, DESPLEGADO Y VERIFICADO · Workspace diario de Instagram (12-oct-2026, Codex)
 
 - **Git/producción:** PR #461 fusionado en `main` (`b11a96cc`). Vercel `growth-ops-app` desplegado

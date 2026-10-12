@@ -9,6 +9,7 @@ import {
   viewsPerHour,
 } from '../lib/social/intelligence.ts'
 import { InstagramReelsAdapter } from '../lib/social/normalize.ts'
+import { instagramThumbnailFromPermalink } from '../lib/social/thumbnail.ts'
 import { readFileSync } from 'node:fs'
 
 test('normaliza reels de Instagram sin conservar parámetros de tracking', () => {
@@ -74,11 +75,23 @@ test('la migración conserva null, RLS, tenant scope e índices para radar', () 
   assert.match(sql, /views_count is null or views_count >= 0/)
 })
 
-test('las miniaturas externas caducadas degradan a un estado limpio en toda la sección', () => {
+test('las miniaturas externas caducadas prueban una portada fresca antes del estado vacío', () => {
   const thumbnail = readFileSync(new URL('../components/social/ExternalThumbnail.tsx', import.meta.url), 'utf8')
-  assert.match(thumbnail, /onError=\{\(\) => setFailed\(true\)\}/)
+  assert.match(thumbnail, /instagramThumbnailFromPermalink/)
+  assert.match(thumbnail, /onError=\{\(\) => setAttempt\(\(current\) => current \+ 1\)\}/)
   assert.match(thumbnail, /referrerPolicy="no-referrer"/)
   assert.match(thumbnail, /Miniatura no disponible/)
+
+  assert.equal(
+    instagramThumbnailFromPermalink('https://www.instagram.com/reel/ABC_123/?igsh=tracking'),
+    'https://www.instagram.com/p/ABC_123/media/?size=l'
+  )
+  assert.equal(
+    instagramThumbnailFromPermalink('https://instagram.com/paulattier/p/XYZ-9/'),
+    'https://www.instagram.com/p/XYZ-9/media/?size=l'
+  )
+  assert.equal(instagramThumbnailFromPermalink('https://instagram.com.evil.example/reel/ABC/'), null)
+  assert.equal(instagramThumbnailFromPermalink('https://www.instagram.com/paulattier/'), null)
 
   for (const sourcePath of [
     'app/[tenant]/instagram/page.tsx',
@@ -89,6 +102,7 @@ test('las miniaturas externas caducadas degradan a un estado limpio en toda la s
   ]) {
     const source = readFileSync(new URL(`../${sourcePath}`, import.meta.url), 'utf8')
     assert.match(source, /ExternalThumbnail/, `${sourcePath} debe usar el fallback compartido`)
+    assert.match(source, /permalink=/, `${sourcePath} debe aportar el permalink para recuperar la portada`)
   }
 
   const investigation = readFileSync(

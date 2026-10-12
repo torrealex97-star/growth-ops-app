@@ -225,6 +225,7 @@ export function ReelsWorkspace() {
                 <div className="flex gap-3 p-4 border-b border-border">
                   <ExternalThumbnail
                     src={d.thumbnail_url}
+                    permalink={d.source_permalink}
                     className="h-20 w-16 shrink-0 rounded-lg bg-muted object-cover"
                   />
                   <div className="flex-1 min-w-0">

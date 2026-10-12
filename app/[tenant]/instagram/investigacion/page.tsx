@@ -159,6 +159,7 @@ export default function AnalyzeReelPage() {
             <div className="aspect-[4/5] max-h-[32rem] w-full overflow-hidden bg-muted xl:max-h-none">
               <ExternalThumbnail
                 src={latest.thumbnail_url}
+                permalink={latest.post_url}
                 alt="Miniatura del reel analizado"
                 className="h-full w-full object-cover"
                 showLabel

@@ -251,7 +251,11 @@ export function ContentRadarWorkspace({ initialView }: { initialView: ContentRad
                         {index + 1}
                       </div>
                       <div className="aspect-[4/5] overflow-hidden rounded-lg bg-muted">
-                        <ExternalThumbnail src={post.thumbnail_url} className="h-full w-full object-cover" />
+                        <ExternalThumbnail
+                          src={post.thumbnail_url}
+                          permalink={post.post_url}
+                          className="h-full w-full object-cover"
+                        />
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
