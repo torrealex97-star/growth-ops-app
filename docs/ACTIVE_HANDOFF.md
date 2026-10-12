@@ -1,4 +1,4 @@
-# VALIDADO EN RAMA · Instagram Intelligence — análisis por URL, radar y consolidación UX (12-oct-2026, Codex)
+# LISTO PARA FUSIONAR · Instagram Intelligence — análisis por URL, radar y consolidación UX (12-oct-2026, Codex)
 
 - **Rama única:** `codex/instagram-intelligence`, sobre `origin/main` (`e2959f11`).
 - **Reclamación:** `app/[tenant]/instagram/**`, `app/api/[tenant]/evergreen/social/**`,
@@ -21,14 +21,16 @@
   Apify solo recibe URL/usuarios públicos; no se añadió cron ni procesamiento de vídeo en Vercel.
 - **TESTED:** `npm run typecheck` PASS; `npm run lint` PASS con avisos heredados y dos avisos de
   `<img>` en las nuevas vistas (URLs externas arbitrarias, sin proxy de imágenes); `npm test` PASS
-  (1.575 pass, 0 fail, 3 skip); `npm run build` PASS con acceso de red. Pruebas nuevas cubren URL,
+  (1.577 pass, 0 fail, 3 skip); `npm run build` PASS con acceso de red. Pruebas nuevas cubren URL,
   null≠0, engagement, velocidad, outlier, señal sospechosa, contrato Apify, transcript, RLS e índices.
-- **PENDIENTE DE OPERACIÓN:** aplicar `20261012074534_instagram_intelligence.sql` a Supabase de
-  producción solo con confirmación explícita; después desplegar y ejecutar smoke real con un Reel
-  público autorizado. Sin la migración, las rutas nuevas no deben darse por operativas. El PR #449
-  está abierto y fusionable, pero el release gate remoto falla de forma esperada en
-  `columnas-fantasma` porque compara contra el esquema vivo anterior; no fusionar antes de aplicar
-  la migración y relanzar CI.
+- **PRODUCCIÓN — esquema aplicado y verificado:** con autorización explícita se aplicó
+  `instagram_intelligence` en Supabase `growth-ops-app` (ledger `20261012080220`). Verificados las
+  seis columnas, el tipo de job `reel`, tabla e índices, RLS activo y políticas SELECT/INSERT por
+  tenant. Se aplicó además `instagram_intelligence_post_fk_index` (ledger `20261012080256`) y se
+  verificó el índice dedicado que cubre el borrado en cascada por `post_id`; los avisos restantes del
+  advisor son deuda previa global y no fueron creados por este módulo. Siguiente exacto: relanzar CI
+  del PR #449, fusionar solo en verde, esperar el deploy de `growth-ops-app` y hacer smoke
+  autenticado. El smoke no debe lanzar un Actor de pago sin una URL pública autorizada.
 - **Crédito:** adaptación MIT documentada en `docs/THIRD_PARTY_NOTICES.md`.
 
 # VALIDADO EN RAMA · Navegación completa de superadministrador (11-oct-2026, Codex)
