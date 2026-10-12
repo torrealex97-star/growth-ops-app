@@ -4,6 +4,7 @@ import { requireTenant } from '@/lib/auth/requireTenant'
 import { getTenantConfigWithFallback } from '@/lib/config'
 import { createResearchJob, getApifyConfig, isApifyEnabled } from '@/lib/social/apify'
 import { isSocialJobType, isSocialPlatform, RESEARCH_LIMITS, type ResearchInput } from '@/lib/social/types'
+import { parseSocialVideoUrl } from '@/lib/social/intelligence'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -78,7 +79,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     sb
       .from('social_posts')
       .select(
-        'id, platform, external_id, profile_id, content_type, caption, post_url, thumbnail_url, published_at, views_count, likes_count, comments_count, shares_count, collected_at, source'
+        'id, platform, external_id, profile_id, content_type, caption, post_url, thumbnail_url, published_at, views_count, likes_count, comments_count, shares_count, transcript, analysis_status, analysis_json, analyzed_at, metrics_observed_at, collected_at, source'
       )
       .eq('tenant_id', auth.tenantId)
       .order('published_at', { ascending: false })
@@ -104,6 +105,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     jobType?: string
     usernames?: unknown
     resultsLimit?: number
+    url?: string
   } | null
   if (!body) return NextResponse.json({ error: 'payload inválido' }, { status: 400 })
   if (!isSocialPlatform(body.platform)) return NextResponse.json({ error: 'plataforma no soportada' }, { status: 400 })
@@ -112,7 +114,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   const usernames = Array.isArray(body.usernames)
     ? body.usernames.map((u) => String(u).trim().replace(/^@/, '')).filter(Boolean)
     : []
-  if (!usernames.length) return NextResponse.json({ error: 'Falta al menos un usuario a investigar' }, { status: 400 })
+  const parsedUrl = body.jobType === 'reel' && body.url ? parseSocialVideoUrl(body.url) : null
+  if (body.jobType === 'reel') {
+    if (!parsedUrl || parsedUrl.platform !== 'instagram') {
+      return NextResponse.json({ error: 'Introduce una URL pública válida de un reel de Instagram' }, { status: 400 })
+    }
+  } else if (!usernames.length) {
+    return NextResponse.json({ error: 'Falta al menos un usuario a investigar' }, { status: 400 })
+  }
 
   const cfgEnv = await getTenantConfigWithFallback(auth.tenantId, true)
   const cfg = getApifyConfig(cfgEnv)
@@ -138,6 +147,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
 
   const input: ResearchInput = {
     usernames,
+    urls: parsedUrl ? [parsedUrl.canonicalUrl] : undefined,
     resultsLimit: Number(body.resultsLimit) || cfg.resultsLimit,
     jobType: body.jobType,
   }

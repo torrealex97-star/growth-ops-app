@@ -10,7 +10,7 @@
 //  §17 Jamás se envían credenciales de la cuenta propia al Actor.
 //  §23 Logs estructurados sin secretos.
 
-import { randomUUID } from 'crypto'
+import { createHash, randomUUID } from 'crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { adapterFor } from './normalize'
 import {
@@ -193,7 +193,7 @@ export function isApifyEnabled(env: NormalizedEnv): boolean {
 /** Actor necesario para un jobType/plataforma — sin hardcodear nombres (§5). */
 export function actorFor(platform: SocialPlatform, jobType: SocialJobType, cfg: ApifyConfig): string | null {
   if (platform === 'instagram') {
-    if (jobType === 'reels') return cfg.actors.instagram_reels || null
+    if (jobType === 'reel' || jobType === 'reels') return cfg.actors.instagram_reels || null
     return cfg.actors.instagram_profile || null
   }
   if (platform === 'tiktok') return cfg.actors.tiktok || null
@@ -227,7 +227,14 @@ export async function createResearchJob(
     0,
     cfg.maxProfilesPerRun
   )
-  if (!usernames.length) return { ok: false, error: 'Falta el username a investigar', code: 'limites' }
+  const urls = [...new Set((input.urls || []).map((url) => url.trim()).filter(Boolean))].slice(0, 1)
+  if (input.jobType === 'reel' ? !urls.length : !usernames.length) {
+    return {
+      ok: false,
+      error: input.jobType === 'reel' ? 'Falta la URL del reel' : 'Falta el username a investigar',
+      code: 'limites',
+    }
+  }
   const resultsLimit = Math.min(Math.max(1, input.resultsLimit), RESEARCH_LIMITS.maxResultsPerProfile)
 
   // §24: no más de N jobs en marcha a la vez para este tenant.
@@ -243,8 +250,12 @@ export async function createResearchJob(
     return { ok: false, error: 'Ya hay investigaciones en curso: espera a que terminen', code: 'limites' }
   }
 
-  const normalizedInput: ResearchInput = { usernames, resultsLimit, jobType: input.jobType }
-  const idempotencyKey = randomUUID()
+  const normalizedInput: ResearchInput = { usernames, urls, resultsLimit, jobType: input.jobType }
+  // A stable 10-minute window prevents double clicks/retries from launching and billing two runs.
+  const idempotencyWindow = Math.floor(Date.now() / (10 * 60 * 1000))
+  const idempotencyKey = createHash('sha256')
+    .update(`${tenantId}:${platform}:${JSON.stringify(normalizedInput)}:${idempotencyWindow}`)
+    .digest('hex')
 
   const { data: job, error: jobErr } = await sb
     .from('social_research_jobs')
@@ -260,8 +271,25 @@ export async function createResearchJob(
     })
     .select('id')
     .single()
-  if (jobErr || !job)
+  if (jobErr?.code === '23505') {
+    const { data: existing } = await sb
+      .from('social_research_jobs')
+      .select('id, provider_run_id, provider_dataset_id')
+      .eq('tenant_id', tenantId)
+      .eq('idempotency_key', idempotencyKey)
+      .maybeSingle()
+    if (existing?.provider_run_id) {
+      return {
+        ok: true,
+        jobId: existing.id,
+        runId: existing.provider_run_id,
+        datasetId: existing.provider_dataset_id || undefined,
+      }
+    }
+  }
+  if (jobErr || !job) {
     return { ok: false, error: jobErr?.message || 'No se pudo crear el trabajo', code: 'proveedor_error' }
+  }
 
   let run: ApifyRun | null = null
   const startedAt = new Date().toISOString()
@@ -462,15 +490,32 @@ export async function processRunResults(
         comments_count: p.commentsCount ?? null,
         shares_count: p.sharesCount ?? null,
         duration_seconds: p.durationSeconds ?? null,
+        transcript: p.transcript || null,
+        metrics_observed_at: new Date().toISOString(),
         metadata_json: p.metadata || null,
         collected_at: new Date().toISOString(),
         source: 'apify',
         job_id: job.id,
       }
-      const { error: upErr } = await sb
+      const { data: savedPost, error: upErr } = await sb
         .from('social_posts')
         .upsert(row, { onConflict: 'tenant_id,platform,external_id' })
+        .select('id')
+        .single()
       if (upErr) throw new Error(`No se pudo guardar el post ${p.externalId}`)
+      if (savedPost) {
+        const { error: snapshotError } = await sb.from('social_post_metric_snapshots').insert({
+          tenant_id: job.tenant_id,
+          post_id: savedPost.id,
+          observed_at: row.metrics_observed_at,
+          views_count: row.views_count,
+          likes_count: row.likes_count,
+          comments_count: row.comments_count,
+          shares_count: row.shares_count,
+          source: 'apify',
+        })
+        if (snapshotError) throw new Error(`No se pudo guardar el snapshot del post ${p.externalId}`)
+      }
       processed++
     }
 

@@ -118,7 +118,10 @@ export const InstagramProfileAdapter: ActorAdapter = {
 }
 
 export const InstagramReelsAdapter: ActorAdapter = {
-  buildInput: (input, resultsLimit) => ({ usernames: input.usernames, resultsLimit }),
+  buildInput: (input, resultsLimit) =>
+    input.jobType === 'reel'
+      ? { username: input.urls || [], resultsLimit: 1, includeTranscript: true }
+      : { usernames: input.usernames, resultsLimit },
   normalize: (items, usernames) => {
     const posts: NormalizedPost[] = []
     const profiles: NormalizedProfile[] = []
@@ -148,6 +151,7 @@ export const InstagramReelsAdapter: ActorAdapter = {
         commentsCount: num(firstOf(row, ['commentsCount', 'comments', 'commentCount'])),
         sharesCount: num(firstOf(row, ['videoShareCount', 'shareCount', 'shares'])),
         durationSeconds: num(firstOf(row, ['videoDuration', 'duration', 'durationSeconds'])),
+        transcript: str(firstOf(row, ['transcript', 'videoTranscript', 'textTranscript'])),
         metadata: row,
       })
       pushProfileOnce(profiles, seen, username)
@@ -283,7 +287,7 @@ export const YouTubeAdapter: ActorAdapter = {
 /** Adapter por plataforma/tipo — punto único para añadir plataformas y tipos nuevos. */
 export function adapterFor(platform: SocialPlatform, jobType: SocialJobType): ActorAdapter | null {
   if (platform === 'instagram') {
-    if (jobType === 'reels') return InstagramReelsAdapter
+    if (jobType === 'reel' || jobType === 'reels') return InstagramReelsAdapter
     return InstagramProfileAdapter
   }
   if (platform === 'tiktok') return TikTokAdapter

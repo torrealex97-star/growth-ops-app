@@ -9,7 +9,7 @@
 export const SOCIAL_PLATFORMS = ['instagram', 'tiktok', 'youtube'] as const
 export type SocialPlatform = (typeof SOCIAL_PLATFORMS)[number]
 
-export const SOCIAL_JOB_TYPES = ['profile', 'reels', 'posts', 'videos'] as const
+export const SOCIAL_JOB_TYPES = ['profile', 'reel', 'reels', 'posts', 'videos'] as const
 export type SocialJobType = (typeof SOCIAL_JOB_TYPES)[number]
 
 export type SocialJobStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'aborted'
@@ -35,6 +35,7 @@ export const RESEARCH_LIMITS = {
 /** Input normalizado NUESTRO — independiente del proveedor y del Actor (§6). */
 export type ResearchInput = {
   usernames: string[]
+  urls?: string[]
   resultsLimit: number
   jobType: SocialJobType
 }
@@ -68,6 +69,7 @@ export type NormalizedPost = {
   commentsCount?: number
   sharesCount?: number
   durationSeconds?: number
+  transcript?: string
   metadata?: Record<string, unknown>
 }
 
