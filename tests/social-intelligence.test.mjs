@@ -78,7 +78,7 @@ test('la migración conserva null, RLS, tenant scope e índices para radar', () 
 test('las miniaturas externas caducadas prueban una portada fresca antes del estado vacío', () => {
   const thumbnail = readFileSync(new URL('../components/social/ExternalThumbnail.tsx', import.meta.url), 'utf8')
   assert.match(thumbnail, /instagramThumbnailResolverFromPermalink/)
-  assert.match(thumbnail, /onError=\{\(\) => setAttempt\(\(current\) => current \+ 1\)\}/)
+  assert.match(thumbnail, /current === attempt \? current \+ 1 : current/)
   assert.match(thumbnail, /referrerPolicy="no-referrer"/)
   assert.match(thumbnail, /Miniatura no disponible/)
 

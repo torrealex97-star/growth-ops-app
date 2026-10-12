@@ -52,7 +52,7 @@ export function ExternalThumbnail({ src, permalink, alt = '', className, showLab
       loading="lazy"
       decoding="async"
       referrerPolicy="no-referrer"
-      onError={() => setAttempt((current) => current + 1)}
+      onError={() => setAttempt((current) => (current === attempt ? current + 1 : current))}
     />
   )
 }
