@@ -63,6 +63,7 @@ export const SYNCS_BY_GROUP: Record<string, string[]> = {
   email: ['reminders'],
   calendly: ['calendly-citas'],
   ghl: ['ghl-citas'],
+  apify: ['social-radar'],
 }
 
 export function isStale(checkedAt: string | null | undefined, now: number): boolean {

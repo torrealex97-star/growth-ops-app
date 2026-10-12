@@ -22,7 +22,19 @@ type RadarPost = {
 type RadarData = {
   windowHours: number
   posts: RadarPost[]
-  health: { total: number; metricsCoverage: number; status: string; generatedAt: string }
+  health: {
+    total: number
+    metricsCoverage: number
+    status: string
+    generatedAt: string
+    latestObservedAt: string | null
+  }
+  automation: {
+    enabled: boolean
+    configuredTargets: number
+    lastRunStatus: string | null
+    lastRunAt: string | null
+  }
 }
 const metric = (value: number | null, suffix = '') =>
   value == null ? 'No disponible' : `${formatNumber(value, { notation: 'compact', maximumFractionDigits: 1 })}${suffix}`
@@ -103,6 +115,21 @@ export default function RadarPage() {
                       {data.health.metricsCoverage}% cobertura de métricas
                     </span>
                     <span className="rounded-full bg-muted px-3 py-1 text-xs">{data.health.total} candidatos</span>
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs ${
+                        data.automation.enabled && data.automation.configuredTargets > 0
+                          ? 'bg-emerald-500/10 text-emerald-500'
+                          : data.automation.enabled
+                            ? 'bg-amber-500/10 text-amber-500'
+                            : 'bg-muted text-muted-foreground'
+                      }`}
+                    >
+                      {data.automation.enabled
+                        ? data.automation.configuredTargets > 0
+                          ? `Radar automático · ${data.automation.configuredTargets} perfiles`
+                          : 'Radar automático · faltan perfiles'
+                        : 'Radar automático desactivado'}
+                    </span>
                     {leader?.suspicious_reach && (
                       <span className="rounded-full bg-amber-500/10 px-3 py-1 text-xs text-amber-500">
                         Alcance atípico · revisar
@@ -119,6 +146,11 @@ export default function RadarPage() {
                     {leader?.outlier_score != null
                       ? 'sobre la mediana de la muestra del creador'
                       : 'visualizaciones por hora'}
+                  </p>
+                  <p className="mt-4 border-t pt-3 text-xs text-muted-foreground">
+                    {data.health.latestObservedAt
+                      ? `Datos observados ${new Date(data.health.latestObservedAt).toLocaleString('es-ES')}`
+                      : 'Todavía no hay una observación externa disponible'}
                   </p>
                 </div>
               </div>
