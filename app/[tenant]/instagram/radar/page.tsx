@@ -1,6 +1,9 @@
-import { ContentRadarWorkspace } from '@/components/social/ContentRadarWorkspace'
+import { ContentRadarWorkspace, type ContentRadarView } from '@/components/social/ContentRadarWorkspace'
+
+const RADAR_VIEWS = new Set<ContentRadarView>(['oportunidades', 'competidores', 'produccion'])
 
 export default async function RadarPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
   const { view } = await searchParams
-  return <ContentRadarWorkspace initialView={view === 'produccion' ? 'produccion' : 'oportunidades'} />
+  const initialView = RADAR_VIEWS.has(view as ContentRadarView) ? (view as ContentRadarView) : 'oportunidades'
+  return <ContentRadarWorkspace initialView={initialView} />
 }

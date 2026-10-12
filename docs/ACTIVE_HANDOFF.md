@@ -1,3 +1,15 @@
+# EN CURSO · Workspace diario de Instagram: Radar + Competidores + Producción (12-oct-2026, Codex)
+
+- **Rama única:** `codex/unify-instagram-workspace`, desde `origin/main` (`69788ee7`).
+- **Reclamación:** `app/[tenant]/instagram/{layout,radar,competencia}`, `components/social/ContentRadarWorkspace`,
+  extracción de la UI existente de Competencia, navegación/permisos y regresiones del módulo.
+- **Objetivo:** una sola superficie diaria con el recorrido `Detectar → Vigilar → Producir`, sin
+  mezclar ni reinterpretar las fuentes de Meta Business Discovery y la investigación externa.
+- **Guardas:** sin migraciones ni cambios de ingesta; cada modo carga solo cuando se abre; error,
+  vacío y carga deben ser estados distintos; las URLs históricas redirigen sin romper favoritos.
+- **Siguiente exacto:** extraer Competencia a un workspace cargado bajo demanda, añadir el tercer
+  modo URL-backed, retirar la navegación duplicada y verificar funcionalidad, responsive y build.
+
 # CERRADO, FUSIONADO, DESPLEGADO Y VERIFICADO · Radar diario + Reels del día (12-oct-2026, Codex)
 
 - **Git/producción:** PR #459 fusionado en `main` (`9b4ef474`). Vercel `growth-ops-app` desplegado

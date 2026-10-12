@@ -252,7 +252,7 @@ export const NAV_SECTIONS: NavSection[] = [
         children: [
           { label: 'Rendimiento', href: '/instagram', icon: Camera, roles: [...LEAD, 'marketing', 'editor'] },
           {
-            label: 'Radar diario',
+            label: 'Radar de contenido',
             href: '/instagram/radar',
             icon: Radar,
             roles: [...LEAD, 'marketing', 'editor'],
@@ -263,7 +263,6 @@ export const NAV_SECTIONS: NavSection[] = [
             icon: Images,
             roles: [...LEAD, 'marketing', 'editor'],
           },
-          { label: 'Competencia', href: '/instagram/competencia', icon: Radar, roles: [...LEAD, 'marketing'] },
         ],
       },
       { label: 'Contenido', href: '/marketing/contenido', icon: Clapperboard, roles: [...LEAD, 'marketing', 'editor'] },

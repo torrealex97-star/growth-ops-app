@@ -317,7 +317,10 @@ test('la pestaña Investigación está en el layout sin tocar las pestañas ofic
   assert.ok(layout.includes('/instagram/investigacion'))
   assert.ok(layout.includes('/instagram/radar'))
   assert.ok(!layout.includes('/instagram/reels'))
-  assert.ok(layout.includes('/instagram/competencia'))
+  assert.ok(!layout.includes('/instagram/competencia'))
+  const radar = read('components/social/ContentRadarWorkspace.tsx')
+  assert.ok(radar.includes('view=competidores'))
+  assert.ok(radar.includes('<CompetitorWorkspace />'))
 })
 
 // ------------------------------------------------------------------
