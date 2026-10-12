@@ -9,7 +9,7 @@ import {
   viewsPerHour,
 } from '../lib/social/intelligence.ts'
 import { InstagramReelsAdapter } from '../lib/social/normalize.ts'
-import { instagramThumbnailFromPermalink } from '../lib/social/thumbnail.ts'
+import { instagramThumbnailFromPermalink, instagramThumbnailResolverFromPermalink } from '../lib/social/thumbnail.ts'
 import { readFileSync } from 'node:fs'
 
 test('normaliza reels de Instagram sin conservar parámetros de tracking', () => {
@@ -77,7 +77,7 @@ test('la migración conserva null, RLS, tenant scope e índices para radar', () 
 
 test('las miniaturas externas caducadas prueban una portada fresca antes del estado vacío', () => {
   const thumbnail = readFileSync(new URL('../components/social/ExternalThumbnail.tsx', import.meta.url), 'utf8')
-  assert.match(thumbnail, /instagramThumbnailFromPermalink/)
+  assert.match(thumbnail, /instagramThumbnailResolverFromPermalink/)
   assert.match(thumbnail, /onError=\{\(\) => setAttempt\(\(current\) => current \+ 1\)\}/)
   assert.match(thumbnail, /referrerPolicy="no-referrer"/)
   assert.match(thumbnail, /Miniatura no disponible/)
@@ -92,6 +92,10 @@ test('las miniaturas externas caducadas prueban una portada fresca antes del est
   )
   assert.equal(instagramThumbnailFromPermalink('https://instagram.com.evil.example/reel/ABC/'), null)
   assert.equal(instagramThumbnailFromPermalink('https://www.instagram.com/paulattier/'), null)
+  assert.equal(
+    instagramThumbnailResolverFromPermalink('https://www.instagram.com/reel/ABC_123/'),
+    '/api/social/instagram-thumbnail?code=ABC_123'
+  )
 
   for (const sourcePath of [
     'app/[tenant]/instagram/page.tsx',
@@ -110,4 +114,13 @@ test('las miniaturas externas caducadas prueban una portada fresca antes del est
     'utf8'
   )
   assert.match(investigation, /max-h-\[32rem\] w-full.*xl:max-h-none/)
+})
+
+test('el resolvedor de miniaturas solo redirige a CDN oficiales y nunca sirve los bytes', () => {
+  const route = readFileSync(new URL('../app/api/social/instagram-thumbnail/route.ts', import.meta.url), 'utf8')
+  assert.match(route, /redirect: 'manual'/)
+  assert.match(route, /SAFE_IMAGE_HOST/)
+  assert.match(route, /status: 307/)
+  assert.match(route, /s-maxage=86400/)
+  assert.doesNotMatch(route, /arrayBuffer|blob\(|response\.body/)
 })

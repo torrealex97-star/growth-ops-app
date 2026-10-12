@@ -5,15 +5,23 @@
   solo probaba esa URL y, al expirar, degradaba directamente a `Miniatura no disponible` aunque el
   reel siguiera siendo público.
 - **Solución:** `ExternalThumbnail` conserva la URL almacenada como primera opción y deriva del
-  permalink una segunda portada fresca mediante el endpoint público de media de Instagram. El
-  fallback se aplica en Rendimiento, detalle, Radar, Competidores, Producción e Investigación.
+  permalink una segunda portada fresca. La comprobación productiva detectó que Instagram bloquea
+  algunos redirects `/media/` cuando salen directamente del navegador, así que un Route Handler
+  mínimo resuelve el destino y devuelve un 307 al CDN oficial. No transmite los bytes de imagen.
+  El fallback se aplica en Rendimiento, detalle, Radar, Competidores, Producción e Investigación.
 - **Guardas:** hostname validado contra `instagram.com`, shortcode validado, máximo dos intentos,
   `no-referrer`, carga lazy y placeholder final honesto para reels privados, borrados o inaccesibles.
-  No hay proxy, almacenamiento, migración ni consumo adicional de Vercel Functions.
-- **TESTED local:** endpoint público comprobado con respuesta `200 image/jpeg`; 28/28 regresiones
-  sociales PASS; `npm run quality`, typecheck, lint, build y dead-code PASS.
-- **Siguiente exacto:** fusionar en `main`, esperar el único deployment automático de Vercel y
-  comprobar en producción que las URLs caducadas avanzan al fallback y renderizan píxeles reales.
+  No hay proxy de bytes, almacenamiento ni migración. El resolvedor tiene caché CDN de 24 horas,
+  límite best-effort de 240 solicitudes/minuto e invocación solo cuando la URL guardada caduca.
+- **TESTED local:** endpoint público comprobado con respuesta `200 image/jpeg`; Route Handler del
+  build real devuelve `307` a `instagram.*.fbcdn.net`, caché esperada y `400` para un código con
+  path inyectado; 29/29 regresiones sociales PASS; `npm run quality`, typecheck, lint, build y
+  dead-code PASS.
+- **Checkpoint:** PR #463 fusionado (`78ad1e92`) y deployment `dpl_4XFwcNTbR3N8gBKP7Nah2PJiNpp1`
+  `Ready`; 10 miniaturas con URL vigente renderizaron píxeles reales, pero la prueba del fallback
+  directo reveló el bloqueo del navegador y motivó este endurecimiento.
+- **Siguiente exacto:** validar y fusionar el resolvedor, esperar el deployment automático y
+  comprobar en producción que una URL caducada avanza al fallback y renderiza píxeles reales.
 
 # CERRADO, FUSIONADO, DESPLEGADO Y VERIFICADO · Workspace diario de Instagram (12-oct-2026, Codex)
 

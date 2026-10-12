@@ -18,3 +18,10 @@ export function instagramThumbnailFromPermalink(permalink: string | null | undef
     return null
   }
 }
+
+export function instagramThumbnailResolverFromPermalink(permalink: string | null | undefined): string | null {
+  const directUrl = instagramThumbnailFromPermalink(permalink)
+  if (!directUrl) return null
+  const shortcode = new URL(directUrl).pathname.split('/').filter(Boolean)[1]
+  return shortcode ? `/api/social/instagram-thumbnail?code=${encodeURIComponent(shortcode)}` : null
+}
