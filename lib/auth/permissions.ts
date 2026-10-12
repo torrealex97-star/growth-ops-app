@@ -139,7 +139,6 @@ export const NAV_PAGES: { href: string; label: string; dept: Department }[] = [
   { href: '/instagram', label: 'Instagram · Rendimiento', dept: 'marketing' },
   { href: '/instagram/radar', label: 'Instagram · Radar de contenido', dept: 'marketing' },
   { href: '/instagram/carruseles', label: 'Instagram · Carruseles y Flyers', dept: 'marketing' },
-  { href: '/instagram/competencia', label: 'Instagram · Competencia', dept: 'marketing' },
   { href: '/marketing/contenido', label: 'Contenido', dept: 'marketing' },
   { href: '/setting-ai', label: 'Setting AI', dept: 'marketing' },
   { href: '/students', label: 'Alumnos', dept: 'producto' },
@@ -168,7 +167,12 @@ export const NAV_PAGES: { href: string; label: string; dept: Department }[] = [
 ]
 
 const normalizeAllowedPrefixes = (prefixes: string[]) =>
-  prefixes.map((prefix) => LEGACY_MARKETING_ROUTES[prefix] ?? prefix)
+  prefixes.map((prefix) => {
+    // Competencia ahora vive como una vista URL-backed dentro del Radar. Conservamos los overrides
+    // históricos para que un usuario no pierda acceso al seguir un enlace guardado tras la fusión.
+    if (prefix === '/instagram/competencia') return '/instagram/radar'
+    return (LEGACY_MARKETING_ROUTES[prefix] ?? prefix).split('?')[0]
+  })
 
 // Prefijos permitidos para un usuario. Prioridad:
 //   1) page_overrides → lista EXPLÍCITA de páginas (on/off una a una)

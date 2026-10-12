@@ -99,9 +99,8 @@ test('el menú compartido con ⌘K contiene todas las páginas absorbidas', () =
     ['Campañas', '/marketing/adquisicion/campanas'],
     ['Atribución', '/marketing/adquisicion/atribucion'],
     ['VSL', '/marketing/adquisicion/vsl'],
-    ['Radar diario', '/instagram/radar'],
+    ['Radar de contenido', '/instagram/radar'],
     ['Carruseles y Flyers', '/instagram/carruseles'],
-    ['Competencia', '/instagram/competencia'],
     ['Contenido', '/marketing/contenido'],
     ['Setting AI', '/setting-ai'],
     ['Data Health', '/settings/data-health'],
@@ -120,7 +119,7 @@ test('Radar diario absorbe Reels del día sin perder el deep-link histórico', (
   const legacyReels = readFileSync(join(root, 'app/[tenant]/instagram/reels/page.tsx'), 'utf8')
   const workspace = readFileSync(join(root, 'components/social/ReelsWorkspace.tsx'), 'utf8')
 
-  assert.match(layout, /label: 'Radar diario'/)
+  assert.match(layout, /label: 'Radar de contenido'/)
   assert.doesNotMatch(layout, /label: 'Reels del día'/)
   assert.match(radar, /<ReelsWorkspace \/>/)
   assert.match(radar, /view=produccion/)
@@ -128,6 +127,20 @@ test('Radar diario absorbe Reels del día sin perder el deep-link histórico', (
   assert.match(workspace, /Plan de producción/)
   assert.match(workspace, /Aprobar/)
   assert.match(workspace, /Crear carrusel/)
+})
+
+test('Radar de contenido absorbe Competencia sin mezclar sus fuentes', () => {
+  const layout = readFileSync(join(root, 'app/[tenant]/instagram/layout.tsx'), 'utf8')
+  const radar = readFileSync(join(root, 'components/social/ContentRadarWorkspace.tsx'), 'utf8')
+  const competitors = readFileSync(join(root, 'components/social/CompetitorWorkspace.tsx'), 'utf8')
+  const legacyCompetition = readFileSync(join(root, 'app/[tenant]/instagram/competencia/page.tsx'), 'utf8')
+
+  assert.doesNotMatch(layout, /label: 'Competencia'/)
+  assert.match(radar, /view=competidores/)
+  assert.match(radar, /<CompetitorWorkspace \/>/)
+  assert.match(competitors, /Meta Business Discovery/)
+  assert.match(competitors, /No se pudo cargar la biblioteca/)
+  assert.match(legacyCompetition, /instagram\/radar\?view=competidores/)
 })
 
 test('los roles limitados no reciben prefijos amplios de configuración o adquisición', () => {
@@ -160,4 +173,10 @@ test('Adscripción y Editor quedan limitados a sus pestañas históricas', () =>
   const editor = ['/instagram', '/marketing/adquisicion/vsl']
   assert.equal(isAllowedLocation(editor, '/marketing/adquisicion/vsl'), true)
   assert.equal(isAllowedLocation(editor, '/marketing/adquisicion/campanas'), false)
+})
+
+test('los overrides históricos de Competencia conservan acceso al Radar unificado', () => {
+  const permissions = readFileSync(join(root, 'lib/auth/permissions.ts'), 'utf8')
+  assert.match(permissions, /prefix === '\/instagram\/competencia'/)
+  assert.match(permissions, /return '\/instagram\/radar'/)
 })

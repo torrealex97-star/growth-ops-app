@@ -88,7 +88,7 @@ const MODALES_LOTE4 = [
   'app/[tenant]/marketing/contenido/page.tsx',
   'app/[tenant]/setting-ai/page.tsx',
   'app/[tenant]/instagram/page.tsx',
-  'app/[tenant]/instagram/competencia/page.tsx',
+  'components/social/CompetitorWorkspace.tsx',
   'app/[tenant]/finanzas/gastos-facturas/gastos/page.tsx',
   'app/[tenant]/settings/subcuentas/page.tsx',
   'app/[tenant]/crm/agendas/page.tsx',

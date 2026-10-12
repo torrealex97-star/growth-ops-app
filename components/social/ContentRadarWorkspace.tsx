@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Sparkles,
   TrendingUp,
+  UsersRound,
 } from 'lucide-react'
 import { useTenant } from '@/lib/tenant-context'
 import { formatNumber } from '@/lib/utils'
@@ -23,6 +24,17 @@ const ReelsWorkspace = dynamic(
     loading: () => <div className="dashboard-card h-64 animate-pulse" aria-label="Cargando plan de producción" />,
   }
 )
+
+const CompetitorWorkspace = dynamic(
+  () => import('@/components/social/CompetitorWorkspace').then((module) => module.CompetitorWorkspace),
+  {
+    loading: () => (
+      <div className="dashboard-card h-64 animate-pulse" aria-label="Cargando biblioteca de competidores" />
+    ),
+  }
+)
+
+export type ContentRadarView = 'oportunidades' | 'competidores' | 'produccion'
 
 type RadarPost = {
   id: string
@@ -57,7 +69,7 @@ type RadarData = {
 const metric = (value: number | null, suffix = '') =>
   value == null ? 'No disponible' : `${formatNumber(value, { notation: 'compact', maximumFractionDigits: 1 })}${suffix}`
 
-export function ContentRadarWorkspace({ initialView }: { initialView: 'oportunidades' | 'produccion' }) {
+export function ContentRadarWorkspace({ initialView }: { initialView: ContentRadarView }) {
   const tenant = useTenant()
   const activeView = initialView
   const [data, setData] = useState<RadarData | null>(null)
@@ -107,7 +119,10 @@ export function ContentRadarWorkspace({ initialView }: { initialView: 'oportunid
         )}
       </header>
 
-      <nav aria-label="Vistas del Radar" className="inline-flex w-full rounded-xl border bg-muted/30 p-1 sm:w-auto">
+      <nav
+        aria-label="Flujo de inteligencia de contenido"
+        className="grid w-full grid-cols-3 rounded-xl border bg-muted/30 p-1 sm:inline-flex sm:w-auto"
+      >
         <Link
           href={`/${tenant}/instagram/radar`}
           aria-current={activeView === 'oportunidades' ? 'page' : undefined}
@@ -120,6 +135,18 @@ export function ContentRadarWorkspace({ initialView }: { initialView: 'oportunid
           <TrendingUp className="h-4 w-4" /> Oportunidades
         </Link>
         <Link
+          href={`/${tenant}/instagram/radar?view=competidores`}
+          aria-current={activeView === 'competidores' ? 'page' : undefined}
+          className={`flex min-h-10 items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:flex-none sm:px-4 ${
+            activeView === 'competidores'
+              ? 'bg-background text-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <UsersRound className="h-4 w-4" /> <span className="hidden min-[440px]:inline">Competidores</span>
+          <span className="min-[440px]:hidden">Fuentes</span>
+        </Link>
+        <Link
           href={`/${tenant}/instagram/radar?view=produccion`}
           aria-current={activeView === 'produccion' ? 'page' : undefined}
           className={`flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:flex-none ${
@@ -128,11 +155,14 @@ export function ContentRadarWorkspace({ initialView }: { initialView: 'oportunid
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          <Clapperboard className="h-4 w-4" /> Plan de producción
+          <Clapperboard className="h-4 w-4" /> <span className="hidden sm:inline">Producción</span>
+          <span className="sm:hidden">Producir</span>
         </Link>
       </nav>
 
-      {activeView === 'produccion' ? (
+      {activeView === 'competidores' ? (
+        <CompetitorWorkspace />
+      ) : activeView === 'produccion' ? (
         <ReelsWorkspace />
       ) : loading && !data ? (
         <div className="dashboard-card flex min-h-72 items-center justify-center">

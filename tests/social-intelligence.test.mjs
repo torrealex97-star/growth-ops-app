@@ -84,7 +84,7 @@ test('las miniaturas externas caducadas degradan a un estado limpio en toda la s
     'app/[tenant]/instagram/page.tsx',
     'components/social/ContentRadarWorkspace.tsx',
     'components/social/ReelsWorkspace.tsx',
-    'app/[tenant]/instagram/competencia/page.tsx',
+    'components/social/CompetitorWorkspace.tsx',
     'app/[tenant]/instagram/investigacion/page.tsx',
   ]) {
     const source = readFileSync(new URL(`../${sourcePath}`, import.meta.url), 'utf8')
