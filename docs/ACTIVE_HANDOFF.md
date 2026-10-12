@@ -1,3 +1,29 @@
+# ACTIVADO EN PRODUCCIÓN · Radar WDC con tres perfiles autorizados (12-oct-2026, Codex)
+
+- **Configuración tenant-local:** en `women-digital-closer` se guardaron `paulattier`,
+  `paula.ortolaa` y `shelby.sapp` como perfiles públicos de referencia y se activó
+  `APIFY_RADAR_AUTO_ENABLED`. La UI confirmó `Apify (investigación externa): guardado` y muestra
+  `Radar automático · 3 perfiles`. No se tocaron otras subcuentas.
+- **Primera ejecución controlada:** workflow manual
+  `cron-social-radar.yml` run `38256302536`, SUCCESS. Respuesta agregada: 4 tenants comprobados,
+  1 elegible, 1 Actor lanzado, 0 reutilizados, 0 ocupados y 0 fallos; los otros 3 tenants quedaron
+  desactivados. La guarda diaria impide que un reintento facture un segundo Actor ese día.
+- **Evidencia de producción:** Supabase registró un único job `instagram/profile` para WDC con los
+  tres usernames exactos, `provider_run_id` y `provider_dataset_id`, estado `processing` y sin
+  `error_message` en la última comprobación. Mientras el proveedor termina, Radar muestra un estado
+  vacío honesto (0 candidatos y 0 % de cobertura), no ceros inventados ni datos de otra subcuenta.
+- **Conciliación pendiente automática:** el resultado debe entrar por el webhook seguro de Apify,
+  normalizar perfiles/publicaciones y cambiar el job a `completed`. No relanzar manualmente el
+  workflow hoy: primero comprobar este mismo job y su Data Health; si supera la ventana normal,
+  revisar el webhook/run antes de gastar otra ejecución.
+- **Siguiente acción técnica exacta:** consultar el job de esta primera ejecución y contar perfiles
+  y publicaciones normalizados para esos tres handles; después comprobar `Radar diario` y
+  `Data Health → social-radar`. Si el job termina sin datos, registrar la limitación real del Actor;
+  si queda bloqueado en `processing`, diagnosticar la entrega del webhook de Apify.
+- **Solo al final, si hace falta Alex:** tras 24–48 h de muestra, decidir si se mantienen estos tres
+  perfiles, se sustituyen o se ajustan límites/coste. No se necesita ninguna acción del usuario para
+  la ejecución ya lanzada.
+
 # CERRADO, FUSIONADO, DESPLEGADO Y VERIFICADO · Radar diario seguro y observable (12-oct-2026, Codex)
 
 - **Git/producción:** PR #453 fusionado en `main` (`8f7a8b75`). Vercel
@@ -21,12 +47,11 @@
   `npm run build` PASS; CI, secretos, build con entorno real, Smoke E2E y release gate PASS. Smoke
   autenticado de Radar e Integraciones PASS, sin errores ni warnings de consola. Sin migración y sin
   ejecutar ningún Actor de pago.
-- **Estado operativo:** el Radar permanece correctamente desactivado y con coste cero en WDC. Para
-  empezar a consumir datos diarios, un administrador debe activar conscientemente el toggle y
-  guardar los perfiles de referencia; la cuenta propia seguirá excluida.
-- **Siguiente exacto:** decidir y autorizar los perfiles públicos a vigilar; después activar el
-  Radar en WDC y comprobar al día siguiente cobertura, coste real y salud `social-radar` antes de
-  ampliar límites.
+- **Estado operativo original de este cierre:** quedó desactivado y con coste cero hasta recibir
+  autorización. La activación posterior y sus tres perfiles están documentados en el checkpoint
+  inmediatamente superior; la cuenta propia continúa excluida.
+- **Siguiente exacto del cierre original:** decidir perfiles, activar y validar cobertura/coste.
+  Ese paso ya se ejecutó; continuar únicamente con la conciliación descrita arriba.
 
 # DESPLEGADO Y VERIFICADO · Instagram Intelligence + fallback de miniaturas (12-oct-2026, Codex)
 
