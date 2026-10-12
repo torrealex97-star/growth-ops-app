@@ -90,4 +90,10 @@ test('las miniaturas externas caducadas degradan a un estado limpio en toda la s
     const source = readFileSync(new URL(`../app/[tenant]/instagram/${page}`, import.meta.url), 'utf8')
     assert.match(source, /ExternalThumbnail/, `${page} debe usar el fallback compartido`)
   }
+
+  const investigation = readFileSync(
+    new URL('../app/[tenant]/instagram/investigacion/page.tsx', import.meta.url),
+    'utf8'
+  )
+  assert.match(investigation, /max-h-\[32rem\].*xl:max-h-none/)
 })

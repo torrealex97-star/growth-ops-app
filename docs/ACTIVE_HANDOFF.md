@@ -1,6 +1,7 @@
-# HOTFIX EN VALIDACIÓN · Fallback seguro para miniaturas externas de Instagram (12-oct-2026, Codex)
+# DESPLEGADO Y VERIFICADO · Instagram Intelligence + fallback de miniaturas (12-oct-2026, Codex)
 
-- **Rama:** `codex/instagram-thumbnail-fallback`, desde `origin/main` (`25ec2f52`, PR #449 ya fusionado).
+- **Git/producción:** PR #449 y hotfix #450 fusionados. Producción `growth-ops-app` está `READY`
+  en `app.scalixsystems.com` con SHA `78d599a8`; CI, build, Smoke E2E y release gate PASS.
 - **Causa comprobada en producción:** algunas URLs efímeras de miniaturas de Instagram caducan;
   el navegador mostraba una imagen rota de gran tamaño en Investigación aunque el resto de datos
   fuese válido.
@@ -10,8 +11,8 @@
 - **Coste/rendimiento:** se mantiene `<img>` deliberadamente para no proxyficar, cachear ni facturar
   en Vercel URLs arbitrarias y caducables; no añade llamadas a APIs, tablas ni migraciones.
 - **TESTED:** `git diff --check`, typecheck y lint PASS (solo avisos heredados); suite completa
-  1.578 PASS, 0 FAIL y 3 SKIP. Siguiente exacto: abrir PR, fusionar solo con CI verde, verificar el
-  SHA desplegado y repetir el smoke autenticado.
+  1.578 PASS, 0 FAIL y 3 SKIP. Smoke autenticado: fallback visible, cero imágenes rotas y datos
+  conservados. Ajuste siguiente: limitar la altura vertical en tablet sin alterar escritorio.
 
 # LISTO PARA FUSIONAR · Instagram Intelligence — análisis por URL, radar y consolidación UX (12-oct-2026, Codex)
 
