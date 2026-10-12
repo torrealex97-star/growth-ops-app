@@ -116,11 +116,14 @@ test('las miniaturas externas caducadas prueban una portada fresca antes del est
   assert.match(investigation, /max-h-\[32rem\] w-full.*xl:max-h-none/)
 })
 
-test('el resolvedor de miniaturas solo redirige a CDN oficiales y nunca sirve los bytes', () => {
+test('el resolvedor sirve solo imágenes de CDN oficiales con límites y caché larga', () => {
   const route = readFileSync(new URL('../app/api/social/instagram-thumbnail/route.ts', import.meta.url), 'utf8')
   assert.match(route, /redirect: 'manual'/)
   assert.match(route, /SAFE_IMAGE_HOST/)
-  assert.match(route, /status: 307/)
-  assert.match(route, /s-maxage=86400/)
-  assert.doesNotMatch(route, /arrayBuffer|blob\(|response\.body/)
+  assert.match(route, /contentType\.startsWith\('image\/'\)/)
+  assert.match(route, /MAX_IMAGE_BYTES/)
+  assert.match(route, /status: 200/)
+  assert.match(route, /s-maxage=2592000/)
+  assert.match(route, /new NextResponse\(image\.body/)
+  assert.doesNotMatch(route, /arrayBuffer|blob\(/)
 })
