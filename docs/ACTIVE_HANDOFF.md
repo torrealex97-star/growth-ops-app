@@ -28,9 +28,10 @@
   seis columnas, el tipo de job `reel`, tabla e índices, RLS activo y políticas SELECT/INSERT por
   tenant. Se aplicó además `instagram_intelligence_post_fk_index` (ledger `20261012080256`) y se
   verificó el índice dedicado que cubre el borrado en cascada por `post_id`; los avisos restantes del
-  advisor son deuda previa global y no fueron creados por este módulo. Siguiente exacto: relanzar CI
-  del PR #449, fusionar solo en verde, esperar el deploy de `growth-ops-app` y hacer smoke
-  autenticado. El smoke no debe lanzar un Actor de pago sin una URL pública autorizada.
+  advisor son deuda previa global y no fueron creados por este módulo. El espejo de tipos de la BD
+  se actualizó contra el esquema vivo (incluye snapshots y las seis columnas nuevas). Siguiente
+  exacto: relanzar CI del PR #449, fusionar solo en verde, esperar el deploy de `growth-ops-app` y
+  hacer smoke autenticado. El smoke no debe lanzar un Actor de pago sin una URL pública autorizada.
 - **Crédito:** adaptación MIT documentada en `docs/THIRD_PARTY_NOTICES.md`.
 
 # VALIDADO EN RAMA · Navegación completa de superadministrador (11-oct-2026, Codex)

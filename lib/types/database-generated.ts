@@ -1,9 +1,7 @@
-// GENERADO — no editar a mano. Fuente: OpenAPI de PostgREST (2026-10-10T10:00:52Z).
+// GENERADO — no editar a mano. Fuente: OpenAPI de PostgREST (2026-10-12T08:08:00Z).
 // Regenerar con: npm run tipos:bd  (y commitear). El test tests/esquema-tenant-invariante.test.mjs
 // comprueba que este artefacto sigue fresco respecto al esquema vivo.
 // Espejo exacto del esquema public de Supabase; los tipos de APP siguen en lib/types/database.ts.
-// Nota 10-oct: el generador no pudo correr en el host (EPERM); el bloque McpOauth* se insertó
-// replicando su formato exacto (verificado contra el OpenAPI vivo con service_role).
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
@@ -4981,6 +4979,44 @@ export type EsquemaPublico = {
         tenant_id: string | undefined
       }
     }
+    SocialPostMetricSnapshots: {
+      Row: {
+        id: string
+        tenant_id: string
+        post_id: string
+        observed_at: string
+        views_count: number | string | null
+        likes_count: number | string | null
+        comments_count: number | string | null
+        shares_count: number | string | null
+        source: string
+        created_at: string
+      }
+      Insert: {
+        id: string | undefined
+        tenant_id: string
+        post_id: string
+        observed_at: string | undefined
+        views_count: number | string | null | undefined
+        likes_count: number | string | null | undefined
+        comments_count: number | string | null | undefined
+        shares_count: number | string | null | undefined
+        source: string | undefined
+        created_at: string | undefined
+      }
+      Update: {
+        id: string | undefined
+        tenant_id: string | undefined
+        post_id: string | undefined
+        observed_at: string | undefined
+        views_count: number | string | undefined
+        likes_count: number | string | undefined
+        comments_count: number | string | undefined
+        shares_count: number | string | undefined
+        source: string | undefined
+        created_at: string | undefined
+      }
+    }
     SocialPosts: {
       Row: {
         id: string | null
@@ -5003,6 +5039,12 @@ export type EsquemaPublico = {
         collected_at: string | null
         source: string | null
         job_id: string | null
+        transcript: string | null
+        transcript_timing: string | null
+        analysis_status: string
+        analysis_json: Json | null
+        analyzed_at: string | null
+        metrics_observed_at: string | null
       }
       Insert: {
         id: string | null | undefined
@@ -5025,6 +5067,12 @@ export type EsquemaPublico = {
         collected_at: string | null | undefined
         source: string | null | undefined
         job_id: string | null | undefined
+        transcript: string | null | undefined
+        transcript_timing: string | null | undefined
+        analysis_status: string | undefined
+        analysis_json: Json | null | undefined
+        analyzed_at: string | null | undefined
+        metrics_observed_at: string | null | undefined
       }
       Update: {
         id: string | undefined
@@ -5047,6 +5095,12 @@ export type EsquemaPublico = {
         collected_at: string | undefined
         source: string | undefined
         job_id: string | undefined
+        transcript: string | undefined
+        transcript_timing: string | undefined
+        analysis_status: string | undefined
+        analysis_json: Json | undefined
+        analyzed_at: string | undefined
+        metrics_observed_at: string | undefined
       }
     }
     SocialProfiles: {
