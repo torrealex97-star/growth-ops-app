@@ -15,7 +15,7 @@
 - **UX/Data Health:** el Radar declara si la automatización está activa, cuántos perfiles vigila y
   la hora real de la última observación. Apify incorpora la sync `social-radar` a su salud operativa;
   un hueco sigue sin convertirse en cero.
-- **TESTED:** 37/37 focales PASS; `npm run quality` PASS (1.583 tests + 3 skipped y métricas);
+- **TESTED:** 37/37 focales PASS; `npm run quality` PASS (1.584 tests + 3 skipped y métricas);
   `npm run build` PASS. Sin migración y sin ejecutar ningún Actor de pago.
 - **Siguiente exacto:** revisar diff, abrir PR, fusionar solo con CI verde, verificar el deployment
   de `growth-ops-app` y hacer smoke autenticado de Radar e Integraciones. Para empezar a consumir
