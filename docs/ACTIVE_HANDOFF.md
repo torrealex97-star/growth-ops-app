@@ -1,3 +1,26 @@
+# VALIDADO EN RAMA · Radar diario seguro y observable (12-oct-2026, Codex)
+
+- **Rama:** `codex/instagram-radar-automation`, desde `origin/main` (`892836e6`).
+- **Alcance:** automatización y salud del Radar externo de Instagram, configuración Apify,
+  `SYNC_DEFS`, workflow delegado y pruebas. No toca la sync oficial de la cuenta propia, VSL, CRM,
+  finanzas ni esquema de Supabase.
+- **Coste por defecto:** cero. El workflow diario solo lanza Apify si la subcuenta activa
+  expresamente `Radar diario automático` y declara perfiles de referencia. La autorización de
+  gasto se lee exclusivamente de `integration_settings` tenant-local; una variable global nunca
+  puede activar a todas las subcuentas.
+- **Guardas:** Bearer `CRON_SECRET`, configuración explícita por tenant, exclusión de la cuenta
+  propia, máximo global de 3 jobs por corrida, reparto justo por antigüedad, concurrencia bounded e
+  idempotencia diaria para que un reintento no facture un segundo Actor. No se añade cron a
+  `vercel.json`; GitHub Actions ejecuta la comprobación a las 03:50 UTC.
+- **UX/Data Health:** el Radar declara si la automatización está activa, cuántos perfiles vigila y
+  la hora real de la última observación. Apify incorpora la sync `social-radar` a su salud operativa;
+  un hueco sigue sin convertirse en cero.
+- **TESTED:** 37/37 focales PASS; `npm run quality` PASS (1.583 tests + 3 skipped y métricas);
+  `npm run build` PASS. Sin migración y sin ejecutar ningún Actor de pago.
+- **Siguiente exacto:** revisar diff, abrir PR, fusionar solo con CI verde, verificar el deployment
+  de `growth-ops-app` y hacer smoke autenticado de Radar e Integraciones. Para empezar a consumir
+  datos diarios, un administrador debe activar el toggle y guardar los perfiles conscientemente.
+
 # DESPLEGADO Y VERIFICADO · Instagram Intelligence + fallback de miniaturas (12-oct-2026, Codex)
 
 - **Git/producción:** PR #449, hotfix #450 y ajustes responsive posteriores fusionados. Producción

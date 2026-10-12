@@ -87,6 +87,16 @@ export const SYNC_DEFS: SyncDef[] = [
       'Se ejecuta a diario por GitHub Actions (02:30 UTC, cron-instagram.yml): sincroniza ig_media, audiencia y estadísticas orgánicas. No está en vercel.json porque el plan Hobby solo admite 2 crons.',
   },
   {
+    id: 'social-radar',
+    label: 'Radar de contenido externo',
+    route: 'cron/social-radar',
+    table: 'social_posts',
+    requiredKeys: ['APIFY_API_TOKEN'],
+    scheduler: 'manual',
+    manualReason:
+      'Se comprueba a diario por GitHub Actions (03:50 UTC, cron-social-radar.yml) y solo consume créditos cuando "Radar diario automático" está activado y hay perfiles configurados.',
+  },
+  {
     id: 'analyze-calls',
     label: 'Análisis de llamadas con IA',
     route: 'cron/analyze-calls',

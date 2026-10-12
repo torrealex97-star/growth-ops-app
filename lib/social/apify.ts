@@ -201,7 +201,7 @@ export function actorFor(platform: SocialPlatform, jobType: SocialJobType, cfg: 
 }
 
 export type CreateResearchResult =
-  | { ok: true; jobId: string; runId: string; datasetId?: string }
+  | { ok: true; jobId: string; runId: string; datasetId?: string; reused: boolean }
   | { ok: false; error: string; code: 'sin_configurar' | 'sin_actor' | 'limites' | 'proveedor_error' }
 
 /**
@@ -215,7 +215,8 @@ export async function createResearchJob(
   tenantId: string,
   platform: SocialPlatform,
   input: ResearchInput,
-  cfg: ApifyConfig
+  cfg: ApifyConfig,
+  options?: { dedupeScope?: string }
 ): Promise<CreateResearchResult> {
   const adapter = adapterFor(platform, input.jobType)
   if (!adapter) return { ok: false, error: 'Tipo de investigación no soportado', code: 'sin_actor' }
@@ -251,10 +252,11 @@ export async function createResearchJob(
   }
 
   const normalizedInput: ResearchInput = { usernames, urls, resultsLimit, jobType: input.jobType }
-  // A stable 10-minute window prevents double clicks/retries from launching and billing two runs.
-  const idempotencyWindow = Math.floor(Date.now() / (10 * 60 * 1000))
+  // Manual actions use a stable 10-minute window. Scheduled work supplies a daily scope so a
+  // workflow retry cannot launch and bill a second Actor on the same day.
+  const idempotencyScope = options?.dedupeScope || String(Math.floor(Date.now() / (10 * 60 * 1000)))
   const idempotencyKey = createHash('sha256')
-    .update(`${tenantId}:${platform}:${JSON.stringify(normalizedInput)}:${idempotencyWindow}`)
+    .update(`${tenantId}:${platform}:${JSON.stringify(normalizedInput)}:${idempotencyScope}`)
     .digest('hex')
 
   const { data: job, error: jobErr } = await sb
@@ -284,6 +286,7 @@ export async function createResearchJob(
         jobId: existing.id,
         runId: existing.provider_run_id,
         datasetId: existing.provider_dataset_id || undefined,
+        reused: true,
       }
     }
   }
@@ -326,12 +329,12 @@ export async function createResearchJob(
         resultsLimit,
       })
     )
-    return { ok: true, jobId: job.id, runId: run.id, datasetId: run.defaultDatasetId }
+    return { ok: true, jobId: job.id, runId: run.id, datasetId: run.defaultDatasetId, reused: false }
   } catch (e) {
     if (run?.id) {
       if (await persistRunAssociation(run)) {
         console.warn('Se recuperó la asociación del run de Apify tras un error inicial', { jobId: job.id })
-        return { ok: true, jobId: job.id, runId: run.id, datasetId: run.defaultDatasetId }
+        return { ok: true, jobId: job.id, runId: run.id, datasetId: run.defaultDatasetId, reused: false }
       }
       const msg = e instanceof Error ? e.message : 'Error asociando el run de Apify'
       console.error('Run Apify lanzado pero pendiente de asociar al job', { jobId: job.id, runId: run.id })

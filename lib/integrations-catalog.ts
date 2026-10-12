@@ -298,6 +298,23 @@ export const INTEGRATION_GROUPS: IntegrationGroup[] = [
         placeholder: '10',
         advanced: true,
       },
+      {
+        key: 'APIFY_RADAR_AUTO_ENABLED',
+        label: 'Radar diario automático',
+        type: 'boolean',
+        secret: false,
+        advanced: true,
+        help: 'Desactivado por defecto. Al activarlo, Apify ejecutará como máximo una investigación diaria para esta subcuenta y consumirá créditos del proveedor.',
+      },
+      {
+        key: 'APIFY_RADAR_USERNAMES',
+        label: 'Perfiles de referencia para el Radar',
+        type: 'textarea',
+        secret: false,
+        placeholder: 'competidor_1\ncompetidor_2',
+        advanced: true,
+        help: 'Un usuario de Instagram por línea o separados por comas. Las cuentas propias se excluyen y nunca se investigan mediante scraping.',
+      },
     ],
   },
   {

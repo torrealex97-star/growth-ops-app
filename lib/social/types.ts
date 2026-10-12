@@ -86,6 +86,8 @@ export type NormalizedEnv = {
   APIFY_YOUTUBE_ACTOR_ID?: string
   APIFY_RESULTS_LIMIT?: string
   APIFY_MAX_PROFILES_PER_RUN?: string
+  APIFY_RADAR_AUTO_ENABLED?: string
+  APIFY_RADAR_USERNAMES?: string
 }
 
 export const PLATFORM_LABEL: Record<SocialPlatform, string> = {
