@@ -29,6 +29,19 @@ const META_SOURCES = new Set([
   'messenger',
 ])
 
+// ¿La fuente de un toque ES un id de campaña Meta (regla de IDENTIDAD)? Meta reporta el id de
+// LA CAMPAÑA en utm_source (y del adset en utm_term), así que el propio cruce de funnel_leads
+// debe reconocer ese id como "vino de Meta" aunque nadie escribiera 'facebook' a mano.
+const ETIQUETA_META_ID = /^1\d{14,17}$/
+const esSourceIdMeta = (s: unknown) => ETIQUETA_META_ID.test(String(s ?? '').trim())
+
+const normCampana = (s: unknown) =>
+  String(s ?? '')
+    .trim()
+    .replace(/\+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+
 const norm = (s: unknown) =>
   String(s ?? '')
     .trim()
@@ -222,17 +235,18 @@ async function syncOneAccount(
     const budget = Number(c.lifetime_budget || 0) / 100 || Number(c.daily_budget || 0) / 100 || 0
 
     // LEADS FUNNEL: contactos con una atribución Meta cuyo utm_campaign casa con
-    // el id o el nombre de esta campaña (comparamos con lo que reporta Meta).
-    const nameKey = norm(c.name)
+    // el nombre de esta campaña (con la codificación real del proveedor: '+' de Calendly son
+    // espacios), o cuyo utm_source es el ID de campaña de Meta (regla de identidad — los
+    // renames de Meta no rompen este cruce).
+    const externalId = c.id
+    const nameKey = normCampana(c.name)
     const funnelContacts = new Set<string>()
     for (const a of attribs || []) {
-      const srcOk =
-        META_SOURCES.has(norm(a.utm_source)) ||
-        META_SOURCES.has(norm(a.first_utm_source)) ||
-        META_SOURCES.has(norm(a.last_utm_source))
+      const fuentes = [a.utm_source, a.first_utm_source, a.last_utm_source].map(String)
+      const srcOk = fuentes.some((s) => META_SOURCES.has(normCampana(s)) || esSourceIdMeta(s))
       if (!srcOk) continue
-      const camps = [a.utm_campaign, a.first_utm_campaign, a.last_utm_campaign].map(norm)
-      const match = camps.some((v) => v && (v === c.id || v === nameKey))
+      const camps = [a.utm_campaign, a.first_utm_campaign, a.last_utm_campaign].map(normCampana)
+      const match = camps.some((v) => v && (v === externalId || v === nameKey))
       if (match && a.contact_id) funnelContacts.add(String(a.contact_id))
     }
     const funnelLeads = funnelContacts.size
