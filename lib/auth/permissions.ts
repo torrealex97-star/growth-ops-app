@@ -137,7 +137,7 @@ export const NAV_PAGES: { href: string; label: string; dept: Department }[] = [
   { href: '/marketing/adquisicion/atribucion', label: 'Adquisición · Atribución', dept: 'marketing' },
   { href: '/marketing/adquisicion/vsl', label: 'Adquisición · VSL', dept: 'marketing' },
   { href: '/instagram', label: 'Instagram · Rendimiento', dept: 'marketing' },
-  { href: '/instagram/reels', label: 'Instagram · Reels del día', dept: 'marketing' },
+  { href: '/instagram/radar', label: 'Instagram · Radar de contenido', dept: 'marketing' },
   { href: '/instagram/carruseles', label: 'Instagram · Carruseles y Flyers', dept: 'marketing' },
   { href: '/instagram/competencia', label: 'Instagram · Competencia', dept: 'marketing' },
   { href: '/marketing/contenido', label: 'Contenido', dept: 'marketing' },

@@ -38,7 +38,7 @@ test('todas las rutas históricas apuntan al deep-link esperado', () => {
     '/campaigns': '/marketing/adquisicion/campanas',
     '/attribution': '/marketing/adquisicion/atribucion',
     '/vsl': '/marketing/adquisicion/vsl',
-    '/content/reels': '/instagram/reels',
+    '/content/reels': '/instagram/radar?view=produccion',
     '/content': '/marketing/contenido',
     '/instagram/contenido': '/marketing/contenido',
     '/carruseles': '/instagram/carruseles',
@@ -99,7 +99,7 @@ test('el menú compartido con ⌘K contiene todas las páginas absorbidas', () =
     ['Campañas', '/marketing/adquisicion/campanas'],
     ['Atribución', '/marketing/adquisicion/atribucion'],
     ['VSL', '/marketing/adquisicion/vsl'],
-    ['Reels del día', '/instagram/reels'],
+    ['Radar diario', '/instagram/radar'],
     ['Carruseles y Flyers', '/instagram/carruseles'],
     ['Competencia', '/instagram/competencia'],
     ['Contenido', '/marketing/contenido'],
@@ -112,6 +112,22 @@ test('el menú compartido con ⌘K contiene todas las páginas absorbidas', () =
     // que el match salte por encima del cierre `}` hasta un href de una entrada distinta.
     assert.match(nav, new RegExp(`label: '${label}'[^}]*href: '${href.replace(/[/?]/g, '\\$&')}'`))
   }
+})
+
+test('Radar diario absorbe Reels del día sin perder el deep-link histórico', () => {
+  const layout = readFileSync(join(root, 'app/[tenant]/instagram/layout.tsx'), 'utf8')
+  const radar = readFileSync(join(root, 'components/social/ContentRadarWorkspace.tsx'), 'utf8')
+  const legacyReels = readFileSync(join(root, 'app/[tenant]/instagram/reels/page.tsx'), 'utf8')
+  const workspace = readFileSync(join(root, 'components/social/ReelsWorkspace.tsx'), 'utf8')
+
+  assert.match(layout, /label: 'Radar diario'/)
+  assert.doesNotMatch(layout, /label: 'Reels del día'/)
+  assert.match(radar, /<ReelsWorkspace \/>/)
+  assert.match(radar, /view=produccion/)
+  assert.match(legacyReels, /instagram\/radar\?view=produccion/)
+  assert.match(workspace, /Plan de producción/)
+  assert.match(workspace, /Aprobar/)
+  assert.match(workspace, /Crear carrusel/)
 })
 
 test('los roles limitados no reciben prefijos amplios de configuración o adquisición', () => {

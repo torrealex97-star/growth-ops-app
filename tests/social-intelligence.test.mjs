@@ -80,15 +80,15 @@ test('las miniaturas externas caducadas degradan a un estado limpio en toda la s
   assert.match(thumbnail, /referrerPolicy="no-referrer"/)
   assert.match(thumbnail, /Miniatura no disponible/)
 
-  for (const page of [
-    'page.tsx',
-    'radar/page.tsx',
-    'reels/page.tsx',
-    'competencia/page.tsx',
-    'investigacion/page.tsx',
+  for (const sourcePath of [
+    'app/[tenant]/instagram/page.tsx',
+    'components/social/ContentRadarWorkspace.tsx',
+    'components/social/ReelsWorkspace.tsx',
+    'app/[tenant]/instagram/competencia/page.tsx',
+    'app/[tenant]/instagram/investigacion/page.tsx',
   ]) {
-    const source = readFileSync(new URL(`../app/[tenant]/instagram/${page}`, import.meta.url), 'utf8')
-    assert.match(source, /ExternalThumbnail/, `${page} debe usar el fallback compartido`)
+    const source = readFileSync(new URL(`../${sourcePath}`, import.meta.url), 'utf8')
+    assert.match(source, /ExternalThumbnail/, `${sourcePath} debe usar el fallback compartido`)
   }
 
   const investigation = readFileSync(

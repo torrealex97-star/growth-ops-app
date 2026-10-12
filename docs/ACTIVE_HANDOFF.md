@@ -1,3 +1,24 @@
+# VALIDADO EN RAMA · Unificación Radar diario + Reels del día (12-oct-2026, Codex)
+
+- **Rama única:** `codex/merge-instagram-radar-reels`, desde `origin/main` (`3cb2d3b3`).
+- **Reclamación:** `app/[tenant]/instagram/radar`, `app/[tenant]/instagram/reels`, navegación de
+  Instagram, componente compartido de producción de reels y regresiones relacionadas. No toca
+  sincronizaciones, datos, esquema, cron, VSL, CRM ni finanzas.
+- **Objetivo:** una sola entrada «Radar diario» con dos modos claros: detectar oportunidades y
+  convertir las seleccionadas en guiones/carruseles, conservando todas las acciones de la antigua
+  vista «Reels del día» y un redirect compatible desde su URL histórica.
+- **Implementado:** la navegación superior, lateral y el buscador muestran una sola entrada
+  `Radar diario`. Dentro, `Oportunidades` conserva ranking, cobertura, outliers y frescura;
+  `Plan de producción` conserva filtro de día/estado, edición y copia de guiones, transcripción,
+  asignación de testimonios, aprobación/descarte, regeneración y creación de carruseles. Las rutas
+  `/instagram/reels` y `/content/reels` redirigen al modo de producción sin romper bookmarks.
+- **Rendimiento y permisos:** cada modo carga solo su fuente; el workspace pesado de producción es
+  un chunk dinámico y no penaliza la entrada al Radar. El listado largo difiere el render fuera de
+  viewport. El rol editor conserva las funciones que tenía en Reels también dentro del Radar.
+- **TESTED:** 62/62 regresiones focales PASS; suite completa 1.586 PASS / 3 SKIP / 0 FAIL;
+  typecheck PASS; lint PASS con avisos heredados; build de producción PASS; dead-code informativo
+  sin hallazgos creados por este cambio. Sin migraciones ni cambios de datos/sincronización.
+
 # CERRADO, FUSIONADO, DESPLEGADO Y VERIFICADO · Radar WDC con tres perfiles autorizados (12-oct-2026, Codex)
 
 - **Recuperación del webhook (rama `codex/apify-radar-reconcile`):** la primera ejecución conservó

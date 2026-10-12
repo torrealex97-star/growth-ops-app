@@ -76,7 +76,7 @@ test('catálogo, salud y UI explican coste, activación y frescura sin convertir
   const health = read('lib/ops/sync-health.ts')
   const groups = read('lib/integrations/health.ts')
   const radarApi = read('app/api/[tenant]/evergreen/social/radar/route.ts')
-  const radarPage = read('app/[tenant]/instagram/radar/page.tsx')
+  const radarPage = read('components/social/ContentRadarWorkspace.tsx')
   assert.match(catalog, /key: 'APIFY_RADAR_AUTO_ENABLED'/)
   assert.match(catalog, /Desactivado por defecto/)
   assert.match(catalog, /consumirá créditos/)
