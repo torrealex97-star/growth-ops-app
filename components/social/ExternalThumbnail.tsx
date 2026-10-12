@@ -44,7 +44,7 @@ export function ExternalThumbnail({ src, permalink, alt = '', className, showLab
   }
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- La URL primaria es externa; el fallback solo resuelve un redirect y no proxyfica bytes.
+    // eslint-disable-next-line @next/next/no-img-element -- La URL primaria es externa y puede cambiar al fallback en tiempo de ejecución.
     <img
       src={currentSrc}
       alt={alt}
