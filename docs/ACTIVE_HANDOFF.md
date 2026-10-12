@@ -1,5 +1,16 @@
 # ACTIVADO EN PRODUCCIÓN · Radar WDC con tres perfiles autorizados (12-oct-2026, Codex)
 
+- **Recuperación del webhook (rama `codex/apify-radar-reconcile`):** la primera ejecución conservó
+  run y dataset pero siguió en `processing` más de 17 minutos, sin error ni filas normalizadas. Se
+  añadió un fallback bounded al cron: consulta como máximo tres runs conocidos en Apify, distingue
+  estados transitorios de terminales y reutiliza `processRunResults`, el mismo procesador
+  idempotente del webhook. No crea Actors ni aumenta el coste. Un error de red deja el job
+  reintentable en vez de inventar un fallo terminal.
+- **Validación local del fallback:** suite canónica 1.585 PASS / 3 SKIP / 0 FAIL, typecheck PASS,
+  lint PASS con avisos heredados y build de producción PASS. Test nuevo cubre todos los estados
+  terminales/transitorios documentados por Apify; la regresión del cron exige la conciliación antes
+  de intentar crear/reutilizar el job diario. Pendiente fusionar, desplegar, relanzar el workflow y
+  verificar el mismo job/dataset en producción.
 - **Configuración tenant-local:** en `women-digital-closer` se guardaron `paulattier`,
   `paula.ortolaa` y `shelby.sapp` como perfiles públicos de referencia y se activó
   `APIFY_RADAR_AUTO_ENABLED`. La UI confirmó `Apify (investigación externa): guardado` y muestra

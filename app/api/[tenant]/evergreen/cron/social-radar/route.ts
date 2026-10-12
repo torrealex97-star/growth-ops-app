@@ -2,7 +2,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { getTenantConfigWithFallback } from '@/lib/config'
 import { recordSyncRun, SyncBusyError } from '@/lib/integrations/sync-runs'
-import { createResearchJob, getApifyConfig } from '@/lib/social/apify'
+import { createResearchJob, getApifyConfig, reconcileResearchJobs } from '@/lib/social/apify'
 import {
   isRadarAutoEnabled,
   parseRadarUsernames,
@@ -36,6 +36,10 @@ async function launchRadar(sb: SupabaseClient, prepared: Prepared) {
       secrets: [cfg.token],
     },
     async () => {
+      // El webhook sigue siendo la vía rápida. Esta conciliación bounded recupera runs terminales
+      // si Apify no pudo entregarlo y, al reutilizar el mismo procesador idempotente, no duplica
+      // datos ni lanza un segundo Actor.
+      const reconciliation = await reconcileResearchJobs(sb, cfg, tenant.id)
       const result = await createResearchJob(
         sb,
         tenant.id,
@@ -46,11 +50,11 @@ async function launchRadar(sb: SupabaseClient, prepared: Prepared) {
       )
       if (!result.ok) {
         if (result.code === 'limites') {
-          return { deferred: true, reused: false, jobId: null, profiles: usernames.length }
+          return { deferred: true, reused: false, jobId: null, profiles: usernames.length, reconciliation }
         }
         throw Object.assign(new Error(result.error), { code: result.code })
       }
-      return { ...result, deferred: false, profiles: usernames.length }
+      return { ...result, deferred: false, profiles: usernames.length, reconciliation }
     },
     (result) => ({
       rowsWritten: null,
@@ -59,6 +63,7 @@ async function launchRadar(sb: SupabaseClient, prepared: Prepared) {
         profiles: result.profiles,
         asynchronous: true,
         deferred: result.deferred,
+        reconciliation: result.reconciliation,
       },
     })
   )
