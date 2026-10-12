@@ -236,8 +236,10 @@ async function syncOneAccount(
 
     // LEADS FUNNEL: contactos con una atribución Meta cuyo utm_campaign casa con
     // el nombre de esta campaña (con la codificación real del proveedor: '+' de Calendly son
-    // espacios), o cuyo utm_source es el ID de campaña de Meta (regla de identidad — los
-    // renames de Meta no rompen este cruce).
+    // espacios), o cuyo utm_source ES el id de esta campaña de Meta — regla de identidad: un
+    // rename de Meta congela el utm histórico ("- Copia") pero el ID nunca miente, así que el
+    // cruce cuenta el contacto aunque el nombre ya no case (la fuente id del propio contacto
+    // ya afirma que vino de esta campaña).
     const externalId = c.id
     const nameKey = normCampana(c.name)
     const funnelContacts = new Set<string>()
@@ -245,8 +247,9 @@ async function syncOneAccount(
       const fuentes = [a.utm_source, a.first_utm_source, a.last_utm_source].map(String)
       const srcOk = fuentes.some((s) => META_SOURCES.has(normCampana(s)) || esSourceIdMeta(s))
       if (!srcOk) continue
+      const fuentesId = fuentes.some((s) => esSourceIdMeta(s) && String(s).trim() === externalId)
       const camps = [a.utm_campaign, a.first_utm_campaign, a.last_utm_campaign].map(normCampana)
-      const match = camps.some((v) => v && (v === externalId || v === nameKey))
+      const match = fuentesId || camps.some((v) => v && (v === externalId || v === nameKey))
       if (match && a.contact_id) funnelContacts.add(String(a.contact_id))
     }
     const funnelLeads = funnelContacts.size
