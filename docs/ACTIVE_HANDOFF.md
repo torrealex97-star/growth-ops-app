@@ -25,7 +25,10 @@
   null≠0, engagement, velocidad, outlier, señal sospechosa, contrato Apify, transcript, RLS e índices.
 - **PENDIENTE DE OPERACIÓN:** aplicar `20261012074534_instagram_intelligence.sql` a Supabase de
   producción solo con confirmación explícita; después desplegar y ejecutar smoke real con un Reel
-  público autorizado. Sin la migración, las rutas nuevas no deben darse por operativas.
+  público autorizado. Sin la migración, las rutas nuevas no deben darse por operativas. El PR #449
+  está abierto y fusionable, pero el release gate remoto falla de forma esperada en
+  `columnas-fantasma` porque compara contra el esquema vivo anterior; no fusionar antes de aplicar
+  la migración y relanzar CI.
 - **Crédito:** adaptación MIT documentada en `docs/THIRD_PARTY_NOTICES.md`.
 
 # VALIDADO EN RAMA · Navegación completa de superadministrador (11-oct-2026, Codex)
