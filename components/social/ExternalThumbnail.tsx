@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ImageOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { instagramThumbnailFromPermalink } from '@/lib/social/thumbnail'
+import { instagramThumbnailResolverFromPermalink } from '@/lib/social/thumbnail'
 
 type ExternalThumbnailProps = {
   src: string | null | undefined
@@ -17,7 +17,7 @@ export function ExternalThumbnail({ src, permalink, alt = '', className, showLab
   const sources = useMemo(
     () =>
       Array.from(
-        new Set([src, instagramThumbnailFromPermalink(permalink)].filter((value): value is string => !!value))
+        new Set([src, instagramThumbnailResolverFromPermalink(permalink)].filter((value): value is string => !!value))
       ),
     [permalink, src]
   )
@@ -44,7 +44,7 @@ export function ExternalThumbnail({ src, permalink, alt = '', className, showLab
   }
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- URLs externas efímeras: no se proxyfican para evitar coste y cachear recursos caducados.
+    // eslint-disable-next-line @next/next/no-img-element -- La URL primaria es externa; el fallback solo resuelve un redirect y no proxyfica bytes.
     <img
       src={currentSrc}
       alt={alt}
