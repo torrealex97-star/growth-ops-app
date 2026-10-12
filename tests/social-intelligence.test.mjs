@@ -95,5 +95,5 @@ test('las miniaturas externas caducadas degradan a un estado limpio en toda la s
     new URL('../app/[tenant]/instagram/investigacion/page.tsx', import.meta.url),
     'utf8'
   )
-  assert.match(investigation, /max-h-\[32rem\].*xl:max-h-none/)
+  assert.match(investigation, /max-h-\[32rem\] w-full.*xl:max-h-none/)
 })

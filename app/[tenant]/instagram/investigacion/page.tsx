@@ -156,7 +156,7 @@ export default function AnalyzeReelPage() {
       {latest ? (
         <section className="grid gap-6 xl:grid-cols-[minmax(280px,0.8fr)_minmax(0,1.6fr)]">
           <article className="dashboard-card overflow-hidden p-0">
-            <div className="aspect-[4/5] max-h-[32rem] overflow-hidden bg-muted xl:max-h-none">
+            <div className="aspect-[4/5] max-h-[32rem] w-full overflow-hidden bg-muted xl:max-h-none">
               <ExternalThumbnail
                 src={latest.thumbnail_url}
                 alt="Miniatura del reel analizado"

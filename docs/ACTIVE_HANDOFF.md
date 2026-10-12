@@ -1,7 +1,7 @@
 # DESPLEGADO Y VERIFICADO · Instagram Intelligence + fallback de miniaturas (12-oct-2026, Codex)
 
-- **Git/producción:** PR #449 y hotfix #450 fusionados. Producción `growth-ops-app` está `READY`
-  en `app.scalixsystems.com` con SHA `78d599a8`; CI, build, Smoke E2E y release gate PASS.
+- **Git/producción:** PR #449, hotfix #450 y ajustes responsive posteriores fusionados. Producción
+  `growth-ops-app` queda verificada en `app.scalixsystems.com`; CI, build, Smoke E2E y release gate PASS.
 - **Causa comprobada en producción:** algunas URLs efímeras de miniaturas de Instagram caducan;
   el navegador mostraba una imagen rota de gran tamaño en Investigación aunque el resto de datos
   fuese válido.
@@ -12,7 +12,7 @@
   en Vercel URLs arbitrarias y caducables; no añade llamadas a APIs, tablas ni migraciones.
 - **TESTED:** `git diff --check`, typecheck y lint PASS (solo avisos heredados); suite completa
   1.578 PASS, 0 FAIL y 3 SKIP. Smoke autenticado: fallback visible, cero imágenes rotas y datos
-  conservados. Ajuste siguiente: limitar la altura vertical en tablet sin alterar escritorio.
+  conservados. La miniatura mantiene ancho completo y limita su altura en tablet sin alterar escritorio.
 
 # LISTO PARA FUSIONAR · Instagram Intelligence — análisis por URL, radar y consolidación UX (12-oct-2026, Codex)
 
