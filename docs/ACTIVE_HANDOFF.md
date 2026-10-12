@@ -1,4 +1,4 @@
-# ACTIVADO EN PRODUCCIÓN · Radar WDC con tres perfiles autorizados (12-oct-2026, Codex)
+# CERRADO, FUSIONADO, DESPLEGADO Y VERIFICADO · Radar WDC con tres perfiles autorizados (12-oct-2026, Codex)
 
 - **Recuperación del webhook (rama `codex/apify-radar-reconcile`):** la primera ejecución conservó
   run y dataset pero siguió en `processing` más de 17 minutos, sin error ni filas normalizadas. Se
@@ -6,11 +6,13 @@
   estados transitorios de terminales y reutiliza `processRunResults`, el mismo procesador
   idempotente del webhook. No crea Actors ni aumenta el coste. Un error de red deja el job
   reintentable en vez de inventar un fallo terminal.
-- **Validación local del fallback:** suite canónica 1.585 PASS / 3 SKIP / 0 FAIL, typecheck PASS,
+- **Git/producción:** PR #457 fusionado en `main` (`0fd641e1`). Vercel `growth-ops-app`
+  desplegado `Ready` como `dpl_7dxUp8ZaqeDAecQdS9PUdVD2mZ2A` y alias
+  `app.scalixsystems.com` confirmado.
+- **Validación del fallback:** suite canónica 1.585 PASS / 3 SKIP / 0 FAIL, typecheck PASS,
   lint PASS con avisos heredados y build de producción PASS. Test nuevo cubre todos los estados
   terminales/transitorios documentados por Apify; la regresión del cron exige la conciliación antes
-  de intentar crear/reutilizar el job diario. Pendiente fusionar, desplegar, relanzar el workflow y
-  verificar el mismo job/dataset en producción.
+  de intentar crear/reutilizar el job diario. CI completo de #457 en verde, incluido Smoke E2E.
 - **Configuración tenant-local:** en `women-digital-closer` se guardaron `paulattier`,
   `paula.ortolaa` y `shelby.sapp` como perfiles públicos de referencia y se activó
   `APIFY_RADAR_AUTO_ENABLED`. La UI confirmó `Apify (investigación externa): guardado` y muestra
@@ -19,21 +21,20 @@
   `cron-social-radar.yml` run `38256302536`, SUCCESS. Respuesta agregada: 4 tenants comprobados,
   1 elegible, 1 Actor lanzado, 0 reutilizados, 0 ocupados y 0 fallos; los otros 3 tenants quedaron
   desactivados. La guarda diaria impide que un reintento facture un segundo Actor ese día.
-- **Evidencia de producción:** Supabase registró un único job `instagram/profile` para WDC con los
-  tres usernames exactos, `provider_run_id` y `provider_dataset_id`, estado `processing` y sin
-  `error_message` en la última comprobación. Mientras el proveedor termina, Radar muestra un estado
-  vacío honesto (0 candidatos y 0 % de cobertura), no ceros inventados ni datos de otra subcuenta.
-- **Conciliación pendiente automática:** el resultado debe entrar por el webhook seguro de Apify,
-  normalizar perfiles/publicaciones y cambiar el job a `completed`. No relanzar manualmente el
-  workflow hoy: primero comprobar este mismo job y su Data Health; si supera la ventana normal,
-  revisar el webhook/run antes de gastar otra ejecución.
-- **Siguiente acción técnica exacta:** consultar el job de esta primera ejecución y contar perfiles
-  y publicaciones normalizados para esos tres handles; después comprobar `Radar diario` y
-  `Data Health → social-radar`. Si el job termina sin datos, registrar la limitación real del Actor;
-  si queda bloqueado en `processing`, diagnosticar la entrega del webhook de Apify.
+- **Recuperación productiva sin coste duplicado:** el primer workflow posterior al despliegue
+  (`38260385416`) falló durante la preparación con HTTP 500, antes de llamar al proveedor. El retry
+  idempotente `38260575094` terminó SUCCESS con `checked=4`, `eligible=1`, `launched=0`, `reused=1`,
+  `busy=0` y `failed=0`: reutilizó el job existente y no lanzó un segundo Actor.
+- **Evidencia final de producción:** el único job `instagram/profile` de WDC quedó `completed` el
+  `2026-10-12 14:07:36.845+00`, sin `error_message`, con `records_processed=36`. Supabase contiene
+  para esta ejecución los 3 perfiles autorizados, 32 publicaciones y 32 snapshots de métricas.
+  Queda cerrada la recuperación de la entrega tardía del webhook y verificada la idempotencia diaria.
+- **Siguiente control automático:** el cron diario seguirá conciliando primero cualquier run conocido
+  y después aplicará la guarda de coste. No ejecutar otra vez manualmente el workflow el 12-oct.
+  En la siguiente ventana, comprobar `Radar diario` y `Data Health → social-radar` como observación,
+  no como bloqueo de este despliegue.
 - **Solo al final, si hace falta Alex:** tras 24–48 h de muestra, decidir si se mantienen estos tres
-  perfiles, se sustituyen o se ajustan límites/coste. No se necesita ninguna acción del usuario para
-  la ejecución ya lanzada.
+  perfiles, se sustituyen o se ajustan límites/coste. No se necesita ninguna acción ahora.
 
 # CERRADO, FUSIONADO, DESPLEGADO Y VERIFICADO · Radar diario seguro y observable (12-oct-2026, Codex)
 
