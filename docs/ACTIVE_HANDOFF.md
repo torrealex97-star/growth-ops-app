@@ -1,3 +1,39 @@
+# LISTO PARA FUSIONAR · Instagram Intelligence — análisis por URL, radar y consolidación UX (12-oct-2026, Codex)
+
+- **Rama única:** `codex/instagram-intelligence`, sobre `origin/main` (`e2959f11`).
+- **Reclamación:** `app/[tenant]/instagram/**`, `app/api/[tenant]/evergreen/social/**`,
+  `lib/social/**`, migraciones/tablas `social_*` estrictamente relacionadas y pruebas del módulo.
+  No toca la sincronización oficial de la cuenta propia (`lib/instagram/sync.ts`), VSL, CRM,
+  finanzas ni comisiones.
+- **Objetivo:** conservar Meta oficial para contenido propio y Apify asíncrono para terceros;
+  añadir análisis de un Reel por URL, transcript/hook/formato con calidad y fuente visibles,
+  snapshots para métricas reales, radar de nicho y una UX coherente sin sistemas paralelos.
+- **Guardas:** ningún número desconocido se convierte en cero; no se ejecuta FFmpeg/Whisper/yt-dlp
+  dentro de Vercel; toda escritura queda acotada por `tenant_id`, con RLS y límites de coste.
+- **Implementado:** job `reel` por URL pública y contrato exacto del Actor con transcript; adaptación
+  normalizada sin tracking params; persistencia de transcript/análisis y snapshots de métricas;
+  análisis IA cacheado; deduplicación de runs en ventanas de 10 minutos para evitar doble gasto;
+  Radar 24 h que amplía a 48 h con muestra pequeña, umbral mínimo de 2.000 views, outlier relativo,
+  velocidad, engagement y señal de alcance sospechoso; navegación y UI responsive con estados
+  explícitos de carga, error, vacío, fuente, cobertura y dato no disponible.
+- **Seguridad/coste:** rutas limitadas a admin/director/manager/marketing; server-side tenant scope;
+  RLS de snapshots por tenant y escritura directa solo gestión; datos propios siguen en Meta oficial;
+  Apify solo recibe URL/usuarios públicos; no se añadió cron ni procesamiento de vídeo en Vercel.
+- **TESTED:** `npm run typecheck` PASS; `npm run lint` PASS con avisos heredados y dos avisos de
+  `<img>` en las nuevas vistas (URLs externas arbitrarias, sin proxy de imágenes); `npm test` PASS
+  (1.577 pass, 0 fail, 3 skip); `npm run build` PASS con acceso de red. Pruebas nuevas cubren URL,
+  null≠0, engagement, velocidad, outlier, señal sospechosa, contrato Apify, transcript, RLS e índices.
+- **PRODUCCIÓN — esquema aplicado y verificado:** con autorización explícita se aplicó
+  `instagram_intelligence` en Supabase `growth-ops-app` (ledger `20261012080220`). Verificados las
+  seis columnas, el tipo de job `reel`, tabla e índices, RLS activo y políticas SELECT/INSERT por
+  tenant. Se aplicó además `instagram_intelligence_post_fk_index` (ledger `20261012080256`) y se
+  verificó el índice dedicado que cubre el borrado en cascada por `post_id`; los avisos restantes del
+  advisor son deuda previa global y no fueron creados por este módulo. El espejo de tipos de la BD
+  se actualizó contra el esquema vivo (incluye snapshots y las seis columnas nuevas). Siguiente
+  exacto: relanzar CI del PR #449, fusionar solo en verde, esperar el deploy de `growth-ops-app` y
+  hacer smoke autenticado. El smoke no debe lanzar un Actor de pago sin una URL pública autorizada.
+- **Crédito:** adaptación MIT documentada en `docs/THIRD_PARTY_NOTICES.md`.
+
 # VALIDADO EN RAMA · Navegación completa de superadministrador (11-oct-2026, Codex)
 
 - **Rama:** `codex/superadmin-full-navigation`, desde `origin/main` posterior al PR #447.
