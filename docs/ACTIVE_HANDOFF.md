@@ -1,3 +1,10 @@
+# EN CURSO — SPEC-18 PR-0: certificación final de lanzamiento (13-oct, Buffy) · rama `feat/spec18-pr0-launch-inventory`
+
+- **Reclamación de carril:** SPEC-18 (Final End-to-End Audit & Launch Certification), fase PR-0 MASTER INVENTORY & TRACEABILITY + gates G1-G18 y decisión según el algoritmo §44. NO re-audita desde cero: consolida y evalúa la evidencia ya producida por las PRs #479-#487 (SPEC-04..11), #493 (SPEC-15), #494 (SPEC-16) y #497 (SPEC-17) + suites ejecutadas HOY como evidencia fresca. Salida esperada honesta: la decisión del gate comercial depende de las decisiones BUSINESS abiertas (billing SaaS MISSING verificado en SPEC-13/PR de #483, jerarquía de roles de SPEC-16, sin staging ni drill de restauración) — NOT_READY para lanzamiento público/comercial y CONDITIONAL_READY acotado para el alcance que ya opera hoy, si la evidencia lo confirma.
+- **Ficheros que toca:** `docs/FINAL_REPOSITORY_INVENTORY.md`, `docs/SPEC_TO_CODE_TRACEABILITY.md`, `docs/FINAL_LAUNCH_CERTIFICATION_REPORT.md` (nuevos), `lib/launch/gates.ts` + `tests/launch-gates.test.mjs` (nuevos — algoritmo de decisión puro, fail-closed) y esta fila del handoff. Sin cambios de dominio vivas (sin DDL, sin rutas).
+- **Relationado:** TODAS las PRs de la Fase 2-3 anteriores: este doc es su evaluación, no repite su contenido. Tests fuente-regex de crons NO se tocan.
+- **Base:** `b13e9041` (merge de #498).
+
 # COMPLETADO — estabilidad de `CONFIG_ENC_KEY` + diagnóstico de secretos (13-oct, Codex) · rama `codex/config-encryption-stability`
 
 - **Causa raíz confirmada:** no existía fallback aleatorio (el único `randomBytes` genera el IV AES-GCM), pero la llave se aceptaba con cualquier longitud, se releía en cada operación, no tenía huella y el panel confirmaba un guardado sin releer la fila. En producción, `META_APP_SECRET`, `RESEND_API_KEY` y `YOUTUBE_CLIENT_SECRET` conservaban fechas antiguas: los reintentos de la UI no habían sobrescrito esas filas.
