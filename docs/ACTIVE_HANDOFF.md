@@ -80,9 +80,11 @@ del dueño antes de crear `platform_staff_memberships`.
 - **Migración:** `20261013143000_google_oauth_centralized.sql` añade access token/expiry/estado de
   reautorización y las variantes `youtube` / `youtube_publish`. Creada localmente; **no aplicada en
   producción** desde esta rama.
-- **Validación:** `npm run typecheck` PASS; `npm test` 1.665 PASS / 3 omitidos; `npm run
-  test:metrics` 788 PASS; `npm run lint` PASS (solo avisos heredados); `git diff --check` PASS;
-  `npm run build` PASS con red autorizada para Google Fonts.
+- **Validación:** `npm run quality` local PASS (1.677 tests de aplicación y 788 de métricas tras
+  rebase sobre `main`); `npm run build` PASS; Vercel Preview PASS; gitleaks PASS. El quality gate
+  conectado al esquema vivo queda bloqueado únicamente porque producción todavía no tiene
+  `access_token`, `access_token_expires_at` ni `reauth_required_at`: es la señal esperada hasta
+  aplicar `20261013143000_google_oauth_centralized.sql`, no un fallo que deba silenciarse.
 - **Activación pendiente (humana/producción):** aplicar la migración; crear/seleccionar el cliente
   OAuth Web global, registrar exactamente `https://app.scalixsystems.com/api/oauth/google/callback`,
   activar Analytics Admin/Data, Calendar, YouTube Data y YouTube Analytics APIs, configurar las dos
