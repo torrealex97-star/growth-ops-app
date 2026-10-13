@@ -1,3 +1,13 @@
+# COMPLETADO — SPEC-14 PR-0: auditoría UX/UI del frontend (13-oct, Buffy) · `feat/spec14-pr0-ux-audit`
+
+[UX_UI_AUDIT.md](UX_UI_AUDIT.md): inventario del sistema real (23 componentes ui, IA de `lib/nav.ts`
+deliberada, estados de datos honestos, QA visual 1-oct), matriz de 10 pantallas con problemas
+DOCUMENTADOS (DASHBOARD_AUDIT 25-sep con navegador real, S1 §6.7/6.8 QA 1-oct) y los deltas UX
+reales consolidados: KpiCard canónico, contrato global de filtros, UI de incidencia Data Health
+con dry-run, timeline 360 con marketing/VSL, onboarding (ON_HOLD por SPEC-13 §5), accesibilidad
+automat efecto contemplado y visual regression (PR-9/10). Sin rediseño: consolidación incremental
+integrada con SPEC-06/07/08/10.
+
 # COMPLETADO — SPEC-13 PR-0: auditoría de producción y readiness SaaS (13-oct, Buffy) · `feat/spec13-pr0-production-audit`
 
 Matriz de preparación con evidencia por área y veredicto fundado en
