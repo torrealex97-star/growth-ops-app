@@ -1,3 +1,13 @@
+# VERIFICADO LIVE — sonda RLS multitenant PASS (13-oct, Buffy) · gate G1 con modo live cerrado
+
+`RLS_LIVE_CONFIRM=1 npm run test:rls:live` (autorización explícita del dueño en la sesión) ejecutó
+la sonda [scripts/qa/rls-multitenant.mjs](../scripts/qa/rls-multitenant.mjs) contra el proyecto
+activo con fixtures efímeros autolimpiables (no existe proyecto Supabase de staging separado —
+Supabase Free tiene un solo projecto; la sonda está diseñada para eso y borra sus fixtures al
+terminar). Resultado: exit 0 y «PASS: RLS ORG_A/ORG_B SELECT/INSERT/UPDATE/DELETE + usuario
+miembro de ambas subcuentas» — el gate G1 del informe de certificación deja de depender solo de
+la batería estática y queda verificado en modo live con credenciales de QA reales.
+
 # COMPLETADO — SPEC-18 PR-0: certificación final de lanzamiento (13-oct, Buffy) · `feat/spec18-pr0-launch-inventory` (PR #500, merged)
 
 Decisión emitida en [FINAL_LAUNCH_CERTIFICATION_REPORT.md](FINAL_LAUNCH_CERTIFICATION_REPORT.md)
