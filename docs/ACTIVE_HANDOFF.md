@@ -1,3 +1,10 @@
+# EN CURSO — SPEC-17 PR-0: auditoría de escalabilidad/rendimiento/coste (13-oct, Buffy) · rama `feat/spec17-pr0-perf-baseline`
+
+- **Reclamación de carril:** SPEC-17 (SaaS Scalability, Performance & Cost), fase PR-0 AUDIT → BASELINE → PROFILE obligatoria antes de PR-1..PR-10. El baseline medido EXISTE: `docs/FREE_TIER_OPERATIONS.md` (6-oct: DB ~48 MB, top `appointments` 7,7 MB / `audit_logs` 3,6 MB; `pg_stat_statements` top = lecturas de appointments; migración `20261006090000` de InitPlans/índices ya comprometida). **Hallazgo principal de este PR, con evidencia de código:** el reparto de presupuesto de cron está duplicado ad-hoc en 4+ rutas (reminders/monthly/analyze-calls/reels) y calc repe `Date.now() + perTenantBudget` en cada iteración — NO está anclado al deadline global, así que el peor caso es `N × presupuesto` y no el global (viola de facto la regla «el deadline es global por invocación» de FREE_TIER_OPERATIONS/AGENTS.md; con 2 tenants es mudo, a escala es noisy-neighbor + 504).
+- **Ficheros que toca:** `docs/SCALABILITY_ARCHITECTURE_AUDIT.md` (nuevo), `lib/perf/presupuesto-cron.ts` (nuevo — reparto puro anclado al deadline global con corte declarado), `app/api/[tenant]/evergreen/cron/reminders/route.ts` + `cron/monthly/route.ts` (cableado mecánico del helper, sin cambiar contratos de salida), `tests/perf-presupuesto-cron.test.mjs` (nuevo) y esta fila del handoff.
+- **Relationado:** consume el baseline de FREE_TIER_OPERATIONS sin duplicarlo; los códigos restante CRITERIA requieren credenciales/jefe (sin staging). Los tests fuente-regex de crons (tests/cron-monthly-reminders.test.mjs, auditoria-efectos-externos) se ajustan si el cableado los rompe.
+- **Base:** `40b3ece7` (merge de #495).
+
 # COMPLETADO — SPEC-16 PR-0: auditoría de SaaS Admin & Customer Success (13-oct, Buffy) · `feat/spec16-pr0-saas-admin-audit` (PR #494, merged)
 
 [SAAS_ADMIN_ARCHITECTURE_AUDIT.md](SAAS_ADMIN_ARCHITECTURE_AUDIT.md): matriz del estado REAL —
