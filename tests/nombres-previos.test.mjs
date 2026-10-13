@@ -35,6 +35,9 @@ function supabaseFalso({ camps = [], contacts = [] } = {}) {
       select: () => b,
       eq: () => b,
       not: () => b,
+      or: () => b,
+      order: () => b,
+      range: () => b,
       then: (res, rej) => Promise.resolve({ data: filas, error: null }).then(res, rej),
     }
     return b
@@ -51,12 +54,37 @@ test('nombresPreviosPorCampana: agrupa por campaña y deja fuera el nombre actua
       { id: 'c-copia', name: '🟢 AGENDA | COLD AUDIENCE - Copia' },
     ],
     contacts: [
-      { id: 'c1', campaign_id: 'c-look', first_utm_campaign: '🟢+AGENDA+|+COLD+AUDIENCE+-+Copia' },
-      { id: 'c2', campaign_id: 'c-look', first_utm_campaign: '🟢+AGENDA+|+COLD+AUDIENCE+-+Copia' },
-      { id: 'c3', campaign_id: 'c-look', first_utm_campaign: null }, // sin utm: fuera
+      {
+        contact_id: 'c1',
+        contacts: { campaign_id: 'c-look', tenant_id: 'tenant-1' },
+        first_utm_campaign: '🟢+AGENDA+|+COLD+AUDIENCE+-+Copia',
+        utm_campaign: null,
+      },
+      {
+        contact_id: 'c2',
+        contacts: { campaign_id: 'c-look', tenant_id: 'tenant-1' },
+        first_utm_campaign: '🟢+AGENDA+|+COLD+AUDIENCE+-+Copia',
+        utm_campaign: null,
+      },
+      {
+        contact_id: 'c3',
+        contacts: { campaign_id: 'c-look', tenant_id: 'tenant-1' },
+        first_utm_campaign: null,
+        utm_campaign: null,
+      }, // sin utm: fuera
       // mismo nombre actual (case/espacios): NO es rename
-      { id: 'c4', campaign_id: 'c-look', first_utm_campaign: '🟢 AGENDA | COLD LOOKALIKE AUDIENCE' },
-      { id: 'c5', campaign_id: 'c-copia', first_utm_campaign: '🟢+AGENDA+|+COLD+AUDIENCE' },
+      {
+        contact_id: 'c4',
+        contacts: { campaign_id: 'c-look', tenant_id: 'tenant-1' },
+        first_utm_campaign: '🟢 AGENDA | COLD LOOKALIKE AUDIENCE',
+        utm_campaign: null,
+      },
+      {
+        contact_id: 'c5',
+        contacts: { campaign_id: 'c-copia', tenant_id: 'tenant-1' },
+        first_utm_campaign: null,
+        utm_campaign: '🟢+AGENDA+|+COLD+AUDIENCE',
+      },
     ],
   })
   const mapa = await nombresPreviosPorCampana(sb, 'tenant-1')
@@ -75,9 +103,24 @@ test('nombresPreviosPorCampana: ordena previos por evidencia (más contactos pri
   const sb = supabaseFalso({
     camps: [{ id: 'c1', name: 'Nueva' }],
     contacts: [
-      { id: 'k1', campaign_id: 'c1', first_utm_campaign: 'Vieja A' },
-      { id: 'k2', campaign_id: 'c1', first_utm_campaign: 'Vieja B' },
-      { id: 'k3', campaign_id: 'c1', first_utm_campaign: 'Vieja B' },
+      {
+        contact_id: 'k1',
+        contacts: { campaign_id: 'c1', tenant_id: 'tenant-1' },
+        first_utm_campaign: 'Vieja A',
+        utm_campaign: null,
+      },
+      {
+        contact_id: 'k2',
+        contacts: { campaign_id: 'c1', tenant_id: 'tenant-1' },
+        first_utm_campaign: 'Vieja B',
+        utm_campaign: null,
+      },
+      {
+        contact_id: 'k3',
+        contacts: { campaign_id: 'c1', tenant_id: 'tenant-1' },
+        first_utm_campaign: 'Vieja B',
+        utm_campaign: null,
+      },
     ],
   })
   const mapa = await nombresPreviosPorCampana(sb, 'tenant-1')
@@ -95,5 +138,7 @@ test('el endpoint es por tenant con requireTenant y service-role, y proyecta col
   assert.match(route, /SUPABASE_SERVICE_ROLE_KEY/)
   const mod = leer('lib/campaigns/nombres-previos.ts')
   assert.match(mod, /select\('id, name'\)/, 'proyección mínima de campaigns')
-  assert.match(mod, /select\('id, campaign_id, first_utm_campaign'\)/, 'proyección mínima de contacts')
+  assert.match(mod, /from\('contact_attributions'\)/, 'la UTM se lee desde su tabla canónica')
+  assert.match(mod, /contacts!inner\(campaign_id, tenant_id\)/, 'campaign_id se resuelve por la FK del contacto')
+  assert.match(mod, /\.range\(/, 'la lectura histórica está paginada')
 })
