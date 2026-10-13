@@ -53,11 +53,12 @@ export async function resolveSaleAttribution(
   let term = ''
   let content = ''
   let colaboradorIdDelContacto: string | null = null
+  let collaboratorAttributionBlocked = false
   if (sale.contact_id && ((needSetter && !patch.setter_id) || needAffiliate)) {
     const { data: attr } = await sb
       .from('contact_attributions')
       .select(
-        'utm_term, first_utm_term, last_utm_term, utm_content, first_utm_content, last_utm_content, collaborator_id, is_primary, last_touch_at'
+        'utm_term, first_utm_term, last_utm_term, utm_content, first_utm_content, last_utm_content, collaborator_id, collaborator_attribution_blocked, is_primary, last_touch_at'
       )
       .eq('contact_id', sale.contact_id)
       .eq('tenant_id', tenantId)
@@ -66,10 +67,20 @@ export async function resolveSaleAttribution(
       .limit(1)
       .maybeSingle()
     if (attr) {
-      const a = attr as Record<string, string | null>
+      const a = attr as {
+        first_utm_term: string | null
+        utm_term: string | null
+        last_utm_term: string | null
+        first_utm_content: string | null
+        utm_content: string | null
+        last_utm_content: string | null
+        collaborator_id: string | null
+        collaborator_attribution_blocked: boolean
+      }
       term = norm(a.first_utm_term || a.utm_term || a.last_utm_term)
       content = norm(a.first_utm_content || a.utm_content || a.last_utm_content)
       colaboradorIdDelContacto = a.collaborator_id ?? null
+      collaboratorAttributionBlocked = a.collaborator_attribution_blocked === true
     }
   }
 
@@ -78,7 +89,7 @@ export async function resolveSaleAttribution(
   // colaborador, nunca el UUID del perfil (la FK lo rechazaría). El lane 'collaborator'
   // del ledger lo decide después participantTypeForUser() comparando contra los perfiles
   // activos; aquí solo rellena lo vacío: una asignación manual del admin no se pisa nunca.
-  if (needAffiliate && !patch.affiliate_id && colaboradorIdDelContacto) {
+  if (needAffiliate && !collaboratorAttributionBlocked && !patch.affiliate_id && colaboradorIdDelContacto) {
     const { data: perfil } = await sb
       .from('collaborator_profiles')
       .select('user_id, default_commission_percent')
@@ -100,7 +111,7 @@ export async function resolveSaleAttribution(
   }
 
   // 4) Afiliado por utm_content → affiliate_code (con su % por defecto si la venta no lo trae)
-  if (needAffiliate && content) {
+  if (needAffiliate && !collaboratorAttributionBlocked && content) {
     const { data: affs } = await sb
       .from('users')
       .select('id, affiliate_code, default_affiliate_commission_percent')

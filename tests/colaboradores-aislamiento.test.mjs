@@ -135,8 +135,10 @@ test('el override de atribución exige admin, motivo y deja rastro auditado', ()
   // Auditoría: actor, anterior, nuevo y motivo en audit_logs.
   assert.match(codigo, /from\('audit_logs'\)\.insert/)
   assert.match(codigo, /collaborator_attribution_override/)
-  assert.match(codigo, /old_values: \{ collaborator_id: anterior \}/)
-  assert.match(codigo, /new_values: \{ collaborator_id: collaboratorId, reason \}/)
+  assert.match(codigo, /old_values: \{[^}]*collaborator_id: anterior/)
+  assert.match(codigo, /new_values: \{[^}]*collaborator_id: collaboratorId/)
+  assert.match(codigo, /collaborator_attribution_blocked: bloquearReatribucion/)
+  assert.match(codigo, /reason/)
   // El contacto y el perfil deben existir EN ESTA subcuenta (nada de ids cross-tenant).
   assert.match(codigo, /\.eq\('tenant_id', t\.tenantId\)/)
 })

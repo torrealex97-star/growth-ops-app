@@ -64,18 +64,29 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     // Valor ANTERIOR (para el histórico). La fila is_primary es la canónica.
     const { data: attr } = await sb
       .from('contact_attributions')
-      .select('id, collaborator_id')
+      .select('id, collaborator_id, collaborator_attribution_blocked')
       .eq('contact_id', contactId)
       .eq('tenant_id', t.tenantId)
       .eq('is_primary', true)
       .maybeSingle()
-    const anterior = (attr as { id: string; collaborator_id: string | null } | null)?.collaborator_id ?? null
+    const estadoAnterior = attr as {
+      id: string
+      collaborator_id: string | null
+      collaborator_attribution_blocked: boolean
+    } | null
+    const anterior = estadoAnterior?.collaborator_id ?? null
+    const bloqueoAnterior = estadoAnterior?.collaborator_attribution_blocked ?? false
+    const bloquearReatribucion = collaboratorId === null
 
     const ahora = new Date().toISOString()
     if (attr) {
       const { error } = await sb
         .from('contact_attributions')
-        .update({ collaborator_id: collaboratorId, updated_at: ahora })
+        .update({
+          collaborator_id: collaboratorId,
+          collaborator_attribution_blocked: bloquearReatribucion,
+          updated_at: ahora,
+        })
         .eq('id', (attr as { id: string }).id)
         .eq('tenant_id', t.tenantId)
       if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -86,6 +97,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
         contact_id: contactId,
         is_primary: true,
         collaborator_id: collaboratorId,
+        collaborator_attribution_blocked: bloquearReatribucion,
         source: 'admin_override',
         first_touch_at: ahora,
         last_touch_at: ahora,
@@ -102,8 +114,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       entity_type: 'contact_attribution',
       entity_id: contactId,
       action: 'collaborator_attribution_override',
-      old_values: { collaborator_id: anterior },
-      new_values: { collaborator_id: collaboratorId, reason },
+      old_values: {
+        collaborator_id: anterior,
+        collaborator_attribution_blocked: bloqueoAnterior,
+      },
+      new_values: {
+        collaborator_id: collaboratorId,
+        collaborator_attribution_blocked: bloquearReatribucion,
+        reason,
+      },
     })
     if (auditErr) {
       return NextResponse.json(

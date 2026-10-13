@@ -264,6 +264,11 @@ export async function generateCommissionsForCollection(
   collection: Collection,
   sale: Sale
 ): Promise<number> {
+  // La elegibilidad del cobro es la frontera canónica. Una reserva o un cobro
+  // puesto en revisión no puede generar comisión aunque llegue aquí por una
+  // ruta directa, una reentrega o una reparación posterior.
+  if (collection.is_eligible_for_commission !== true) return 0
+
   // Solo generamos si hay alguien a quien comisionar
   if (!sale.setter_id && !sale.closer_id && !(sale.affiliate_id && sale.affiliate_commission_percent)) {
     return 0
@@ -353,6 +358,7 @@ export async function reconcileSaleCommissions(
     .eq('sale_id', saleId)
     .eq('status', 'collected')
     .eq('needs_commission_review', false)
+    .eq('is_eligible_for_commission', true)
   const colls = (collsData ?? []) as Collection[]
 
   const { data: existingData } = await sb
