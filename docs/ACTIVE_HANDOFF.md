@@ -1,3 +1,20 @@
+# EN CURSO — SPEC-07 PR-0: audit de métricas y dashboards (13-oct, Buffy) · rama `feat/spec07-pr0-analytics-audit`
+
+- **Reclamación de carril:** SPEC-07 (Growth Intelligence & Analytics), fase PR-0 obligatoria
+  antes de PR-1..PR-10. Clave: la auditoría de dashboards del 25-sep ya existe con evidencia de BD
+  real (`docs/DASHBOARD_AUDIT.md` + `DASHBOARD_CORRECTION_PLAN.md`) — este PR-0 la extiende en vez
+  de duplicarla: verifica qué sigue vigente tras #478/#480 (P1-1 de cash canónico quedó CONSUMADO
+  desde la auto audit: 10 consumidores hoy frente a 1), mapea los contratos que la SPEC-04/05/06
+  ya normalizan y registra el delta que falta (contrato global de consulta, exportaciones,
+  scorecard de closers, cohortes con madurez declarada).
+- **Ficheros que toca:** `docs/ANALYTICS_ARCHITECTURE.md` (nuevo) y esta fila del handoff. Sin
+  cambios de código; `git status` limpio salvo ese doc y `.freebuff/` excluido a propósito.
+- **Relationado:** PRs #479/#481/#482 propias abierta (SPEC-04/05/06). Sus contratos y los
+  del plan de corrección vigente son insumos directos de PR-1+; coordinación por tablero.
+- **Base:** `b71dcf55` (merge de #480).
+
+>>>>>>> bb71b194 (docs(spec07): PR-0 vigencia de la auditoría de dashboards del 25-sep y delta SPEC-07)
+
 # EN CURSO — SPEC-06 PR-0: audit de Person 360 y Customer Journey (13-oct, Buffy) · rama `feat/spec06-pr0-person360-audit`
 
 - **Reclamación de carril:** SPEC-06 (Customer Journey Intelligence & Person 360), fase PR-0
