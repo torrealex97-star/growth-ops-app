@@ -105,11 +105,11 @@ hito, ni distinción observado/derivado. PR-3 lo define sin tocar el almacenamie
 
 ### H-7 — Cobertura de identidad: matching de atribución depende de UN solo toque (VERIFICADO)
 
-El sensor de atribución para contactos (`registrarToque`) funciona la entrega a entrega; la unión de
+El sensor de atribución para contactos (`registrarToque`) opera entrega a entrega; la unión de
 `tracking_sessions/visitors` ↔ `contacts` depende de identificarse (email o eventos confirmados por
 calendly). No existe un "graph" revisable de `visitor_id` → contactos. Los casos de email compartido,
-teléfonos reciclados y evoluciones de identidad quedan pendientes del mégrado de Person 360; quedan
-como INFECCIONADOS para PR-3, la SPEC-04 PR-3 ya reclamó "dos agendas legítimas", no el identity graph.
+  teléfonos reciclados y evoluciones de identidad quedan pendientes de la evolución de Person 360; quedan
+  como PENDIENTES para PR-3 (la SPEC-04 PR-3 ya reclamó «dos agendas legítimas», no el identity graph).
 
 ### H-8 — Data health de atribución sin señales de coverage (INSPECCIONADO)
 
