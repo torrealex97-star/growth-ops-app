@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
-import { encryptSecret } from '@/lib/config'
+import { encryptSecret, getConfigEncryptionKeyFingerprint } from '@/lib/config'
 import { exchangeCode, fetchGoogleEmail, googleCredentials, SCOPES } from '@/lib/google/oauth'
 import { verifyState } from '@/lib/google/oauth-state'
 import { requireTenant } from '@/lib/auth/requireTenant'
@@ -109,6 +109,7 @@ export async function GET(req: NextRequest) {
           key: 'YOUTUBE_REFRESH_TOKEN',
           value: encryptSecret(token.refresh_token),
           is_secret: true,
+          key_fingerprint: getConfigEncryptionKeyFingerprint(),
           updated_by: userId,
         },
         { onConflict: 'tenant_id,key' }

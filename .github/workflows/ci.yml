@@ -108,6 +108,8 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
           SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key
           NEXT_PUBLIC_SITE_URL: http://localhost:3000
+          # Obligatoria por diseño. Valor exclusivo de CI: nunca debe coincidir con producción.
+          CONFIG_ENC_KEY: ci-build-only-config-encryption-key-32-bytes
 
   # SMOKE E2E (Playwright): los flujos críticos de negocio no se rompen sin que nos demos cuenta.
   # Reservas (alta manual end-to-end) y ficha de contacto (info-first + campos personalizados)
@@ -150,6 +152,8 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key
           NEXT_PUBLIC_SITE_URL: http://localhost:3100
+          # Debe ser idéntica en build y runtime del mismo job, pero nunca la llave de producción.
+          CONFIG_ENC_KEY: ci-e2e-only-config-encryption-key-32-bytes
       - name: Smoke E2E (build + start + specs; Playwright levanta el server)
         run: npm run test:e2e
         env:
@@ -157,6 +161,8 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Llave fija solo para el proceso QA. Evita fallbacks y no permite leer secretos prod.
+          CONFIG_ENC_KEY: ci-e2e-only-config-encryption-key-32-bytes
           # Password del usuario QA admin@qa-e2e.test — solo el secret, nunca en el repo.
           E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
           NEXT_TELEMETRY_DISABLED: 1
