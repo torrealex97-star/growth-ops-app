@@ -1,3 +1,15 @@
+# EN CURSO — SPEC-05 PR-0: auditoría de atribución, fuentes y touchpoints (13-oct, Buffy) · rama `feat/spec05-pr0-attribution-audit`
+
+- **Reclamación de carril:** SPEC-05 (Growth Attribution Intelligence Engine), fase PR-0 obligatoria
+  antes de PR-1..PR-9: mapa del sistema de atribución real, matriz de capacidades y hallazgos con
+  clasificación VERIFICADO/INSPECCIONADO/PROBADO, sin rehacer lo que SPEC-04 ni el motor de #478
+  (fusionado) ya cubren.
+- **Ficheros que toca:** `docs/ATTRIBUTION_AUDIT_REPORT.md` (nuevo) y esta fila del handoff.
+  Sin cambios de código; `git status` limpio salvo ese doc y `.freebuff/` excluido a propósito.
+- **Relationado:** la PR #479 (SPEC-04 PR-0, propia) sigue abierta esperando merge; los contratos de
+  touchpoint de SPEC-05 respetarán lo que SPEC-04 PR-1+ defina — coordinación por el tablero.
+- **Base:** `b71dcf55` (merge de #480), que ya incluye el motor de revenue attribution de #478.
+
 # LISTO PARA FUSIONAR · Embudo atribuible campaña/anuncio → agenda → asistencia → venta → cash (13-oct-2026, Codex)
 
 - **Rama:** `codex/revenue-attribution-funnel`, nacida de `origin/main` (`851d53c6`).
