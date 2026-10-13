@@ -1,3 +1,28 @@
+# PR #472: checkout consolidado a main (13-oct, Buffy) — CI 9/9 VERDE, merge y despliegue verificados
+
+- **Qué fue:** todo lo que estaba sin commitear en el checkout (sesiones 25-sep → 13-oct) se inspeccionó,
+  commiteó en una rama única (`feat/wip-consolidacion-funnels-meta-access`), rebasada dos veces
+  sobre main que se movía (por #470/#471 y luego #473/#474) y entró vía PR #472.
+- **Contenido:** diagnóstico del pixel de Funnels (`trackingEventsSeen`), badge «Renombrada» en Campañas
+  con el endpoint de nombres previos (lib/campaigns + app/.../meta/campaigns), resolver de atribución
+  por identidad + backfills consumibles desde la ruta de históricos, loader del pixel que propaga UTMs
+  a Calendly preservando el anonId, tipos regenerados (OpenAPI 12-oct), migración nueva MCP
+  (`20261010140000_mcp_reader_grants_sync_catalog.sql`), auditoría y plan de dashboards, y tests
+  canónicos de las tres piezas (resolver, backfill, nombres previos); funnel-visual adaptado al
+  nuevo formato multilínea de la firma (la intención del assert no cambia).
+- **Validación:** `npm run quality` PASS local antes del primer push y de nuevo tras cada rebase
+  (exit 0 con pipefail); CI 9/9 PASS en la rama (calidad, build, secretos, Smoke E2E 5m57s y Release
+  gate). Una primera corrida E2E quedó CANCELADA por la concurrencia `e2e-tenant-qa` con la PR #473
+  (el run más nuevo cancela la suite del tenant QA compartido: no es un fallo); re-lanzada igual
+  y verde.
+- **Excluido de propósito:** `.freebuff/` (snapshots internos del workspace, con node_modules y
+  `project-id`) sigue sin trackear; era el único resto sin commitear y se dejó; la rama de la
+  consolidación se borró tras el merge (local y remota).
+- **Despliegue:** main → Vercel Production `● Ready` 3 m tras el merge (`6f4af4a7`).
+- **Siguiente exacto:** ninguno de este bloque; revisar #473 si se toca el tracking de citas y
+  evaluar los pendientes de `docs/DASHBOARD_CORRECTION_PLAN.md` (P1-1, unificar cash canónico)
+  como próximo trabajo grande.
+
 # funnel_leads = 19 EN PRODUCCIÓN (12-oct tarde, Buffy) · merge #465 + #469 + sync — VERIFICADO en BD y en UI
 
 - **Problema que la UI destapó:** al verificar la página de Campañas los leads de LOOKALIKE
