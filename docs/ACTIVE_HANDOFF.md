@@ -60,9 +60,14 @@
   tabla, calendario y detalle; captura de `campaign_id`/`ad_id`/`adset_id` en GHL y pixel first-party.
   La sync histórica de GHL vuelve a consultar el contacto solo cuando detecta tráfico Meta sin
   `ad_id`, manteniendo timeout, cache por lote y cursor reanudable.
-- **Evidencia pendiente de este checkpoint:** ejecutar quality/build, abrir PR, esperar CI, fusionar,
-  confirmar deployment de producción y relanzar el histórico GHL desde Integraciones para recuperar
-  los `ad_id` que el proveedor conserve. Las filas sin esa evidencia deben seguir como no identificadas.
+- **Commit:** `a700f339` (`feat: resolve Meta campaign and ad identities in agendas`).
+- **Validación local:** 27 pruebas focales PASS; `npm run quality` PASS (suite completa + 788 métricas);
+  `npm run build` PASS. El primer build falló únicamente porque el sandbox no resolvía
+  `fonts.googleapis.com`; repetido con red, compiló y generó todas las rutas, incluida
+  `/appointments/attribution-catalog`.
+- **Pendiente operativo:** abrir PR, esperar CI, fusionar, confirmar deployment de producción y
+  relanzar el histórico GHL desde Integraciones para recuperar los `ad_id` que el proveedor conserve.
+  Las filas sin esa evidencia deben seguir como no identificadas.
 
 # CERRADO, FUSIONADO, DESPLEGADO Y VERIFICADO · Acceso y navegación accesibles (13-oct-2026, Codex)
 
