@@ -1,4 +1,4 @@
-// GENERADO — no editar a mano. Fuente: OpenAPI de PostgREST (2026-10-12T08:08:00Z).
+// GENERADO — no editar a mano. Fuente: OpenAPI de PostgREST (2026-10-12T13:10:11.707Z).
 // Regenerar con: npm run tipos:bd  (y commitear). El test tests/esquema-tenant-invariante.test.mjs
 // comprueba que este artefacto sigue fresco respecto al esquema vivo.
 // Espejo exacto del esquema public de Supabase; los tipos de APP siguen en lib/types/database.ts.
@@ -656,6 +656,11 @@ export type EsquemaPublico = {
         offered_by: string | null
         offered_at: string | null
         ghl_calendar_id: string | null
+        attribution_first: Json | null
+        attribution_second: Json | null
+        attribution_last: Json | null
+        attribution_booking: Json | null
+        attribution_status: string | null
       }
       Insert: {
         id: string | null | undefined
@@ -717,6 +722,11 @@ export type EsquemaPublico = {
         offered_by: string | null | undefined
         offered_at: string | null | undefined
         ghl_calendar_id: string | null | undefined
+        attribution_first: Json | null | undefined
+        attribution_second: Json | null | undefined
+        attribution_last: Json | null | undefined
+        attribution_booking: Json | null | undefined
+        attribution_status: string | null | undefined
       }
       Update: {
         id: string | undefined
@@ -778,6 +788,11 @@ export type EsquemaPublico = {
         offered_by: string | undefined
         offered_at: string | undefined
         ghl_calendar_id: string | undefined
+        attribution_first: Json | undefined
+        attribution_second: Json | undefined
+        attribution_last: Json | undefined
+        attribution_booking: Json | undefined
+        attribution_status: string | undefined
       }
     }
     AuditLogs: {
@@ -3850,7 +3865,7 @@ export type EsquemaPublico = {
         client_secret_hash: string | null
         name: string | null
         owner_user_id: string | null
-        redirect_uris: string[] | null
+        redirect_uris: string | null
         created_at: string | null
       }
       Insert: {
@@ -3859,7 +3874,7 @@ export type EsquemaPublico = {
         client_secret_hash: string | null | undefined
         name: string | null | undefined
         owner_user_id: string | null | undefined
-        redirect_uris: string[] | null | undefined
+        redirect_uris: string | null | undefined
         created_at: string | null | undefined
       }
       Update: {
@@ -3867,8 +3882,8 @@ export type EsquemaPublico = {
         client_id: string | undefined
         client_secret_hash: string | undefined
         name: string | undefined
-        owner_user_id: string | null | undefined
-        redirect_uris: string[] | undefined
+        owner_user_id: string | undefined
+        redirect_uris: string | undefined
         created_at: string | undefined
       }
     }
@@ -3909,7 +3924,7 @@ export type EsquemaPublico = {
         code_challenge: string | undefined
         code_challenge_method: string | undefined
         expires_at: string | undefined
-        used_at: string | null | undefined
+        used_at: string | undefined
         created_at: string | undefined
       }
     }
@@ -3941,13 +3956,13 @@ export type EsquemaPublico = {
       Update: {
         id: string | undefined
         token_hash: string | undefined
-        refresh_hash: string | null | undefined
+        refresh_hash: string | undefined
         client_id: string | undefined
         user_id: string | undefined
         scope: string | undefined
         expires_at: string | undefined
-        revoked_at: string | null | undefined
-        refresh_expires_at: string | null | undefined
+        revoked_at: string | undefined
+        refresh_expires_at: string | undefined
         created_at: string | undefined
       }
     }
@@ -4981,28 +4996,28 @@ export type EsquemaPublico = {
     }
     SocialPostMetricSnapshots: {
       Row: {
-        id: string
-        tenant_id: string
-        post_id: string
-        observed_at: string
+        id: string | null
+        tenant_id: string | null
+        post_id: string | null
+        observed_at: string | null
         views_count: number | string | null
         likes_count: number | string | null
         comments_count: number | string | null
         shares_count: number | string | null
-        source: string
-        created_at: string
+        source: string | null
+        created_at: string | null
       }
       Insert: {
-        id: string | undefined
-        tenant_id: string
-        post_id: string
-        observed_at: string | undefined
+        id: string | null | undefined
+        tenant_id: string | null | undefined
+        post_id: string | null | undefined
+        observed_at: string | null | undefined
         views_count: number | string | null | undefined
         likes_count: number | string | null | undefined
         comments_count: number | string | null | undefined
         shares_count: number | string | null | undefined
-        source: string | undefined
-        created_at: string | undefined
+        source: string | null | undefined
+        created_at: string | null | undefined
       }
       Update: {
         id: string | undefined
@@ -5041,7 +5056,7 @@ export type EsquemaPublico = {
         job_id: string | null
         transcript: string | null
         transcript_timing: string | null
-        analysis_status: string
+        analysis_status: string | null
         analysis_json: Json | null
         analyzed_at: string | null
         metrics_observed_at: string | null
@@ -5069,7 +5084,7 @@ export type EsquemaPublico = {
         job_id: string | null | undefined
         transcript: string | null | undefined
         transcript_timing: string | null | undefined
-        analysis_status: string | undefined
+        analysis_status: string | null | undefined
         analysis_json: Json | null | undefined
         analyzed_at: string | null | undefined
         metrics_observed_at: string | null | undefined

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Radio, Plus, Pencil, Receipt, CheckCircle2, RefreshCw, AlertTriangle, Zap } from 'lucide-react'
+import { Radio, Plus, Pencil, Receipt, CheckCircle2, RefreshCw, AlertTriangle, Zap, History } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatCurrency, formatNumber } from '@/lib/utils'
 import type { Campaign } from '@/lib/types/database'
@@ -156,6 +156,11 @@ export default function CampaignsPage() {
   const [showTargets, setShowTargets] = useState(false)
   const [targetsForm, setTargetsForm] = useState({ target_roas: '', target_cac: '', target_cpl: '' })
   const [savingTargets, setSavingTargets] = useState(false)
+  // Renames de Meta detectados por los utm históricos de los contactos asignados:
+  // { campaignId: { previos, conteo } } — deriva del endpoint de nombres previos.
+  const [previosMap, setPreviosMap] = useState<Record<string, { previos: string[]; conteo: Record<string, number> }>>(
+    {}
+  )
 
   const period = useMemo(() => currentPeriod(), [])
 
@@ -339,6 +344,20 @@ export default function CampaignsPage() {
   useEffect(() => {
     loadTargets()
   }, [loadTargets])
+
+  const loadPrevios = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/${tenant}/evergreen/meta/campaigns/nombres-previos`)
+      if (!res.ok) return
+      const json = (await res.json()) as { byCampaign: typeof previosMap }
+      setPreviosMap(json.byCampaign ?? {})
+    } catch {
+      // Sin nombres previos el badge simplemente no aparece: no es un error de la página.
+    }
+  }, [tenant])
+  useEffect(() => {
+    loadPrevios()
+  }, [loadPrevios])
 
   const saveTargets = async () => {
     setSavingTargets(true)
@@ -843,6 +862,8 @@ export default function CampaignsPage() {
                       // Desfase entre lo que reporta Meta y los leads reales de la app
                       const leadGap = (c.meta_leads || 0) - (c.funnel_leads || 0)
                       const showGap = c.meta_leads > 0 && Math.abs(leadGap) >= Math.max(3, c.meta_leads * 0.2)
+                      // Rename de Meta conocido por utm históricos (derivado, no persistido).
+                      const previos = previosMap[c.id]?.previos
                       return (
                         <tr key={c.id} className="border-b border-border/60 hover:bg-muted/30">
                           <td className="px-4 py-3 text-foreground">
@@ -851,6 +872,15 @@ export default function CampaignsPage() {
                               {isMeta && (
                                 <span className="inline-flex items-center gap-1 text-3xs px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
                                   <Zap className="w-2.5 h-2.5" /> Meta auto
+                                </span>
+                              )}
+                              {isMeta && previos && previos.length > 0 && (
+                                <span
+                                  title={`Nombres previos conocidos por utm históricos (renombrada en Meta): ${previos.join(' · ')}`}
+                                >
+                                  <span className="inline-flex items-center gap-1 text-3xs px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                    <History className="w-2.5 h-2.5" /> Renombrada
+                                  </span>
                                 </span>
                               )}
                             </div>
