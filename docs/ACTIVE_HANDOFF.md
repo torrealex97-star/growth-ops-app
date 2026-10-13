@@ -1,3 +1,9 @@
+# TABLERO de reclamaciones (se borra la fila al fusionar)
+
+| Agente | Qué | Rama | Ficheros que toca | Fecha |
+| --- | --- | --- | --- | --- |
+| Buffy (Freebuff) | SPEC-15 PR-0+PR-1: auditoría de automation + capa de señales (contracts + detector Show Rate con tests) | `feat/spec15-pr0-automation-audit` | `docs/AUTOMATION_ARCHITECTURE_AUDIT.md` (nuevo), `lib/growth/signals.ts` (nuevo), `tests/growth-signals.test.mjs` (nuevo), este handoff | 13-oct-2026 |
+
 # COMPLETADO — SPEC-14 PR-0: auditoría UX/UI del frontend (13-oct, Buffy) · `feat/spec14-pr0-ux-audit`
 
 [UX_UI_AUDIT.md](UX_UI_AUDIT.md): inventario del sistema real (23 componentes ui, IA de `lib/nav.ts`
