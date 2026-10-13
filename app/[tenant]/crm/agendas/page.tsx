@@ -68,6 +68,7 @@ import {
   STATUS_LABELS,
   getAppointmentCategory,
   isNoShow,
+  summarizeAttendance,
 } from '@/lib/appointments/status'
 import { appointmentLeadScore } from '@/lib/appointments/lead-score'
 import { resolveAppointmentLeadOrigin } from '@/lib/appointments/lead-origin'
@@ -856,9 +857,6 @@ export default function AppointmentsPage() {
     return { count, avgCall, avgLead }
   }, [analyzedAppointments])
 
-  const SHOW_STATUSES: AppointmentStatus[] = ['show', 'completed']
-  const NO_SHOW_STATUSES: AppointmentStatus[] = ['no_show']
-
   // Contactos / agendas con una VENTA activa. Sirve para pintar la agenda y el calendario en
   // verde con estado "Comprado" cuando la persona ya ha comprado. Enlazamos por appointment_id
   // (venta ligada a la cita) y, como respaldo, por contact_id (el contacto compró en cualquier cita).
@@ -920,13 +918,14 @@ export default function AppointmentsPage() {
   const computeSetterMetrics = (source: AppointmentWithRelations[]) =>
     setters.map((u) => {
       const agendas = source.filter((a) => a.setter_id === u.id)
-      const shows = agendas.filter((a) => SHOW_STATUSES.includes(a.status)).length
-      const noShows = agendas.filter((a) => NO_SHOW_STATUSES.includes(a.status)).length
+      const attendance = summarizeAttendance(agendas)
+      const shows = attendance.attended
+      const noShows = attendance.noShows
       const programadas = agendas.filter(
         (a) => getAppointmentCategory(a.status, hasPurchased(a)) === 'programada'
       ).length
       const seguimientos = agendas.filter((a) => a.needs_followup).length
-      const showRate = agendas.length > 0 ? (shows / agendas.length) * 100 : null
+      const showRate = attendance.showRate
       return {
         id: u.id,
         name: u.full_name,
@@ -942,7 +941,7 @@ export default function AppointmentsPage() {
   const computeCloserMetrics = (apptSource: AppointmentWithRelations[], salesSource: Sale[]) =>
     closers.map((u) => {
       const asignadas = apptSource.filter((a) => a.closer_id === u.id)
-      const showsAtendidos = asignadas.filter((a) => SHOW_STATUSES.includes(a.status)).length
+      const showsAtendidos = summarizeAttendance(asignadas).attended
       const programadas = asignadas.filter(
         (a) => getAppointmentCategory(a.status, hasPurchased(a)) === 'programada'
       ).length
@@ -1242,7 +1241,8 @@ export default function AppointmentsPage() {
       }),
       // Origen del lead: la IA (Instagram/Facebook Setting) marca sus propios leads con
       // utm_source 'instagram-setting'/'facebook-setting' + utm_term conteniendo "IA".
-      // El resto de UTMs son campañas de pago normales; sin UTM = orgánico/referido.
+      // El resto de UTMs se muestran como evidencia capturada. Sin UTM = sin atribuir: no basta para
+      // afirmar orgánico, referido o directo.
       columnHelper.display({
         id: 'origin',
         header: 'Origen',

@@ -90,9 +90,10 @@ const METRIC_REGISTRY: Record<string, MetricDefinition> = {
   },
   show_rate: {
     name: 'Show Rate',
-    definition: '% de citas agendadas a las que el lead realmente asiste.',
-    formula: 'shows / agendas × 100',
+    definition: '% de citas con resultado explícito a las que el lead realmente asistió.',
+    formula: 'shows / (shows + no-shows confirmados) × 100',
     source: 'appointments.status',
+    notes: 'Las citas programadas sin resultado, canceladas o reprogramadas no entran en el denominador.',
   },
   close_rate: {
     name: 'Close Rate',

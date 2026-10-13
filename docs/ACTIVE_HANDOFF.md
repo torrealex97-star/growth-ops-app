@@ -3750,9 +3750,9 @@ y permite reintentar. No se ejecutó ningún ajuste financiero real durante la v
   webhooks 64/64, unitarias 1.488/1.491 (las tres restantes necesitan DNS a Supabase producción),
   métricas 788/788, build de producción PASS y `npm audit --omit=dev` 0 tras subir Next 15.5.27.
 
-# EN CURSO · SPEC-03 Tracking Integrity Engine (13-oct-2026, Codex)
+# CERRADO · SPEC-03 PR-0 Baseline forense (13-oct-2026, Codex)
 
-- **Rama:** `codex/tracking-integrity`, desde `origin/main` (`d85ae258`).
+- **PR:** #473 fusionada en `main` como `d5783b09`; despliegue de producción Vercel `READY`.
 - **Alcance reclamado:** auditoría y primera corrección de causas raíz de discrepancias en agendas y
   clasificación paid→organic; linaje de `appointments`, `contact_attributions`, sync/webhooks de
   Calendly/GHL/Google Calendar, consumidores de KPIs y pruebas relacionadas.
@@ -3765,5 +3765,27 @@ y permite reintentar. No se ejecutó ningún ajuste financiero real durante la v
   métricas); focales de deduplicación/procedencia 26/26 PASS.
 - **Producción:** solo consultas agregadas de lectura; sin DDL ni backfill. Baseline WDC: 691 agendas,
   2 pares exactos contacto+minuto con estados incompatibles y 0 agendas sin contacto/closer.
-- **Siguiente acción:** revisar diff y abrir PR pequeño. Después continuar PR-1 con el contrato único
-  de métricas y la eliminación de `sin atribuir = orgánico` en filtros.
+- **Verificación final:** CI completo, build, Smoke E2E, release gate y Vercel Preview PASS. Ruta
+  autenticada `/women-digital-closer/crm/agendas` comprobada en producción; las agendas sin evidencia
+  de adquisición muestran `—` y no `Web/directo`.
+- **Siguiente acción:** PR-1 con el contrato único de métricas y la eliminación de
+  `sin atribuir = orgánico` en filtros.
+
+# EN CURSO · SPEC-03 PR-1 Canonical Metrics (13-oct-2026, Codex)
+
+- **Rama:** `codex/canonical-metrics`, desde `main` (`d5783b09`).
+- **Contrato implementado:** `summarizeAttendance()` centraliza asistencias, no-shows, pendientes,
+  canceladas y reprogramadas. El Show Rate usa únicamente resultados explícitos:
+  `shows / (shows + no-shows)`; pendiente nunca equivale a no-show y ausencia de muestra devuelve
+  `null`, no 0%.
+- **Consumidores migrados:** motor de agregados, Unit Economics, métricas de equipo de Agendas y
+  comparación del embudo comercial. `period-funnel` y cohortes consumen ahora el mismo predicado de
+  cancelación.
+- **Definiciones alineadas:** registro de métricas y registro consultable por IA usan la misma fórmula,
+  denominador y exclusiones.
+- **Atribución:** Unit Economics ya no etiqueta `no_atribuidos` como `organico`; el filtro y el tipo
+  interno se llaman `sin_atribuir`. Orgánico solo se muestra cuando existe evidencia orgánica real.
+- **Compatibilidad:** aliases históricos de cancelación (`canceled`, `cancelada`, mayúsculas y
+  `no_show_cancel`) se leen sin cambiar el vocabulario canónico escrito por las integraciones.
+- **Validación provisional:** typecheck PASS; focales de métricas y asistencia 42/42 PASS. Falta quality
+  completa, commit, PR, CI y verificación de despliegue.

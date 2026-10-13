@@ -170,8 +170,9 @@ const METRICAS_SALES: DefinicionMetrica[] = [
     shortName: 'Show',
     category: 'sales',
     unit: 'porcentaje',
-    formula: 'Llamadas asistidas / Agendas no canceladas × 100',
-    description: 'De cada 100 llamadas agendadas que no se cancelaron, cuántas se celebraron.',
+    formula: 'Llamadas asistidas / (asistidas + no-shows confirmados) × 100',
+    description:
+      'De las citas con resultado de asistencia explícito, qué porcentaje se celebró. Las citas sin marcar no se tratan como no-show.',
     whyItMatters: 'Cada punto que baja es tiempo de closer pagado y no usado, y dinero de captación tirado.',
     dataSource: 'Agendas del CRM (Calendly / GHL) + evidencia de llamada',
     higherIsBetter: true,

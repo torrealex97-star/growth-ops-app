@@ -20,6 +20,7 @@ import {
   resumirConcordancia,
 } from '@/lib/metrics/concordancia-cualificacion'
 import { esElegibleBamfam } from '@/lib/agenda/marcado'
+import { isAttended, isCancelled, isRescheduled, summarizeAttendance } from '@/lib/appointments/status'
 
 /** Lo que se sabe de UNA métrica tras mirar las filas. */
 export type Medicion = {
@@ -143,30 +144,6 @@ function mediana(valores: number[]): number | null {
 /** Estados de venta que cuentan. Una venta reembolsada o anulada no es facturación del periodo. */
 export const VENTAS_QUE_CUENTAN = new Set(['active', 'partial_refund'])
 
-/** Estados de cita que significan que la cita ya no va a ocurrir. No entran en el denominador. */
-const CITAS_CANCELADAS = new Set(['cancelled', 'cancelled_admin', 'cancelled_lead', 'cancelada', 'rescheduled'])
-
-const ASISTIO = new Set(['show', 'completed'])
-
-/** Marcado explícito de que no se presentó. Lo escribe una persona o el proveedor, nunca se deduce. */
-const NO_ASISTIO = new Set(['no_show'])
-
-/**
- * Estados que significan QUE LA CITA NO SE HA RESUELTO todavía: sigue agendada o confirmada, y nadie ha
- * dicho si la persona apareció.
- *
- * ESTO DECIDE EL DENOMINADOR DEL SHOW RATE, y es lo más importante de este fichero. Comprobado en
- * producción: de 559 citas hay 272 `scheduled` y 71 `confirmed` —328 de ellas YA PASADAS— frente a 3
- * marcadas como `show` y NINGUNA como `no_show`. Calcular el show rate sobre las no canceladas daría
- * 3/346 = 0,87%, un número catastrófico que no significa nada: no es que no venga nadie, es que nadie
- * marca la asistencia. Y ese 0,87% dominaría el diagnóstico y mandaría al equipo a arreglar los
- * recordatorios de un problema inventado.
- *
- * Así que el show rate se mide SOLO sobre las citas resueltas, y las pasadas sin marcar se cuentan
- * aparte como lo que son: un hueco de medición.
- */
-const SIN_RESOLVER = new Set(['scheduled', 'confirmed', 'programada', 'confirmada', 'seguimiento', 'reserva'])
-
 /**
  * Reserva que TODAVÍA no es cliente: pagó la seña (plan `reserva`) pero no ha completado el pago
  * (`reservation_completed_at` sigue null). No cuenta como venta ni como cliente en ninguna métrica
@@ -228,13 +205,9 @@ export function calcularAgregados(e: Entrada): Agregados {
 
   // ── CITAS ──────────────────────────────────────────────────────────────────────────────────
   const citasDelPeriodo = e.citas.filter((c) => enPeriodo(c.appointment_datetime, p))
-  // Una cita cancelada NO entra en el denominador del show rate: nadie dejó de presentarse a algo que
-  // se canceló. Meterla hunde el show rate sin que haya pasado nada malo.
-  const agendadas = citasDelPeriodo.filter((c) => !c.status || !CITAS_CANCELADAS.has(c.status))
-  const shows = agendadas.filter((c) => c.status && ASISTIO.has(c.status))
-  const noShows = agendadas.filter((c) => c.status && NO_ASISTIO.has(c.status))
-  // Resueltas = alguien dijo si apareció o no. Es el único denominador honesto del show rate.
-  const resueltas = shows.length + noShows.length
+  const asistencia = summarizeAttendance(citasDelPeriodo)
+  const agendadas = citasDelPeriodo.filter((c) => !isCancelled(c.status) && !isRescheduled(c.status))
+  const shows = agendadas.filter((c) => isAttended(c.status))
   // CUALIFICADA ES LA DE MARKETING, no la de ventas. Son dos cosas distintas y se decidió así: la
   // agenda cualificada sale de las RESPUESTAS DEL FORMULARIO (tiene el problema que el negocio resuelve
   // y declara al menos 1.000 €/mes de ingresos); el prospecto cualificado lo juzga el closer en la
@@ -315,8 +288,8 @@ export function calcularAgregados(e: Entrada): Agregados {
       : sinDato('Ninguna cita del periodo trae respuestas de formulario legibles: no se puede cualificar.')
 
   m.show_rate =
-    resueltas > 0
-      ? porcentaje(shows.length, resueltas, '')
+    asistencia.showRate !== null
+      ? { valor: r2(asistencia.showRate), muestra: asistencia.resolved }
       : sinDato(
           agendadas.length > 0
             ? `Hay ${agendadas.length} citas agendadas pero ninguna marcada como asistida o no asistida: sin ese marcado no hay show rate, y un 0% sería un problema inventado.`
@@ -426,13 +399,12 @@ export function coberturaMarcado(
   fraccionResuelta: number | null
 } {
   const delPeriodo = citas.filter((c) => enPeriodo(c.appointment_datetime, periodo))
-  const vivas = delPeriodo.filter((c) => !c.status || !CITAS_CANCELADAS.has(c.status))
+  const vivas = delPeriodo.filter((c) => !isCancelled(c.status) && !isRescheduled(c.status))
   const pasadas = vivas.filter((c) => c.appointment_datetime !== null && new Date(c.appointment_datetime) < ahora)
-  const resueltas = pasadas.filter((c) => c.status && (ASISTIO.has(c.status) || NO_ASISTIO.has(c.status))).length
-  const sinMarcar = pasadas.filter((c) => !c.status || SIN_RESOLVER.has(c.status)).length
+  const asistencia = summarizeAttendance(pasadas)
   return {
-    pasadasSinMarcar: sinMarcar,
-    resueltas,
-    fraccionResuelta: pasadas.length === 0 ? null : Math.round((resueltas / pasadas.length) * 100) / 100,
+    pasadasSinMarcar: asistencia.unresolved,
+    resueltas: asistencia.resolved,
+    fraccionResuelta: pasadas.length === 0 ? null : Math.round((asistencia.resolved / pasadas.length) * 100) / 100,
   }
 }
