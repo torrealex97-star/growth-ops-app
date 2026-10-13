@@ -44,30 +44,28 @@
   ni en chat ni en repo. WIP anterior (ficheros ajenos que ya estaban modificados antes de empezar)
   sigue intacto en el checkout, sin commitear, como estaba.
 
-# EN CURSO · Resolución legible de campaña/anuncio en agendas (13-oct-2026, Codex)
+# CERRADO, FUSIONADO, DESPLEGADO Y VERIFICADO · Identidad Meta en agendas (13-oct-2026, Codex)
 
-- **Rama:** `codex/ad-identity-resolution`, desde `origin/main` (`bbeb6bab`).
-- **Alcance reclamado:** catálogo mínimo y autorizado de campañas/anuncios para CRM; resolución
-  determinista de `campaign_id`/`ad_id` a nombres; visualización en calendario, tabla y detalle;
-  captura futura de identificadores/nombres de anuncio que GHL entregue. Ficheros previstos:
-  `lib/meta/ad-attribution.ts`, `lib/integrations/ghl-attribution.ts`,
-  `app/api/[tenant]/evergreen/appointments/attribution-catalog/route.ts`,
-  `app/[tenant]/crm/agendas/page.tsx`, `components/appointments/AppointmentDetail.tsx` y tests.
-- **Límites:** no se infieren anuncios a partir de campaña o adset; si GHL no entrega `ad_id`, se
-  muestra la campaña resuelta y se declara el anuncio como no identificado. Sin backfill destructivo
-  ni cambios financieros.
-- **Implementado local:** resolver puro y testeado; endpoint mínimo tenant-scoped; nombres e IDs en
-  tabla, calendario y detalle; captura de `campaign_id`/`ad_id`/`adset_id` en GHL y pixel first-party.
-  La sync histórica de GHL vuelve a consultar el contacto solo cuando detecta tráfico Meta sin
-  `ad_id`, manteniendo timeout, cache por lote y cursor reanudable.
-- **Commit:** `a700f339` (`feat: resolve Meta campaign and ad identities in agendas`).
-- **Validación local:** 27 pruebas focales PASS; `npm run quality` PASS (suite completa + 788 métricas);
-  `npm run build` PASS. El primer build falló únicamente porque el sandbox no resolvía
-  `fonts.googleapis.com`; repetido con red, compiló y generó todas las rutas, incluida
-  `/appointments/attribution-catalog`.
-- **Pendiente operativo:** abrir PR, esperar CI, fusionar, confirmar deployment de producción y
-  relanzar el histórico GHL desde Integraciones para recuperar los `ad_id` que el proveedor conserve.
-  Las filas sin esa evidencia deben seguir como no identificadas.
+- **Git/producción:** PR #476 fusionada en `main` (`417edf12`). Vercel `growth-ops-app`
+  desplegado `READY` como `dpl_7f4bXMuuqWj3ic55mD7G9gV2LixQ`; alias
+  `app.scalixsystems.com` confirmado sin error.
+- **Implementado:** catálogo mínimo y tenant-scoped de campañas/anuncios; resolución determinista
+  de `campaign_id`/`ad_id` a nombres; nombre + ID visibles en calendario, tabla y detalle; captura
+  futura de `campaign_id`, `ad_id` y `adset_id` desde GHL y el pixel first-party. Nunca se infiere un
+  anuncio a partir de una campaña o un ad set.
+- **Validación:** 27 pruebas focales PASS; `npm run quality` PASS (suite completa + 788 métricas);
+  build local PASS; CI completo PASS tras reintentar un timeout externo de Google Fonts: calidad,
+  secretos, build, Smoke E2E Playwright (5m41s) y release gate.
+- **Evidencia en UI real:** una agenda con `utm_source` numérico muestra ahora `Campaña: 🟢 AGENDA |
+  COLD LOOKALIKE AUDIENCE`; su detalle conserva `Campaign ID 120252786405750750` y muestra campos
+  separados de anuncio/ad set. Consola del navegador sin errores.
+- **Backfill GHL ejecutado:** la carga histórica terminó y actualizó las 103 agendas GHL existentes.
+  GHL no devolvió `ad_id`, `ad_name` ni `ad_set_id` para ninguna de esas citas antiguas; permanecen
+  explícitamente como `—`. No reconstruirlos ni inferirlos. Las citas nuevas sí guardarán esos
+  identificadores cuando GHL o el pixel los entreguen.
+- **Siguiente exacto:** observar una cita Meta nueva y confirmar que llega `Ad ID` en el detalle. Si
+  sigue vacío, revisar el payload real de GHL/landing: el código ya preserva el campo, pero el origen
+  debe enviarlo.
 
 # CERRADO, FUSIONADO, DESPLEGADO Y VERIFICADO · Acceso y navegación accesibles (13-oct-2026, Codex)
 
