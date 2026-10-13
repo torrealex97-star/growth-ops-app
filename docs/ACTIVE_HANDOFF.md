@@ -15,6 +15,72 @@
   sus conclusiones y las de DASHBOARD_AUDIT del 25-sep en vez de duplicarlas.
 - **Base:** `b71dcf55` (merge de #480).
 
+# EN CURSO — SPEC-08 PR-0: auditoría del Copilot de IA (13-oct, Buffy) · rama `feat/spec08-pr0-ai-copilot-audit`
+
+- **Reclamación de carril:** SPEC-08 (AI Growth Intelligence Copilot), fase PR-0 obligatoria antes
+  de PR-1..PR-10. La frontera de autoridad que la spec exige ya existe en código (lista blanca de
+  tools con clase lectura/escritura_memoria/accion_material, tenant fijado server-side, sin SQL
+  libre) y la detección de anomalías es determinista-primero con dedupe por fingerprint. El delta
+  documentado: contrato de respuesta evidence-first con validador pre-entrega (H-1), intent planner
+  (H-2), descomposición determinista de cambios (H-3), dataset de evaluación (H-4), suite de
+  prompt injection (H-5) y presupuesto por tenant (H-6).
+- **Ficheros que toca:** `docs/AI_COPILOT_ARCHITECTURE.md` (nuevo) y esta fila del handoff. Sin
+  cambios de código; `git status` limpio salvo ese doc y `.freebuff/` excluido a propósito.
+- **Relationado:** PRs #479/#481/#482/#483 propias abiertas (SPEC-04…07) — definen los contratos
+  data_status/estados que PR-1 consumirá; coordinación por tablero.
+- **Base:** `b71dcf55` (merge de #480).
+
+# EN CURSO — SPEC-07 PR-0: audit de métricas y dashboards (13-oct, Buffy) · rama `feat/spec07-pr0-analytics-audit`
+
+- **Reclamación de carril:** SPEC-07 (Growth Intelligence & Analytics), fase PR-0 obligatoria
+  antes de PR-1..PR-10. Clave: la auditoría de dashboards del 25-sep ya existe con evidencia de BD
+  real (`docs/DASHBOARD_AUDIT.md` + `DASHBOARD_CORRECTION_PLAN.md`) — este PR-0 la extiende en vez
+  de duplicarla: verifica qué sigue vigente tras #478/#480 (P1-1 de cash canónico quedó CONSUMADO
+  desde la auto audit: 10 consumidores hoy frente a 1), mapea los contratos que la SPEC-04/05/06
+  ya normalizan y registra el delta que falta (contrato global de consulta, exportaciones,
+  scorecard de closers, cohortes con madurez declarada).
+- **Ficheros que toca:** `docs/ANALYTICS_ARCHITECTURE.md` (nuevo) y esta fila del handoff. Sin
+  cambios de código; `git status` limpio salvo ese doc y `.freebuff/` excluido a propósito.
+- **Relationado:** PRs #479/#481/#482 propias abierta (SPEC-04/05/06). Sus contratos y los
+  del plan de corrección vigente son insumos directos de PR-1+; coordinación por tablero.
+- **Base:** `b71dcf55` (merge de #480).
+
+>>>>>>> bb71b194 (docs(spec07): PR-0 vigencia de la auditoría de dashboards del 25-sep y delta SPEC-07)
+
+# EN CURSO — SPEC-06 PR-0: audit de Person 360 y Customer Journey (13-oct, Buffy) · rama `feat/spec06-pr0-person360-audit`
+
+- **Reclamación de carril:** SPEC-06 (Customer Journey Intelligence & Person 360), fase PR-0
+  obligatoria antes de PR-1..PR-9: mapa real del grafo (sesiones → touchpoints → persona → agendas →
+  oportunidad → venta → pagos), huecos (H-1: la timeline no integra marketing/VSL/pixel y H-4:
+  herramientas IA de persona parciales) y plan adaptado que SOLO extiende lo existente
+  (`buildContactTimeline`, gateway IA, modelo VSL PR-1b). No se tocan SPEC-04 ni SPEC-05.
+- **Ficheros que toca:** `docs/PERSON_360_ARCHITECTURE.md` (nuevo) y esta fila del handoff. Sin
+  cambios de código; `git status` limpio salvo ese doc y `.freebuff/` excluido a propósito.
+- **Relationado:** PRs #479 (SPEC-04) y #481 (SPEC-05) propias, todavía abiertas — sus contratos de
+  estados/touchpoints son los consumibles de PR-2/PR-3 de este módulo; coordinación por tablero.
+- **Base:** `b71dcf55` (merge de #480).
+
+# EN CURSO — SPEC-05 PR-0: auditoría de atribución, fuentes y touchpoints (13-oct, Buffy) · rama `feat/spec05-pr0-attribution-audit`
+
+- **Reclamación de carril:** SPEC-05 (Growth Attribution Intelligence Engine), fase PR-0 obligatoria
+  antes de PR-1..PR-9: mapa del sistema de atribución real, matriz de capacidades y hallazgos con
+  clasificación VERIFICADO/INSPECCIONADO/PROBADO, sin rehacer lo que SPEC-04 ni el motor de #478
+  (fusionado) ya cubren.
+- **Ficheros que toca:** `docs/ATTRIBUTION_AUDIT_REPORT.md` (nuevo) y esta fila del handoff.
+  Sin cambios de código; `git status` limpio salvo ese doc y `.freebuff/` excluido a propósito.
+- **Relationado:** la PR #479 (SPEC-04 PR-0, propia) sigue abierta esperando merge; los contratos de
+  touchpoint de SPEC-05 respetarán lo que SPEC-04 PR-1+ defina — coordinación por el tablero.
+- **Base:** `b71dcf55` (merge de #480), que ya incluye el motor de revenue attribution de #478.
+
+# EN CURSO — SPEC-04 PR-0: auditoría y línea base de integridad de datos (13-oct, Buffy) · rama `feat/spec04-pr0-linea-base`
+
+- **Reclamación de carril:** SPEC-04 (Growth Data Integrity Engine), fase PR-0 obligatoria antes de
+  PR-1..PR-8: matriz de capacidades (implementación actual / problema reproducido / cambio mínimo /
+  riesgo / test) + línea base del pipeline real, sin construir sistemas paralelos.
+- **Ficheros que toca:** `docs/SPEC04_DATA_INTEGRITY_BASELINE.md` (nuevo) y esta fila del handoff.
+  No toca código: `git status` limpio salvo ese doc y `.freebuff/` excluido a propósito.
+- **Base:** `851d53c6` (merge de #477). No interfiere con PRs activas de otros agentes.
+
 # LISTO PARA FUSIONAR · Embudo atribuible campaña/anuncio → agenda → asistencia → venta → cash (13-oct-2026, Codex)
 
 - **Rama:** `codex/revenue-attribution-funnel`, nacida de `origin/main` (`851d53c6`).
