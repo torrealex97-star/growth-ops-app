@@ -1,3 +1,14 @@
+# COMPLETADO — SPEC-15 PR-0 + slice PR-1: automation audit + capa de señales (13-oct, Buffy) · `feat/spec15-pr0-automation-audit`
+
+[AUTOMATION_ARCHITECTURE_AUDIT.md](AUTOMATION_ARCHITECTURE_AUDIT.md): el motor conceptual mapeado a sus
+equivalentes reales (detector determinista, Copilot con frontera de autoridad, 3 colas humanas,
+crons con claim, audit_logs, tasks, popover de notificaciones) — los MISSING/PARTIAL son el delta
+PR-1..PR-10 sin reescribir nada. Y con el primer slice REAL de PR-1: `lib/growth/signals.ts`
+(contratos GrowthSignal + detector de Show Rate con guardas de muestra/ventana/cobertura/sync,
+puro, sin LLM) y `tests/growth-signals.test.mjs` con los fixtures del §27 — 9/9 PASS local, no
+inventaría caídas cuando los outcomes están sin resolver (por diseño: la falsa alarma del §6.4).
+La tabla `growth_signals` queda PENDIENTE de aprobación del dueño (§5 del doc).
+
 # COMPLETADO — SPEC-14 PR-0: auditoría UX/UI del frontend (13-oct, Buffy) · `feat/spec14-pr0-ux-audit`
 
 [UX_UI_AUDIT.md](UX_UI_AUDIT.md): inventario del sistema real (23 componentes ui, IA de `lib/nav.ts`
