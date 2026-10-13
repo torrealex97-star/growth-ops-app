@@ -210,11 +210,10 @@ export async function consultarMetricas(
     ),
   ])
 
-  // LA ATRIBUCIÓN, contada aparte. Comprobado en producción: `contact_attributions` está a 0 filas y
-  // `contacts.campaign_id` a 0 de 956, porque los enlaces de reserva no llevan UTMs y los payloads no
-  // traen nada que atribuir. Se cuenta con `head: true` —solo el número, sin traerse las filas— para que
-  // el panel pueda decir "0 de N con origen conocido" en vez de enseñar métricas por canal vacías sin
-  // explicar por qué.
+  // LA ATRIBUCIÓN, contada aparte. No se infiere desde `appointments.source`: Calendly/GHL describen
+  // quién creó el registro, no el canal de adquisición. Se cuenta con `head: true` —solo el número,
+  // sin traerse las filas— para que el panel declare la cobertura observada, incluido un cero real,
+  // sin transformar automáticamente los huecos en tráfico orgánico.
   const [totalContactos, conAtribucion] = await Promise.all([
     sb.from('contacts').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId),
     sb
