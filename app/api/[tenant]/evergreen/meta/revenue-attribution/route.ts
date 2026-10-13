@@ -67,6 +67,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
 
     const from = req.nextUrl.searchParams.get('from')
     const to = req.nextUrl.searchParams.get('to')
+    const hasCampaignScope = req.nextUrl.searchParams.has('campaigns')
     const requestedCampaignIds = (req.nextUrl.searchParams.get('campaigns') ?? '')
       .split(',')
       .filter((value) => value.length > 0)
@@ -143,7 +144,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       contacts: Array.isArray(row.contacts) ? (row.contacts[0] ?? null) : row.contacts,
     })) as RevenueAppointment[]
     const appointments =
-      selectedCampaignIds.size === 0
+      !hasCampaignScope
         ? allAppointments
         : allAppointments.filter((appointment) => {
             const resolved = resolveMetaAttribution(appointment, catalog)

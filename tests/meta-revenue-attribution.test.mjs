@@ -171,6 +171,8 @@ test('la API exige tenant, permiso, paginación y nunca consulta datos globales'
   assert.match(route, /auth\.isSuperAdmin/)
   assert.match(route, /fetchAllRows/)
   assert.ok((route.match(/\.eq\('tenant_id', tenantId\)/g) ?? []).length >= 5)
+  assert.match(route, /hasCampaignScope/)
+  assert.match(route, /!hasCampaignScope/)
   assert.doesNotMatch(route, /select\('\*'\)/)
   assert.match(route, /Lectura incompleta/)
 })

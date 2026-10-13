@@ -1,4 +1,4 @@
-# EN CURSO · Embudo atribuible campaña/anuncio → agenda → asistencia → venta → cash (13-oct-2026, Codex)
+# LISTO PARA FUSIONAR · Embudo atribuible campaña/anuncio → agenda → asistencia → venta → cash (13-oct-2026, Codex)
 
 - **Rama:** `codex/revenue-attribution-funnel`, nacida de `origin/main` (`851d53c6`).
 - **Objetivo:** añadir una vista operativa en Campañas que permita detectar qué campaña o anuncio
@@ -10,8 +10,17 @@
   `app/api/[tenant]/evergreen/meta/revenue-attribution/route.ts`,
   `components/os/RevenueAttributionView.tsx`,
   `app/[tenant]/marketing/adquisicion/campanas/page.tsx`, pruebas focales y este handoff.
-- **Siguiente exacto:** implementar motor puro, endpoint tenant-scoped, vista y pruebas; ejecutar
-  quality/build, abrir PR, fusionar y verificar el despliegue productivo.
+- **Implementado:** motor puro y auditable, endpoint paginado y tenant-scoped, y pestaña
+  `Embudo CRM` en Marketing → Campañas. Resume agendas, asistencia, no-show, ventas, facturación,
+  cash, gasto y ROAS; permite alternar campaña/anuncio y respeta periodo, cuenta y campañas.
+- **Cobertura real WDC (mes en curso al validar):** 78 agendas totales, 65 elegibles, 11 asistidas,
+  24 no-show, 21 con campaña y 0 con `ad_id`. El panel muestra esta falta de cobertura y no inventa
+  anuncios históricos; el tracking futuro ya preserva `ad_id` cuando el origen lo entrega.
+- **Validación:** 3 pruebas focales PASS; `npm run quality` PASS (suite de aplicación + 788 tests de
+  métricas, formato, lint y tipos); build de producción PASS; `git diff --check` PASS. No requiere
+  migración: reutiliza las fuentes canónicas existentes.
+- **Siguiente exacto:** abrir PR, esperar CI, fusionar en `main` y verificar el despliegue y la UI
+  productiva en `app.scalixsystems.com`.
 
 # PR #472: checkout consolidado a main (13-oct, Buffy) — CI 9/9 VERDE, merge y despliegue verificados
 

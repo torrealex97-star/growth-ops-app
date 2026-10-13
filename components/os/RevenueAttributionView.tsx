@@ -64,7 +64,9 @@ export function RevenueAttributionView({ tenant, rangeFrom, rangeTo, campaignIds
     const params = new URLSearchParams()
     if (rangeFrom) params.set('from', rangeFrom)
     if (rangeTo) params.set('to', rangeTo)
-    if (campaignIds.length > 0) params.set('campaigns', campaignIds.join(','))
+    // Keep the parameter even for an empty scope so the API cannot fall back to
+    // campaigns outside the account/filter currently selected in the UI.
+    params.set('campaigns', campaignIds.join(','))
     setLoading(true)
     setError(null)
     fetch(`/api/${tenant}/evergreen/meta/revenue-attribution?${params}`, { signal: controller.signal })

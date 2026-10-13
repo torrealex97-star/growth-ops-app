@@ -305,9 +305,8 @@ export default function CampaignsPage() {
   }, [filteredItems, periodActive, hasDaily, rangeMap])
 
   const revenueCampaignIds = useMemo(() => {
-    if (selectedCampaignIds.length === 0 && accountFilter === 'all') return []
-    return scopedItems.map((campaign) => campaign.id)
-  }, [accountFilter, scopedItems, selectedCampaignIds.length])
+    return scopedItems.filter((campaign) => campaign.provider === 'meta').map((campaign) => campaign.id)
+  }, [scopedItems])
 
   const load = useCallback(async () => {
     const supabase = createClient()
