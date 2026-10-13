@@ -1,3 +1,16 @@
+# EN CURSO — SPEC-06 PR-0: audit de Person 360 y Customer Journey (13-oct, Buffy) · rama `feat/spec06-pr0-person360-audit`
+
+- **Reclamación de carril:** SPEC-06 (Customer Journey Intelligence & Person 360), fase PR-0
+  obligatoria antes de PR-1..PR-9: mapa real del grafo (sesiones → touchpoints → persona → agendas →
+  oportunidad → venta → pagos), huecos (H-1: la timeline no integra marketing/VSL/pixel y H-4:
+  herramientas IA de persona parciales) y plan adaptado que SOLO extiende lo existente
+  (`buildContactTimeline`, gateway IA, modelo VSL PR-1b). No se tocan SPEC-04 ni SPEC-05.
+- **Ficheros que toca:** `docs/PERSON_360_ARCHITECTURE.md` (nuevo) y esta fila del handoff. Sin
+  cambios de código; `git status` limpio salvo ese doc y `.freebuff/` excluido a propósito.
+- **Relationado:** PRs #479 (SPEC-04) y #481 (SPEC-05) propias, todavía abiertas — sus contratos de
+  estados/touchpoints son los consumibles de PR-2/PR-3 de este módulo; coordinación por tablero.
+- **Base:** `b71dcf55` (merge de #480).
+
 # EN CURSO — SPEC-05 PR-0: auditoría de atribución, fuentes y touchpoints (13-oct, Buffy) · rama `feat/spec05-pr0-attribution-audit`
 
 - **Reclamación de carril:** SPEC-05 (Growth Attribution Intelligence Engine), fase PR-0 obligatoria
