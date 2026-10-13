@@ -43,6 +43,27 @@
 - **Limpieza:** password temporal del QA rotado a aleatorio y ficheros con credenciales borrados;
   ni en chat ni en repo. WIP anterior (ficheros ajenos que ya estaban modificados antes de empezar)
   sigue intacto en el checkout, sin commitear, como estaba.
+
+# EN CURSO · Resolución legible de campaña/anuncio en agendas (13-oct-2026, Codex)
+
+- **Rama:** `codex/ad-identity-resolution`, desde `origin/main` (`bbeb6bab`).
+- **Alcance reclamado:** catálogo mínimo y autorizado de campañas/anuncios para CRM; resolución
+  determinista de `campaign_id`/`ad_id` a nombres; visualización en calendario, tabla y detalle;
+  captura futura de identificadores/nombres de anuncio que GHL entregue. Ficheros previstos:
+  `lib/meta/ad-attribution.ts`, `lib/integrations/ghl-attribution.ts`,
+  `app/api/[tenant]/evergreen/appointments/attribution-catalog/route.ts`,
+  `app/[tenant]/crm/agendas/page.tsx`, `components/appointments/AppointmentDetail.tsx` y tests.
+- **Límites:** no se infieren anuncios a partir de campaña o adset; si GHL no entrega `ad_id`, se
+  muestra la campaña resuelta y se declara el anuncio como no identificado. Sin backfill destructivo
+  ni cambios financieros.
+- **Implementado local:** resolver puro y testeado; endpoint mínimo tenant-scoped; nombres e IDs en
+  tabla, calendario y detalle; captura de `campaign_id`/`ad_id`/`adset_id` en GHL y pixel first-party.
+  La sync histórica de GHL vuelve a consultar el contacto solo cuando detecta tráfico Meta sin
+  `ad_id`, manteniendo timeout, cache por lote y cursor reanudable.
+- **Evidencia pendiente de este checkpoint:** ejecutar quality/build, abrir PR, esperar CI, fusionar,
+  confirmar deployment de producción y relanzar el histórico GHL desde Integraciones para recuperar
+  los `ad_id` que el proveedor conserve. Las filas sin esa evidencia deben seguir como no identificadas.
+
 # CERRADO, FUSIONADO, DESPLEGADO Y VERIFICADO · Acceso y navegación accesibles (13-oct-2026, Codex)
 
 - **Git/producción:** PR #470 fusionado en `main` (`6af1efc5`). Vercel `growth-ops-app`

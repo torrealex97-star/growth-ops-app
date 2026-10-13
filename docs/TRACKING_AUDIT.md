@@ -115,6 +115,23 @@ la misma cita podía quedar cancelada o asistida según el orden de la consulta.
    `Web/directo`; muestra `Sin atribuir` cuando no existe evidencia de adquisición.
 4. Pruebas focales cubren orden inverso, cancelada→show, cancelada→scheduled y ausencia de fuente.
 
+## Identidad legible de campañas y anuncios en agendas (13-oct-2026)
+
+- El valor numérico observado en agendas históricas es un `campaign_id` de Meta transportado por
+  GHL como `utm_source`. Se resuelve contra `campaigns.external_id`, por identidad estable, y la UI
+  muestra el nombre vigente de la campaña sin ocultar el ID de auditoría.
+- `ad_id`, `ad_name` y `adset_id` se conservan desde bloques anidados o campos planos de GHL. Si un
+  evento de Meta trae campaña pero no anuncio, la integración consulta una vez la ficha del contacto
+  para completar esa identidad; el histórico reanudable puede volver a proyectarla sin crear citas.
+- El pixel first-party captura también `campaign_id`, `adset_id` y `ad_id` en la capa raw y en los
+  parámetros no normalizados de sesión/toque. No se añade PII ni se cambia la identidad anónima.
+- El catálogo servido al CRM está acotado al tenant, exige permiso para ver agendas y devuelve solo
+  IDs y nombres solicitados; no expone gasto, métricas ni el catálogo publicitario completo.
+- Regla de integridad: un anuncio nunca se infiere desde una campaña o un conjunto. Cuando el
+  histórico no contiene `ad_id`, se muestra la campaña resuelta y el anuncio queda honestamente sin
+  identificar. Recuperarlo exige evidencia del proveedor o una nueva captura; no existe un backfill
+  matemáticamente válido solo con el campaign ID.
+
 ## PR-1 — contrato de asistencia
 
 El denominador canónico del Show Rate es `show | completed` más `no_show`; solo resultados explícitos.

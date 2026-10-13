@@ -50,6 +50,9 @@ type TrackBody = {
   utm_term?: string
   utm_id?: string
   utm_source_platform?: string
+  campaign_id?: string
+  adset_id?: string
+  ad_id?: string
   gclid?: string
   gbraid?: string
   wbraid?: string
@@ -250,6 +253,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           raw_parameters: {
             utm_id: body.utm_id ?? null,
             utm_source_platform: body.utm_source_platform ?? null,
+            campaign_id: body.campaign_id ?? null,
+            adset_id: body.adset_id ?? null,
+            ad_id: body.ad_id ?? null,
             gbraid: body.gbraid ?? null,
             wbraid: body.wbraid ?? null,
             msclkid: body.msclkid ?? null,
@@ -309,6 +315,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             utm_term: body.utm_term ?? null,
             utm_id: body.utm_id ?? null,
             utm_source_platform: body.utm_source_platform ?? null,
+            campaign_id: body.campaign_id ?? null,
+            adset_id: body.adset_id ?? null,
+            ad_id: body.ad_id ?? null,
           },
         })
         .select('id')

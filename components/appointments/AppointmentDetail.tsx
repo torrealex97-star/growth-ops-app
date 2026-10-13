@@ -19,6 +19,7 @@ import { evaluarCualificacion, evaluarLeadScore } from '@/lib/metrics/cualificac
 import { guessContactTimezone, TIMEZONE_OPTIONS } from '@/lib/timezone'
 import { useTenant } from '@/lib/tenant-context'
 import { resolveAppointmentLeadOrigin, type AppointmentLeadOrigin } from '@/lib/appointments/lead-origin'
+import type { ResolvedMetaAttribution } from '@/lib/meta/ad-attribution'
 
 // Campos IA (aún no están en el tipo Appointment global — se acceden vía cast local)
 type AiAnalysis = {
@@ -69,6 +70,7 @@ const ACTIVITY_RESULT_LABELS: Record<string, string> = Object.fromEntries(
 interface AppointmentDetailProps {
   appointment: AppointmentWithRelations
   leadOrigin?: AppointmentLeadOrigin
+  metaAttribution?: ResolvedMetaAttribution
   canChangeStatus: boolean
   currentUserName?: string
   /** Solo admin: permite borrar la agenda si está duplicada (deja de contar en KPIs). */
@@ -93,6 +95,7 @@ interface AppointmentDetailProps {
 export function AppointmentDetail({
   appointment: appointmentProp,
   leadOrigin,
+  metaAttribution,
   canChangeStatus,
   currentUserName,
   canDelete,
@@ -664,6 +667,18 @@ export function AppointmentDetail({
     { label: 'Instagram', value: appointment.contacts?.instagram },
     { label: 'Fecha y hora', value: formatDateTime(appointment.appointment_datetime) },
     { label: 'Procedencia', value: displayedLeadOrigin.detail },
+    {
+      label: 'Campaña de Meta',
+      value: metaAttribution?.campaign.name ?? (metaAttribution?.campaign.externalId ? 'Campaña no identificada' : '—'),
+    },
+    { label: 'Campaign ID', value: metaAttribution?.campaign.externalId ?? '—' },
+    {
+      label: 'Anuncio de Meta',
+      value: metaAttribution?.ad.name ?? (metaAttribution?.ad.externalId ? 'Anuncio no identificado' : '—'),
+    },
+    { label: 'Ad ID', value: metaAttribution?.ad.externalId ?? '—' },
+    { label: 'Conjunto de anuncios', value: metaAttribution?.adSet.name ?? '—' },
+    { label: 'Ad Set ID', value: metaAttribution?.adSet.externalId ?? '—' },
     { label: 'Fuente', value: appointment.source ?? '—' },
     { label: 'Pipeline', value: appointment.pipeline_name ?? '—' },
     { label: 'Etapa Pipeline', value: appointment.pipeline_stage ?? '—' },

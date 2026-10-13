@@ -172,7 +172,7 @@ export function leerToque(payload: unknown): ToqueAtribucion {
     utmCampaign: buscar('utm_campaign', 'utmCampaign'),
     utmContent: buscar('utm_content', 'utmContent'),
     utmTerm: buscar('utm_term', 'utmTerm'),
-    utmId: buscar('utm_id', 'utmId', 'campaignId'),
+    utmId: buscar('utm_id', 'utmId', 'campaign_id', 'campaignId'),
     utmSourcePlatform: buscar('utm_source_platform', 'utmSourcePlatform'),
     gclid: buscar('gclid'),
     gbraid: buscar('gbraid'),
