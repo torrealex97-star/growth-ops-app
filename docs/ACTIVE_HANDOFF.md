@@ -1,3 +1,19 @@
+# EN CURSO — SPEC-10 PR-0: auditoría de Data Health y auto-reparación controlada (13-oct, Buffy) · rama `feat/spec10-pr0-datahealth-audit`
+
+- **Reclamación de carril:** SPEC-10 (Growth Data Health & Controlled Self-Healing), fase PR-0
+  obligatoria antes de PR-1..PR-10. Los checks de salud existen y tienen reglas bien escritas
+  (webhooks con silencio≠rotura, conectores con 4 luces y «parcial», cross-source con 10 tipos de
+  check, sync-runs con actas) y pruebas; el delta verificado por ausencia (grep 0 resultados:
+  incident/repair/dry_run): H-1 sin catálogo versionado ni comprobación de KPIs entre pantallas,
+  H-2 sin gestión de incidencias persistente, H-3 sin contrato de reparación (los mecanismos
+  existen: replay con dry-run, backfills con claim, dedupe manual GET/POST), H-4 sin score con
+  metodología ni métricas MTTD/MTDR, H-5 sin marco de impacto para la severidad.
+- **Ficheros que toca:** `docs/DATA_HEALTH_ARCHITECTURE.md` (nuevo) y esta fila del handoff. Sin
+  cambios de código; `git status` limpio salvo ese doc y `.freebuff/` excluido a propósito.
+- **Relationado:** PRs #479/#481/#482/#483/#484/#485 propias abiertas (SPEC-04…09); el delta
+  construye ENCIMA de ellos por fases, sin duplicación.
+- **Base:** `b71dcf55` (merge de #480).
+
 # EN CURSO — SPEC-09 PR-0: auditoría de Revenue Operations (13-oct, Buffy) · rama `feat/spec09-pr0-revenue-audit`
 
 - **Reclamación de carril:** SPEC-09 (Revenue Operations Intelligence), fase PR-0 obligatoria antes
