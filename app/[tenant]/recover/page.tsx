@@ -80,8 +80,8 @@ export default function RecoverPage() {
         {/* Card */}
         <div className="bg-card border border-border rounded-xl p-6">
           {sent ? (
-            <div className="flex flex-col items-center text-center py-4">
-              <CheckCircle2 className="w-12 h-12 text-emerald-400 mb-4" />
+            <div className="flex flex-col items-center text-center py-4" role="status" aria-live="polite">
+              <CheckCircle2 className="w-12 h-12 text-emerald-400 mb-4" aria-hidden />
               <h2 className="text-lg font-semibold text-foreground mb-2">Correo enviado</h2>
               <p className="text-muted-foreground text-sm mb-6">
                 Hemos enviado un enlace de recuperación a <span className="text-foreground">{email}</span>. Revisa tu
@@ -113,10 +113,10 @@ export default function RecoverPage() {
                   />
                 </div>
 
-                <Button type="submit" className="w-full" disabled={loading}>
+                <Button type="submit" className="w-full bg-brand-700 text-white hover:bg-brand-600" disabled={loading}>
                   {loading ? (
                     <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" aria-hidden />
                       Enviando...
                     </>
                   ) : (

@@ -7,6 +7,8 @@ import { createClient } from '@/lib/supabase/client'
 import { useTenantBranding } from '@/lib/tenant-context'
 import { ShaderBackground } from '@/components/ui/mesh-drift-shader'
 import { Loader2, LogIn, Mail, Lock } from 'lucide-react'
+import { loadPublicTenantBranding } from '@/lib/public-tenant-branding-client'
+import { authErrorMessage } from '@/lib/auth/error-message'
 
 // Next.js 15: `params` pasa a ser una Promise — useParams() de next/navigation sigue siendo
 // síncrono en Client Components, evita React.use() (requiere React 19).
@@ -29,15 +31,12 @@ export default function LoginPage() {
     // Misma RPC que usa el shell para la marca: SECURITY DEFINER, solo devuelve fila si el slug
     // existe Y está activo. Cero filas = no existe o está inactiva. No enumera nada: hay que
     // acertar el slug para obtener respuesta, igual que ya ocurría con el branding.
-    createClient()
-      .rpc('public_tenant_branding', { p_slug: tenant })
-      .then(({ data, error: rpcError }: { data: unknown[] | null; error: unknown }) => {
-        if (!vigente) return
-        // Ante un fallo de red no se bloquea el acceso: se deja pasar al formulario y que decida
-        // el intento real. Negar la entrada por un error transitorio sería peor que el problema.
-        if (rpcError) return setSubcuenta('existe')
-        setSubcuenta(data && data.length > 0 ? 'existe' : 'desconocida')
-      })
+    loadPublicTenantBranding(tenant).then((result) => {
+      if (!vigente) return
+      // Ante un fallo de red no se bloquea el acceso: se deja pasar al formulario y que decida
+      // el intento real. Negar la entrada por un error transitorio sería peor que el problema.
+      setSubcuenta(result.status === 'missing' ? 'desconocida' : 'existe')
+    })
     return () => {
       vigente = false
     }
@@ -58,7 +57,7 @@ export default function LoginPage() {
       options: { redirectTo, queryParams: { prompt: 'select_account' } },
     })
     if (authError) {
-      setError(`No se pudo iniciar con Google: ${authError.message}`)
+      setError('Google no pudo iniciar la sesión. Inténtalo de nuevo.')
       setLoading(false)
     }
   }
@@ -73,7 +72,7 @@ export default function LoginPage() {
       const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
 
       if (authError) {
-        setError(authError.message)
+        setError(authErrorMessage(authError))
         setLoading(false)
         return
       }
@@ -224,7 +223,11 @@ export default function LoginPage() {
                 </div>
 
                 {error && (
-                  <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+                  <div
+                    role="alert"
+                    aria-live="assertive"
+                    className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl"
+                  >
                     <p className="text-red-400 text-sm">{error}</p>
                   </div>
                 )}
@@ -236,7 +239,7 @@ export default function LoginPage() {
                 >
                   {loading ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
                       Entrando...
                     </>
                   ) : (

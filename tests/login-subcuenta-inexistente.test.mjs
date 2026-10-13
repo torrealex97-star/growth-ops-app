@@ -18,11 +18,13 @@ import { fileURLToPath } from 'node:url'
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
 const read = (p) => readFileSync(join(root, p), 'utf8')
 const login = read('app/[tenant]/login/page.tsx')
+const publicBranding = read('lib/public-tenant-branding-client.ts')
 const home = read('app/page.tsx')
 
 test('la existencia de la subcuenta se comprueba antes de pedir credenciales', () => {
-  assert.match(login, /public_tenant_branding/, 'debe consultarse el slug al cargar')
-  const comprueba = login.indexOf("rpc('public_tenant_branding'")
+  assert.match(login, /loadPublicTenantBranding/, 'debe consultar el slug al cargar')
+  assert.match(publicBranding, /rpc\('public_tenant_branding'/, 'el loader compartido debe usar la RPC pública')
+  const comprueba = login.indexOf('loadPublicTenantBranding(tenant)')
   const formulario = login.indexOf('onSubmit={handleSubmit}')
   assert.ok(comprueba > -1 && formulario > -1)
   assert.ok(comprueba < formulario, 'la comprobación va antes del formulario')
@@ -37,7 +39,7 @@ test('con subcuenta desconocida no se muestra el formulario', () => {
 
 test('un fallo de red no bloquea el acceso: se deja pasar al formulario', () => {
   // Negar la entrada por un error transitorio de la RPC sería peor que el problema que arregla.
-  assert.match(login, /if \(rpcError\) return setSubcuenta\('existe'\)/)
+  assert.match(login, /result\.status === 'missing' \? 'desconocida' : 'existe'/)
 })
 
 test('la comprobación previa usa la RPC pública; la lectura de tenants sigue siendo la de después', () => {
@@ -46,7 +48,7 @@ test('la comprobación previa usa la RPC pública; la lectura de tenants sigue s
   // listar ninguno. La lectura de `tenants` sí existe, pero es la verificación de pertenencia de
   // DESPUÉS del login, que corre con sesión y se apoya en RLS. Son dos cosas distintas y el orden
   // lo demuestra.
-  const rpc = login.indexOf("rpc('public_tenant_branding'")
+  const rpc = login.indexOf('loadPublicTenantBranding(tenant)')
   const auth = login.indexOf('signInWithPassword')
   const leeTenants = login.indexOf("from('tenants')")
   assert.ok(rpc > -1 && auth > -1 && leeTenants > -1)

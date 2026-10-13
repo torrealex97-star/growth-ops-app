@@ -201,6 +201,9 @@ test('descargarConversacionesGhl: listado + transcripciones en paralelo con el f
 })
 
 test('descargarConversacionesGhl: el deadline corta la fase de mensajes sin perder lo ya leído', async () => {
+  const nowReal = Date.now
+  let now = 1_000
+  Date.now = () => now
   const fetchFalso = async (input) => {
     const url = String(input)
     if (url.includes('/conversations/search')) {
@@ -211,18 +214,22 @@ test('descargarConversacionesGhl: el deadline corta la fase de mensajes sin perd
         { status: 200 }
       )
     }
-    // Cada transcripción tarda 20 ms; el deadline vence mientras aún quedan por descargar.
-    await new Promise((r) => setTimeout(r, 20))
+    // El reloj controlado avanza cuatro unidades por llamada. La primera ola de cinco entra
+    // completa y agota el presupuesto; la sexta queda fuera sin depender de la carga del CI.
+    now += 4
     return new Response(JSON.stringify({ messages: { messages: [{ direction: 'inbound', body: 'x' }] } }), {
       status: 200,
     })
   }
-  // 15 ms < 20 ms: la primera ola (5 en paralelo) entra y la segunda queda fuera del presupuesto.
-  const out = await descargarConversacionesGhl(CFG, { deadlineMs: Date.now() + 15, fetchImpl: fetchFalso })
-  assert.equal(out.length, 6, 'el listado completo se conserva')
-  const conTranscripcion = out.filter((c) => c.messages.length > 0)
-  assert.ok(conTranscripcion.length > 0, 'las ya descargadas conservan su transcripción')
-  assert.ok(conTranscripcion.length < 6, 'las que no llegaron quedan degradadas, sin bloquear la lambda')
+  try {
+    const out = await descargarConversacionesGhl(CFG, { deadlineMs: now + 16, fetchImpl: fetchFalso })
+    assert.equal(out.length, 6, 'el listado completo se conserva')
+    const conTranscripcion = out.filter((c) => c.messages.length > 0)
+    assert.equal(conTranscripcion.length, 5, 'la primera ola conserva sus transcripciones')
+    assert.equal(out[5].messages.length, 0, 'la que quedó fuera se degrada sin bloquear la lambda')
+  } finally {
+    Date.now = nowReal
+  }
 })
 
 test('descargarConversacionesGhl: error HTTP del listado es ruidoso (nada de lista vacía)', async () => {
