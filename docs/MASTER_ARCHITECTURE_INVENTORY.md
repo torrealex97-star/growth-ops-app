@@ -68,10 +68,12 @@ datos — la invariante del §7 de la spec es alcanzable; la brecha no es arquit
 - **T-4 — Sin recorrido E2E integral del negocio (ya pedido por SPEC-06/09/10 en sus §20).** No existe una
   prueba única que recorra Meta→Landing→VSL→Form→Lead→Calendly→GHL→Google→Show→Closer→Sale→Stripe
   como la que pide la SPEC-12; los cubren trozos por módulo — delta asignado al PR-10 master.
-- **T-5 — Sin batería adversarial transversal de tenant isolation (identificado en SPEC-06/09/11).**
-  Existen invariantes por módulo (esquema-tenant-invariante, atribucion-aislamiento). Falta la
-  batería del §6 con los 10 escenarios (cache cross-tenant, lista cross-tenant MCP,
-  webhook-IDs-coincidentes…). PR-1 master la consolida — no la crea desde cero.
+- **T-5 — Batería adversarial transversal de tenant isolation (RESUELTA 13-oct-2026, PR-1 master).**
+  Batería ejecutable con los 10 escenarios del §6 (`tests/bateria-tenant-isolation-master.test.mjs`
+  en `npm test`) que consolidan (sin duplicar) las invariantes por módulo: MCP/E1, cash/E2,
+  webhooks-Fathom/E3, atribución/E4, colaboradores/E5, escáner service-role/E6, esquema/E7,
+  Storage/E8, agente IA/E9 — cada una remitiendo a su suite canónica — más la sonda live A/B
+  anclada/E10. Mapa escenario→guarda→suite en `docs/TENANT_ISOLATION_BATTERY.md`.
 - **T-6 — No hay duplicación de fuentes de verdad (VERIFICADO por las 8 audits).** Todos los
   intentos de 2ª fuente detectados (record source como adquisición en SPEC-05 H-2, cash en dos
   realidades) ya están documentados como pendientes en su módulo, ninguno sembró una tabla nueva;

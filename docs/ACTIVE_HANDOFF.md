@@ -1,8 +1,12 @@
-# TABLERO de reclamaciones (se borra la fila al fusionar)
+# COMPLETADO — PR-1 master: batería adversarial transversal de tenant isolation (13-oct, Buffy)
 
-| Agente | Qué | Rama | Ficheros que toca | Fecha |
-| --- | --- | --- | --- | --- |
-| Buffy (Freebuff) | PR-1 master: batería adversarial transversal de tenant isolation (T-5, 10 escenarios) | `feat/pr1-master-tenant-bateria` | `tests/bateria-tenant-isolation-master.test.mjs` (nuevo), `docs/TENANT_ISOLATION_BATTERY.md` (nuevo), `docs/MASTER_ARCHITECTURE_INVENTORY.md` (T-5), este handoff | 13-oct-2026 |
+T-5 del [inventario](MASTER_ARCHITECTURE_INVENTORY.md) resuelto en rama
+`feat/pr1-master-tenant-bateria`: `tests/bateria-tenant-isolation-master.test.mjs` (11 tests en
+`npm test`) con los 10 escenarios del §6 re-ejecutando (sin duplicar) las invariantes por módulo
+(MCP, cash, webhooks Fathom, atribución, colaboradores, escáner service-role, esquema, Storage,
+agente IA y la sonda live A/B anclada). Mapa escenario→guarda→suite canónica en
+[TENANT_ISOLATION_BATTERY.md](TENANT_ISOLATION_BATTERY.md). Batería 11/11 PASS local; la evidencia
+RLS live sigue en `npm run test:rls:live` (requiere credenciales + confirmación).
 
 # DECISIONES BUSINESS transversales tomadas por el usuario (13-oct-2026) · rama `docs/decisiones-business-transversales`
 
