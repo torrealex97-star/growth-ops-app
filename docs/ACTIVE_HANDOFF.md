@@ -64,6 +64,32 @@ code, Smoke E2E, gitleaks, Release gate). PR-1 queda BLOQUEADO por decisión BUS
 de roles de plataforma propuesta (owner/admin/soporte/cs/billing/auditor) esperando aprobación
 del dueño antes de crear `platform_staff_memberships`.
 
+# IMPLEMENTADO Y VALIDADO EN RAMA — OAuth Google centralizado (13-oct-2026, Codex) · rama `codex/google-oauth-central`
+
+- **Alcance:** credenciales globales para GA4, Google Calendar y YouTube; consentimientos y tokens
+  separados por servicio; retirada de Gmail API y de Client ID/Secret por tenant.
+- **Entregado:** cliente OAuth único de plataforma mediante `GOOGLE_OAUTH_CLIENT_ID` /
+  `GOOGLE_OAUTH_CLIENT_SECRET`; consentimientos separados para GA4, Calendar, YouTube lectura y
+  YouTube publicación; refresh/access token cifrados por conexión; refresco automático; desconexión
+  con revocación; GA4 con selector de propiedad y error 403 legible; Calendar personal por miembro;
+  YouTube sin el antiguo OAuth Playground. Gmail API se retira: Resend sigue siendo el canal de
+  salida y el escáner de facturas por Gmail devuelve 410 sin afectar las facturas ya importadas.
+- **Seguridad:** tokens cifrados con `CONFIG_ENC_KEY`, state+PKCE, permisos mínimos, revocación al
+  desconectar, autorización tenant-scoped, consentimiento de Calendar ligado al usuario y cero
+  scopes restringidos de Gmail. Revisión focal de seguridad sin hallazgos abiertos.
+- **Migración:** `20261013143000_google_oauth_centralized.sql` añade access token/expiry/estado de
+  reautorización y las variantes `youtube` / `youtube_publish`. Creada localmente; **no aplicada en
+  producción** desde esta rama.
+- **Validación:** `npm run typecheck` PASS; `npm test` 1.665 PASS / 3 omitidos; `npm run
+  test:metrics` 788 PASS; `npm run lint` PASS (solo avisos heredados); `git diff --check` PASS;
+  `npm run build` PASS con red autorizada para Google Fonts.
+- **Activación pendiente (humana/producción):** aplicar la migración; crear/seleccionar el cliente
+  OAuth Web global, registrar exactamente `https://app.scalixsystems.com/api/oauth/google/callback`,
+  activar Analytics Admin/Data, Calendar, YouTube Data y YouTube Analytics APIs, configurar las dos
+  variables globales en Vercel y completar la pantalla de consentimiento/verificación de Google.
+  Después: smoke real con una cuenta autorizada de cada servicio y una cuenta Calendar de un closer.
+- **Base:** `639a130b` (`origin/main`).
+
 # COMPLETADO — SPEC-15 PR-0 + slice PR-1: automation audit + capa de señales (13-oct, Buffy) · `feat/spec15-pr0-automation-audit`
 
 [AUTOMATION_ARCHITECTURE_AUDIT.md](AUTOMATION_ARCHITECTURE_AUDIT.md): el motor conceptual mapeado a sus

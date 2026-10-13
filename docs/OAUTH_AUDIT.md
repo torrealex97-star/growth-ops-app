@@ -13,28 +13,26 @@
 - Los aliases `*.vercel.app` y deployment URLs son efímeros: NINGÚN proveedor, callback, webhook o
   documento operativo debe depender de ellos.
 
-## 1. Google (cliente OAuth de YouTube — el único que existe)
+## 1. Google (arquitectura vigente desde 13-oct-2026)
 
-| Dato                          | Valor                                                                                                                                        |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Cliente OAuth                 | `793841795630-h8p40rvkss05q1or8cp0iabi4tseni2k.apps.googleusercontent.com` (WDC, en `integration_settings.YOUTUBE_CLIENT_ID`)                |
-| Redirect URIs registrados     | **Solo** `https://developers.google.com/oauthplayground` (verificado en vivo 21-sep: el callback de la app devuelve `redirect_uri_mismatch`) |
-| Redirect que usa la app       | `https://developers.google.com/oauthplayground` (paso 1 del flujo de 2 pasos, PR #131)                                                       |
-| Callback que recibe el código | La web del playground; el admin pega el código en Integraciones → YouTube → «Completar conexión»                                             |
-| Scopes pedidos                | `youtube.upload` + `youtube.readonly` (mínimo necesario para subir Shorts; sin upload no se guarda)                                          |
-| Refresco de token             | `lib/youtube/client.ts` autentica con el MISMO client y el refresh token cifrado en `integration_settings`                                   |
+| Dato                          | Valor                                                                                              |
+| ----------------------------- | -------------------------------------------------------------------------------------------------- |
+| Cliente OAuth                 | Uno global, propiedad de la plataforma; env `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` |
+| Redirect URI                  | `https://app.scalixsystems.com/api/oauth/google/callback` (cadena exacta)                           |
+| Identidad multi-tenant        | Refresh/access token cifrados por subcuenta en `google_oauth_connections`                          |
+| Protección del flujo          | `state` HMAC con tenant+usuario+servicio+TTL, PKCE S256 y sesión verificada en callback             |
+| Consentimientos               | GA4, Calendar, YouTube lectura/analytics y YouTube publicación separados                           |
+| Refresco y desconexión        | Automático con refresh token; revocación en Google y borrado tenant-scoped                          |
+| Gmail                         | No se usa Gmail API ni scopes restringidos; el correo saliente permanece en Resend                 |
 
-**Para rotar / migrar de dominio**: el redirect del playground NO depende del dominio — no hay que
-tocar nada en Google salvo que se quiera eliminar el pegado manual. Para el callback automático,
-registrar además `https://app.scalixsystems.com/api/oauth/google/callback` en Google Cloud Console
-(APIs y servicios → Credenciales → el cliente OAuth → URIs de redirección autorizados) y desplegar
-la rama ya preparada en `lib/google/oauth.ts` para callback propio (GA4/Gmail ya lo usan).
+YouTube ya no usa OAuth Playground ni credenciales pegadas por cada cliente. `youtube.readonly` y
+`yt-analytics.readonly` permiten consultar canal/analítica; `youtube.upload` se solicita únicamente
+si el administrador activa la publicación. Calendar mantiene una conexión por miembro dentro de la
+subcuenta. GA4 mantiene una conexión administrativa por subcuenta y muestra un error específico
+cuando la cuenta autorizada no tiene acceso a la propiedad.
 
-**Estado del cliente de GA4/Gmail (`GOOGLE_CLIENT_ID`)**: NO existe en la BD de WDC (verificado
-21-sep). El flujo OAuth de GA4/Gmail (`lib/google/oauth.ts`, callback firmado en
-`/api/oauth/google/callback`) no puede ejecutarse hasta que se guarden esas credenciales en
-Integraciones → Google. Su redirect URI registrado (cuando exista el cliente) debe ser
-exactamente `https://app.scalixsystems.com/api/oauth/google/callback`.
+Para activar un entorno nuevo se registran el callback exacto, las APIs de Google necesarias y las
+dos variables globales. Nunca se copian Client ID/Secret ni refresh tokens a los ajustes del tenant.
 
 ## 2. Supabase Auth (PKCE de email: invitaciones, recuperación)
 
@@ -88,14 +86,14 @@ rotación son los tokens y los webhooks de la tabla de arriba.
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
 | Webhooks entrantes | `webhooks-entrantes.test.mjs`, `webhook-ghl.test.mjs`, `stripe-webhook-route.test.mjs`, `webhook-secret-diagnostico.test.mjs` |
 | Crons              | `cron-calendly-ghl.test.mjs`, `cron-stripe-payments.test.mjs`                                                                 |
-| Google/YouTube     | `google-oauth.test.mjs` (state firmado, scopes, cifrado), `youtube-oauth.test.mjs` (exchange 2 pasos, extractor, cifrado)     |
+| Google/YouTube     | `google-oauth.test.mjs` (state, PKCE, scopes, cifrado, refresh, revocación), `youtube-oauth.test.mjs` (lectura/publicación separadas) |
 | Apify              | `social-research.test.mjs` (guards de cuenta propia, webhook)                                                                 |
 | Stripe             | `stripe-backfill-route.test.mjs`, `salud-pagos-stripe-sin-cobro.test.mjs`                                                     |
 | Meta               | `tests/meta/` (fixtures y sincronización)                                                                                     |
 
-Hueco conocido y asumido: las sondas contra APIs reales no se mockean en CI (se ejercitan en
-producción con la sesión QA); el intercambio real de YouTube depende de Google y solo se prueba
-con `invalid_grant` (código ficticio) para no quemar códigos reales.
+Hueco conocido y asumido: CI no consume cuentas reales de Google. Tras aplicar la migración y
+configurar el cliente global hay que ejecutar un smoke de consentimiento, refresco y revocación con
+cuentas QA de GA4, Calendar y YouTube; hasta entonces la integración es TESTED, no VERIFIED LIVE.
 
 ### Verificación en vivo de la superficie (21-sep, producción)
 

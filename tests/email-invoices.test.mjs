@@ -31,19 +31,10 @@ test('una factura importada nace pendiente de validación y sin gasto vinculado'
 })
 
 // Dos claves, porque protegen de cosas distintas.
-test('el dedupe cubre la misma ocurrencia y el mismo contenido', () => {
+test('el esquema histórico conserva dedupe por ocurrencia y contenido', () => {
   const sql = read(SQL)
   assert.match(sql, /email_invoices_occurrence_key[\s\S]*\(tenant_id, provider, message_id, attachment_id\)/)
   assert.match(sql, /email_invoices_content_key[\s\S]*\(tenant_id, sha256\)/)
-
-  const route = read(ROUTE)
-  // La ocurrencia se comprueba ANTES de descargar: no gastar cuota bajando lo que ya se tiene.
-  const posOcurrencia = route.indexOf("eq('attachment_id'")
-  const posDescarga = route.indexOf('getAttachmentBytes(')
-  assert.ok(posOcurrencia > 0 && posDescarga > posOcurrencia, 'descarga antes de comprobar si ya estaba')
-  // El contenido se comprueba tras calcular el hash, y la carrera la cierra el índice único.
-  assert.match(route, /eq\('sha256', sha256\)/)
-  assert.match(route, /'23505'/)
 })
 
 test('no se extrae el importe ni se adivinan datos fiscales', () => {
@@ -60,19 +51,14 @@ test('no se extrae el importe ni se adivinan datos fiscales', () => {
   assert.doesNotMatch(route, /anthropic|claude|openai/i)
 })
 
-test('el sync se autolimita por tiempo y avisa de si quedan correos', () => {
+test('el escaneo Gmail queda retirado sin perder el histórico', () => {
   const route = read(ROUTE)
-  // El buzón puede ser enorme y descargar adjuntos es lento: antes parar e informar que morir.
-  assert.match(route, /const deadline = Date\.now\(\) \+ 45_000/)
-  assert.match(route, /Date\.now\(\) > deadline/)
-  assert.match(route, /quedan_por_revisar/)
-  assert.match(route, /dryRun/)
-})
-
-test('el archivo va al bucket privado bajo el prefijo de la subcuenta', () => {
-  const route = read(ROUTE)
-  assert.match(route, /\$\{session\.tenantId\}\/email\//)
-  assert.match(route, /from\('facturas'\)/)
+  assert.match(route, /export async function POST\(\)/)
+  assert.match(route, /status: 410/)
+  assert.match(route, /Sube o reenvía la factura/)
+  assert.doesNotMatch(route, /getAttachmentBytes|listMessageIds|gmail\.googleapis/)
+  assert.match(route, /export async function GET/)
+  assert.match(route, /export async function PATCH/)
 })
 
 test('validar y descartar exigen rol de gestión y comprueban la subcuenta', () => {

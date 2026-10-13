@@ -43,7 +43,7 @@ import { useTenant } from '@/lib/tenant-context'
 import { isAccountSelected, parseAccountIds, toggleAccountId } from '@/lib/meta/accounts'
 import { brandFor, type Brand } from '@/components/integrations/brands'
 import { historyFor } from '@/lib/integrations/history'
-import { isGoogleOAuthClientId, isMetaAppId } from '@/lib/integrations/oauth-credentials'
+import { isMetaAppId } from '@/lib/integrations/oauth-credentials'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { CATEGORY_LABELS, type IntegrationCategory } from '@/lib/integrations-catalog'
 import { ProviderWebhooks } from '@/components/integrations/WebhooksEntrantesPanel'
@@ -93,6 +93,19 @@ type StateEntry = {
 }
 
 type CryptoIssue = { key: string; reason: 'key_mismatch' | 'decrypt_error' }
+
+type GoogleConnection = {
+  provider: 'ga4' | 'youtube' | 'youtube_publish'
+  google_email: string | null
+  status: 'conectada' | 'revocada' | 'error'
+  ga4_property_id: string | null
+  last_sync_at: string | null
+  last_error: string | null
+  reauth_required_at: string | null
+  updated_at: string
+}
+
+type Ga4Property = { id: string; name: string }
 
 function currentValue(drafts: Record<string, string>, state: Record<string, StateEntry>, key: string): string {
   return (drafts[key] ?? state[key]?.value ?? '').trim()
@@ -240,9 +253,9 @@ const GROUP_META: Record<string, { icon: typeof Plug; tone: string; steps: strin
     icon: Play,
     tone: 'from-red-500/25 to-red-950/5',
     steps: [
-      'Crea credenciales OAuth en Google Cloud.',
-      'Habilita YouTube Data API v3.',
-      'Añade client ID, secret y refresh token y prueba la conexión.',
+      'Pulsa «Conectar» y elige la cuenta de Google propietaria del canal.',
+      'Autoriza lectura y analítica para consultar el rendimiento.',
+      'Activa publicación por separado solo si quieres subir Shorts desde la app.',
     ],
     docs: 'https://developers.google.com/youtube/v3/guides/auth/server-side-web-apps',
   },
@@ -520,6 +533,78 @@ export default function IntegracionesPage() {
   // La mitad receptora de las integraciones: los webhooks que los proveedores llaman. El estado
   // lo calcula el servidor con evidencia real (audit_logs / raw_events), nunca el navegador.
   const [webhooksEntrantes, setWebhooksEntrantes] = useState<WebhookEntranteEstado[]>([])
+  const [googleConnections, setGoogleConnections] = useState<GoogleConnection[] | null>(null)
+  const [googleOauthConfigured, setGoogleOauthConfigured] = useState<boolean | null>(null)
+  const [disconnectingGoogle, setDisconnectingGoogle] = useState<string | null>(null)
+  const [ga4Properties, setGa4Properties] = useState<Ga4Property[] | null>(null)
+  const [ga4Property, setGa4Property] = useState('')
+  const [ga4PropertiesError, setGa4PropertiesError] = useState<string | null>(null)
+  const [savingGa4Property, setSavingGa4Property] = useState(false)
+
+  const loadGoogleConnections = useCallback(async () => {
+    const result = await pedir<{ configured: boolean; connections: GoogleConnection[] }>(
+      `/api/${tenant}/evergreen/oauth/google/connections`
+    )
+    if (!result.ok) {
+      if (esFalloVisible(result)) toast.error(result.mensaje)
+      return
+    }
+    setGoogleOauthConfigured(result.data.configured)
+    setGoogleConnections(result.data.connections)
+  }, [tenant])
+
+  const loadGa4Properties = useCallback(async () => {
+    setGa4PropertiesError(null)
+    const result = await pedir<{
+      propiedad: string | null
+      propiedades?: Ga4Property[]
+      error?: string
+    }>(`/api/${tenant}/evergreen/ga4?propiedades=1`)
+    if (!result.ok) {
+      if (esFalloVisible(result)) setGa4PropertiesError(result.mensaje)
+      return
+    }
+    setGa4Properties(result.data.propiedades ?? [])
+    setGa4Property(result.data.propiedad ?? '')
+  }, [tenant])
+
+  async function saveGa4Property() {
+    if (!ga4Property) return
+    setSavingGa4Property(true)
+    try {
+      const result = await pedir<{ ok: boolean }>(`/api/${tenant}/evergreen/ga4`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ propiedad: ga4Property }),
+      })
+      if (!result.ok) {
+        if (esFalloVisible(result)) toast.error(result.mensaje)
+        return
+      }
+      toast.success('Propiedad de Google Analytics guardada')
+      await loadGoogleConnections()
+    } finally {
+      setSavingGa4Property(false)
+    }
+  }
+
+  async function disconnectGoogle(provider: GoogleConnection['provider']) {
+    setDisconnectingGoogle(provider)
+    try {
+      const result = await pedir<{ ok: boolean }>(
+        `/api/${tenant}/evergreen/oauth/google/connections?provider=${provider}`,
+        { method: 'DELETE' }
+      )
+      if (!result.ok) {
+        if (esFalloVisible(result)) toast.error(result.mensaje)
+        return
+      }
+      toast.success('Conexión de Google eliminada')
+      await loadGoogleConnections()
+    } finally {
+      setDisconnectingGoogle(null)
+    }
+  }
 
   // ESTA ERA LA PANTALLA QUE SE QUEDABA CARGANDO.
   //
@@ -580,8 +665,18 @@ export default function IntegracionesPage() {
   useEffect(() => {
     if (selectedId === 'stripe' && stripeCustomers === null) void loadStripeCustomers()
     if (selectedId === 'stripe' && priceMap === null) void loadPriceMap()
+    if ((selectedId === 'google' || selectedId === 'youtube') && googleConnections === null) {
+      void loadGoogleConnections()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedId])
+  }, [selectedId, googleConnections, loadGoogleConnections])
+
+  useEffect(() => {
+    const ga4 = googleConnections?.find((item) => item.provider === 'ga4')
+    if (selectedId === 'google' && ga4?.status === 'conectada' && ga4Properties === null) {
+      void loadGa4Properties()
+    }
+  }, [selectedId, googleConnections, ga4Properties, loadGa4Properties])
 
   // Vuelta de los flujos OAuth de Google. El callback redirige a ESTA pantalla; los tokens se
   // guardan cifrados en el servidor y nunca pasan por el navegador.
@@ -591,11 +686,19 @@ export default function IntegracionesPage() {
     const res = sp.get('google')
     if (!res) return
     const servicio = sp.get('servicio')
-    if (res === 'conectada') toast.success(`${servicio === 'youtube' ? 'YouTube' : 'Google'} conectado`)
-    else if (res === 'cancelada') toast.info('Autorización cancelada')
+    if (res === 'conectada') {
+      const label =
+        servicio === 'youtube'
+          ? 'YouTube y sus analíticas'
+          : servicio === 'youtube_publish'
+            ? 'Publicación en YouTube'
+            : 'Google Analytics'
+      toast.success(`${label} conectado`)
+      void loadGoogleConnections()
+    } else if (res === 'cancelada') toast.info('Autorización cancelada')
     else {
       const motivos: Record<string, string> = {
-        sin_credenciales: 'Faltan las credenciales OAuth de la integración. Guárdalas primero.',
+        sin_credenciales: 'El OAuth global de Google todavía no está configurado en el servidor.',
         sin_refresh_token: 'Google no devolvió un refresh token. Vuelve a autorizar.',
         no_se_pudo_guardar: 'No se pudo guardar la conexión.',
         sin_config_enc_key: 'Falta CONFIG_ENC_KEY en el servidor.',
@@ -604,7 +707,7 @@ export default function IntegracionesPage() {
       toast.error(motivos[sp.get('motivo') || ''] || 'No se pudo completar la autorización')
     }
     window.history.replaceState(null, '', window.location.pathname)
-  }, [])
+  }, [loadGoogleConnections])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -2227,80 +2330,174 @@ export default function IntegracionesPage() {
                         )}
 
                         <div className="mt-6 flex flex-wrap justify-between gap-2 border-t border-border pt-4">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => disconnectGroup(g)}
-                            disabled={savingId === g.id || !configured}
-                            className="text-red-400 hover:text-red-300"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" /> Desconectar
-                          </Button>{' '}
+                          {g.id !== 'google' && g.id !== 'youtube' ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => disconnectGroup(g)}
+                              disabled={savingId === g.id || !configured}
+                              className="text-red-400 hover:text-red-300"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" /> Desconectar
+                            </Button>
+                          ) : null}
                           {g.id === 'youtube' && (
-                            <div className="w-full space-y-2 border-t border-border pt-3">
-                              <p className="text-xs text-muted-foreground">
-                                Autoriza el canal directamente con Google. El refresh token se guarda cifrado en el
-                                servidor y nunca pasa por el portapapeles.
-                              </p>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={
-                                  savingId === g.id ||
-                                  !isGoogleOAuthClientId(currentValue(drafts, state, 'YOUTUBE_CLIENT_ID')) ||
-                                  !hasUsableSecret(drafts, state, 'YOUTUBE_CLIENT_SECRET')
-                                }
-                                onClick={async () => {
-                                  const saved = await saveGroup(g, false)
-                                  if (saved) {
-                                    router.push(`/api/${tenant}/evergreen/oauth/google/start?provider=youtube`)
-                                  }
-                                }}
-                              >
-                                <ExternalLink className="mr-2 h-4 w-4" /> Conectar con Google
-                              </Button>
-                              {!isGoogleOAuthClientId(currentValue(drafts, state, 'YOUTUBE_CLIENT_ID')) ||
-                              !hasUsableSecret(drafts, state, 'YOUTUBE_CLIENT_SECRET') ? (
-                                <p className="text-xs text-amber-400">
-                                  Guarda primero un Client ID válido de Google y su Client Secret.
+                            <div className="w-full space-y-3">
+                              {googleOauthConfigured === false ? (
+                                <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300">
+                                  Falta configurar el OAuth global de Google en el servidor.
                                 </p>
                               ) : null}
+                              {(
+                                [
+                                  ['youtube', 'Canal y analíticas', 'Permite consultar vídeos y rendimiento.'],
+                                  [
+                                    'youtube_publish',
+                                    'Publicación de Shorts',
+                                    'Permiso opcional para publicar vídeos.',
+                                  ],
+                                ] as const
+                              ).map(([provider, label, description]) => {
+                                const connection = googleConnections?.find((item) => item.provider === provider)
+                                return (
+                                  <div
+                                    key={provider}
+                                    className="flex items-center justify-between gap-4 rounded-lg border border-border p-3"
+                                  >
+                                    <div className="min-w-0">
+                                      <p className="flex items-center gap-2 text-sm font-medium">
+                                        <span
+                                          className={`h-2 w-2 rounded-full ${connection?.status === 'conectada' ? 'bg-emerald-500' : 'bg-muted-foreground/40'}`}
+                                          aria-hidden
+                                        />
+                                        {label}
+                                      </p>
+                                      <p className="mt-1 text-xs text-muted-foreground">
+                                        {connection?.google_email || description}
+                                      </p>
+                                    </div>
+                                    <div className="flex shrink-0 gap-2">
+                                      {connection ? (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="text-red-400 hover:text-red-300"
+                                          disabled={disconnectingGoogle === provider}
+                                          onClick={() => void disconnectGoogle(provider)}
+                                        >
+                                          Desconectar
+                                        </Button>
+                                      ) : null}
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={googleOauthConfigured === false}
+                                        onClick={() =>
+                                          router.push(
+                                            `/api/${tenant}/evergreen/oauth/google/start?provider=${provider}`
+                                          )
+                                        }
+                                      >
+                                        <ExternalLink className="mr-2 h-4 w-4" />
+                                        {connection ? 'Reconectar' : 'Conectar'}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                )
+                              })}
                             </div>
                           )}
                           {g.id === 'google' && (
-                            <div className="w-full space-y-2 border-t border-border pt-3">
-                              <p className="text-xs text-muted-foreground">
-                                Cada permiso se autoriza por separado para no dar acceso a servicios que no usas.
-                              </p>
-                              <div className="flex flex-wrap gap-2">
-                                {(['ga4', 'gmail'] as const).map((provider) => (
-                                  <Button
-                                    key={provider}
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={
-                                      savingId === g.id ||
-                                      !isGoogleOAuthClientId(currentValue(drafts, state, 'GOOGLE_CLIENT_ID')) ||
-                                      !hasUsableSecret(drafts, state, 'GOOGLE_CLIENT_SECRET')
-                                    }
-                                    onClick={async () => {
-                                      const saved = await saveGroup(g, false)
-                                      if (saved) {
-                                        router.push(`/api/${tenant}/evergreen/oauth/google/start?provider=${provider}`)
-                                      }
-                                    }}
-                                  >
-                                    <ExternalLink className="mr-2 h-4 w-4" />
-                                    Conectar {provider === 'ga4' ? 'Google Analytics' : 'Gmail'}
-                                  </Button>
-                                ))}
-                              </div>
-                              {!isGoogleOAuthClientId(currentValue(drafts, state, 'GOOGLE_CLIENT_ID')) ||
-                              !hasUsableSecret(drafts, state, 'GOOGLE_CLIENT_SECRET') ? (
-                                <p className="text-xs text-amber-400">
-                                  Guarda primero un Client ID válido de Google y su Client Secret.
+                            <div className="w-full space-y-3 rounded-lg border border-border p-3">
+                              {googleOauthConfigured === false ? (
+                                <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300">
+                                  Falta configurar el OAuth global de Google en el servidor.
                                 </p>
                               ) : null}
+                              {(() => {
+                                const connection = googleConnections?.find((item) => item.provider === 'ga4')
+                                return (
+                                  <>
+                                    <div className="flex items-center justify-between gap-4">
+                                      <div className="min-w-0">
+                                        <p className="flex items-center gap-2 text-sm font-medium">
+                                          <span
+                                            className={`h-2 w-2 rounded-full ${connection?.status === 'conectada' ? 'bg-emerald-500' : 'bg-muted-foreground/40'}`}
+                                            aria-hidden
+                                          />
+                                          Google Analytics 4
+                                        </p>
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                          {connection?.google_email ||
+                                            'Conecta una cuenta con acceso de lectura a GA4.'}
+                                        </p>
+                                        {connection?.last_error ? (
+                                          <p className="mt-1 text-xs text-red-400">{connection.last_error}</p>
+                                        ) : null}
+                                      </div>
+                                      <div className="flex shrink-0 gap-2">
+                                        {connection ? (
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-red-400 hover:text-red-300"
+                                            disabled={disconnectingGoogle === 'ga4'}
+                                            onClick={() => void disconnectGoogle('ga4')}
+                                          >
+                                            Desconectar
+                                          </Button>
+                                        ) : null}
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          disabled={googleOauthConfigured === false}
+                                          onClick={() =>
+                                            router.push(`/api/${tenant}/evergreen/oauth/google/start?provider=ga4`)
+                                          }
+                                        >
+                                          <ExternalLink className="mr-2 h-4 w-4" />
+                                          {connection ? 'Reconectar' : 'Conectar'}
+                                        </Button>
+                                      </div>
+                                    </div>
+                                    {connection?.status === 'conectada' ? (
+                                      <div className="border-border flex flex-wrap items-end gap-2 border-t pt-3">
+                                        <label className="min-w-64 flex-1 text-xs text-muted-foreground">
+                                          Propiedad que se usará para importar datos
+                                          <select
+                                            value={ga4Property}
+                                            onChange={(event) => setGa4Property(event.target.value)}
+                                            className="border-border bg-background/60 text-foreground mt-1 block w-full rounded-lg border px-3 py-2 text-sm"
+                                            disabled={ga4Properties === null}
+                                          >
+                                            <option value="">
+                                              {ga4Properties === null
+                                                ? 'Cargando propiedades…'
+                                                : 'Elige una propiedad…'}
+                                            </option>
+                                            {(ga4Properties ?? []).map((property) => (
+                                              <option key={property.id} value={property.id}>
+                                                {property.name}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        </label>
+                                        <Button
+                                          size="sm"
+                                          disabled={!ga4Property || savingGa4Property}
+                                          onClick={() => void saveGa4Property()}
+                                        >
+                                          {savingGa4Property ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                          Guardar propiedad
+                                        </Button>
+                                        {ga4PropertiesError ? (
+                                          <p className="w-full text-xs text-red-400">{ga4PropertiesError}</p>
+                                        ) : null}
+                                      </div>
+                                    ) : null}
+                                  </>
+                                )
+                              })()}
                             </div>
                           )}
                           {(g.id === 'meta' || g.id === 'instagram') && (
@@ -2333,14 +2530,16 @@ export default function IntegracionesPage() {
                               ) : null}
                             </div>
                           )}
-                          <Button size="sm" onClick={() => saveGroup(g)} disabled={savingId === g.id}>
-                            {savingId === g.id ? (
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                              <Save className="mr-2 h-4 w-4" />
-                            )}
-                            Guardar {g.title}
-                          </Button>
+                          {g.id !== 'google' && g.id !== 'youtube' ? (
+                            <Button size="sm" onClick={() => saveGroup(g)} disabled={savingId === g.id}>
+                              {savingId === g.id ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              ) : (
+                                <Save className="mr-2 h-4 w-4" />
+                              )}
+                              Guardar {g.title}
+                            </Button>
+                          ) : null}
                         </div>
                       </SheetContent>
                     </Sheet>

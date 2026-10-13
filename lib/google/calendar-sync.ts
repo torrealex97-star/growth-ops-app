@@ -1,8 +1,7 @@
 import { createHmac } from 'node:crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { accessTokenFromRefresh } from '@/lib/google/ga4'
 import { listGoogleCalendarEvents } from '@/lib/google/calendar'
-import { googleCredentials } from '@/lib/google/oauth'
+import { getValidGoogleAccessToken } from '@/lib/google/token-store'
 
 type CalendarRow = {
   id: string
@@ -32,7 +31,10 @@ export async function syncGoogleCalendars(options: {
   tenantId: string
   userId: string
   ownerEmail: string | null
+  connectionId: string
   encryptedRefreshToken: string
+  encryptedAccessToken?: string | null
+  accessTokenExpiresAt?: string | null
   calendars: CalendarRow[]
   now?: Date
 }): Promise<GoogleCalendarSyncResult> {
@@ -44,9 +46,12 @@ export async function syncGoogleCalendars(options: {
     reconnectRequired: false,
     failures: [],
   }
-  const creds = await googleCredentials(options.tenantId)
-  if (!creds) throw new Error('Faltan las credenciales OAuth de Google del tenant.')
-  const access = await accessTokenFromRefresh(options.encryptedRefreshToken, creds)
+  const access = await getValidGoogleAccessToken(options.sb, {
+    id: options.connectionId,
+    refresh_token: options.encryptedRefreshToken,
+    access_token: options.encryptedAccessToken,
+    access_token_expires_at: options.accessTokenExpiresAt,
+  })
   if ('error' in access) {
     const error = new Error(access.error) as Error & { code?: string }
     error.code = access.revoked ? 'oauth_revocado' : 'oauth_token'
