@@ -93,17 +93,21 @@ CREATE POLICY mcp_tokens_owner_select ON public.mcp_oauth_tokens
 -- ------------------------------------------------------------------
 -- 3) Privilegios del rol lector: SELECT sobre tablas de negocio con RLS.
 --    La lista se mantiene explícita: añadir una tabla nueva NO expone datos solos.
+--    Cotejada contra el catálogo vivo el 10-oct-2026: se retiraron 'ad_sets',
+--    'affiliate_clicks', 'campaign_metrics', 'funnels', 'funnel_steps' y 'goals'
+--    (no existen en producción) y se añadió 'vsl_embed_locations' (creada en
+--    20261009010000_vsl_tracking_foundation y ausente de la lista original).
 -- ------------------------------------------------------------------
 DO $$
 DECLARE
   t TEXT;
   business_tables TEXT[] := ARRAY[
     'tenants','users','contacts','appointments','sales','collections','payment_plans',
-    'refunds','commissions','affiliate_campaigns','affiliate_clicks','contract_templates',
-    'contracts','campaigns','ad_sets','campaign_targets','campaign_metrics','contact_attributions',
-    'funnels','funnel_steps','canonical_events','raw_events','event_types','integration_sync_runs',
-    'vsl_video_versions','vsl_playback_sessions','vsl_tracking_events','vsl_watch_intervals',
-    'vsl_viewer_identities','stripe_payments','integration_settings','goals'
+    'refunds','commissions','affiliate_campaigns','contract_templates',
+    'contracts','campaigns','campaign_targets','contact_attributions',
+    'canonical_events','raw_events','event_types','integration_sync_runs',
+    'vsl_video_versions','vsl_embed_locations','vsl_playback_sessions','vsl_tracking_events',
+    'vsl_watch_intervals','vsl_viewer_identities','stripe_payments','integration_settings'
   ];
 BEGIN
   FOREACH t IN ARRAY business_tables LOOP

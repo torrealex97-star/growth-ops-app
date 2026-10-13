@@ -1,3 +1,23 @@
+# funnel_leads = 19 EN PRODUCCIÓN (12-oct tarde, Buffy) · merge #465 + #469 + sync — VERIFICADO en BD y en UI
+
+- **Problema que la UI destapó:** al verificar la página de Campañas los leads de LOOKALIKE
+  NO aparecían ni como Leads Funnel: la columna exacta de la página (`funnel_leads` de
+  `campaigns`) se computa en la SYNC por cruce UTM (no por contacts.campaign_id) y el cruce
+  exigía utm_source ∈ {facebook, ig…} + nombre crudo — los 19 contactos reales reportan el
+  **id de campaña en utm_source** y Calendly trae '+' como espacios: 0 para TODAS las campañas.
+- **Arreglo 1 (lib/meta/sync.ts, #465):** fuente válida = etiqueta conocida **O** id numérico Meta
+  (`^1\d{14,17}$`); nombre comparado con la normalización canónica ('+'→espacio). CI 9/9 verde tras
+  un rebase (main se movió; Smoke E2E 4m34s con el arreglo incluido).
+- **Arreglo 2 (mismo fichero, #469):** el match añade la vía IDENTIDAD directa — si la fuente de la
+  atribución ES el id de ESTA campaña, cuenta aunque el utm_campaign histórico congelado ("- Copia")
+  no case con el nombre actual. Con solo #465 quedaban fuera los 5 "- Copia" (BD: 14).
+- **Verificado en producción (cerrado el ciclo completo):** sync con #465 → BD 14/192 → PÁGINA REAL
+  en navegador (sesión OTP): fila LOOKALIKE = LEADS FUNNEL 14. Después merge #469 → sync →
+  **BD: LOOKALIKE = 19 funnel / 192 meta** y **UI real: LEADS FUNNEL = 19** (comprobado fila a fila
+  en el navegador, segunda visita tras el despliegue). totalFunnelLeads del tenant = 19.
+- **Limpieza:** password temporal del QA rotado a aleatorio y ficheros con credenciales borrados;
+  ni en chat ni en repo. WIP anterior (ficheros ajenos que ya estaban modificados antes de empezar)
+  sigue intacto en el checkout, sin commitear, como estaba.
 # CERRADO, FUSIONADO, DESPLEGADO Y VERIFICADO · Acceso y navegación accesibles (13-oct-2026, Codex)
 
 - **Git/producción:** PR #470 fusionado en `main` (`6af1efc5`). Vercel `growth-ops-app`

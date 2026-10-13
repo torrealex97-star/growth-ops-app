@@ -4,7 +4,7 @@ import { requirePantalla } from '@/lib/auth/requirePantalla'
 import { getTenantConfig } from '@/lib/config'
 import { parseAccountIds } from '@/lib/meta/accounts'
 import { computeFunnel } from '@/lib/funnels/compute'
-import { FUNNEL_FAMILIES, type FunnelFamily } from '@/lib/funnels/definitions'
+import { FUNNEL_FAMILIES, type FunnelFamily, stagesOf } from '@/lib/funnels/definitions'
 import { EVENT_MAP_KEY, parseEventMap } from '@/lib/funnels/event-map'
 import { loadFunnelCounts } from '@/lib/funnels/queries'
 
@@ -52,6 +52,19 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     const cfg = await getTenantConfig(session.tenantId)
     const eventMap = parseEventMap(cfg[EVENT_MAP_KEY])
 
+    // ¿Está llegando ALGO de tracking mientras esta familia tiene etapas sin mapear?
+    // Distingue "el pixel funciona y solo falta el mapeo" (clic y listo) de "nadie ha instalado
+    // el pixel" (no hay nada que mapear). Un recuento head+exact: no trae filas.
+    let trackingEventsSeen: number | null = null
+    if (stagesNeedTracking(family)) {
+      const { count, error } = await sb
+        .from('canonical_events')
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', session.tenantId)
+        .gte('occurred_at', new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString())
+      trackingEventsSeen = error ? null : (count ?? 0)
+    }
+
     const { counts, inversion, cohorte } = await loadFunnelCounts(
       sb,
       session.tenantId,
@@ -63,7 +76,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       // La inversión del funnel solo cuenta las cuentas de ads elegidas en Integraciones.
       parseAccountIds(cfg.META_AD_ACCOUNT_ID)
     )
-    return NextResponse.json({ ...computeFunnel({ family, counts, inversion }), cohorte, range: { from, to } })
+    return NextResponse.json({
+      ...computeFunnel({ family, counts, inversion }),
+      cohorte,
+      range: { from, to },
+      // null = no aplicable a esta familia; número = eventos de tracking recibidos en 90 días.
+      trackingEventsSeen,
+    })
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : 'No se pudo calcular el funnel' },
@@ -74,6 +93,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
 
 function isIsoDate(v: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v))
+}
+
+// ¿Esta familia tiene etapas del tracking propio (fuente 'vsl')? Es la condición para saber si el
+// contador de eventos recibidos es relevante: en webinar/perfil/web no lo es.
+function stagesNeedTracking(family: FunnelFamily): boolean {
+  return stagesOf(family).some((s) => s.source === 'vsl')
 }
 
 // Por defecto, los 30 días anteriores a `to` (incluido), que es la ventana con la que se mira un

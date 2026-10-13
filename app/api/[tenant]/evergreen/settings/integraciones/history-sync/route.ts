@@ -14,6 +14,8 @@ import { HISTORY_CAPABILITIES } from '@/lib/integrations/history'
 // tener DOS copias de estas funciones (una por el botón, otra por el webhook) es exactamente la
 // deriva que dejó la ingesta de agendas muerta durante días sin que nadie la viera.
 import { serviceClient, syncCalendly, syncGhl } from '@/lib/integrations/citas-sync'
+import { backfillAtribucionLocal } from '@/lib/contacts/backfill-atribucion'
+import { backfillCampaignId } from '@/lib/contacts/backfill-campaign-id'
 import { runMetaAdsSync, runMetaDailySync, runMetaSync } from '@/lib/meta/sync'
 import { fetchMeetingsPage, meetingId } from '@/lib/fathom/meetings'
 import { procesarMeetingFathom } from '@/lib/fathom/ingesta'
@@ -102,6 +104,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       provider?: string
       dryRun?: boolean
       cursor?: string
+      limite?: number
     }
     const cfg = await getTenantConfigWithFallback(auth.tenantId, true)
     const sb = serviceClient()
@@ -203,6 +206,56 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     }
     if (body.provider === 'fathom')
       return NextResponse.json(await syncFathom(sb, auth.tenantId, cfg, { dryRun: body.dryRun === true }))
+    if (body.provider === 'atribucion') {
+      // Backfill LOCAL de atribución: no sale a ningún proveedor; rellena el primer toque de los
+      // contactos cuyo origen quedó guardado solo en la cita (appointments.utm_*) y nunca llegó a
+      // contact_attributions por el bug histórico. Idempotente y acotado primero-wins: no toca
+      // contactos ya atribuidos ni inventa orígenes. Reutiliza recordSyncRun para que la pasada
+      // quede en el historial y el panel pueda decir cuándo se corrió y qué escribió.
+      const limite =
+        typeof body.limite === 'number' && Number.isFinite(body.limite) ? Math.round(body.limite) : undefined
+      const result = await recordSyncRun(
+        sb,
+        { tenantId: auth.tenantId, provider: 'atribucion', job: 'atribucion-backfill', trigger: 'historico' },
+        () => backfillAtribucionLocal(sb, auth.tenantId, limite !== undefined ? { limite } : {}),
+        (r) => ({
+          rowsWritten: r.toquesCreados + r.toquesActualizados,
+          failures: r.errores,
+          detail: {
+            contactosConsiderados: r.contactosConsiderados,
+            toquesCreados: r.toquesCreados,
+            toquesActualizados: r.toquesActualizados,
+            sinDatos: r.sinDatos,
+          },
+        })
+      )
+      return NextResponse.json({ provider: 'atribucion', ...result })
+    }
+    if (body.provider === 'campañas') {
+      // Aliasing utm_campaign ↔ campaigns de la subcuenta: rellena contacts.campaign_id SOLO en
+      // huecos (contactos ya asignados no se tocan). Orgánicas quedan SIN campaña a conciencia;
+      // sin match o ambiguo se REPORTA para revisión sin escribir — no inventar correspondencias.
+      const limite =
+        typeof body.limite === 'number' && Number.isFinite(body.limite) ? Math.round(body.limite) : undefined
+      const result = await recordSyncRun(
+        sb,
+        { tenantId: auth.tenantId, provider: 'campañas', job: 'campaign-id-backfill', trigger: 'historico' },
+        () => backfillCampaignId(sb, auth.tenantId, limite !== undefined ? { limite } : {}),
+        (r) => ({
+          rowsWritten: r.asignados,
+          failures: r.errores,
+          detail: {
+            contactosConsiderados: r.contactosConsiderados,
+            asignados: r.asignados,
+            organicas: r.organicas,
+            sinMatch: r.sinMatch,
+            ambiguas: r.ambiguas,
+            ejemplosSinMatch: r.ejemplos,
+          },
+        })
+      )
+      return NextResponse.json({ provider: 'campañas', ...result })
+    }
     return NextResponse.json({ error: 'Proveedor no soportado' }, { status: 400 })
   } catch (error) {
     if (error instanceof SyncBusyError) return NextResponse.json({ error: error.message }, { status: 409 })

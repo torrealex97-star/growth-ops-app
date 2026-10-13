@@ -1,9 +1,13 @@
 export const dynamic = 'force-dynamic'
 
-// Script que se incrusta en la landing / página de GHL. Hace dos cosas:
+// Script que se incrusta en la landing / página de GHL. Hace tres cosas:
 //  1) Expone window.tccVSL.identify(email) para asociar el lead manualmente.
 //  2) AUTO-captura el lead del funnel: lee email/nombre desde los parámetros de la URL
 //     (?email=...&name=...) o desde window.tccVSLLead, y llama a identify solo.
+//  3) Propaga a Calendly lo que la página conoce: el anonId del VSL (salesforce_uuid,
+//     para el % de visión) y las UTMs del anuncio/landing (utm_*), que Calendly reenvía
+//     en el bloque tracking del webhook — sin ellas la agenda entra sin origen y la
+//     atribución decide que no vino de ninguna campaña aunque la landing las tenga.
 export async function GET() {
   const site = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
   const origin = site.replace(/\/$/, '')
@@ -45,28 +49,74 @@ export async function GET() {
     send(payload);
   };
 
-  // --- Enganche del visionado ANÓNIMO con la cita (leads sin optin) -----------
+  // === Enganche del visionado ANÓNIMO con la cita (leads sin optin) -----------
   // El player nos manda su anonId. Lo inyectamos como salesforce_uuid en los enlaces
   // y widgets de Calendly de la página, para que Calendly lo reenvíe en el webhook y
   // el servidor pueda asociar el % visto a la cita aunque el lead nunca se registrara.
   var anonId = null;
-  function addParam(url, val){
-    if (!url || url.indexOf('salesforce_uuid=') !== -1) return url;
-    return url + (url.indexOf('?') === -1 ? '?' : '&') + 'salesforce_uuid=' + encodeURIComponent(val);
+  function addParam(url, key, val){
+    if (!url || url.indexOf(key + '=') !== -1) return url;
+    return url + (url.indexOf('?') === -1 ? '?' : '&') + key + '=' + encodeURIComponent(val);
+  }
+  // === UTMs de la página → Calendly ---------------------------------------------
+  // Calendly solo reporta al webhook las UTMs que LLEGAN en el enlace del booking:
+  // si nadie las propaga, Calendly no tiene nada que reportar y el webhook entra con
+  // tracking vacío aunque el anuncio/player las hayan traído a la página. Se cogen de
+  // la query de la página y, si no hay, de lo que el pixel guardó en esta sesión
+  // (clí anuncio → navegó → scroll a Calendly: el origen sigue siendo el anuncio).
+  var UTM_KEYS = ['utm_source','utm_medium','utm_campaign','utm_content','utm_term'];
+  function pageUtms(){
+    var out = {};
+    try {
+      var q = new URLSearchParams(window.location.search);
+      UTM_KEYS.forEach(function(k){ var v = q.get(k); if (v) out[k] = v.slice(0, 200); });
+    } catch (_) { /* opcional: ver la nota del fichero */ }
+    return out;
+  }
+  function utmParams(){
+    var out = pageUtms();
+    try {
+      if (Object.keys(out).length === 0) {
+        var saved = sessionStorage.getItem('gop_utm');
+        if (saved) { out = JSON.parse(saved) || {}; }
+      }
+    } catch (_) { /* opcional: ver la nota del fichero */ }
+    return out;
   }
   function decorateCalendly(){
-    if (!anonId) return;
     // Enlaces / botones que llevan a calendly.com
     var links = document.querySelectorAll('a[href*="calendly.com"], [data-url*="calendly.com"]');
+    var params = utmParams();
+    if (anonId) params.salesforce_uuid = anonId;
     for (var i=0;i<links.length;i++){
       var el = links[i];
-      if (el.getAttribute('href') && el.getAttribute('href').indexOf('calendly.com') !== -1)
-        el.setAttribute('href', addParam(el.getAttribute('href'), anonId));
-      if (el.getAttribute('data-url') && el.getAttribute('data-url').indexOf('calendly.com') !== -1)
-        el.setAttribute('data-url', addParam(el.getAttribute('data-url'), anonId));
+      [['href','href'],['data-url','data-url']].forEach(function(pair){
+        var attr = pair[0];
+        var url = el.getAttribute(attr);
+        if (!url || url.indexOf('calendly.com') === -1) return;
+        for (var k in params) url = addParam(url, k, params[k]);
+        el.setAttribute(attr, url);
+      });
+    }
+    // Widget inline de Calendly: initInlineWidget lee data-url al crear el iframe, así que
+    // basta con decorar el nodo raíz; la consulta con ^= evita re-procesar dos veces los
+    // href/data-url ya decorados arriba.
+    var inline = document.querySelectorAll('[data-url^="https://calendly.com"], [data-url^="http://calendly.com"]');
+    for (var j=0;j<inline.length;j++){
+      var el2 = inline[j];
+      var url2 = el2.getAttribute('data-url');
+      if (!url2) continue;
+      for (var k2 in params) url2 = addParam(url2, k2, params[k2]);
+      el2.setAttribute('data-url', url2);
     }
   }
   window.tccVSL.anonId = function(){ return anonId; };
+  window.tccVSL.bookingParams = function(){
+    var p = utmParams();
+    if (anonId) p.salesforce_uuid = anonId;
+    return p;
+  };
+  // Alias antiguo conservado por compatibilidad con landings ya desplegadas.
   window.tccVSL.bookingParam = function(){ return anonId ? { salesforce_uuid: anonId } : {}; };
 
   // Reenvía a iframes que carguen después (cuando avisan 'ready') y capta el anonId.

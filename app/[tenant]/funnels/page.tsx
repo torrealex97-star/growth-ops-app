@@ -15,7 +15,12 @@ import { DateRangeCalendarPopover } from '@/components/ui/calendar-popover'
 // La respuesta ES el FunnelResult que calcula `lib/funnels/compute.ts`, más el rango que se pidió.
 // Antes esta pantalla mantenía su propia copia de los tipos, con `source: string` en vez del union
 // de fuentes: una copia que se desincroniza en silencio del módulo que de verdad calcula el funnel.
-type FunnelResponse = FunnelResult & { range: { from: string; to: string }; cohorte: Cohorte | null }
+type FunnelResponse = FunnelResult & {
+  range: { from: string; to: string }
+  cohorte: Cohorte | null
+  /** Eventos de tracking recibidos en 90 días; null si la familia no usa tracking propio. */
+  trackingEventsSeen?: number | null
+}
 
 // Los cuatro estados se pintan DISTINTO a propósito. Si "sin datos" y "no se pudo leer" se vieran
 // igual, toda la capa canónica que los distingue no serviría de nada en pantalla.
@@ -147,6 +152,18 @@ export default function FunnelsPage() {
                 ) : null}
               </span>
             </div>
+          )}
+          {/* Distingue "pixel funciona, falta el mapeo" de "no llega nada": el mismo aviso ámbar es
+              acción distinta según qué lado falte, y sin esto el usuario no puede saberlo. */}
+          {typeof data.trackingEventsSeen === 'number' && (
+            <p className="flex items-start gap-2 text-xs text-muted-foreground">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              {data.trackingEventsSeen === 0
+                ? 'El pixel no ha enviado ningún evento de tracking en los últimos 90 días: si esperabas visitas de la landing, revisa que el snippet esté instalado y el dominio autorizado en Configuración › Data Health.'
+                : data.unconfiguredSources.includes('vsl')
+                  ? `Tu pixel está funcionando: ha enviado ${num(data.trackingEventsSeen)} eventos en los últimos 90 días. Las etapas de tracking salen vacías SOLO porque no están mapeadas todavía.`
+                  : ''}
+            </p>
           )}
 
           {/* El embudo VISUAL va primero: la caída entre etapas se ve, y la tabla de debajo queda

@@ -165,6 +165,9 @@ test('la pantalla usa los tipos canónicos del funnel, sin copia local', () => {
   // Tenía su propio StageRow con `source: string` en vez del union de fuentes: una copia que se
   // desincroniza en silencio del módulo que calcula el funnel.
   assert.ok(!/type StageRow = \{/.test(page), 'no debe haber copia local de los tipos de etapa')
-  assert.match(page, /type FunnelResponse = FunnelResult & \{ range/)
+  // El tipo DERIVA de FunnelResult (código local) y declara el rango pedido. Multilínea es
+  // válido: FunnelResponse ahora lleva también trackingEventsSeen (diagnóstico del pixel).
+  assert.match(page, /type FunnelResponse = FunnelResult & /)
+  assert.match(page, /range: \{ from: string; to: string \}/)
   assert.match(page, /import type \{ FunnelResult \} from '@\/lib\/funnels\/compute'/)
 })
