@@ -1,3 +1,20 @@
+# EN CURSO — SPEC-11 PR-0: auditoría del servidor MCP (13-oct, Buffy) · rama `feat/spec11-pr0-mcp-audit`
+
+- **Reclamación de carril:** SPEC-11 (MCP Gateway multi-tenant), fase PR-0 obligatoria antes de
+  PR-1..PR-10. CONCLUSIÓN CLAVE: un servidor MCP completo YA existe (OAuth 2.1 + PKCE, rotación de
+  refresh, revocación por jti, rol mcp_reader con whitelist GRANT SELECT + transacción READ ONLY,
+  discovery RFC 9728/8414, JSON-RPC 2.0 protocolo 2025-06-18, docs de conexión para ChatGPT y
+  Claude) — NO se implementa un segundo servidor. El delta real: las tools actuales son SQL libre
+  read-only (`query_db`) y la SPEC-11 prohíbe SQL arbitrario — se sustituyen por tools canónicas
+  tipadas que consumen SPEC-07/08/09 (H-1); faltan scopes granulares con permisos por tool (H-2),
+  binding de UNA subcuenta por autorización (H-7), auditoría de accesos MCP (H-3), pantalla de
+  conexiones con revocación (H-4), rate limits (H-5) y prueba real de clientes (H-6, PR-10).
+- **Ficheros que toca:** `docs/MCP_ARCHITECTURE.md` (nuevo) y esta fila del handoff. Sin cambios de
+  código; `git status` limpio salvo ese doc y `.freebuff/` excluido a propósito.
+- **Relationado:** PRs #479–#486 propias abiertas (SPEC-04…10). El contrato de datos que las tools
+  MCP devolverán (data_status/metric_version) consume sus decisiones al fusionarse.
+- **Base:** `b71dcf55` (merge de #480).
+
 # LISTO PARA FUSIONAR · Embudo atribuible campaña/anuncio → agenda → asistencia → venta → cash (13-oct-2026, Codex)
 
 - **Rama:** `codex/revenue-attribution-funnel`, nacida de `origin/main` (`851d53c6`).
