@@ -1,3 +1,19 @@
+# DECISIONES BUSINESS transversales tomadas por el usuario (13-oct-2026) · rama `docs/decisiones-business-transversales`
+
+T-2 del [inventario](MASTER_ARCHITECTURE_INVENTORY.md) resuelto — las 4 desbloquean los PRs que
+esperaban (registro completo con evidencia en el hallazgo de cada módulo):
+
+1. **Opportunity (SPEC-09 H-1 → PR-3): sin tabla** — el modelo real es Agenda-ofrecida → Venta;
+   la equivalencia se documenta (`offered`/`pipe_value`/`payment_deal` + dedup con `opportunity_id`
+   opcional) y NO se crea `opportunities`.
+2. **Billed Revenue (SPEC-09 H-4 → PR-5): NOT_APPLICABLE** en el catálogo — plan de cuotas
+   programado + cobrado cubren el ciclo; sin entidad de facturas ni espejo de Stripe Invoices.
+3. **Nomenclatura (25-sep P3-2 → PR-6 de SPEC-07): adoptar el vocabulario de METRICS.md** —
+   «Contratado», «Cobrado (Caja)», «Neto (P&L)»; cada métrica con un solo nombre en toda la UI.
+4. **`query_db` (SPEC-11 H-1 → PR-1–5 de MCP): degradar primero, retirar tras paridad** —
+   deprecada desde PR-1; retirada en PR-5 solo cuando ChatGPT y Claude funcionen con las tools
+   canónicas probadas en sesión real.
+
 # EN CURSO — SPEC-12 PR-0: auditoría transversal de consolidación (13-oct, Buffy) · rama `feat/spec12-pr0-master-audit`
 
 - **Reclamación de carril:** SPEC-12 (Master Architecture Audit & System Integration), fase PR-0

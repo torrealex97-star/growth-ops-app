@@ -35,6 +35,10 @@ auditoría de BD del 25-sep ([DASHBOARD_AUDIT.md](DASHBOARD_AUDIT.md)) y se re-v
   si se introduce como entidad mínima versionada o se declara que el modelo real es
   Agenda-ofrecida → Venta, documentando la equivalencia. NO crear tabla si la decisión BUSINESS dice
   que no hace falta.
+  **DECIDIDO (usuario, 13-oct-2026): sin tabla — equivalencia declarada.** El modelo real del negocio
+  es Agenda-ofrecida → Venta; se documenta la equivalencia (campos `offered`/`pipe_value`/`payment_deal`
+  + dedup de venta con `opportunity_id` opcional) y NO se crea `opportunities`. PR-3 entrega la
+  equivalencia escrita y el histórico de closer sobre `appointments` + `sales`, sin toque de esquema.
 - **H-2 — Asignación a setters sin cobertura (VERIFICADO por la auditoría 25-sep).** Los KPIs del
   §5/§6 (assigned, contacted, contact rate) son imposibles hoy: `setter_id` 0/610, y la actividad
   (`Contact Attempts`) no tiene eventos dedicados — solo `last_contacted_at` y métricas derivadas.
@@ -50,6 +54,11 @@ auditoría de BD del 25-sep ([DASHBOARD_AUDIT.md](DASHBOARD_AUDIT.md)) y se re-v
   cubren el cobrado. Si el negocio no usa facturación integrada, declarar la métrica como
   NOT_APPLICABLE en el catálogo; si lo usa vía Stripe Invoices, el espejo no lo trae — pesquisa de
   PROVEEDOR en PR-5, no desde memoria.
+  **DECIDIDO (usuario, 13-oct-2026): Billed Revenue = NOT_APPLICABLE.** Se declara en el catálogo
+  (SPEC-07 `getMetricDefinition`): el plan de cuotas programado + el cobrado cubren el ciclo
+  predecible → real. Sin entidad de facturas ni espejo de Stripe Invoices en PR-5; si el negocio
+  empieza a facturar integrado más adelante, la decisión se reabre con pesquisa de proveedor, no
+  antes.
 - **H-5 — Disputas sin entidad (VERIFICADO la base, INSPECCIONADO el flujo).** Las compras están
   protegidas de doble descuento en cash (el reverso es la MISMA fila; 'disputed' ni suma ni resta),
   pero no existe flujo de disputa como estado con fecha/proceso — el §15 de la spec pide un
@@ -82,6 +91,6 @@ auditoría de BD del 25-sep ([DASHBOARD_AUDIT.md](DASHBOARD_AUDIT.md)) y se re-v
 - Coberturas de producción (setter 0/610, result 4/610, offered 3/610) son del 25-sep con BD real;
   tras #478/#480 no se re-midiere — se re-verifican en PR-1+ con datos frescos si se tocan esas
   pantallas.
-- La decisión sobre la entidad del §10 (Opportunity) es BUSINESS y solo el usuario puede tomarla;
-  PR-3 la pide explícitamente antes de tocar esquema.
+- Las decisiones BUSINESS de H-1 (Opportunity) y H-4 (facturación) fueron tomadas por el usuario el
+  13-oct-2026 y están registradas en su hallazgo correspondiente; PR-3 y PR-5 ya tienen desbloqueo.
 - Documentación de proveedores (Stripe Invoice/Refund/Dispute) en PR-5 con fuentes oficiales, no desde memoria.
