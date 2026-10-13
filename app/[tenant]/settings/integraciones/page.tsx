@@ -88,7 +88,11 @@ type StateEntry = {
   /** Guardado cifrado que la CONFIG_ENC_KEY actual NO puede leer (rotación previa o dato corrupto).
    *  El runtime lo descarta y todo consumidor ve "faltan credenciales": hay que volver a pegarlo. */
   indescifrable?: boolean
+  cryptoIssue?: 'key_mismatch' | 'decrypt_error'
+  fingerprint?: 'matches' | 'legacy' | 'mismatch'
 }
+
+type CryptoIssue = { key: string; reason: 'key_mismatch' | 'decrypt_error' }
 
 function currentValue(drafts: Record<string, string>, state: Record<string, StateEntry>, key: string): string {
   return (drafts[key] ?? state[key]?.value ?? '').trim()
@@ -466,7 +470,9 @@ export default function IntegracionesPage() {
   const [groups, setGroups] = useState<Group[]>([])
   const [state, setState] = useState<Record<string, StateEntry>>({})
   const [encReady, setEncReady] = useState(true)
+  const [encError, setEncError] = useState<string | null>(null)
   const [indescifrables, setIndescifrables] = useState<string[]>([])
+  const [problemasCifrado, setProblemasCifrado] = useState<CryptoIssue[]>([])
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   // El motivo del fallo, para poder enseñarlo en pantalla en vez de dejar un loader eterno.
@@ -532,9 +538,11 @@ export default function IntegracionesPage() {
         groups: Group[]
         state: Record<string, StateEntry>
         encReady: boolean
+        encError?: string | null
         health?: IntegrationHealth[]
         webhooksEntrantes?: WebhookEntranteEstado[]
         clavesIndescifrables?: string[]
+        problemasCifrado?: CryptoIssue[]
       }>(`/api/${tenant}/evergreen/settings/integraciones`)
 
       if (!res.ok) {
@@ -550,7 +558,9 @@ export default function IntegracionesPage() {
       setGroups(j.groups)
       setState(j.state)
       setEncReady(j.encReady)
+      setEncError(j.encError ?? null)
       setIndescifrables(j.clavesIndescifrables ?? [])
+      setProblemasCifrado(j.problemasCifrado ?? [])
       setHealth(Object.fromEntries(((j.health ?? []) as IntegrationHealth[]).map((h) => [h.id, h])))
       setWebhooksEntrantes(j.webhooksEntrantes ?? [])
       // precargar los no-secretos en los drafts para poder editarlos
@@ -641,10 +651,18 @@ export default function IntegracionesPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ updates }),
     })
-    const j = await r.json()
+    const j = (await r.json()) as { error?: string; savedKeys?: string[] }
     setSavingId(null)
     if (!r.ok) {
       toast.error(j.error || 'Error al guardar')
+      return false
+    }
+    const expectedSecretKeys = Object.entries(updates)
+      .filter(([key, value]) => g.fields.some((field) => field.key === key && field.secret) && value.trim() !== '')
+      .map(([key]) => key)
+    const missingSavedKeys = expectedSecretKeys.filter((key) => !j.savedKeys?.includes(key))
+    if (missingSavedKeys.length > 0) {
+      toast.error(`No se confirmó el guardado de: ${missingSavedKeys.join(', ')}`)
       return false
     }
     toast.success(`${g.title}: guardado`)
@@ -1140,8 +1158,7 @@ export default function IntegracionesPage() {
         <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
           <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
           <span>
-            Falta la variable <code>CONFIG_ENC_KEY</code> en el entorno. Sin ella no se pueden guardar los campos
-            secretos (tokens/keys). Añádela en Vercel y vuelve a intentarlo.
+            La configuración de cifrado del servidor no es válida. {encError ?? 'Revisa CONFIG_ENC_KEY en Vercel.'}
           </span>
         </div>
       )}
@@ -1153,10 +1170,28 @@ export default function IntegracionesPage() {
         <div className="flex items-start gap-2 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-800">
           <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
           <span>
-            {indescifrables.length === 1 ? 'Hay una credencial guardada que' : 'Hay credenciales guardadas que'} el
-            servidor <b>no puede descifrar</b> con la clave de cifrado actual (probable rotación previa de{' '}
-            <code>CONFIG_ENC_KEY</code>): se comportan como si no existieran. <b>Vuelve a pegarlas aquí</b> y guarda:{' '}
-            {indescifrables.join(', ')}
+            {problemasCifrado.some((issue) => issue.reason === 'key_mismatch') ? (
+              <>
+                La huella de <code>CONFIG_ENC_KEY</code> <b>no coincide</b> con la que cifró estas credenciales:{' '}
+                {problemasCifrado
+                  .filter((issue) => issue.reason === 'key_mismatch')
+                  .map((issue) => issue.key)
+                  .join(', ')}
+                .
+              </>
+            ) : null}{' '}
+            {problemasCifrado.some((issue) => issue.reason === 'decrypt_error') ? (
+              <>
+                El contenido cifrado está dañado o es heredado sin huella y no se pudo autenticar:{' '}
+                {problemasCifrado
+                  .filter((issue) => issue.reason === 'decrypt_error')
+                  .map((issue) => issue.key)
+                  .join(', ')}
+                .
+              </>
+            ) : null}{' '}
+            Se tratan como ausentes.{' '}
+            <b>Vuelve a pegarlas y guarda; el servidor comprobará la fila persistida antes de confirmar.</b>
           </span>
         </div>
       )}
@@ -1521,9 +1556,15 @@ export default function IntegracionesPage() {
                               const badge = st?.indescifrable ? (
                                 <span
                                   className="inline-flex items-center gap-1 text-xs text-red-600"
-                                  title="Cifrado con una CONFIG_ENC_KEY distinta a la actual: el servidor no puede leerlo. Vuelve a pegar el valor y guarda."
+                                  title={
+                                    st.cryptoIssue === 'key_mismatch'
+                                      ? 'La huella de la clave guardada no coincide con CONFIG_ENC_KEY.'
+                                      : 'El ciphertext no supera la autenticación AES-GCM.'
+                                  }
                                 >
-                                  <XCircle className="h-3 w-3" /> indescifrable — vuelve a pegarlo
+                                  <XCircle className="h-3 w-3" />
+                                  {st.cryptoIssue === 'key_mismatch' ? 'clave no coincide' : 'cifrado dañado'} — vuelve
+                                  a pegarlo
                                 </span>
                               ) : st?.source === 'db' ? (
                                 <span className="inline-flex items-center gap-1 text-xs text-emerald-600">

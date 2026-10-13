@@ -23,17 +23,56 @@ import crypto from 'crypto'
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ENC_PREFIX = 'enc:v1:'
+const MIN_CONFIG_ENC_KEY_BYTES = 32
+const FINGERPRINT_CONTEXT = 'growth-ops:config-enc-key-fingerprint:v1'
 
-function encKey(): Buffer | null {
-  const k = process.env.CONFIG_ENC_KEY
-  if (!k) return null
-  // Derivar 32 bytes de la clave maestra (acepta cualquier longitud/formato).
-  return crypto.createHash('sha256').update(k, 'utf8').digest()
+type EncryptionKeyState = { key: Buffer; fingerprint: string }
+let encryptionKeyState: EncryptionKeyState | null = null
+
+/**
+ * Lee y valida la llave maestra UNA sola vez por proceso. No existe fallback: arrancar sin una
+ * llave válida es más seguro que cifrar con material efímero que otra instancia jamás podrá leer.
+ *
+ * Se conserva la derivación histórica SHA-256(UTF-8) para no invalidar los `enc:v1` existentes.
+ * El valor debe ser una cadena estable de al menos 32 bytes UTF-8 y sin espacios exteriores. Todas
+ * las instancias y entornos que compartan datos deben recibir exactamente el mismo valor.
+ */
+function encryptionKey(): EncryptionKeyState {
+  if (encryptionKeyState) return encryptionKeyState
+
+  const raw = process.env.CONFIG_ENC_KEY
+  if (!raw) {
+    throw new Error('CONFIG_ENC_KEY es obligatoria: el servidor no puede iniciar el cifrado de integraciones')
+  }
+  if (raw !== raw.trim()) {
+    throw new Error('CONFIG_ENC_KEY no puede contener espacios o saltos de línea al principio o al final')
+  }
+  if (Buffer.byteLength(raw, 'utf8') < MIN_CONFIG_ENC_KEY_BYTES) {
+    throw new Error(`CONFIG_ENC_KEY debe tener al menos ${MIN_CONFIG_ENC_KEY_BYTES} bytes UTF-8`)
+  }
+
+  const key = crypto.createHash('sha256').update(raw, 'utf8').digest()
+  const fingerprint = `hmac-sha256:v1:${crypto
+    .createHmac('sha256', key)
+    .update(FINGERPRINT_CONTEXT, 'utf8')
+    .digest('hex')
+    .slice(0, 24)}`
+  encryptionKeyState = { key, fingerprint }
+  return encryptionKeyState
+}
+
+/** Valida la configuración al arrancar sin exponer la llave ni su fingerprint. */
+export function assertConfigEncryptionReady(): void {
+  encryptionKey()
+}
+
+/** Identificador no reversible que acompaña a cada secreto cifrado. */
+export function getConfigEncryptionKeyFingerprint(): string {
+  return encryptionKey().fingerprint
 }
 
 export function encryptSecret(plain: string): string {
-  const key = encKey()
-  if (!key) throw new Error('CONFIG_ENC_KEY no configurada (no se pueden cifrar secretos)')
+  const { key } = encryptionKey()
   const iv = crypto.randomBytes(12)
   const cipher = crypto.createCipheriv('aes-256-gcm', key, iv)
   const enc = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()])
@@ -43,8 +82,7 @@ export function encryptSecret(plain: string): string {
 
 export function decryptSecret(stored: string): string {
   if (!stored || !stored.startsWith(ENC_PREFIX)) return stored
-  const key = encKey()
-  if (!key) throw new Error('CONFIG_ENC_KEY no configurada (no se pueden descifrar secretos)')
+  const { key } = encryptionKey()
   const raw = Buffer.from(stored.slice(ENC_PREFIX.length), 'base64')
   const iv = raw.subarray(0, 12)
   const tag = raw.subarray(12, 28)
@@ -54,6 +92,45 @@ export function decryptSecret(stored: string): string {
   return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8')
 }
 
+export type SecretCryptoInspection = {
+  status: 'not_encrypted' | 'ok' | 'fingerprint_mismatch' | 'decrypt_error'
+  decryptable: boolean
+  fingerprintMatches: boolean | null
+}
+
+/**
+ * Diagnóstico sin texto claro: primero compara fingerprints y solo intenta descifrar cuando no hay
+ * una incompatibilidad demostrada. `null` significa fila heredada sin fingerprint todavía.
+ */
+export function inspectEncryptedSecret(
+  stored: string | null | undefined,
+  storedFingerprint?: string | null
+): SecretCryptoInspection {
+  if (!stored?.startsWith(ENC_PREFIX)) {
+    return { status: 'not_encrypted', decryptable: true, fingerprintMatches: null }
+  }
+
+  const currentFingerprint = getConfigEncryptionKeyFingerprint()
+  if (storedFingerprint && storedFingerprint !== currentFingerprint) {
+    return { status: 'fingerprint_mismatch', decryptable: false, fingerprintMatches: false }
+  }
+
+  try {
+    decryptSecret(stored)
+    return {
+      status: 'ok',
+      decryptable: true,
+      fingerprintMatches: storedFingerprint ? true : null,
+    }
+  } catch {
+    return {
+      status: 'decrypt_error',
+      decryptable: false,
+      fingerprintMatches: storedFingerprint ? true : null,
+    }
+  }
+}
+
 /**
  * ¿El secreto guardado está cifrado con una CONFIG_ENC_KEY distinta a la actual (o corrupto)?
  * Ocurre al rotar la master key: el valor almacenado sigue ahí, `getTenantConfig` lo descarta en
@@ -61,14 +138,8 @@ export function decryptSecret(stored: string): string {
  * sin nadie sabiendo por qué. El panel de Integraciones lo usa para señalar el campo en rojo y
  * mandar la acción concreta: volver a pegar el valor (se re-cifra con la key actual).
  */
-export function esIndescifrable(stored: string | null | undefined): boolean {
-  if (!stored?.startsWith(ENC_PREFIX)) return false
-  try {
-    decryptSecret(stored)
-    return false
-  } catch {
-    return true
-  }
+export function esIndescifrable(stored: string | null | undefined, storedFingerprint?: string | null): boolean {
+  return !inspectEncryptedSecret(stored, storedFingerprint).decryptable
 }
 
 function isEncrypted(stored: string | null | undefined): boolean {
@@ -99,7 +170,7 @@ export async function getTenantConfig(tenantId: string, force = false): Promise<
   try {
     const { data, error } = await svc()
       .from('integration_settings')
-      .select('key,value,is_secret')
+      .select('key,value,is_secret,key_fingerprint')
       .eq('tenant_id', tenantId)
     if (error) return {}
     const vals: Record<string, string> = {}
@@ -108,11 +179,17 @@ export async function getTenantConfig(tenantId: string, force = false): Promise<
       if (!raw) continue
       let value = raw
       if ((row as { is_secret: boolean }).is_secret && isEncrypted(raw)) {
-        try {
-          value = decryptSecret(raw)
-        } catch {
+        const fingerprint = (row as { key_fingerprint?: string | null }).key_fingerprint
+        const inspection = inspectEncryptedSecret(raw, fingerprint)
+        if (!inspection.decryptable) {
+          console.warn('[config] secreto de integración no disponible', {
+            tenantId,
+            key: (row as { key: string }).key,
+            reason: inspection.status,
+          })
           continue
         }
+        value = decryptSecret(raw)
       }
       vals[(row as { key: string }).key] = value
     }
