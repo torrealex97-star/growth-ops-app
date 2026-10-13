@@ -1,3 +1,18 @@
+# EN CURSO — SPEC-08 PR-0: auditoría del Copilot de IA (13-oct, Buffy) · rama `feat/spec08-pr0-ai-copilot-audit`
+
+- **Reclamación de carril:** SPEC-08 (AI Growth Intelligence Copilot), fase PR-0 obligatoria antes
+  de PR-1..PR-10. La frontera de autoridad que la spec exige ya existe en código (lista blanca de
+  tools con clase lectura/escritura_memoria/accion_material, tenant fijado server-side, sin SQL
+  libre) y la detección de anomalías es determinista-primero con dedupe por fingerprint. El delta
+  documentado: contrato de respuesta evidence-first con validador pre-entrega (H-1), intent planner
+  (H-2), descomposición determinista de cambios (H-3), dataset de evaluación (H-4), suite de
+  prompt injection (H-5) y presupuesto por tenant (H-6).
+- **Ficheros que toca:** `docs/AI_COPILOT_ARCHITECTURE.md` (nuevo) y esta fila del handoff. Sin
+  cambios de código; `git status` limpio salvo ese doc y `.freebuff/` excluido a propósito.
+- **Relationado:** PRs #479/#481/#482/#483 propias abiertas (SPEC-04…07) — definen los contratos
+  data_status/estados que PR-1 consumirá; coordinación por tablero.
+- **Base:** `b71dcf55` (merge de #480).
+
 # EN CURSO — SPEC-07 PR-0: audit de métricas y dashboards (13-oct, Buffy) · rama `feat/spec07-pr0-analytics-audit`
 
 - **Reclamación de carril:** SPEC-07 (Growth Intelligence & Analytics), fase PR-0 obligatoria
