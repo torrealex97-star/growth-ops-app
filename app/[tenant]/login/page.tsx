@@ -49,6 +49,7 @@ export default function LoginPage() {
   }, [])
 
   const handleGoogleLogin = async () => {
+    if (subcuenta === 'comprobando') return
     setError('')
     setLoading(true)
     const redirectTo = `${window.location.origin}/api/${tenant}/evergreen/auth/callback?next=/${tenant}/dashboard`
@@ -64,6 +65,7 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (subcuenta === 'comprobando') return
     setError('')
     setLoading(true)
 
@@ -144,16 +146,7 @@ export default function LoginPage() {
         </div>
 
         <div className="bg-card/70 backdrop-blur-xl border border-border rounded-2xl p-7 shadow-2xl shadow-black/40">
-          {subcuenta === 'comprobando' ? (
-            <div
-              className="flex min-h-40 flex-col items-center justify-center gap-3 text-center"
-              role="status"
-              aria-live="polite"
-            >
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden />
-              <p className="text-sm text-muted-foreground">Comprobando subcuenta…</p>
-            </div>
-          ) : subcuenta === 'desconocida' ? (
+          {subcuenta === 'desconocida' ? (
             /* Subcuenta inexistente o inactiva: se dice ANTES de pedir credenciales, y se nombra la
                causa más probable —una errata en la dirección— en vez de insinuar un problema de
                permisos. No se revela ninguna otra subcuenta: solo se confirma que ESTA no vale. */
@@ -176,10 +169,21 @@ export default function LoginPage() {
               <h2 className="text-lg font-semibold text-foreground mb-1">Iniciar sesión</h2>
               <p className="text-muted-foreground text-sm mb-6">Accede con Google o con tus credenciales.</p>
 
+              {subcuenta === 'comprobando' && (
+                <div
+                  className="mb-5 flex items-center gap-2 rounded-xl border border-border bg-background/40 px-3 py-2.5"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" aria-hidden />
+                  <p className="text-sm text-muted-foreground">Comprobando subcuenta…</p>
+                </div>
+              )}
+
               <button
                 type="button"
                 onClick={() => void handleGoogleLogin()}
-                disabled={loading}
+                disabled={loading || subcuenta === 'comprobando'}
                 className="mb-5 flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-border bg-background/60 px-4 font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-white/20 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <LogIn className="h-4 w-4" aria-hidden />
@@ -206,6 +210,7 @@ export default function LoginPage() {
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="tu@email.com"
                       required
+                      disabled={subcuenta === 'comprobando'}
                       autoComplete="email"
                       className="w-full pl-9 pr-3 py-2.5 bg-background/60 border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-white focus:ring-2 focus:ring-white/15 transition-all"
                     />
@@ -225,6 +230,7 @@ export default function LoginPage() {
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
                       required
+                      disabled={subcuenta === 'comprobando'}
                       autoComplete="current-password"
                       className="w-full pl-9 pr-3 py-2.5 bg-background/60 border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-white focus:ring-2 focus:ring-white/15 transition-all"
                     />
@@ -243,7 +249,7 @@ export default function LoginPage() {
 
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || subcuenta === 'comprobando'}
                   className="w-full py-2.5 px-4 bg-white hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed text-black font-semibold rounded-xl transition-all flex items-center justify-center gap-2"
                 >
                   {loading ? (

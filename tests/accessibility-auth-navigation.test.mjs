@@ -36,13 +36,12 @@ test('login anuncia errores y no filtra mensajes técnicos del proveedor', () =>
   assert.match(messages, /No se pudo iniciar sesión/)
 })
 
-test('login no pide credenciales mientras todavía comprueba la subcuenta', () => {
+test('login mantiene el formulario estable pero desactivado mientras comprueba la subcuenta', () => {
   const login = read('app/[tenant]/login/page.tsx')
-  const checking = login.indexOf("subcuenta === 'comprobando'")
-  const unknown = login.indexOf("subcuenta === 'desconocida'")
-  const form = login.indexOf('<form onSubmit={handleSubmit}')
 
-  assert.ok(checking > -1 && unknown > checking && form > unknown)
+  assert.match(login, /disabled=\{subcuenta === 'comprobando'\}/)
+  assert.match(login, /disabled=\{loading \|\| subcuenta === 'comprobando'\}/)
+  assert.match(login, /if \(subcuenta === 'comprobando'\) return/)
   assert.match(login, /Comprobando subcuenta…/)
   assert.match(login, /role="status"[\s\S]{0,80}aria-live="polite"/)
 })
