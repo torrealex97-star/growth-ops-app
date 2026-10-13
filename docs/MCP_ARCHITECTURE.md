@@ -34,6 +34,11 @@ cliente en la sesión (eso exige sesión real de ChatGPT/Claude — PR-10).
   pedido y no aporta el vocabulario del negocio: un cliente puede escribir SQL correcto con
   definiciones equivocadas (la métrica equivocada es un problema de precisión, no solo de acceso).
   PR-1+ crea las tools canónicas y marca `query_db` para deprecación (decisión documentada en la PR).
+  **DECIDIDO (usuario, 13-oct-2026): degradar primero, retirar tras paridad.** PR-1–PR-4 construyen
+  las tools canónicas con `query_db` marcada deprecada pero sirviendo (el SQL actual es seguro, y
+  retirarlo antes de la paridad dejaría/connectaría los clientes a ciegas en los huecos sin tool);
+  PR-5 la retira solo cuando ChatGPT y Claude funcionen con las canónicas probadas en sesión real
+  (PR-10, H-6), y `describe_table`/`list_tenants` se adaptan al mismo catálogo.
 - **H-2 — Sin scopes granulares ni permisos por tool (VERIFICADOS ausentes de código).** El scope
   viaja en el authorize pero la UI de consentimiento no presenta la separación finance/CRM del §9 ni
   el router comprueba que cada tool requiera su scope. Hoy el límite es del TOKEN (usuario completo

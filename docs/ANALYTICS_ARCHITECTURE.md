@@ -23,7 +23,7 @@ sesión (credenciales borradas por higiene). Clasificación estándar: VERIFICAD
 | P2-3 Base de comisiones sobre cash canónico | INSPECCIONADO — depende de P1-1 ya cerrado | PR-6 |
 | P2-4 Tracking VSL/onsite | **Consumado** después: pixel first-party + modelo VSL PR-1b (vsl_playback_sessions, watch intervals) + rev-attribution | módulo VSL |
 | P3-1 Filtros por defecto restantes | INSPECCIONADO (re-verificar tras rebase) | PR-4 |
-| P3-2 Renombrar Revenue/Facturación/Cobros | BUSINESS — decisión del usuario | — |
+| P3-2 Renombrar Revenue/Facturación/Cobros | **DECIDIDO (usuario, 13-oct-2026): adoptar el vocabulario de METRICS.md** — Contracted Revenue → «Contratado», Gross Revenue/Cash Collected → «Cobrado (Caja)», Net Revenue → «Neto (P&L)»; cada métrica con un solo nombre en toda la UI, sin fusionar conceptos distintos (regla §4 de METRICS.md) | PR-6 (pantallas Finanzas/analítica) |
 | P4 Representación (donut, tooltips, cohortes inmaduras) | INSPECCIONADO | PR-9 |
 
 ## 2. Mapa de la capa de métricas ACTUAL (contratos que la SPEC-07 consume)

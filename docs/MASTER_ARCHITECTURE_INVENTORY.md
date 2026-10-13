@@ -55,10 +55,12 @@ datos — la invariante del §7 de la spec es alcanzable; la brecha no es arquit
   Fusión secuencial provocará conflictos triviales (mismo hunk). Cambio mínimo: fusionar en orden
   y resolver a mano tomando el orden cronológico; o rebasar cada rama cuando la anterior se fusione.
   No es bloqueo técnico, es planeamiento.
-- **T-2 — Decisiones BUSINESS transversales en espera (VERIFICADO por lo auditado).** Entidad
-  Opportunity (SPEC-09 H-1), facturación aplicable (SPEC-09 H-4), nomenclatura Cash/Revenue (25-sep
-  P3-2) y deprecación de `query_db` (SPEC-11 H-1) — las 4 bloquean PRs de módulos distintos y las
-  puede desbloquear el dueño del producto en una sola decisión.
+- **T-2 — Decisiones BUSINESS transversales (RESUELTO 13-oct-2026 — el usuario tomó las 4 en una
+  sesión).** Opportunity: sin tabla, equivalencia Agenda-ofrecida → Venta declarada (SPEC-09 H-1,
+  PR-3). Billed Revenue: NOT_APPLICABLE en el catálogo (SPEC-09 H-4, PR-5). Nomenclatura: adoptar el
+  vocabulario de METRICS.md («Contratado» / «Cobrado (Caja)» / «Neto (P&L)») en toda la UI (25-sep
+  P3-2, PR-6 de SPEC-07). `query_db`: degradar primero, retirar tras paridad probada (SPEC-11 H-1,
+  PR-1–5). Las cuatro están registradas con fecha en el hallazgo de su módulo.
 - **T-3 — Cobertura VERIFICADO-dependiente de datos de producción (honestidad).** Los conteos de
   cobertura (`setter_id` 0/610, `result` 4/610, `offered` 3/610; cash dividido en dos realidades
   hasta P1-1) proceden con las credenciales borradas por higiene y se re-verificarán cuando las PRs
