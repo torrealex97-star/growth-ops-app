@@ -1,3 +1,20 @@
+# EN CURSO — SPEC-12 PR-0: auditoría transversal de consolidación (13-oct, Buffy) · rama `feat/spec12-pr0-master-audit`
+
+- **Reclamación de carril:** SPEC-12 (Master Architecture Audit & System Integration), fase PR-0
+  obligatoria antes de PR-1..PR-10. Consolida las 8 auditorías de la Fase 2 (#479/#481/#482/#483/
+  #484/#485/#486/#487, todas abiertas sobre `b71dcf55`) en un único inventario con estado REAL por
+  módulo (todos PARTIAL con su delta documentado: la capa de dinero y la seguridad del acceso están
+  muy por delante del ciclo comercial y de los catálogos) + 6 hallazgos transversales nuevos
+  (T-1: riesgo de colisión al fusionar las 8 PRs por la misma ancla del handoff — plan de orden
+  incluido; T-2: 4 decisiones BUSINESS que desbloquean módulos distintos de una vez; T-3:
+  honestidad de coberturas dependientes de datos de producción; T-4: sin recorrido E2E integral;
+  T-5: sin batería adversarial transversal de tenant isolation; T-6: sin duplicación de fuentes de
+  verdad definitiva).
+- **Ficheros que toca:** `docs/MASTER_ARCHITECTURE_INVENTORY.md` (nuevo) y esta fila del handoff.
+  Sin cambios de código; `git status` limpio salvo ese doc y `.freebuff/` excluido a propósito.
+- **Relationado:** las 8 PRs anteriores — este doc es su índice y no repite su contenido.
+- **Base:** `b71dcf55` (merge de #480).
+
 # EN CURSO — SPEC-11 PR-0: auditoría del servidor MCP (13-oct, Buffy) · rama `feat/spec11-pr0-mcp-audit`
 
 - **Reclamación de carril:** SPEC-11 (MCP Gateway multi-tenant), fase PR-0 obligatoria antes de
