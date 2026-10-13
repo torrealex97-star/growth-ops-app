@@ -10,6 +10,15 @@
   touchpoint de SPEC-05 respetarán lo que SPEC-04 PR-1+ defina — coordinación por el tablero.
 - **Base:** `b71dcf55` (merge de #480), que ya incluye el motor de revenue attribution de #478.
 
+# EN CURSO — SPEC-04 PR-0: auditoría y línea base de integridad de datos (13-oct, Buffy) · rama `feat/spec04-pr0-linea-base`
+
+- **Reclamación de carril:** SPEC-04 (Growth Data Integrity Engine), fase PR-0 obligatoria antes de
+  PR-1..PR-8: matriz de capacidades (implementación actual / problema reproducido / cambio mínimo /
+  riesgo / test) + línea base del pipeline real, sin construir sistemas paralelos.
+- **Ficheros que toca:** `docs/SPEC04_DATA_INTEGRITY_BASELINE.md` (nuevo) y esta fila del handoff.
+  No toca código: `git status` limpio salvo ese doc y `.freebuff/` excluido a propósito.
+- **Base:** `851d53c6` (merge de #477). No interfiere con PRs activas de otros agentes.
+
 # LISTO PARA FUSIONAR · Embudo atribuible campaña/anuncio → agenda → asistencia → venta → cash (13-oct-2026, Codex)
 
 - **Rama:** `codex/revenue-attribution-funnel`, nacida de `origin/main` (`851d53c6`).
