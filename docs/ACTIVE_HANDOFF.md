@@ -1,3 +1,10 @@
+# EN CURSO — SPEC-16 PR-0: auditoría de SaaS Admin & Customer Success (13-oct, Buffy) · rama `feat/spec16-pr0-saas-admin-audit`
+
+- **Reclamación de carril:** SPEC-16 (SaaS Administration & Customer Success Operating Center), fase PR-0 obligatoria antes de PR-1..PR-10. Conclusión clave: la base multi-tenant y el rol de plataforma ÚNICO que existe hoy (`is_super_admin()`, flag binario sin jerarquía Admin/Support/CS/Billing/Auditor) están PROBADOS; impersonación no silenciosa («Ver como»: ticket cifrado 30 min+OTP+auditoría) ya existe y es el bloque de mayor riesgo de la SPEC; MISSING verificado por ausencia (grep 0): tickets de soporte de plataforma, incidentes globales, staff memberships, billing propio del SaaS (coincide con SPEC-13) y Customer Health. La pantalla de `settings/subcuentas` (crear/archivar/restaurar con auditoría old→new) es el inicio real del directorio.
+- **Ficheros que toca:** `docs/SAAS_ADMIN_ARCHITECTURE_AUDIT.md` (nuevo), `lib/platform/rbac.ts` (nuevo — matriz de permisos de plataforma fail-closed sobre el modelo real, PR-1 la cablea a rutas), `tests/platform-rbac.test.mjs` (nuevo — batería adversarial del §27) y esta fila del handoff. Sin cambios de esquema ni de rutas vivas.
+- **Relationado:** PRs #479–#486 (SPEC-04…10) y los merges de SPEC-11/13; el delta consume su evidencia sin repetirla. El billing SaaS propio sigue bloqueado por las decisiones BUSINESS de SPEC-13 §5.
+- **Base:** `639a130b` (merge de #493).
+
 # COMPLETADO — SPEC-15 PR-0 + slice PR-1: automation audit + capa de señales (13-oct, Buffy) · `feat/spec15-pr0-automation-audit`
 
 [AUTOMATION_ARCHITECTURE_AUDIT.md](AUTOMATION_ARCHITECTURE_AUDIT.md): el motor conceptual mapeado a sus
@@ -152,7 +159,7 @@ esperaban (registro completo con evidencia en el hallazgo de cada módulo):
   del plan de corrección vigente son insumos directos de PR-1+; coordinación por tablero.
 - **Base:** `b71dcf55` (merge de #480).
 
->>>>>>> bb71b194 (docs(spec07): PR-0 vigencia de la auditoría de dashboards del 25-sep y delta SPEC-07)
+> > > > > > > bb71b194 (docs(spec07): PR-0 vigencia de la auditoría de dashboards del 25-sep y delta SPEC-07)
 
 # EN CURSO — SPEC-06 PR-0: audit de Person 360 y Customer Journey (13-oct, Buffy) · rama `feat/spec06-pr0-person360-audit`
 
@@ -271,7 +278,7 @@ esperaban (registro completo con evidencia en el hallazgo de cada módulo):
   build local PASS; CI completo PASS tras reintentar un timeout externo de Google Fonts: calidad,
   secretos, build, Smoke E2E Playwright (5m41s) y release gate.
 - **Evidencia en UI real:** una agenda con `utm_source` numérico muestra ahora `Campaña: 🟢 AGENDA |
-  COLD LOOKALIKE AUDIENCE`; su detalle conserva `Campaign ID 120252786405750750` y muestra campos
+COLD LOOKALIKE AUDIENCE`; su detalle conserva `Campaign ID 120252786405750750` y muestra campos
   separados de anuncio/ad set. Consola del navegador sin errores.
 - **Backfill GHL ejecutado:** la carga histórica terminó y actualizó las 103 agendas GHL existentes.
   GHL no devolvió `ad_id`, `ad_name` ni `ad_set_id` para ninguna de esas citas antiguas; permanecen
