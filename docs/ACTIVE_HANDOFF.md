@@ -3749,3 +3749,21 @@ y permite reintentar. No se ejecutó ningún ajuste financiero real durante la v
 - **Validación local:** format y lint PASS (advertencias heredadas), typecheck PASS, focales OAuth /
   webhooks 64/64, unitarias 1.488/1.491 (las tres restantes necesitan DNS a Supabase producción),
   métricas 788/788, build de producción PASS y `npm audit --omit=dev` 0 tras subir Next 15.5.27.
+
+# EN CURSO · SPEC-03 Tracking Integrity Engine (13-oct-2026, Codex)
+
+- **Rama:** `codex/tracking-integrity`, desde `origin/main` (`d85ae258`).
+- **Alcance reclamado:** auditoría y primera corrección de causas raíz de discrepancias en agendas y
+  clasificación paid→organic; linaje de `appointments`, `contact_attributions`, sync/webhooks de
+  Calendly/GHL/Google Calendar, consumidores de KPIs y pruebas relacionadas.
+- **Límites:** no se ejecutan backfills ni DDL destructiva en producción; cualquier mutación histórica
+  requerirá dry-run, snapshot/rollback y evidencia agregada previa. No se toca trabajo sin fusionar de
+  otros agentes ni los cambios locales del checkout principal.
+- **Estado:** PR-0 documentado en `docs/TRACKING_AUDIT.md`; dos fixes seguros implementados: selección
+  determinista de la agenda canónica y origen `Sin atribuir` cuando solo existe fuente administrativa.
+- **Validación:** quality completa PASS (format, lint sin errores, typecheck, unitarias y 788/788
+  métricas); focales de deduplicación/procedencia 26/26 PASS.
+- **Producción:** solo consultas agregadas de lectura; sin DDL ni backfill. Baseline WDC: 691 agendas,
+  2 pares exactos contacto+minuto con estados incompatibles y 0 agendas sin contacto/closer.
+- **Siguiente acción:** revisar diff y abrir PR pequeño. Después continuar PR-1 con el contrato único
+  de métricas y la eliminación de `sin atribuir = orgánico` en filtros.

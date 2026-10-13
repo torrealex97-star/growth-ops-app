@@ -1,5 +1,8 @@
 # Fase 2 — Mapa de métricas comerciales
 
+> **Snapshot histórico.** Los recuentos y coberturas de esta fase ya no representan producción.
+> El baseline vigente de agendas, ownership y atribución está en `docs/TRACKING_AUDIT.md`.
+
 `MÉTRICA → FÓRMULA → NUMERADOR → DENOMINADOR → FUENTE → CAMPO FECHA → CAMPO OWNER`, obligatorio antes
 de construir el dashboard. Cada fila lleva un veredicto **verificado contra producción**, no inferido.
 

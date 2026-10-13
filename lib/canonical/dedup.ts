@@ -112,40 +112,75 @@ export type AppointmentInput = {
   contact_id: string | null
   calendly_event_id: string | null
   calendar_event_id: string | null
+  /** Identidad estable del proveedor en `appointments` (Calendly, GHL, manual…). */
+  external_source?: string | null
+  external_id?: string | null
   scheduled_at: string | null
   status: string
+}
+
+type CanonicalAppointment = { appointmentId: string; row: AppointmentInput; merged: number }
+
+// Un duplicado puede llegar primero como cancelado y después como cita resuelta o activa. La fila
+// representativa no puede depender del orden de PostgREST (muchas vistas ordenan por UUID): eso
+// hacía que el mismo slot figurase como show en una pantalla y cancelled en otra. Los resultados
+// confirmados ganan; después las citas activas; una cancelación solo gana frente a un estado vacío.
+function appointmentStatusPriority(status: string | null | undefined): number {
+  const value = String(status ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_')
+  if (['show', 'completed', 'attended'].includes(value)) return 50
+  if (value === 'no_show') return 45
+  if (['confirmed', 'scheduled', 'rescheduled', 'seguimiento', 'reserva'].includes(value)) return 30
+  if (['cancelled', 'canceled', 'cancelled_admin', 'cancelled_lead'].includes(value)) return 10
+  return 20
+}
+
+function shouldReplaceAppointment(current: AppointmentInput, candidate: AppointmentInput): boolean {
+  const currentPriority = appointmentStatusPriority(current.status)
+  const candidatePriority = appointmentStatusPriority(candidate.status)
+  if (candidatePriority !== currentPriority) return candidatePriority > currentPriority
+  // Desempate estable: el resultado no cambia aunque las mismas filas lleguen en orden distinto.
+  return candidate.id.localeCompare(current.id) < 0
 }
 
 /**
  * Consolida agendas: (calendly_event_id | calendar_event_id | contacto+fecha) repetido = UNA cita.
  */
 export function canonicalizeAppointments(rows: AppointmentInput[]): {
-  appointments: { appointmentId: string; row: AppointmentInput; merged: number }[]
+  appointments: CanonicalAppointment[]
   duplicates: number
 } {
-  const byEvent = new Map<string, { appointmentId: string; row: AppointmentInput; merged: number }>()
-  const byContactSlot = new Map<string, { appointmentId: string; row: AppointmentInput; merged: number }>()
-  const out: { appointmentId: string; row: AppointmentInput; merged: number }[] = []
+  const byEvent = new Map<string, CanonicalAppointment>()
+  const byContactSlot = new Map<string, CanonicalAppointment>()
+  const out: CanonicalAppointment[] = []
 
   for (const r of rows) {
-    const evKey = r.calendly_event_id
-      ? `ce:${r.calendly_event_id}`
-      : r.calendar_event_id
-        ? `gc:${r.calendar_event_id}`
-        : null
+    const eventKeys = [
+      r.external_source && r.external_id ? `ext:${r.external_source}:${r.external_id}` : null,
+      r.calendly_event_id ? `ce:${r.calendly_event_id}` : null,
+      r.calendar_event_id ? `gc:${r.calendar_event_id}` : null,
+    ].filter((key): key is string => Boolean(key))
     const slotKey =
       r.contact_id && r.scheduled_at
         ? `cs:${r.contact_id}:${new Date(r.scheduled_at).toISOString().slice(0, 16)}`
         : null
 
-    const hit = (evKey && byEvent.get(evKey)) || (slotKey && byContactSlot.get(slotKey))
+    const hit = eventKeys.map((key) => byEvent.get(key)).find(Boolean) || (slotKey && byContactSlot.get(slotKey))
     if (hit) {
       hit.merged += 1
+      if (shouldReplaceAppointment(hit.row, r)) {
+        hit.appointmentId = r.id
+        hit.row = r
+      }
+      for (const key of eventKeys) byEvent.set(key, hit)
+      if (slotKey) byContactSlot.set(slotKey, hit)
       continue
     }
     const item = { appointmentId: r.id, row: r, merged: 0 }
     out.push(item)
-    if (evKey) byEvent.set(evKey, item)
+    for (const key of eventKeys) byEvent.set(key, item)
     if (slotKey) byContactSlot.set(slotKey, item)
   }
   const duplicates = out.reduce((n, x) => n + x.merged, 0)

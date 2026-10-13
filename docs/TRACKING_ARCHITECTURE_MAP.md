@@ -1,5 +1,9 @@
 # Fase A — Mapa del sistema de tracking existente
 
+> **Snapshot histórico.** Los recuentos de este documento corresponden a su fase original y ya no
+> describen producción. Para el baseline vigente de SPEC-03 (13-oct-2026), consultar
+> `docs/TRACKING_AUDIT.md`.
+
 Reconocimiento previo a escribir código, según el orden `READ → MAP → IDENTIFY CANONICAL PATH →
 EXTEND`. Estado a fecha del commit que introduce este documento. Todo lo de aquí está **inspeccionado
 en código y verificado contra la base de producción** (`rgcbveflosqgxrcqlqzv`), no inferido.

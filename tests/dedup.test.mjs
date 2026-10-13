@@ -102,6 +102,59 @@ test('citas distintas del mismo contacto NO se consolidan', () => {
   assert.equal(appointments.length, 2)
 })
 
+test('el estado canónico no depende del orden de filas', () => {
+  const cancelled = {
+    id: 'z-cancelled',
+    contact_id: 'c1',
+    calendly_event_id: null,
+    calendar_event_id: null,
+    external_source: 'calendly',
+    external_id: 'cancelled-event',
+    scheduled_at: '2026-09-02T10:00:00Z',
+    status: 'cancelled',
+  }
+  const attended = {
+    ...cancelled,
+    id: 'a-show',
+    external_id: 'active-event',
+    status: 'show',
+  }
+
+  for (const rows of [
+    [cancelled, attended],
+    [attended, cancelled],
+  ]) {
+    const result = canonicalizeAppointments(rows)
+    assert.equal(result.appointments.length, 1)
+    assert.equal(result.appointments[0].appointmentId, 'a-show')
+    assert.equal(result.appointments[0].row.status, 'show')
+  }
+})
+
+test('una cita activa gana a la cancelación anterior del mismo slot', () => {
+  const result = canonicalizeAppointments([
+    {
+      id: 'cancelled',
+      contact_id: 'c1',
+      calendly_event_id: null,
+      calendar_event_id: null,
+      scheduled_at: '2026-09-02T10:00:00Z',
+      status: 'cancelled',
+    },
+    {
+      id: 'scheduled',
+      contact_id: 'c1',
+      calendly_event_id: null,
+      calendar_event_id: null,
+      scheduled_at: '2026-09-02T10:00:00Z',
+      status: 'scheduled',
+    },
+  ])
+
+  assert.equal(result.appointments[0].appointmentId, 'scheduled')
+  assert.equal(result.appointments[0].row.status, 'scheduled')
+})
+
 // ── VENTAS (§10) ─────────────────────────────────────────────────────────────
 
 test('misma venta en CRM e interna = UNA (opportunity_id compartida)', () => {

@@ -52,11 +52,26 @@ export function resolveAppointmentLeadOrigin(input: LeadOriginInput): Appointmen
     }
   }
 
-  const channel = input.utmSource || input.source || input.externalSource
+  // `externalSource` y valores como calendly/ghl describen quién creó el REGISTRO, no cómo se
+  // adquirió el lead. Ausencia de UTM tampoco demuestra tráfico directo u orgánico. Solo mostramos
+  // WEB cuando existe una señal de adquisición; el resto queda explícitamente sin atribuir.
+  // En esta pantalla `source`/`externalSource` proceden de la agenda, así que son record source.
+  // La única señal de adquisición que recibe este resolver es `utmSource`; el resto de la
+  // trayectoria se consulta en la ficha del contacto sin rellenar este badge con inferencias.
+  const channel = input.utmSource
+  if (!channel) {
+    return {
+      kind: 'unknown',
+      shortLabel: '—',
+      label: 'Sin atribuir',
+      detail: 'No hay una fuente de adquisición verificable',
+    }
+  }
+
   return {
     kind: 'web',
     shortLabel: 'WEB',
-    label: 'Web / directo',
-    detail: channel ? `Web / directo · ${channel}` : 'Web / directo',
+    label: 'Web',
+    detail: `Web · ${channel}`,
   }
 }
