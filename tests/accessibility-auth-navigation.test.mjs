@@ -58,6 +58,14 @@ test('layout y login comparten una sola petición de branding en vuelo', () => {
   assert.match(loader, /pendingBySlug\.set\(slug, request\)/)
 })
 
+test('la comprobación pública del tenant tiene techo y un fallo no bloquea el login', () => {
+  const loader = read('lib/public-tenant-branding-client.ts')
+
+  assert.match(loader, /const PUBLIC_BRANDING_TIMEOUT_MS = 8_000/)
+  assert.match(loader, /setTimeout\([\s\S]{0,180}status: 'unavailable'/)
+  assert.doesNotMatch(loader, /setTimeout\([\s\S]{0,180}status: 'missing'/)
+})
+
 test('recuperación anuncia el éxito y usa un CTA con contraste reforzado', () => {
   const recover = read('app/[tenant]/recover/page.tsx')
   assert.match(recover, /role="status" aria-live="polite"/)
