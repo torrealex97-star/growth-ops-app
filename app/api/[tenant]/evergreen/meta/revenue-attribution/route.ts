@@ -143,13 +143,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       ...row,
       contacts: Array.isArray(row.contacts) ? (row.contacts[0] ?? null) : row.contacts,
     })) as RevenueAppointment[]
-    const appointments =
-      !hasCampaignScope
-        ? allAppointments
-        : allAppointments.filter((appointment) => {
-            const resolved = resolveMetaAttribution(appointment, catalog)
-            return !!resolved.campaign.internalId && selectedCampaignIds.has(resolved.campaign.internalId)
-          })
+    const appointments = !hasCampaignScope
+      ? allAppointments
+      : allAppointments.filter((appointment) => {
+          const resolved = resolveMetaAttribution(appointment, catalog)
+          return !!resolved.campaign.internalId && selectedCampaignIds.has(resolved.campaign.internalId)
+        })
     const appointmentIds = appointments.map((appointment) => appointment.id)
     const contactIds = appointments.map((appointment) => appointment.contact_id).filter((id): id is string => !!id)
 
