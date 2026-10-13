@@ -1,3 +1,20 @@
+# EN CURSO — SPEC-09 PR-0: auditoría de Revenue Operations (13-oct, Buffy) · rama `feat/spec09-pr0-revenue-audit`
+
+- **Reclamación de carril:** SPEC-09 (Revenue Operations Intelligence), fase PR-0 obligatoria antes
+  de PR-1..PR-10. Matriz de las 6 entidades contra el esquema real: la base canónica del cash existe
+  y está PROBADA (canonicalCash con refunds y reversos), pero el ciclo comercial tiene tres
+  huecos estructurales verificados — H-1: "Oportunidad" NO es entidad gestionada (sin tabla ni
+  estados; solo campos de agenda y una llave opcional de dedup), H-2: asignación a setters sin
+  cobertura (setter_id 0/610, 25-sep), H-4: "Billed Revenue"/facturas no existe como concepto (solo
+  plan de cuotas y cobros) — más H-5 (disputas sin entidad) y H-6 (suscripciones sin métricas de
+  ciclo). Dos decisiones BUSINESS documentadas para el usuario: entidad Opportunity sí/no y
+  facturación aplicable o NOT_APPLICABLE.
+- **Ficheros que toca:** `docs/REVENUE_OPERATIONS_ARCHITECTURE.md` (nuevo) y esta fila del handoff.
+  Sin cambios de código; `git status` limpio salvo ese doc y `.freebuff/` excluido a propósito.
+- **Relationado:** PRs #479/#481/#482/#483/#484 propias abiertas (SPEC-04…08); este PR-0 reutiliza
+  sus conclusiones y las de DASHBOARD_AUDIT del 25-sep en vez de duplicarlas.
+- **Base:** `b71dcf55` (merge de #480).
+
 # EN CURSO — SPEC-08 PR-0: auditoría del Copilot de IA (13-oct, Buffy) · rama `feat/spec08-pr0-ai-copilot-audit`
 
 - **Reclamación de carril:** SPEC-08 (AI Growth Intelligence Copilot), fase PR-0 obligatoria antes
