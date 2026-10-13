@@ -1,3 +1,9 @@
+# TABLERO de reclamaciones (se borra la fila al fusionar)
+
+| Agente | Qué | Rama | Ficheros que toca | Fecha |
+| --- | --- | --- | --- | --- |
+| Buffy (Freebuff) | PR-1 master: batería adversarial transversal de tenant isolation (T-5, 10 escenarios) | `feat/pr1-master-tenant-bateria` | `tests/bateria-tenant-isolation-master.test.mjs` (nuevo), `docs/TENANT_ISOLATION_BATTERY.md` (nuevo), `docs/MASTER_ARCHITECTURE_INVENTORY.md` (T-5), este handoff | 13-oct-2026 |
+
 # DECISIONES BUSINESS transversales tomadas por el usuario (13-oct-2026) · rama `docs/decisiones-business-transversales`
 
 T-2 del [inventario](MASTER_ARCHITECTURE_INVENTORY.md) resuelto — las 4 desbloquean los PRs que
