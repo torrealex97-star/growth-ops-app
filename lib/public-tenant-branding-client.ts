@@ -38,8 +38,10 @@ export function loadPublicTenantBranding(slug: string): Promise<PublicTenantBran
     void Promise.resolve(createClient().rpc('public_tenant_branding', { p_slug: slug }))
       .then(({ data, error }: { data: { branding: unknown }[] | null; error: unknown }) => {
         if (error) return { status: 'unavailable', branding: null } as const
-        const settings = data?.[0]?.branding
-        if (!settings) return { status: 'missing', branding: null } as const
+        // La fila confirma la existencia. `branding` puede ser null si el tenant todavía usa la
+        // marca por defecto; confundir ambas cosas retiraba el formulario de tenants válidos.
+        if (!data?.length) return { status: 'missing', branding: null } as const
+        const settings = data[0]?.branding
         return { status: 'exists', branding: resolveTenantBranding({ branding: settings }) } as const
       })
       .catch(() => ({ status: 'unavailable', branding: null }) as const)

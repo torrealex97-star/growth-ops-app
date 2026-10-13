@@ -65,6 +65,14 @@ test('la comprobación pública del tenant tiene techo y un fallo no bloquea el 
   assert.doesNotMatch(loader, /setTimeout\([\s\S]{0,180}status: 'missing'/)
 })
 
+test('una fila sin branding personalizado sigue siendo un tenant existente', () => {
+  const loader = read('lib/public-tenant-branding-client.ts')
+
+  assert.match(loader, /if \(!data\?\.length\) return \{ status: 'missing'/)
+  assert.doesNotMatch(loader, /if \(!settings\) return \{ status: 'missing'/)
+  assert.match(loader, /resolveTenantBranding\(\{ branding: settings \}\)/)
+})
+
 test('recuperación anuncia el éxito y usa un CTA con contraste reforzado', () => {
   const recover = read('app/[tenant]/recover/page.tsx')
   assert.match(recover, /role="status" aria-live="polite"/)
