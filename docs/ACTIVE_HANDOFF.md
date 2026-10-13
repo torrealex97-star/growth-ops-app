@@ -1,9 +1,21 @@
-# EN CURSO — SPEC-16 PR-0: auditoría de SaaS Admin & Customer Success (13-oct, Buffy) · rama `feat/spec16-pr0-saas-admin-audit`
+# COMPLETADO — SPEC-16 PR-0: auditoría de SaaS Admin & Customer Success (13-oct, Buffy) · `feat/spec16-pr0-saas-admin-audit` (PR #494, merged)
 
-- **Reclamación de carril:** SPEC-16 (SaaS Administration & Customer Success Operating Center), fase PR-0 obligatoria antes de PR-1..PR-10. Conclusión clave: la base multi-tenant y el rol de plataforma ÚNICO que existe hoy (`is_super_admin()`, flag binario sin jerarquía Admin/Support/CS/Billing/Auditor) están PROBADOS; impersonación no silenciosa («Ver como»: ticket cifrado 30 min+OTP+auditoría) ya existe y es el bloque de mayor riesgo de la SPEC; MISSING verificado por ausencia (grep 0): tickets de soporte de plataforma, incidentes globales, staff memberships, billing propio del SaaS (coincide con SPEC-13) y Customer Health. La pantalla de `settings/subcuentas` (crear/archivar/restaurar con auditoría old→new) es el inicio real del directorio.
-- **Ficheros que toca:** `docs/SAAS_ADMIN_ARCHITECTURE_AUDIT.md` (nuevo), `lib/platform/rbac.ts` (nuevo — matriz de permisos de plataforma fail-closed sobre el modelo real, PR-1 la cablea a rutas), `tests/platform-rbac.test.mjs` (nuevo — batería adversarial del §27) y esta fila del handoff. Sin cambios de esquema ni de rutas vivas.
-- **Relationado:** PRs #479–#486 (SPEC-04…10) y los merges de SPEC-11/13; el delta consume su evidencia sin repetirla. El billing SaaS propio sigue bloqueado por las decisiones BUSINESS de SPEC-13 §5.
-- **Base:** `639a130b` (merge de #493).
+[SAAS_ADMIN_ARCHITECTURE_AUDIT.md](SAAS_ADMIN_ARCHITECTURE_AUDIT.md): matriz del estado REAL —
+tenancy/RLS/audit/impersonación «Ver como» VERIFIED (el ticket cifrado 30 min+OTP ya cumple el MVP
+del §18); PARTIAL la consola de provisioning, Data Health y ciclo de tenant; MISSING por grep 0:
+staff memberships de plataforma, tickets, incidentes globales, billing propio del SaaS (coherente
+con SPEC-13), Customer Health y telemetría de uso del producto. Anti-duplicación decidida: el
+cliente SaaS YA es `tenants`; sin billing propio el directorio NO añade columnas «plan» (decisión
+BUSINESS de SPEC-13 §5 bloquea PR-2/3). Y el primer slice REAL de PR-1:
+`lib/platform/rbac.ts` (matriz §6 fail-closed sobre el binario `is_super_admin` de hoy, denegados
+motivados por flujo ausente —sin DDL ni rutas vivas—) + `tests/platform-rbac.test.mjs` con 9
+tests adversariales del §27 (usuario de tenant ≠ staff, revocación, rol corrupto, acceso
+excepcional nunca implícito). El test de suscripción destapó un fallo de diseño real en la matriz
+v0: sin billing propio, `ver_suscripcion_tenant` se deniega a TODOS hasta PR-3 (un hueco no es un
+cero). Local: `npm run quality` PASS (788/788); CI del SHA fusionado VERDE (Build, FLTC+dead
+code, Smoke E2E, gitleaks, Release gate). PR-1 queda BLOQUEADO por decisión BUSINESS: jerarquía
+de roles de plataforma propuesta (owner/admin/soporte/cs/billing/auditor) esperando aprobación
+del dueño antes de crear `platform_staff_memberships`.
 
 # COMPLETADO — SPEC-15 PR-0 + slice PR-1: automation audit + capa de señales (13-oct, Buffy) · `feat/spec15-pr0-automation-audit`
 
