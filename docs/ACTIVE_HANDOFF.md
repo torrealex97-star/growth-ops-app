@@ -1,3 +1,9 @@
+# TABLERO de reclamaciones (se borra la fila al fusionar)
+
+| Agente | Qué | Rama | Ficheros que toca | Fecha |
+| --- | --- | --- | --- | --- |
+| Buffy (Freebuff) | SPEC-13 PR-0: auditoría de producción y launches SaaS (matriz + P0/P1 + plan) | `feat/spec13-pr0-production-audit` | `docs/PRODUCTION_READINESS_AUDIT.md` (nuevo), este handoff | 13-oct-2026 |
+
 # COMPLETADO — PR-1 master: batería adversarial transversal de tenant isolation (13-oct, Buffy)
 
 T-5 del [inventario](MASTER_ARCHITECTURE_INVENTORY.md) resuelto en rama
