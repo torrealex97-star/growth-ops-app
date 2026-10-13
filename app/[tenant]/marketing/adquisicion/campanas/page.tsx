@@ -14,6 +14,7 @@ import { AdsFunnelPanel, type CampaignTargets } from '@/components/os/AdsFunnelP
 import { DailyMetricsPanel } from '@/components/os/DailyMetricsPanel'
 import { AdsTable } from '@/components/os/AdsTable'
 import { MetaAdsView } from '@/components/os/MetaAdsView'
+import { RevenueAttributionView } from '@/components/os/RevenueAttributionView'
 import { MultiSelect } from '@/components/ui/multi-select'
 import { useSesion, useTenant, useTenantId } from '@/lib/tenant-context'
 import { useCuentasMetaActivas } from '@/lib/meta/use-cuentas-activas'
@@ -149,7 +150,7 @@ export default function CampaignsPage() {
   const [syncingDaily, setSyncingDaily] = useState(false)
   const [migrating, setMigrating] = useState(false)
   const [croning, setCroning] = useState(false)
-  const [view, setView] = useState<'meta' | 'campaigns' | 'ads'>('meta')
+  const [view, setView] = useState<'revenue' | 'meta' | 'campaigns' | 'ads'>('revenue')
   const [syncingAds, setSyncingAds] = useState(false)
   const [adsVersion, setAdsVersion] = useState(0)
   const [targets, setTargets] = useState<CampaignTargets | null>(null)
@@ -255,6 +256,16 @@ export default function CampaignsPage() {
     [itemsFiltrados, accountFilter]
   )
 
+  const scopedItems = useMemo(
+    () =>
+      itemsFiltrados.filter(
+        (campaign) =>
+          (accountFilter === 'all' || campaign.account_id === accountFilter) &&
+          (selectedCampaignIds.length === 0 || selectedCampaignIds.includes(campaign.id))
+      ),
+    [accountFilter, itemsFiltrados, selectedCampaignIds]
+  )
+
   const filteredItems = useMemo(
     () =>
       itemsFiltrados.filter((c) => {
@@ -292,6 +303,10 @@ export default function CampaignsPage() {
       }
     })
   }, [filteredItems, periodActive, hasDaily, rangeMap])
+
+  const revenueCampaignIds = useMemo(() => {
+    return scopedItems.filter((campaign) => campaign.provider === 'meta').map((campaign) => campaign.id)
+  }, [scopedItems])
 
   const load = useCallback(async () => {
     const supabase = createClient()
@@ -695,28 +710,34 @@ export default function CampaignsPage() {
         </div>
       </div>
 
-      <div className="inline-flex rounded-lg border border-border bg-card p-1 text-sm">
+      <div className="flex w-full overflow-x-auto rounded-lg border border-border bg-card p-1 text-sm sm:inline-flex sm:w-auto">
+        <button
+          onClick={() => setView('revenue')}
+          className={`shrink-0 px-4 py-1.5 rounded-md transition ${view === 'revenue' ? 'bg-brand-600 text-white' : 'text-muted-foreground hover:text-foreground'}`}
+        >
+          Embudo CRM
+        </button>
         <button
           onClick={() => setView('meta')}
-          className={`px-4 py-1.5 rounded-md transition ${view === 'meta' ? 'bg-brand-600 text-white' : 'text-muted-foreground hover:text-foreground'}`}
+          className={`shrink-0 px-4 py-1.5 rounded-md transition ${view === 'meta' ? 'bg-brand-600 text-white' : 'text-muted-foreground hover:text-foreground'}`}
         >
           Análisis Meta
         </button>
         <button
           onClick={() => setView('campaigns')}
-          className={`px-4 py-1.5 rounded-md transition ${view === 'campaigns' ? 'bg-brand-600 text-white' : 'text-muted-foreground hover:text-foreground'}`}
+          className={`shrink-0 px-4 py-1.5 rounded-md transition ${view === 'campaigns' ? 'bg-brand-600 text-white' : 'text-muted-foreground hover:text-foreground'}`}
         >
           Campañas
         </button>
         <button
           onClick={() => setView('ads')}
-          className={`px-4 py-1.5 rounded-md transition ${view === 'ads' ? 'bg-brand-600 text-white' : 'text-muted-foreground hover:text-foreground'}`}
+          className={`shrink-0 px-4 py-1.5 rounded-md transition ${view === 'ads' ? 'bg-brand-600 text-white' : 'text-muted-foreground hover:text-foreground'}`}
         >
           Anuncios
         </button>
       </div>
 
-      {view === 'campaigns' && (
+      {(view === 'revenue' || view === 'meta' || view === 'campaigns') && (
         <PeriodFilterBar
           preset={periodPreset}
           onPresetChange={setPeriodPreset}
@@ -771,10 +792,19 @@ export default function CampaignsPage() {
         </PeriodFilterBar>
       )}
 
+      {view === 'revenue' && (
+        <RevenueAttributionView
+          tenant={tenant}
+          rangeFrom={rangeFrom}
+          rangeTo={rangeTo}
+          campaignIds={revenueCampaignIds}
+        />
+      )}
+
       {view === 'meta' && (
         <MetaAdsView
           tenant={tenant}
-          campaigns={itemsFiltrados.map((c) => ({
+          campaigns={scopedItems.map((c) => ({
             id: c.id,
             name: c.name,
             provider: c.provider,

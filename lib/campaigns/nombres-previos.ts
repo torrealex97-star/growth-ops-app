@@ -42,8 +42,9 @@ export function esNombrePrevioReal(utmCrudo: string | null | undefined, nombreAc
 
 /**
  * Para CADA campaña de la subcuenta, qué nombres previos se conocen por los utm históricos
- * de los contactos ya asignados a ella. Una sola lectura de contactos (id, campaign_id,
- * first_utm_campaign) — ligera, sin joins, y agrupada en memoria por campaign_id.
+ * de los contactos ya asignados a ella. La atribución vive en `contact_attributions`; el
+ * `campaign_id` vive en `contacts`. Se leen mediante su FK, con tenant scope en ambas tablas,
+ * proyección mínima y paginación para no truncar tenants grandes.
  */
 export async function nombresPreviosPorCampana(
   sb: SupabaseClient,
@@ -59,23 +60,41 @@ export async function nombresPreviosPorCampana(
   }
   if (nombreActual.size === 0) return {}
 
-  // Contactos ya asignados a alguna campaña, con el utm crudo de su primer toque.
-  const { data: contacts, error: contErr } = await sb
-    .from('contacts')
-    .select('id, campaign_id, first_utm_campaign')
-    .eq('tenant_id', tenantId)
-    .not('campaign_id', 'is', null)
-    .not('first_utm_campaign', 'is', null)
-  if (contErr) throw new Error(`No se pudo leer contacts: ${contErr.message}`)
+  type AttributionRow = {
+    contact_id: string
+    first_utm_campaign: string | null
+    utm_campaign: string | null
+    contacts: { campaign_id: string | null; tenant_id: string | null } | null
+  }
+  const attributions: AttributionRow[] = []
+  const pageSize = 1000
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await sb
+      .from('contact_attributions')
+      .select('contact_id, first_utm_campaign, utm_campaign, contacts!inner(campaign_id, tenant_id)')
+      .eq('tenant_id', tenantId)
+      .eq('contacts.tenant_id', tenantId)
+      .not('contacts.campaign_id', 'is', null)
+      .or('first_utm_campaign.not.is.null,utm_campaign.not.is.null')
+      .order('id')
+      .range(from, from + pageSize - 1)
+    if (error) throw new Error(`No se pudo leer contact_attributions: ${error.message}`)
+    const rows = (data ?? []) as unknown as AttributionRow[]
+    attributions.push(...rows)
+    if (rows.length < pageSize) break
+  }
 
   const porCampana = new Map<string, Map<string, number>>()
-  for (const r of (contacts ?? []) as { id: string; campaign_id: string; first_utm_campaign: string }[]) {
-    const actual = nombreActual.get(r.campaign_id)
+  for (const r of attributions) {
+    const campaignId = r.contacts?.campaign_id
+    const utmCampaign = r.first_utm_campaign ?? r.utm_campaign
+    if (!campaignId || !utmCampaign) continue
+    const actual = nombreActual.get(campaignId)
     if (actual === undefined) continue // campaña ya no existe: no mostramos previos huérfanos
-    if (!esNombrePrevioReal(r.first_utm_campaign, actual)) continue // mismo nombre (o ruido proveedor): no es rename
-    const bucket = porCampana.get(r.campaign_id) ?? new Map<string, number>()
-    bucket.set(r.first_utm_campaign, (bucket.get(r.first_utm_campaign) ?? 0) + 1)
-    porCampana.set(r.campaign_id, bucket)
+    if (!esNombrePrevioReal(utmCampaign, actual)) continue // mismo nombre (o ruido proveedor): no es rename
+    const bucket = porCampana.get(campaignId) ?? new Map<string, number>()
+    bucket.set(utmCampaign, (bucket.get(utmCampaign) ?? 0) + 1)
+    porCampana.set(campaignId, bucket)
   }
 
   // Formato final: nombres únicos por campaña, ordenados por evidencia (desc) y alfabético.
