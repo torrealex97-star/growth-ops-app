@@ -135,7 +135,7 @@ function FiltrosAtribucion({
             [
               ['todos', 'Todos'],
               ['ads', 'Solo anuncios'],
-              ['organico', 'Orgánico y directo'],
+              ['sin_atribuir', 'Sin atribuir'],
             ] as const
           ).map(([id, label]) => (
             <button
@@ -604,11 +604,11 @@ export default function UnitEconomicsPage() {
   // lo que hace es decidir qué vista de ventas se enseña debajo, junto con el filtro de origen.
   // Se combinan en el filtro efectivo que ya entiende buildSalesOverview:
   //   atribuidos + (todos|ads)  → 'ads'      (solo lo demostrablemente atribuido)
-  //   no_atribuidos             → 'organico' (lo que falta de atribuir)
+  //   no_atribuidos             → 'sin_atribuir' (ausencia de evidencia; no implica orgánico)
   //   todos                     → el origen tal cual
   const filtroEfectivo: AttributionFilter = useMemo(() => {
     if (filtrosDiferidos.atribucion === 'atribuidos') return 'ads'
-    if (filtrosDiferidos.atribucion === 'no_atribuidos') return 'organico'
+    if (filtrosDiferidos.atribucion === 'no_atribuidos') return 'sin_atribuir'
     return filtrosDiferidos.origen
   }, [filtrosDiferidos.atribucion, filtrosDiferidos.origen])
 
@@ -633,7 +633,7 @@ export default function UnitEconomicsPage() {
         .map((c) => c.id)
     )
     const matches = (id: string | null) =>
-      filtroEfectivo === 'todos' || (id ? ids.has(id) : filtroEfectivo === 'organico')
+      filtroEfectivo === 'todos' || (id ? ids.has(id) : filtroEfectivo === 'sin_atribuir')
     return buildPeriodFunnel(
       contacts.filter((c) => ids.has(c.id)),
       appointments.filter((a) => matches(a.contact_id)),

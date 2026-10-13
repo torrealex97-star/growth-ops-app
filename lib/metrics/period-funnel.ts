@@ -1,7 +1,5 @@
 import { cuentaComoVenta, leadDate } from '@/lib/analytics'
-import { isCancelled } from '@/lib/unit-economics'
-import { isNoShow } from '@/lib/appointments/status'
-import { isAttended } from '@/lib/appointments/status'
+import { isAttended, isCancelled, isNoShow } from '@/lib/appointments/status'
 import { canonicalizeLeads, canonicalizeAppointments } from '@/lib/canonical/dedup'
 import { inPeriod, type PeriodRange } from '@/lib/filters/period'
 import { resolverOferta } from '@/lib/metrics/oferta'

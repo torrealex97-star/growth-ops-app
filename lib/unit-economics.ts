@@ -1,5 +1,8 @@
 import { cuentaComoVenta } from '@/lib/analytics'
-import { isAttended, isNoShow } from '@/lib/appointments/status'
+import { isAttended, isCancelled, summarizeAttendance } from '@/lib/appointments/status'
+
+// Compatibilidad para consumidores históricos; la implementación canónica vive en appointments/status.
+export { isCancelled } from '@/lib/appointments/status'
 
 // Lógica pura de agregación por canal (CAC/LTV) de Unit Economics, extraída del
 // componente de página para poder testearla sin un transform de JSX (ver
@@ -109,29 +112,19 @@ export function buildChannelRows(campaigns: CampaignRow[], sales: SaleRow[], con
 //
 // La diferencia con el embudo de marketing de arriba es deliberada y hay que respetarla: ese mide
 // lo ATRIBUIBLE a los anuncios (impresiones → clics → leads → citas de contactos con campaña), y
-// tiene sentido que deje fuera lo orgánico. Pero las métricas globales del negocio no pueden
+// tiene sentido que deje fuera lo no atribuido. Pero las métricas globales del negocio no pueden
 // heredar ese filtro: una agenda que entró por la web o por recomendación es una agenda igual, y
 // dejarla fuera hacía que la pantalla dijera 0 citas con 559 en la base.
 //
 // El origen pasa a ser un FILTRO opcional, no una condición de entrada.
 
-export type AttributionFilter = 'todos' | 'ads' | 'organico'
+export type AttributionFilter = 'todos' | 'ads' | 'sin_atribuir'
 
 export type AppointmentLike = {
   contact_id: string | null
   status: string
   appointment_datetime?: string | null
   pipe_value?: number | string | null
-}
-
-/**
- * Estados que NO cuentan como cita viva. Están en inglés porque así los escribe Calendly, que es
- * quien las crea: buscar 'cancelada' devolvía cero canceladas y daba un show-up del 100 %.
- */
-const CANCELLED_APPOINTMENT_STATUSES = ['cancelled', 'canceled', 'cancelada', 'no_show_cancel']
-
-export function isCancelled(status: string | null | undefined): boolean {
-  return CANCELLED_APPOINTMENT_STATUSES.includes((status ?? '').trim().toLowerCase())
 }
 
 /**
@@ -189,7 +182,12 @@ export function buildSalesOverview(
   // se está mirando el total. Sumarlas en "solo anuncios" sería inventarles una procedencia.
   const llamadasSinCita = filtro === 'todos' ? fathomSinCita.length : 0
   const showsTotales = yaPasadas.length + llamadasSinCita
-  const resueltas = yaPasadas.length + citas.filter((a) => isNoShow(a.status)).length
+  const citasEvaluables = citas.filter((a) => {
+    if (!a.appointment_datetime) return true
+    const scheduledAt = Date.parse(a.appointment_datetime)
+    return Number.isFinite(scheduledAt) && scheduledAt <= ahora.getTime()
+  })
+  const asistencia = summarizeAttendance(citasEvaluables)
 
   const ventasActivas = sales.filter((s) => cuentaComoVenta(s) && pasaFiltro(s.contact_id))
   const facturacion = ventasActivas.reduce((a, s) => a + num(s.gross_amount), 0)
@@ -205,7 +203,7 @@ export function buildSalesOverview(
     pipeValue,
     // La asistencia se mide SOLO sobre lo agendado: meter en el numerador llamadas que nunca se
     // agendaron daría porcentajes por encima del 100 %.
-    tasaAsistencia: resueltas > 0 ? (yaPasadas.length / resueltas) * 100 : null,
+    tasaAsistencia: asistencia.showRate,
     tasaCierre: showsTotales ? (ventasActivas.length / showsTotales) * 100 : null,
   }
 }

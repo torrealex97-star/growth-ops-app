@@ -4,13 +4,20 @@ import type { AppointmentStatus } from '@/lib/types/database'
 // repetir el mismo literal `status === 'show' || status === 'completed'` en cada página de métricas.
 const ATTENDED_STATUSES = ['show', 'completed'] as const
 const NO_SHOW_STATUSES = ['no_show'] as const
+const RESCHEDULED_STATUSES = ['rescheduled'] as const
+
+const normalizedStatus = (status: string | null | undefined) => (status ?? '').trim().toLowerCase()
 
 export function isAttended(status: string | null | undefined) {
-  return !!status && (ATTENDED_STATUSES as readonly string[]).includes(status)
+  return (ATTENDED_STATUSES as readonly string[]).includes(normalizedStatus(status))
 }
 
 export function isNoShow(status: string | null | undefined) {
-  return !!status && (NO_SHOW_STATUSES as readonly string[]).includes(status)
+  return (NO_SHOW_STATUSES as readonly string[]).includes(normalizedStatus(status))
+}
+
+export function isRescheduled(status: string | null | undefined): boolean {
+  return (RESCHEDULED_STATUSES as readonly string[]).includes(normalizedStatus(status))
 }
 
 // Labels/colores por status real (usado en el <Select> de edición de estado).
@@ -54,19 +61,79 @@ export const STATUS_COLORS: Record<AppointmentStatus, string> = {
 export type AppointmentDisplayCategory =
   'compra' | 'reserva' | 'programada' | 'seguimiento' | 'se_presenta' | 'no_show' | 'cancelada'
 
-const CANCELLED_STATUSES: AppointmentStatus[] = ['cancelled', 'cancelled_admin', 'cancelled_lead']
+const CANCELLED_STATUSES = [
+  'cancelled',
+  'cancelled_admin',
+  'cancelled_lead',
+  // Legacy/source aliases are accepted at read time. Ingestion still writes the canonical values.
+  'canceled',
+  'cancelada',
+  'no_show_cancel',
+] as const
 
 /**
  * Una cita CANCELADA no entra en ningún ratio de asistencia: nadie dejó de presentarse a algo que
  * se canceló. Se exporta para que las métricas no vuelvan a repetir la lista de literales.
  */
 export function isCancelled(status: string | null | undefined): boolean {
-  return !!status && (CANCELLED_STATUSES as readonly string[]).includes(status as AppointmentStatus)
+  return (CANCELLED_STATUSES as readonly string[]).includes(normalizedStatus(status))
+}
+
+export type AttendanceSummary = {
+  total: number
+  eligible: number
+  attended: number
+  noShows: number
+  resolved: number
+  unresolved: number
+  cancelled: number
+  rescheduled: number
+  /** `null` means there is no explicit attendance outcome; it never means 0%. */
+  showRate: number | null
+}
+
+/**
+ * Canonical attendance contract shared by every dashboard.
+ *
+ * A cancelled or superseded/rescheduled slot is not eligible for attendance. A scheduled slot is
+ * unresolved, even when its date is in the past: the passage of time is not proof of a no-show.
+ * Consequently the show-rate denominator is only `attended + noShows`.
+ */
+export function summarizeAttendance<T extends { status?: string | null }>(
+  appointments: readonly T[]
+): AttendanceSummary {
+  let attended = 0
+  let noShows = 0
+  let unresolved = 0
+  let cancelled = 0
+  let rescheduled = 0
+
+  for (const appointment of appointments) {
+    const status = appointment.status
+    if (isCancelled(status)) cancelled += 1
+    else if (isRescheduled(status)) rescheduled += 1
+    else if (isAttended(status)) attended += 1
+    else if (isNoShow(status)) noShows += 1
+    else unresolved += 1
+  }
+
+  const resolved = attended + noShows
+  return {
+    total: appointments.length,
+    eligible: attended + noShows + unresolved,
+    attended,
+    noShows,
+    resolved,
+    unresolved,
+    cancelled,
+    rescheduled,
+    showRate: resolved > 0 ? (attended / resolved) * 100 : null,
+  }
 }
 
 export function getAppointmentCategory(status: AppointmentStatus, purchased: boolean): AppointmentDisplayCategory {
   if (purchased) return 'compra'
-  if (CANCELLED_STATUSES.includes(status)) return 'cancelada'
+  if (isCancelled(status)) return 'cancelada'
   if (isNoShow(status)) return 'no_show'
   if (isAttended(status)) return 'se_presenta'
   if (status === 'reserva') return 'reserva'

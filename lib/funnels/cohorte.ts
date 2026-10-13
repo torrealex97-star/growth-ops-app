@@ -10,9 +10,8 @@
 // Es puro: no sabe nada de Supabase.
 
 import { cuentaComoVenta, leadDate } from '@/lib/analytics'
-import { isAttended } from '@/lib/appointments/status'
+import { isAttended, isCancelled } from '@/lib/appointments/status'
 import { canonicalizeLeads } from '@/lib/canonical/dedup'
-import { isCancelled } from '@/lib/unit-economics'
 
 export const DIAS_MADUREZ = 30
 const DIA_MS = 86_400_000

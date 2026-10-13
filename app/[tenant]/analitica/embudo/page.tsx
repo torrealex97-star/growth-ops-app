@@ -16,7 +16,7 @@ import { PeriodFilterBar } from '@/components/os/PeriodFilterBar'
 import { TrendChart } from '@/components/os/TrendChart'
 import { DEFAULT_PERIOD, getPeriodRange, inPeriod, type PeriodPreset } from '@/lib/filters/period'
 import { originLabel } from '@/lib/ads/funnel'
-import { isAttended } from '@/lib/appointments/status'
+import { isAttended, summarizeAttendance } from '@/lib/appointments/status'
 import { countryISOForPhone, regionForISO } from '@/lib/phone'
 import { metodoDePlan } from '@/lib/metrics/agregados'
 import { canonicalizeAppointments } from '@/lib/canonical/dedup'
@@ -375,9 +375,13 @@ export default function VentasMetricasPage() {
         const appts = periodAppointments.filter((a) => a.setter_id === p.id || a.closer_id === p.id)
         const salesCalls = appts
         const bookedSC = salesCalls.length
-        const liveSC = salesCalls.filter(
+        const pastCalls = salesCalls.filter(
+          (a) => !a.appointment_datetime || Date.parse(a.appointment_datetime) <= Date.now()
+        )
+        const liveSC = pastCalls.filter(
           (a) => isAttended(a.status) && Date.parse(a.appointment_datetime) <= Date.now()
         ).length
+        const attendance = summarizeAttendance(pastCalls)
         const pSales = periodSales.filter((s) => s.closer_id === p.id || s.setter_id === p.id)
         const activeSales = pSales.filter(cuentaComoVenta)
         return {
@@ -385,7 +389,7 @@ export default function VentasMetricasPage() {
           name: p.full_name,
           bookedSC,
           liveSC,
-          showRate: pct(liveSC, bookedSC),
+          showRate: attendance.showRate === null ? '—' : `${attendance.showRate.toFixed(1)}%`,
           closes: activeSales.length,
           closeRate: '—',
           revenue: activeSales.reduce((acc, s) => acc + num(s.gross_amount), 0),

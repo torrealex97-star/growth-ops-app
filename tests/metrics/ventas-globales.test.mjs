@@ -48,10 +48,10 @@ test('el origen es un filtro, y reparte sin perder ni duplicar', () => {
     { id: 'organico', campaign_id: null },
   ]
   const ads = buildSalesOverview(citas, [], contactos, 'ads', AHORA)
-  const org = buildSalesOverview(citas, [], contactos, 'organico', AHORA)
+  const sinAtribuir = buildSalesOverview(citas, [], contactos, 'sin_atribuir', AHORA)
   assert.equal(ads.agendas, 1)
-  assert.equal(org.agendas, 2, 'sin contacto cuenta como no atribuido, no se pierde')
-  assert.equal(ads.agendas + org.agendas, 3, 'las partes suman el total')
+  assert.equal(sinAtribuir.agendas, 2, 'sin contacto cuenta como no atribuido, no se pierde')
+  assert.equal(ads.agendas + sinAtribuir.agendas, 3, 'las partes suman el total')
 })
 
 test('las citas pendientes no acreditan asistencia aunque sean pasadas', () => {
@@ -81,9 +81,9 @@ test('la pantalla separa lo global de lo atribuido a anuncios', () => {
     /buildSalesOverview\(agendasVisibles, ventasVisibles, contacts, filtroEfectivo, new Date\(\), fathomVisible\)/
   )
   // El filtro de atribución del dashboard se combina con el de origen y manda el efectivo:
-  // 'atribuidos' → 'ads', 'no_atribuidos' → 'organico', 'todos' → el origen tal cual.
+  // 'atribuidos' → 'ads', 'no_atribuidos' → 'sin_atribuir', 'todos' → el origen tal cual.
   assert.match(page, /if \(filtrosDiferidos\.atribucion === 'atribuidos'\) return 'ads'/)
-  assert.match(page, /if \(filtrosDiferidos\.atribucion === 'no_atribuidos'\) return 'organico'/)
+  assert.match(page, /if \(filtrosDiferidos\.atribucion === 'no_atribuidos'\) return 'sin_atribuir'/)
   // Las llamadas de Fathom sin cita se leen de la cola de revisión, no de una tabla inventada.
   assert.match(page, /from\('fathom_match_review'\)/)
   assert.match(page, /\.eq\('status', 'pendiente'\)/)

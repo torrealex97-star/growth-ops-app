@@ -115,6 +115,22 @@ la misma cita podía quedar cancelada o asistida según el orden de la consulta.
    `Web/directo`; muestra `Sin atribuir` cuando no existe evidencia de adquisición.
 4. Pruebas focales cubren orden inverso, cancelada→show, cancelada→scheduled y ausencia de fuente.
 
+## PR-1 — contrato de asistencia
+
+El denominador canónico del Show Rate es `show | completed` más `no_show`; solo resultados explícitos.
+Una cita programada, confirmada o sin estado sigue sin resolver aunque su hora haya pasado. Una cita
+cancelada o sustituida por reprogramación no es elegible. Todos los consumidores migrados reciben
+también `resolved`, `unresolved` y muestra, de modo que un hueco de marcado se muestre como falta de
+datos en lugar de un 0% inventado.
+
+La implementación compartida vive en `lib/appointments/status.ts`. El motor global, Unit Economics,
+Agendas y la comparación de equipo del embudo dejan de mantener denominadores locales divergentes.
+Los registros de métricas usados por la UI y la IA declaran ya la misma fórmula.
+
+Además, Unit Economics deja de convertir el filtro `no_atribuidos` en `organico`: ahora conserva el
+estado `sin_atribuir`. Esto no recupera una fuente perdida, pero evita que la ausencia de evidencia
+contamine los totales de orgánico y cualquier decisión posterior.
+
 ## Plan por prioridad
 
 1. **PR-1 Canonical Metrics:** contrato de bookings/shows/no-shows y migración de listas locales.
