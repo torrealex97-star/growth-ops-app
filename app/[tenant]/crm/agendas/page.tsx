@@ -72,6 +72,11 @@ import {
 } from '@/lib/appointments/status'
 import { appointmentLeadScore } from '@/lib/appointments/lead-score'
 import { resolveAppointmentLeadOrigin } from '@/lib/appointments/lead-origin'
+import {
+  collectMetaAttributionSignals,
+  resolveMetaAttribution,
+  type MetaAttributionCatalog,
+} from '@/lib/meta/ad-attribution'
 import type { LeadScore } from '@/lib/metrics/cualificacion'
 
 const cls =
@@ -130,6 +135,7 @@ export default function AppointmentsPage() {
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithRelations | null>(null)
   const [collaboratorOrigins, setCollaboratorOrigins] = useState<Record<string, { name: string | null }>>({})
   const [attributionLoaded, setAttributionLoaded] = useState(false)
+  const [metaCatalog, setMetaCatalog] = useState<MetaAttributionCatalog>({ campaigns: [], ads: [] })
   const [sheetOpen, setSheetOpen] = useState(false)
   const [currentUserRole, setCurrentUserRole] = useState<string>('')
   const [currentUserId, setCurrentUserId] = useState<string>('')
@@ -233,6 +239,38 @@ export default function AppointmentsPage() {
         if (res.ok) setCloserConflicts(json.conflicts || {})
       } catch {
         // No bloquea la carga de la tabla si esta alerta secundaria falla.
+      }
+    },
+    [tenant]
+  )
+
+  const fetchMetaAttributionCatalog = useCallback(
+    async (appts: AppointmentWithRelations[]) => {
+      const signals = collectMetaAttributionSignals(appts)
+      if (
+        signals.campaignExternalIds.length === 0 &&
+        signals.campaignInternalIds.length === 0 &&
+        signals.adExternalIds.length === 0
+      ) {
+        setMetaCatalog({ campaigns: [], ads: [] })
+        return
+      }
+      try {
+        const response = await fetch(`/api/${tenant}/evergreen/appointments/attribution-catalog`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(signals),
+        })
+        const data = (await response.json().catch(() => ({}))) as Partial<MetaAttributionCatalog> & { error?: string }
+        if (!response.ok) throw new Error(data.error || 'No se pudo cargar el catálogo')
+        setMetaCatalog({ campaigns: data.campaigns ?? [], ads: data.ads ?? [] })
+      } catch (error) {
+        // La agenda sigue siendo utilizable: se conserva el identificador crudo y se marca como no
+        // resuelto, en lugar de enseñar un nombre inventado o bloquear toda la pantalla.
+        setMetaCatalog({ campaigns: [], ads: [] })
+        toast.error('No se pudieron traducir las campañas y anuncios de Meta', {
+          description: error instanceof Error ? error.message : undefined,
+        })
       }
     },
     [tenant]
@@ -344,6 +382,7 @@ export default function AppointmentsPage() {
       const appts = appRes.data as AppointmentWithRelations[]
       setAppointments(appts)
       fetchCloserConflicts(appts)
+      fetchMetaAttributionCatalog(appts)
     }
 
     // Sin esto, un fallo de RLS en sales dejaba hasPurchased() calculado sobre un array vacío
@@ -377,7 +416,7 @@ export default function AppointmentsPage() {
     setUsers(usersRes.data ?? [])
     setSales((salesRes.data as Sale[]) ?? [])
     setLoading(false)
-  }, [sesion, tenantId, fetchCloserConflicts])
+  }, [sesion, tenantId, fetchCloserConflicts, fetchMetaAttributionCatalog])
 
   useEffect(() => {
     fetchData()
@@ -623,10 +662,15 @@ export default function AppointmentsPage() {
     [users]
   )
 
+  const metaAttributionFor = useCallback(
+    (appointment: AppointmentWithRelations) => resolveMetaAttribution(appointment, metaCatalog),
+    [metaCatalog]
+  )
+
   const leadOriginFor = useCallback(
     (appointment: AppointmentWithRelations) => {
       const collaborator = collaboratorOrigins[appointment.contact_id]
-      return resolveAppointmentLeadOrigin({
+      const origin = resolveAppointmentLeadOrigin({
         setterId: appointment.setter_id,
         setterName: appointment.setter?.full_name,
         contactSetSource: appointment.contacts?.set_source,
@@ -637,8 +681,19 @@ export default function AppointmentsPage() {
         externalSource: appointment.external_source,
         utmSource: appointment.utm_source,
       })
+      const meta = metaAttributionFor(appointment)
+      const metaDetail = meta.ad.name
+        ? `Anuncio: ${meta.ad.name}`
+        : meta.campaign.name
+          ? `Campaña: ${meta.campaign.name}`
+          : meta.ad.externalId
+            ? `Ad ID no identificado: ${meta.ad.externalId}`
+            : meta.campaign.externalId
+              ? `Campaign ID no identificado: ${meta.campaign.externalId}`
+              : null
+      return metaDetail ? { ...origin, detail: `${origin.detail} · ${metaDetail}` } : origin
     },
-    [attributionLoaded, collaboratorOrigins]
+    [attributionLoaded, collaboratorOrigins, metaAttributionFor]
   )
 
   // Posibles duplicadas: mismo contacto con más de una agenda EL MISMO DÍA. Es el patrón que dejan
@@ -1248,6 +1303,7 @@ export default function AppointmentsPage() {
         header: 'Origen',
         cell: ({ row }) => {
           const a = row.original
+          const meta = metaAttributionFor(a)
           const isIA =
             ['instagram-setting', 'facebook-setting'].includes(a.utm_source || '') &&
             (a.utm_term || '').toUpperCase().includes('IA')
@@ -1273,10 +1329,39 @@ export default function AppointmentsPage() {
           }
           return utm ? (
             <Badge className="border text-xs bg-sky-500/20 text-sky-300 border-sky-500/30" title={fullTooltip}>
-              UTM{a.utm_source ? `: ${a.utm_source}` : ''}
+              UTM
+              {meta.ad.name
+                ? `: ${meta.ad.name}`
+                : meta.campaign.name
+                  ? `: ${meta.campaign.name}`
+                  : a.utm_source && !/^\d{10,30}$/.test(a.utm_source)
+                    ? `: ${a.utm_source}`
+                    : ': sin resolver'}
             </Badge>
           ) : (
             <Badge className="border text-xs bg-zinc-500/20 text-muted-foreground border-border/30">Sin UTM</Badge>
+          )
+        },
+      }),
+      columnHelper.display({
+        id: 'meta_identity',
+        header: 'Campaña / anuncio',
+        cell: ({ row }) => {
+          const meta = metaAttributionFor(row.original)
+          const campaignLabel = meta.campaign.name ?? (meta.campaign.externalId ? 'Campaña no identificada' : null)
+          const adLabel = meta.ad.name ?? (meta.ad.externalId ? 'Anuncio no identificado' : null)
+          if (!campaignLabel && !adLabel) return <span className="text-muted-foreground text-sm">—</span>
+          const audit = [
+            meta.campaign.externalId && `Campaign ID: ${meta.campaign.externalId}`,
+            meta.ad.externalId && `Ad ID: ${meta.ad.externalId}`,
+          ]
+            .filter(Boolean)
+            .join(' · ')
+          return (
+            <div className="max-w-64" title={audit || undefined}>
+              {campaignLabel && <p className="truncate text-sm text-foreground">{campaignLabel}</p>}
+              {adLabel && <p className="truncate text-xs text-muted-foreground">{adLabel}</p>}
+            </div>
           )
         },
       }),
@@ -1293,7 +1378,16 @@ export default function AppointmentsPage() {
         cell: ({ getValue }) => <span className="text-muted-foreground text-sm">{getValue() || '—'}</span>,
       }),
     ],
-    [closerConflicts, reassigningConflictId, canReassignConflict, handleReassignConflict, hasPurchased, router, tenant]
+    [
+      closerConflicts,
+      reassigningConflictId,
+      canReassignConflict,
+      handleReassignConflict,
+      hasPurchased,
+      metaAttributionFor,
+      router,
+      tenant,
+    ]
   )
 
   const table = useReactTable({
@@ -1804,6 +1898,7 @@ export default function AppointmentsPage() {
                         const category = getAppointmentCategory(appt.status, hasPurchased(appt))
                         const leadScore = appointmentLeadScore(appt)
                         const leadOrigin = leadOriginFor(appt)
+                        const metaAttribution = metaAttributionFor(appt)
                         const isCancelled = category === 'cancelada'
                         const draggable = !isCancelled && canDragAppointment(appt)
                         // Contenido adaptativo a la altura real del bloque: el formato completo ocupa
@@ -1880,6 +1975,14 @@ export default function AppointmentsPage() {
                             ) : null}
                             {tier === 'full' ? (
                               <>
+                                {(metaAttribution.ad.name || metaAttribution.campaign.name) && (
+                                  <p
+                                    className="text-3xs text-muted-foreground truncate"
+                                    title={metaAttribution.ad.name ?? metaAttribution.campaign.name ?? undefined}
+                                  >
+                                    {metaAttribution.ad.name ?? metaAttribution.campaign.name}
+                                  </p>
+                                )}
                                 {appt.setter?.full_name && (
                                   <p className="text-3xs text-muted-foreground truncate">{appt.setter.full_name}</p>
                                 )}
@@ -2014,6 +2117,7 @@ export default function AppointmentsPage() {
                 key={selectedAppointment.id}
                 appointment={selectedAppointment}
                 leadOrigin={leadOriginFor(selectedAppointment)}
+                metaAttribution={metaAttributionFor(selectedAppointment)}
                 canChangeStatus={canChangeStatus}
                 currentUserName={currentUserName}
                 canDelete={isAdmin}

@@ -17,6 +17,21 @@ const ATTRIBUTION_KEYS = [
   'utmCampaign',
   'utmContent',
   'utmTerm',
+  // Identidad publicitaria. Los nombres ayudan a leer; los ids permiten reconciliar sin depender
+  // de que una campaña/anuncio haya sido renombrado en Meta después de reservar la cita.
+  'campaign_id',
+  'campaignId',
+  'utm_id',
+  'utmId',
+  'ad_id',
+  'adId',
+  'ad_name',
+  'adName',
+  'adset_id',
+  'ad_set_id',
+  'adSetId',
+  'ad_group_id',
+  'adGroupId',
   'utm_source_first',
   'utm_medium_first',
   'utm_campaign_first',
@@ -35,6 +50,22 @@ export function tieneEvidenciaAtribucionGhl(payload: Json): boolean {
   if (trayectoria.first || trayectoria.second || trayectoria.last || trayectoria.booking) return true
   const toque = leerToque(payload)
   return toqueTieneDatos({ ...toque, source: null })
+}
+
+/**
+ * Un evento puede traer campaña/UTM pero omitir el anuncio que GHL conserva en el contacto. En
+ * tráfico de Meta hacemos una única consulta adicional si todavía falta `ad_id`; en orgánico y en
+ * otros canales no gastamos cuota del proveedor buscando un dato que no debería existir.
+ */
+export function necesitaIdentidadPublicitariaGhl(payload: Json): boolean {
+  const trayectoria = leerTrayectoria(payload)
+  const toques = [trayectoria.booking, trayectoria.last, trayectoria.first, trayectoria.second, leerToque(payload)]
+  if (toques.some((toque) => toque?.adId)) return false
+  return toques.some((toque) => {
+    if (!toque) return false
+    const source = `${toque.utmSource ?? ''} ${toque.utmSourcePlatform ?? ''} ${toque.source ?? ''}`.toLowerCase()
+    return /^\s*\d{10,30}(?:\s|$)/.test(source) || Boolean(toque.fbclid) || /\b(meta|facebook|instagram)\b/.test(source)
+  })
 }
 
 /**
@@ -64,7 +95,7 @@ export async function enriquecerAtribucionDesdeContactoGhl(
   token: string | null | undefined,
   fetcher: typeof fetch = fetch
 ): Promise<{ payload: Json; contacto: Json | null; enriquecido: boolean }> {
-  if (!contactId || !token || tieneEvidenciaAtribucionGhl(payload)) {
+  if (!contactId || !token || (tieneEvidenciaAtribucionGhl(payload) && !necesitaIdentidadPublicitariaGhl(payload))) {
     return { payload, contacto: null, enriquecido: false }
   }
   try {

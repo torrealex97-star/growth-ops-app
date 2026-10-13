@@ -213,6 +213,13 @@ export type Appointment = {
   utm_campaign: string | null
   utm_content: string | null
   utm_term: string | null
+  // Snapshots normalizados de atribución. Conservan ids de campaña/anuncio cuando el proveedor
+  // los entrega; son la evidencia auditable que acompaña a la agenda, no una inferencia visual.
+  attribution_first: Record<string, unknown> | null
+  attribution_second: Record<string, unknown> | null
+  attribution_last: Record<string, unknown> | null
+  attribution_booking: Record<string, unknown> | null
+  attribution_status: string | null
   raw_payload: Record<string, unknown> | null
   notes: string | null
   recording_url: string | null

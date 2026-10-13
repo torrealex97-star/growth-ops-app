@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+import { combinarAtribucionGhl, necesitaIdentidadPublicitariaGhl } from '../lib/integrations/ghl-attribution.ts'
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
 const helper = readFileSync(join(root, 'lib/integrations/ghl-attribution.ts'), 'utf8')
@@ -24,6 +25,32 @@ test('el enriquecimiento solo copia campos de atribución y no pisa datos del ev
   assert.match(helper, /const ATTRIBUTION_KEYS/)
   assert.match(helper, /actual === undefined \|\| actual === null \|\| actual === ''/)
   assert.doesNotMatch(helper, /Object\.assign\(evento, contacto\)/)
+})
+
+test('el enriquecimiento conserva campaign id, ad id, nombre del anuncio y ad set del contacto', () => {
+  const result = combinarAtribucionGhl(
+    { id: 'evento', ad_id: 'ad-del-evento' },
+    {
+      campaignId: '120252786405750750',
+      ad_id: 'ad-del-contacto',
+      adName: 'Creatividad vídeo',
+      adSetId: '120288888888888888',
+    }
+  )
+  assert.equal(result.campaignId, '120252786405750750')
+  assert.equal(result.ad_id, 'ad-del-evento', 'el evento conserva precedencia')
+  assert.equal(result.adName, 'Creatividad vídeo')
+  assert.equal(result.adSetId, '120288888888888888')
+})
+
+test('una UTM de Meta sin ad id pide enriquecer; orgánico o un ad id existente no gastan otra llamada', () => {
+  assert.equal(necesitaIdentidadPublicitariaGhl({ utm_source: '120252786405750750' }), true)
+  assert.equal(necesitaIdentidadPublicitariaGhl({ utm_source: 'facebook', fbclid: 'fb-click' }), true)
+  assert.equal(necesitaIdentidadPublicitariaGhl({ utm_source: 'organic' }), false)
+  assert.equal(
+    necesitaIdentidadPublicitariaGhl({ utm_source: '120252786405750750', ad_id: '120299999999999999' }),
+    false
+  )
 })
 
 test('webhook y pull comparten el mismo enriquecimiento de contacto GHL', () => {

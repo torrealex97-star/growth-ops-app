@@ -71,7 +71,7 @@ export const TRACKER_JS = String.raw`
   // ---- Atribución: UTMs y click ids de la URL (persistidos por sesión) ----
   var ATTR_KEYS = [
     'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'utm_id', 'utm_source_platform',
-    'gclid', 'gbraid', 'wbraid', 'fbclid', 'ttclid', 'msclkid'
+    'campaign_id', 'adset_id', 'ad_id', 'gclid', 'gbraid', 'wbraid', 'fbclid', 'ttclid', 'msclkid'
   ]
   function currentAttrs() {
     var out = {}

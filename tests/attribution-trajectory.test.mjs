@@ -75,3 +75,14 @@ test('payload plano legacy sigue siendo compatible y captura IDs modernos', () =
   assert.equal(result.booking?.wbraid, 'wbraid-1')
   assert.equal(result.booking?.msclkid, 'ms-1')
 })
+
+test('acepta campaign_id y ad_id planos sin perder la identidad aunque cambie el nombre', () => {
+  const result = leerTrayectoria({
+    campaign_id: '120252786405750750',
+    ad_id: '120299999999999999',
+    adset_id: '120288888888888888',
+  })
+  assert.equal(result.booking?.utmId, '120252786405750750')
+  assert.equal(result.booking?.adId, '120299999999999999')
+  assert.equal(result.booking?.adSetId, '120288888888888888')
+})
