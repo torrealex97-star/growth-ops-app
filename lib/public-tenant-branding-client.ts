@@ -33,10 +33,7 @@ export function loadPublicTenantBranding(slug: string): Promise<PublicTenantBran
     // La comprobación es una ayuda previa, no la barrera de seguridad: sesión, membresía y RLS se
     // validan después. Si Supabase deja la petición colgada, no podemos impedir eternamente que la
     // persona llegue al formulario. Se degrada a `unavailable`, nunca a `missing`.
-    const timeout = setTimeout(
-      () => finish({ status: 'unavailable', branding: null }),
-      PUBLIC_BRANDING_TIMEOUT_MS
-    )
+    const timeout = setTimeout(() => finish({ status: 'unavailable', branding: null }), PUBLIC_BRANDING_TIMEOUT_MS)
 
     void Promise.resolve(createClient().rpc('public_tenant_branding', { p_slug: slug }))
       .then(({ data, error }: { data: { branding: unknown }[] | null; error: unknown }) => {
