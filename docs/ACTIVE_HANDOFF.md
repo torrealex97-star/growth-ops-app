@@ -1,9 +1,23 @@
-# EN CURSO — SPEC-18 PR-0: certificación final de lanzamiento (13-oct, Buffy) · rama `feat/spec18-pr0-launch-inventory`
+# COMPLETADO — SPEC-18 PR-0: certificación final de lanzamiento (13-oct, Buffy) · `feat/spec18-pr0-launch-inventory` (PR #500, merged)
 
-- **Reclamación de carril:** SPEC-18 (Final End-to-End Audit & Launch Certification), fase PR-0 MASTER INVENTORY & TRACEABILITY + gates G1-G18 y decisión según el algoritmo §44. NO re-audita desde cero: consolida y evalúa la evidencia ya producida por las PRs #479-#487 (SPEC-04..11), #493 (SPEC-15), #494 (SPEC-16) y #497 (SPEC-17) + suites ejecutadas HOY como evidencia fresca. Salida esperada honesta: la decisión del gate comercial depende de las decisiones BUSINESS abiertas (billing SaaS MISSING verificado en SPEC-13/PR de #483, jerarquía de roles de SPEC-16, sin staging ni drill de restauración) — NOT_READY para lanzamiento público/comercial y CONDITIONAL_READY acotado para el alcance que ya opera hoy, si la evidencia lo confirma.
-- **Ficheros que toca:** `docs/FINAL_REPOSITORY_INVENTORY.md`, `docs/SPEC_TO_CODE_TRACEABILITY.md`, `docs/FINAL_LAUNCH_CERTIFICATION_REPORT.md` (nuevos), `lib/launch/gates.ts` + `tests/launch-gates.test.mjs` (nuevos — algoritmo de decisión puro, fail-closed) y esta fila del handoff. Sin cambios de dominio vivas (sin DDL, sin rutas).
-- **Relationado:** TODAS las PRs de la Fase 2-3 anteriores: este doc es su evaluación, no repite su contenido. Tests fuente-regex de crons NO se tocan.
-- **Base:** `b13e9041` (merge de #498).
+Decisión emitida en [FINAL_LAUNCH_CERTIFICATION_REPORT.md](FINAL_LAUNCH_CERTIFICATION_REPORT.md)
+aplicando el algoritmo §44 con evidencia real: **NOT_READY para lanzamiento público/comercial**
+(billing SaaS MISSING —G6 FAIL—, self-serve BLOCKED, DR drill sin ejecutar —G13 FAIL—, MCP y
+carga UNVERIFIED) y **CONDITIONAL_READY acotado al alcance que ya opera hoy** (operación interna
+del dueño con controles compensatorios documentados; una beta privada exigiría aprobación humana
+EXPRESA y su plan de compensación). Consolidación honesta de las 10 auditorías previas
+([FINAL_REPOSITORY_INVENTORY.md](FINAL_REPOSITORY_INVENTORY.md) +
+[SPEC_TO_CODE_TRACEABILITY.md](SPEC_TO_CODE_TRACEABILITY.md), 14 módulos, 9 PARTIAL con
+pruebas reales y 3 bloqueados por decisiones BUSINESS) — ninguna prueba se marca pasada si no se
+ejecutó. Evidencia fresca: `npm test` 1693/1693 y `test:metrics` 788/788 en SHA `f087d07e`;
+CI VERDE del SHA fusionado `e2d4a3db` (Build, FLTC, Smoke E2E 5m23s, gitleaks, Release gate,
+Vercel; el primer run fue cancelado por el cancel-in-progress al chocar con #499 — no es fallo,
+diagnosticado con los logs). Slice real: `lib/launch/gates.ts` — la política de decisión §44 como
+módulo puro fail-closed (CONDITIONAL exige control compensatorio documentado y alcance acotado;
+UNVERIFIED bloquea aunque «parezca bien») + `tests/launch-gates.test.mjs` (11 tests) que congelan
+la decisión contra futuras regresiones de gating. Agrupada con #499 sin sobrescribir su fila.
+Siguiente acción exacta del dueño: las 8 tareas priorizadas del §N del informe (1ª: decisión
+BUSINESS del billing SaaS, que desbloquea G6 y los PRs bloqueados de SPEC-16 §5 y SPEC-13 §5).
 
 # COMPLETADO — estabilidad de `CONFIG_ENC_KEY` + diagnóstico de secretos (13-oct, Codex) · rama `codex/config-encryption-stability`
 
