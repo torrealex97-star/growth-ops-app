@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { fetchAllRows } from '@/lib/supabase/paginate'
 import { requireTenant } from '@/lib/auth/requireTenant'
+import { crearPresupuestoCron } from '@/lib/perf/presupuesto-cron'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -208,14 +209,21 @@ async function run(deadline: number) {
   const { data: tenants, error: tenantsErr } = await sb.from('tenants').select('id, slug').eq('status', 'active')
   if (tenantsErr) throw errorDe('No se pudieron leer las subcuentas activas', tenantsErr)
 
-  // El presupuesto se reparte entre subcuentas: con un único deadline global la primera se lo
-  // comería entero y las demás no generaban nunca (mismo reparto que analyze-calls).
+  // El presupuesto se reparte entre subcuentas anclado al deadline global (helper canónico de
+  // lib/perf/presupuesto-cron): el deadline de cada una se fija AL REPARTIR, no al ejecutarse,
+  // así que el peor caso del run completo nunca supera TIME_BUDGET_MS aunque una subcuenta
+  // consuma su franja entera (antes: `Date.now() + budget/n` por vuelta ⇒ peor caso n × budget).
   const targets = tenants || []
-  const perTenantBudget = TIME_BUDGET_MS / Math.max(targets.length, 1)
+  const presupuesto = crearPresupuestoCron(TIME_BUDGET_MS, Date.now(), targets.length)
   const perTenant: Record<string, TenantResult | { error: string }> = {}
-  for (const tn of targets) {
+  for (const [indice, tn] of targets.entries()) {
+    const cuota = presupuesto.cuotas[indice]
+    if (!cuota) {
+      perTenant[tn.slug] = { error: 'Subcuenta fuera del reparto de presupuesto' }
+      continue
+    }
     try {
-      perTenant[tn.slug] = await runForTenant(sb, tn.id, Date.now() + perTenantBudget)
+      perTenant[tn.slug] = await runForTenant(sb, tn.id, cuota.deadlineMs)
     } catch (e) {
       // Un fallo en una subcuenta no aborta el barrido de las demás, pero SI constar:
       // el trigger falla (run en rojo, rerun idempotente) y el motivo queda en la respuesta.
