@@ -48,11 +48,17 @@ test('el timeout cancela o descarta TODAS las operaciones del arranque', () => {
   const codigo = sinComentarios(leer(LAYOUT))
   assert.match(codigo, /esperarConAbort\(supabase\.auth\.getUser\(\), cancelar\.signal\)/)
   assert.equal(
-    (codigo.match(/\.abortSignal\(cancelar\.signal\)/g) || []).length >= 4,
+    (codigo.match(/\.abortSignal\(cancelar\.signal\)/g) || []).length >= 3,
     true,
-    'tenant, rol, perfil y branding deben soltar la red al desmontar o vencer el tiempo'
+    'tenant, rol y perfil deben soltar la red al desmontar o vencer el tiempo'
   )
   assert.match(codigo, /if \(!mounted \|\| cancelar\.signal\.aborted\) return/)
+
+  // El branding dejó de formar parte del arranque bloqueante: login y layout comparten la misma
+  // promesa. Cancelarla al desmontar uno de ellos abortaría también al otro consumidor. Su guarda
+  // correcta es descartar el resultado al desmontar, mientras la petición compartida termina.
+  assert.match(codigo, /loadPublicTenantBranding\(tenant\)\.then/)
+  assert.match(codigo, /if \(mounted && result\.status === 'exists'\) setBranding/)
 })
 
 test('el observador del body no acumula timers tras navegar', () => {

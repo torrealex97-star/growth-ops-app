@@ -17,6 +17,7 @@ import { AgentLauncher } from '@/components/ai/AgentLauncher'
 import { isAllowedLocation, permissionLocationFor } from '@/lib/marketing-navigation'
 import { AppLoading } from '@/components/ui/carga/AppLoading'
 import { esperarConAbort, pedir } from '@/lib/ui/pedir'
+import { loadPublicTenantBranding } from '@/lib/public-tenant-branding-client'
 
 // Rutas confidenciales SOLO para liderazgo (admin/director/manager), aunque el admin
 // haya concedido por error un override de departamento/página que las abriría por prefijo.
@@ -127,23 +128,11 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
   // 20260919110000). Respuesta vacía/unknown slug → resolveTenantBranding pinta los defaults.
   useEffect(() => {
     let mounted = true
-    const cancelar = new AbortController()
-    void Promise.resolve(
-      createClient()
-        .rpc('public_tenant_branding', { p_slug: tenant })
-        .abortSignal(cancelar.signal)
-        .then(({ data }: { data: { branding: unknown }[] | null }) => {
-          const settings = data?.[0]?.branding ?? null
-          if (mounted && !cancelar.signal.aborted && settings)
-            setBranding(resolveTenantBranding({ branding: settings }))
-        })
-    ).catch((error: unknown) => {
-      if (error instanceof Error && error.name === 'AbortError') return
-      // La marca tiene fallback local; un fallo aquí no debe tumbar el shell ni quedar sin manejar.
+    void loadPublicTenantBranding(tenant).then((result) => {
+      if (mounted && result.status === 'exists') setBranding(result.branding)
     })
     return () => {
       mounted = false
-      cancelar.abort()
     }
   }, [tenant])
 
@@ -473,7 +462,12 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
               isSuperAdmin={isSuperAdmin}
             />
             <div className="flex flex-col flex-1 overflow-hidden">
-              <Header user={user} onMenuClick={() => setSidebarOpen(true)} isSuperAdmin={isSuperAdmin} />
+              <Header
+                user={user}
+                menuOpen={sidebarOpen}
+                onMenuClick={() => setSidebarOpen(true)}
+                isSuperAdmin={isSuperAdmin}
+              />
               <main className="flex-1 overflow-y-auto p-4 lg:p-6">{children}</main>
             </div>
           </div>

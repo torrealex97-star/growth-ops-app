@@ -40,6 +40,7 @@ import { performLogout } from '@/lib/auth/logout'
 interface HeaderProps {
   user: User & { roles: { key: string; name: string } }
   onMenuClick: () => void
+  menuOpen?: boolean
   title?: string
   isSuperAdmin?: boolean
 }
@@ -49,7 +50,7 @@ type PendingAttendance = MissingLinkAppt
 type TenantOption = { slug: string; name: string }
 const UNRESOLVED_STATUSES: AppointmentStatus[] = ['scheduled', 'confirmed', 'rescheduled']
 
-export function Header({ user, onMenuClick, title, isSuperAdmin }: HeaderProps) {
+export function Header({ user, onMenuClick, menuOpen = false, title, isSuperAdmin }: HeaderProps) {
   const role = user.roles.key as AppRole
   const tenant = useTenant()
   const tenantId = useTenantId()
@@ -222,6 +223,8 @@ export function Header({ user, onMenuClick, title, isSuperAdmin }: HeaderProps) 
         size="icon"
         className="lg:hidden mr-2 text-muted-foreground"
         aria-label="Abrir menú de navegación"
+        aria-controls="mobile-navigation"
+        aria-expanded={menuOpen}
         onClick={onMenuClick}
       >
         <Menu className="w-5 h-5" />

@@ -7,6 +7,8 @@ import { createClient } from '@/lib/supabase/client'
 import { useTenantBranding } from '@/lib/tenant-context'
 import { ShaderBackground } from '@/components/ui/mesh-drift-shader'
 import { Loader2, LogIn, Mail, Lock } from 'lucide-react'
+import { loadPublicTenantBranding } from '@/lib/public-tenant-branding-client'
+import { authErrorMessage } from '@/lib/auth/error-message'
 
 // Next.js 15: `params` pasa a ser una Promise — useParams() de next/navigation sigue siendo
 // síncrono en Client Components, evita React.use() (requiere React 19).
@@ -29,15 +31,12 @@ export default function LoginPage() {
     // Misma RPC que usa el shell para la marca: SECURITY DEFINER, solo devuelve fila si el slug
     // existe Y está activo. Cero filas = no existe o está inactiva. No enumera nada: hay que
     // acertar el slug para obtener respuesta, igual que ya ocurría con el branding.
-    createClient()
-      .rpc('public_tenant_branding', { p_slug: tenant })
-      .then(({ data, error: rpcError }: { data: unknown[] | null; error: unknown }) => {
-        if (!vigente) return
-        // Ante un fallo de red no se bloquea el acceso: se deja pasar al formulario y que decida
-        // el intento real. Negar la entrada por un error transitorio sería peor que el problema.
-        if (rpcError) return setSubcuenta('existe')
-        setSubcuenta(data && data.length > 0 ? 'existe' : 'desconocida')
-      })
+    loadPublicTenantBranding(tenant).then((result) => {
+      if (!vigente) return
+      // Ante un fallo de red no se bloquea el acceso: se deja pasar al formulario y que decida
+      // el intento real. Negar la entrada por un error transitorio sería peor que el problema.
+      setSubcuenta(result.status === 'missing' ? 'desconocida' : 'existe')
+    })
     return () => {
       vigente = false
     }
@@ -50,6 +49,7 @@ export default function LoginPage() {
   }, [])
 
   const handleGoogleLogin = async () => {
+    if (subcuenta === 'comprobando') return
     setError('')
     setLoading(true)
     const redirectTo = `${window.location.origin}/api/${tenant}/evergreen/auth/callback?next=/${tenant}/dashboard`
@@ -58,13 +58,14 @@ export default function LoginPage() {
       options: { redirectTo, queryParams: { prompt: 'select_account' } },
     })
     if (authError) {
-      setError(`No se pudo iniciar con Google: ${authError.message}`)
+      setError('Google no pudo iniciar la sesión. Inténtalo de nuevo.')
       setLoading(false)
     }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (subcuenta === 'comprobando') return
     setError('')
     setLoading(true)
 
@@ -73,7 +74,7 @@ export default function LoginPage() {
       const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
 
       if (authError) {
-        setError(authError.message)
+        setError(authErrorMessage(authError))
         setLoading(false)
         return
       }
@@ -168,10 +169,21 @@ export default function LoginPage() {
               <h2 className="text-lg font-semibold text-foreground mb-1">Iniciar sesión</h2>
               <p className="text-muted-foreground text-sm mb-6">Accede con Google o con tus credenciales.</p>
 
+              {subcuenta === 'comprobando' && (
+                <div
+                  className="mb-5 flex items-center gap-2 rounded-xl border border-border bg-background/40 px-3 py-2.5"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" aria-hidden />
+                  <p className="text-sm text-muted-foreground">Comprobando subcuenta…</p>
+                </div>
+              )}
+
               <button
                 type="button"
                 onClick={() => void handleGoogleLogin()}
-                disabled={loading}
+                disabled={loading || subcuenta === 'comprobando'}
                 className="mb-5 flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-border bg-background/60 px-4 font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-white/20 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <LogIn className="h-4 w-4" aria-hidden />
@@ -198,6 +210,7 @@ export default function LoginPage() {
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="tu@email.com"
                       required
+                      disabled={subcuenta === 'comprobando'}
                       autoComplete="email"
                       className="w-full pl-9 pr-3 py-2.5 bg-background/60 border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-white focus:ring-2 focus:ring-white/15 transition-all"
                     />
@@ -217,6 +230,7 @@ export default function LoginPage() {
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
                       required
+                      disabled={subcuenta === 'comprobando'}
                       autoComplete="current-password"
                       className="w-full pl-9 pr-3 py-2.5 bg-background/60 border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-white focus:ring-2 focus:ring-white/15 transition-all"
                     />
@@ -224,19 +238,23 @@ export default function LoginPage() {
                 </div>
 
                 {error && (
-                  <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+                  <div
+                    role="alert"
+                    aria-live="assertive"
+                    className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl"
+                  >
                     <p className="text-red-400 text-sm">{error}</p>
                   </div>
                 )}
 
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || subcuenta === 'comprobando'}
                   className="w-full py-2.5 px-4 bg-white hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed text-black font-semibold rounded-xl transition-all flex items-center justify-center gap-2"
                 >
                   {loading ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
                       Entrando...
                     </>
                   ) : (

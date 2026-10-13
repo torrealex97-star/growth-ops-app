@@ -1,4 +1,27 @@
-# EN CURSO · Recuperación de miniaturas caducadas de Instagram (12-oct-2026, Codex)
+# EN CURSO · Acceso y navegación accesibles, sin petición pública duplicada (13-oct-2026, Codex)
+
+- **Rama:** `codex/accessibility-auth-polish`, nacida de `origin/main` (`ea2303ee`).
+- **Alcance:** menú móvil, login, recuperación y lectura pública inicial del branding. No modifica
+  permisos, sesión, RLS, esquema de Supabase ni módulos de negocio.
+- **Implementado:** el menú móvil reutiliza el `Sheet` Radix ya presente y hereda contención de
+  foco, cierre con Escape, clic exterior y devolución del foco; expone estado abierto, destino
+  actual y secciones colapsables mediante ARIA. Login anuncia y traduce errores sin filtrar mensajes
+  técnicos de Supabase. El formulario espera a que termine la validación de subcuenta, evitando
+  pedir credenciales o reemplazar campos durante esa transición. Recuperación anuncia el éxito y
+  refuerza el contraste del CTA.
+- **Rendimiento:** layout y login comparten una única promesa en vuelo para
+  `public_tenant_branding`; un fallo transitorio no se cachea y tampoco bloquea el formulario.
+- **TESTED local:** 27/27 regresiones focales PASS; `npm run quality` PASS (1.594 pruebas de
+  aplicación, 3 omitidas previstas y 788/788 métricas); lint/typecheck PASS; build de producción
+  PASS. La prueba de deadline de GHL dejó de depender de milisegundos reales y ahora usa reloj
+  controlado, eliminando un falso fallo del CI sin cambiar código productivo.
+- **Revisión React/Vercel:** sin waterfalls nuevos, librerías nuevas ni carga diferida perdida. La
+  caché compartida solo vive mientras la petición está en curso: evita el duplicado inicial sin
+  impedir que un cambio posterior de marca se vea al navegar.
+- **Siguiente exacto:** crear commit y PR, fusionar solo en verde y hacer smoke móvil/teclado en el
+  deployment publicado.
+
+# CERRADO, FUSIONADO Y DESPLEGADO · Recuperación de miniaturas caducadas de Instagram (12-oct-2026, Codex)
 
 - **Rama:** `codex/instagram-thumbnail-recovery`, nacida de `origin/main` (`7948d7c2`).
 - **Causa:** Meta/Instagram guarda miniaturas como URLs firmadas de CDN con caducidad. La interfaz
@@ -20,8 +43,8 @@
 - **Checkpoint:** PR #463 fusionado (`78ad1e92`) y deployment `dpl_4XFwcNTbR3N8gBKP7Nah2PJiNpp1`
   `Ready`; 10 miniaturas con URL vigente renderizaron píxeles reales, pero la prueba del fallback
   directo reveló el bloqueo del navegador y motivó este endurecimiento.
-- **Siguiente exacto:** validar y fusionar el resolvedor, esperar el deployment automático y
-  comprobar en producción que una URL caducada avanza al fallback y renderiza píxeles reales.
+- **Cierre posterior:** PR #468 fusionado en `main` (`ea2303ee`); el resolvedor forma parte del
+  deployment vigente. Reabrir únicamente con una URL pública reproducible que siga fallando.
 
 # CERRADO, FUSIONADO, DESPLEGADO Y VERIFICADO · Workspace diario de Instagram (12-oct-2026, Codex)
 

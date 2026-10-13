@@ -4,8 +4,7 @@ import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { DEPARTMENT_LABELS, type AppRole } from '@/lib/auth/permissions'
-import { ChevronRight, ChevronDown, X } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { ChevronRight, ChevronDown } from 'lucide-react'
 import { useState, useEffect, useMemo } from 'react'
 import { Handshake } from 'lucide-react'
 import type { User } from '@/lib/types/database'
@@ -13,6 +12,7 @@ import { NAV_SECTIONS, makeNavFilter, navHrefForRole, type NavItem } from '@/lib
 import { useTenant, useTenantBranding, useTenantId } from '@/lib/tenant-context'
 import { TenantLogo } from '@/components/os/TenantLogo'
 import { createClient } from '@/lib/supabase/client'
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 
 interface SidebarProps {
   user: User & { roles: { key: string; name: string } }
@@ -121,111 +121,127 @@ export function Sidebar({ user, isOpen, onClose, isSuperAdmin = false }: Sidebar
     return Array.from(new URLSearchParams(hrefQuery)).every(([key, value]) => searchParams.get(key) === value)
   }
 
-  return (
+  const sidebarContent = (mobile: boolean) => (
     <>
-      {/* Mobile overlay. z-40/z-[45] (no z-50): Dialog/Popover (components/ui) usan z-50 — si
-          quedan por debajo, un modal abierto con el drawer también abierto siempre gana el
-          empate visual de forma determinista, en vez de depender del orden de montado en el DOM. */}
-      {isOpen && <div className="fixed inset-0 z-40 bg-black/60 lg:hidden" onClick={onClose} />}
-
-      {/* Sidebar */}
-      <aside
-        className={cn(
-          'fixed left-0 top-0 z-[45] h-full w-64 flex-col bg-zinc-950 border-r border-zinc-800 transition-transform duration-300 lg:static lg:flex lg:translate-x-0',
-          isOpen ? 'flex translate-x-0' : '-translate-x-full hidden lg:flex'
-        )}
-      >
-        {/* Logo */}
-        <div className="flex items-center justify-between px-6 py-6 border-b border-zinc-800">
-          <div className="flex items-center gap-2.5">
-            <TenantLogo branding={branding} />
-            <span className="font-sans font-semibold text-white text-lg tracking-tight">{branding.name}</span>
-          </div>
-          <Button variant="ghost" size="icon" className="lg:hidden h-8 w-8" aria-label="Cerrar menú" onClick={onClose}>
-            <X className="w-4 h-4" />
-          </Button>
+      <div className="flex items-center justify-between px-6 py-6 border-b border-zinc-800">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <TenantLogo branding={branding} />
+          <span className="truncate font-sans text-lg font-semibold tracking-tight text-white">{branding.name}</span>
         </div>
+      </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
-          {finalSections.map(({ section, visibleItems }) => {
-            // El usuario puede minimizar cualquier sección, aunque contenga la ruta activa
-            // (antes "ventas" no se podía recoger nunca porque casi siempre hay una página
-            // activa dentro de ella: Leads, Agendas, Ventas... y eso forzaba a mantenerla
-            // siempre abierta ignorando el clic de colapsar).
-            const isCollapsed = !!section.dept && !!collapsed[section.dept]
-            return (
-              <div key={section.dept ?? 'top'} className="space-y-1">
-                {section.dept && (
-                  <button
-                    type="button"
-                    onClick={() => toggleSection(section.dept as string)}
-                    className="w-full flex items-center justify-between px-3 pt-4 pb-1 text-3xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <span>{DEPARTMENT_LABELS[section.dept]}</span>
-                    <ChevronDown
-                      className={cn('w-3 h-3 transition-transform', isCollapsed ? '-rotate-90' : 'rotate-0')}
-                    />
-                  </button>
-                )}
+      <nav aria-label="Navegación principal" className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
+        {finalSections.map(({ section, visibleItems }) => {
+          const isCollapsed = !!section.dept && !!collapsed[section.dept]
+          const sectionId = section.dept ? `sidebar-section-${section.dept}${mobile ? '-mobile' : ''}` : undefined
+          return (
+            <div key={section.dept ?? 'top'} className="space-y-1">
+              {section.dept && (
+                <button
+                  type="button"
+                  aria-expanded={!isCollapsed}
+                  aria-controls={sectionId}
+                  onClick={() => toggleSection(section.dept as string)}
+                  className="w-full flex items-center justify-between px-3 pt-4 pb-1 text-3xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <span>{DEPARTMENT_LABELS[section.dept]}</span>
+                  <ChevronDown
+                    aria-hidden
+                    className={cn('w-3 h-3 transition-transform', isCollapsed ? '-rotate-90' : 'rotate-0')}
+                  />
+                </button>
+              )}
+              <div id={sectionId}>
                 {!isCollapsed &&
                   visibleItems.map((item) => {
                     const itemHref = navHrefForRole(item, role)
+                    const active = isActive(itemHref)
                     return (
                       <div key={item.href}>
                         <Link
                           href={`/${tenant}${itemHref}`}
-                          onClick={() => onClose()}
+                          onClick={mobile ? onClose : undefined}
+                          aria-current={active ? 'page' : undefined}
                           className={cn(
                             'relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group',
-                            isActive(itemHref)
+                            active
                               ? 'bg-zinc-900 text-white border border-zinc-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]'
                               : 'text-zinc-400 hover:text-white hover:bg-zinc-900 border border-transparent'
                           )}
                         >
-                          {/* Barra de acento del item activo */}
-                          {isActive(itemHref) && (
-                            <span className="absolute right-0 top-1/2 -translate-y-1/2 h-5 w-0.5 rounded-full bg-white" />
+                          {active && (
+                            <span
+                              aria-hidden
+                              className="absolute right-0 top-1/2 -translate-y-1/2 h-5 w-0.5 rounded-full bg-white"
+                            />
                           )}
                           <item.icon
+                            aria-hidden
                             className={cn(
                               'w-4 h-4 shrink-0 transition-colors',
-                              isActive(itemHref) ? 'text-white' : 'text-zinc-500 group-hover:text-white'
+                              active ? 'text-white' : 'text-zinc-500 group-hover:text-white'
                             )}
                           />
                           {item.label}
-                          {item.children && <ChevronRight className="w-3 h-3 ml-auto text-muted-foreground" />}
+                          {item.children && (
+                            <ChevronRight aria-hidden className="w-3 h-3 ml-auto text-muted-foreground" />
+                          )}
                         </Link>
 
-                        {/* Children (settings submenu) */}
-                        {item.children && isActive(itemHref) && (
+                        {item.children && active && (
                           <div className="ml-4 mt-1 space-y-1 border-l border-border pl-3">
-                            {item.children.filter(isVisible).map((child) => (
-                              <Link
-                                key={child.href}
-                                href={`/${tenant}${child.href}`}
-                                onClick={() => onClose()}
-                                className={cn(
-                                  'flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm transition-colors',
-                                  isChildActive(child.href, item.children ?? [])
-                                    ? 'text-brand-400'
-                                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                                )}
-                              >
-                                <child.icon className="w-3 h-3" />
-                                {child.label}
-                              </Link>
-                            ))}
+                            {item.children.filter(isVisible).map((child) => {
+                              const childActive = isChildActive(child.href, item.children ?? [])
+                              return (
+                                <Link
+                                  key={child.href}
+                                  href={`/${tenant}${child.href}`}
+                                  onClick={mobile ? onClose : undefined}
+                                  aria-current={childActive ? 'page' : undefined}
+                                  className={cn(
+                                    'flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm transition-colors',
+                                    childActive
+                                      ? 'text-brand-400'
+                                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                                  )}
+                                >
+                                  <child.icon aria-hidden className="w-3 h-3" />
+                                  {child.label}
+                                </Link>
+                              )
+                            })}
                           </div>
                         )}
                       </div>
                     )
                   })}
               </div>
-            )
-          })}
-        </nav>
+            </div>
+          )
+        })}
+      </nav>
+    </>
+  )
+
+  return (
+    <>
+      <aside className="hidden h-full w-64 shrink-0 flex-col border-r border-zinc-800 bg-zinc-950 lg:flex">
+        {sidebarContent(false)}
       </aside>
+
+      <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
+        <SheetContent
+          id="mobile-navigation"
+          side="left"
+          className="flex w-64 max-w-64 flex-col gap-0 border-zinc-800 bg-zinc-950 p-0 text-foreground lg:hidden"
+        >
+          <SheetHeader className="sr-only">
+            <SheetTitle>Navegación</SheetTitle>
+            <SheetDescription>Accesos principales de {branding.name}</SheetDescription>
+          </SheetHeader>
+          {sidebarContent(true)}
+        </SheetContent>
+      </Sheet>
     </>
   )
 }

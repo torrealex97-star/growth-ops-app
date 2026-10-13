@@ -167,7 +167,11 @@ jobs:
           name: playwright-artifacts
           # Los vídeos (webm) y la traza viven aquí: Playwright retiene SOLO los de tests
           # fallidos (outputDir conserva lo suyo y delete-results-on-exit borra el resto).
-          path: test-results/e2e-artifacts
+          # El setup ocurre antes de los specs y guarda su evidencia fuera de outputDir; también
+          # debe subirse o un fallo de login queda sin captura ni consola para diagnosticarlo.
+          path: |
+            test-results/e2e-artifacts
+            test-results/e2e-login-failure.*
           retention-days: 7
 
   # Repo PÚBLICO: el historial es legible por cualquiera, así que un secreto filtrado es
