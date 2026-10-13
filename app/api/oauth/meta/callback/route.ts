@@ -1,7 +1,12 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireTenant } from '@/lib/auth/requireTenant'
-import { encryptSecret, getTenantConfigWithFallback, invalidateConfigCache } from '@/lib/config'
+import {
+  encryptSecret,
+  getConfigEncryptionKeyFingerprint,
+  getTenantConfigWithFallback,
+  invalidateConfigCache,
+} from '@/lib/config'
 import { discoverInstagramBusinessAccounts, exchangeMetaCode } from '@/lib/meta/oauth'
 import { verifyMetaState, type MetaOAuthSurface } from '@/lib/meta/oauth-state'
 
@@ -51,6 +56,7 @@ export async function GET(req: NextRequest) {
         key,
         value: encryptSecret(token.access_token),
         is_secret: true,
+        key_fingerprint: getConfigEncryptionKeyFingerprint(),
         updated_by: userId,
       },
       {
@@ -58,6 +64,7 @@ export async function GET(req: NextRequest) {
         key: surface === 'meta' ? 'META_TOKEN_EXPIRES_AT' : 'INSTAGRAM_TOKEN_EXPIRES_AT',
         value: expiresAt,
         is_secret: false,
+        key_fingerprint: null,
         updated_by: userId,
       },
     ]
@@ -67,12 +74,20 @@ export async function GET(req: NextRequest) {
       if (accounts.length === 1) {
         const account = accounts[0]
         rows.push(
-          { tenant_id: session.tenantId, key: 'IG_USER_ID', value: account.id, is_secret: false, updated_by: userId },
+          {
+            tenant_id: session.tenantId,
+            key: 'IG_USER_ID',
+            value: account.id,
+            is_secret: false,
+            key_fingerprint: null,
+            updated_by: userId,
+          },
           {
             tenant_id: session.tenantId,
             key: 'IG_PAGE_ID',
             value: account.pageId,
             is_secret: false,
+            key_fingerprint: null,
             updated_by: userId,
           },
           {
@@ -80,6 +95,7 @@ export async function GET(req: NextRequest) {
             key: 'IG_HANDLE',
             value: account.username ? `@${account.username}` : '',
             is_secret: false,
+            key_fingerprint: null,
             updated_by: userId,
           }
         )

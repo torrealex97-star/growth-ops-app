@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import {
+  assertConfigEncryptionReady,
   decryptSecret,
   encryptSecret,
-  esIndescifrable,
+  getConfigEncryptionKeyFingerprint,
+  inspectEncryptedSecret,
   invalidateConfigCache,
   getTenantConfigWithFallback,
 } from '@/lib/config'
@@ -104,16 +106,29 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ ten
   const auth = await requireAdmin(tenant)
   if (!auth.ok) return auth.res
 
-  const encReady = !!process.env.CONFIG_ENC_KEY
-  let dbRows: Record<string, { value: string | null; is_secret: boolean }> = {}
+  let encReady = true
+  let encError: string | null = null
   try {
-    const { data } = await svc()
-      .from('integration_settings')
-      .select('key,value,is_secret')
-      .eq('tenant_id', auth.tenantId)
-    for (const r of data ?? []) dbRows[(r as { key: string }).key] = r as { value: string | null; is_secret: boolean }
-  } catch {
-    /* tabla sin migrar */
+    assertConfigEncryptionReady()
+  } catch (error) {
+    encReady = false
+    encError = error instanceof Error ? error.message : 'CONFIG_ENC_KEY no es válida'
+  }
+  type DbSetting = { value: string | null; is_secret: boolean; key_fingerprint: string | null }
+  let dbRows: Record<string, DbSetting> = {}
+  const settingsQuery = await svc()
+    .from('integration_settings')
+    .select('key,value,is_secret,key_fingerprint')
+    .eq('tenant_id', auth.tenantId)
+  if (settingsQuery.error) {
+    return NextResponse.json(
+      { error: `No se pudo leer la configuración: ${settingsQuery.error.message}` },
+      { status: 500 }
+    )
+  }
+  for (const r of settingsQuery.data ?? []) {
+    const row = r as { key: string } & DbSetting
+    dbRows[row.key] = row
   }
 
   // `length` acompaña a los secretos: una longitud NO es una credencial, y es lo único que permite
@@ -130,17 +145,33 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ ten
       // Cifrado con una CONFIG_ENC_KEY distinta a la actual (o corrupto): el runtime NO puede leerlo
       // y todo consumidor ve "faltan credenciales". La UI lo señala en rojo con la acción concreta.
       indescifrable?: boolean
+      cryptoIssue?: 'key_mismatch' | 'decrypt_error'
+      fingerprint?: 'matches' | 'legacy' | 'mismatch'
     }
   > = {}
   for (const f of ALL_FIELDS) {
     const inDb = dbRows[f.key]?.value
     const inEnv = process.env[f.key]
     if (inDb) {
-      const indescifrable = f.secret && esIndescifrable(inDb)
+      const inspection = f.secret ? inspectEncryptedSecret(inDb, dbRows[f.key]?.key_fingerprint) : null
+      const indescifrable = inspection?.decryptable === false
+      const cryptoIssue =
+        inspection?.status === 'fingerprint_mismatch'
+          ? ('key_mismatch' as const)
+          : inspection?.status === 'decrypt_error'
+            ? ('decrypt_error' as const)
+            : undefined
+      const fingerprint = inspection
+        ? inspection.fingerprintMatches === true
+          ? ('matches' as const)
+          : inspection.fingerprintMatches === false
+            ? ('mismatch' as const)
+            : ('legacy' as const)
+        : undefined
       state[f.key] = f.secret
         ? indescifrable
-          ? { source: 'db', secret: true, preview: '••••••', indescifrable: true }
-          : { source: 'db', secret: true, preview: '••••••', length: decryptedLength(inDb) }
+          ? { source: 'db', secret: true, preview: '••••••', indescifrable: true, cryptoIssue, fingerprint }
+          : { source: 'db', secret: true, preview: '••••••', length: decryptedLength(inDb), fingerprint }
         : { source: 'db', secret: false, preview: inDb, value: inDb }
     } else if (inEnv) {
       state[f.key] = f.secret
@@ -164,7 +195,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ ten
   const facts = {
     configuredKeys: new Set(
       Object.entries(state)
-        .filter(([, v]) => v.source !== 'none')
+        .filter(([, v]) => v.source !== 'none' && v.indescifrable !== true)
         .map(([k]) => k)
     ),
     rowCounts,
@@ -180,6 +211,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ ten
     .filter(([, v]) => v.indescifrable === true)
     .map(([k]) => k)
     .sort()
+  const problemasCifrado = clavesIndescifrables.map((key) => ({
+    key,
+    reason: state[key]?.cryptoIssue ?? 'decrypt_error',
+  }))
   const health = INTEGRATION_ONLY_GROUPS.map((g) =>
     assessIntegration(
       { id: g.id, required: g.required, requiredAny: g.requiredAny, testable: g.test === true },
@@ -248,12 +283,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ ten
   // que Datos de empresa puede leer IG_BUSINESS_CONTEXT/IG_BRAND_ASSETS del mismo endpoint.
   return NextResponse.json({
     encReady,
+    encError,
     groups: INTEGRATION_ONLY_GROUPS,
     state,
     health,
     runs: lastRuns,
     webhooksEntrantes,
     clavesIndescifrables,
+    problemasCifrado,
   })
 }
 
@@ -308,14 +345,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     }
   }
   const client = svc()
-  const rows: { key: string; tenant_id: string; value: string; is_secret: boolean; updated_by: string }[] = []
+  const rows: {
+    key: string
+    tenant_id: string
+    value: string
+    is_secret: boolean
+    key_fingerprint: string | null
+    updated_by: string
+  }[] = []
   const needsEnc = ALL_FIELDS.some((f) => f.secret && updates[f.key])
 
-  if (needsEnc && !process.env.CONFIG_ENC_KEY) {
-    return NextResponse.json(
-      { error: 'Falta CONFIG_ENC_KEY en el entorno; no se pueden guardar secretos cifrados.' },
-      { status: 400 }
-    )
+  if (needsEnc) {
+    try {
+      assertConfigEncryptionReady()
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : 'CONFIG_ENC_KEY no es válida' },
+        { status: 503 }
+      )
+    }
   }
 
   for (const [key, raw] of Object.entries(updates)) {
@@ -328,6 +376,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       tenant_id: auth.tenantId,
       value: secret ? encryptSecret(val) : val,
       is_secret: secret,
+      key_fingerprint: secret ? getConfigEncryptionKeyFingerprint() : null,
       updated_by: auth.callerId,
     })
   }
@@ -341,6 +390,39 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     // información obsoleta, no un pendiente real.)
     const { error } = await client.from('integration_settings').upsert(rows, { onConflict: 'tenant_id,key' })
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    // Prueba el dato que ACABA de persistirse. Antes el navegador mostraba «guardado» solo porque
+    // el upsert no lanzó; ahora cada secreto debe volver de la BD con el fingerprint actual y pasar
+    // AES-GCM en la misma petición.
+    const savedKeys = rows.map((row) => row.key)
+    const { data: persisted, error: verifyError } = await client
+      .from('integration_settings')
+      .select('key,value,is_secret,key_fingerprint')
+      .eq('tenant_id', auth.tenantId)
+      .in('key', savedKeys)
+    if (verifyError)
+      return NextResponse.json({ error: `Guardado sin verificar: ${verifyError.message}` }, { status: 500 })
+    if ((persisted ?? []).length !== rows.length) {
+      return NextResponse.json({ error: 'El servidor no pudo verificar todas las claves guardadas.' }, { status: 500 })
+    }
+    for (const stored of persisted ?? []) {
+      if (!(stored as { is_secret: boolean }).is_secret) continue
+      const inspection = inspectEncryptedSecret(
+        (stored as { value: string | null }).value,
+        (stored as { key_fingerprint: string | null }).key_fingerprint
+      )
+      if (!inspection.decryptable || inspection.fingerprintMatches !== true) {
+        console.error('[config] fallo de verificación tras guardar secreto', {
+          tenantId: auth.tenantId,
+          key: (stored as { key: string }).key,
+          reason: inspection.status,
+        })
+        return NextResponse.json(
+          { error: `La clave ${(stored as { key: string }).key} se guardó pero no superó la verificación de cifrado.` },
+          { status: 500 }
+        )
+      }
+    }
   }
   // Borrar de verdad: se cuentan las filas borradas en vez de dar por hecho que se fueron (una
   // escritura bloqueada por RLS afecta a 0 filas SIN error). Ya no hace falta retirar nada de
@@ -367,6 +449,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   return NextResponse.json({
     ok: true,
     saved: rows.length,
+    savedKeys: rows.map((row) => row.key),
     cleared: cleared.length,
     clearedKeys: cleared,
     stillInEnv: enEntorno,
