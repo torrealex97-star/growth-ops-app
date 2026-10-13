@@ -1,3 +1,12 @@
+# EN CURSO — SPEC-04 PR-0: auditoría y línea base de integridad de datos (13-oct, Buffy) · rama `feat/spec04-pr0-linea-base`
+
+- **Reclamación de carril:** SPEC-04 (Growth Data Integrity Engine), fase PR-0 obligatoria antes de
+  PR-1..PR-8: matriz de capacidades (implementación actual / problema reproducido / cambio mínimo /
+  riesgo / test) + línea base del pipeline real, sin construir sistemas paralelos.
+- **Ficheros que toca:** `docs/SPEC04_DATA_INTEGRITY_BASELINE.md` (nuevo) y esta fila del handoff.
+  No toca código: `git status` limpio salvo ese doc y `.freebuff/` excluido a propósito.
+- **Base:** `851d53c6` (merge de #477). No interfiere con PRs activas de otros agentes.
+
 # PR #472: checkout consolidado a main (13-oct, Buffy) — CI 9/9 VERDE, merge y despliegue verificados
 
 - **Qué fue:** todo lo que estaba sin commitear en el checkout (sesiones 25-sep → 13-oct) se inspeccionó,
