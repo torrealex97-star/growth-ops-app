@@ -1,3 +1,18 @@
+# EN CURSO · Embudo atribuible campaña/anuncio → agenda → asistencia → venta → cash (13-oct-2026, Codex)
+
+- **Rama:** `codex/revenue-attribution-funnel`, nacida de `origin/main` (`851d53c6`).
+- **Objetivo:** añadir una vista operativa en Campañas que permita detectar qué campaña o anuncio
+  genera agendas pero pierde asistencia, cierre o cobro, usando exclusivamente la atribución y las
+  fuentes canónicas ya existentes.
+- **Reglas:** no inferir `ad_id`; desconocido no equivale a cero; reservas abiertas no son ventas;
+  cash deduplicado entre Stripe y cobros internos; toda consulta con `tenant_id` y paginación.
+- **Scope reservado:** `lib/meta/revenue-attribution.ts`,
+  `app/api/[tenant]/evergreen/meta/revenue-attribution/route.ts`,
+  `components/os/RevenueAttributionView.tsx`,
+  `app/[tenant]/marketing/adquisicion/campanas/page.tsx`, pruebas focales y este handoff.
+- **Siguiente exacto:** implementar motor puro, endpoint tenant-scoped, vista y pruebas; ejecutar
+  quality/build, abrir PR, fusionar y verificar el despliegue productivo.
+
 # PR #472: checkout consolidado a main (13-oct, Buffy) — CI 9/9 VERDE, merge y despliegue verificados
 
 - **Qué fue:** todo lo que estaba sin commitear en el checkout (sesiones 25-sep → 13-oct) se inspeccionó,
