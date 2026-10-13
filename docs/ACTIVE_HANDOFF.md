@@ -1,6 +1,8 @@
-# EN CURSO · Acceso y navegación accesibles, sin petición pública duplicada (13-oct-2026, Codex)
+# CERRADO, FUSIONADO, DESPLEGADO Y VERIFICADO · Acceso y navegación accesibles (13-oct-2026, Codex)
 
-- **Rama:** `codex/accessibility-auth-polish`, nacida de `origin/main` (`ea2303ee`).
+- **Git/producción:** PR #470 fusionado en `main` (`6af1efc5`). Vercel `growth-ops-app`
+  desplegado `READY` como `dpl_6seGVbnMy5tbbmHTRE9gvP3QErgR`; alias
+  `app.scalixsystems.com` confirmado sin error. Solo se usó el deployment automático del merge.
 - **Alcance:** menú móvil, login, recuperación y lectura pública inicial del branding. No modifica
   permisos, sesión, RLS, esquema de Supabase ni módulos de negocio.
 - **Implementado:** el menú móvil reutiliza el `Sheet` Radix ya presente y hereda contención de
@@ -9,17 +11,24 @@
   técnicos de Supabase. El formulario espera a que termine la validación de subcuenta, evitando
   pedir credenciales o reemplazar campos durante esa transición. Recuperación anuncia el éxito y
   refuerza el contraste del CTA.
-- **Rendimiento:** layout y login comparten una única promesa en vuelo para
-  `public_tenant_branding`; un fallo transitorio no se cachea y tampoco bloquea el formulario.
-- **TESTED local:** 27/27 regresiones focales PASS; `npm run quality` PASS (1.594 pruebas de
+- **Fiabilidad/rendimiento:** layout y login comparten una única promesa en vuelo para
+  `public_tenant_branding`; un fallo transitorio no se cachea y tiene techo de 8 s. Una fila sin
+  branding personalizado se reconoce como tenant válido y usa la marca por defecto; solo cero filas
+  significa inexistente. El formulario permanece estable durante hidratación y se habilita al
+  terminar la comprobación, evitando tanto nodos desprendidos como esperas infinitas.
+- **TESTED local:** 38/38 regresiones focales finales PASS; `npm run quality` PASS (1.594 pruebas de
   aplicación, 3 omitidas previstas y 788/788 métricas); lint/typecheck PASS; build de producción
   PASS. La prueba de deadline de GHL dejó de depender de milisegundos reales y ahora usa reloj
   controlado, eliminando un falso fallo del CI sin cambiar código productivo.
 - **Revisión React/Vercel:** sin waterfalls nuevos, librerías nuevas ni carga diferida perdida. La
   caché compartida solo vive mientras la petición está en curso: evita el duplicado inicial sin
   impedir que un cambio posterior de marca se vea al navegar.
-- **Siguiente exacto:** crear commit y PR, fusionar solo en verde y hacer smoke móvil/teclado en el
-  deployment publicado.
+- **Evidencia remota:** RPC real de `qa-e2e` confirmó HTTP 200, una fila y `branding = null`; esta
+  combinación es ahora válida. CI final completo PASS: formato, lint, typecheck, dead-code,
+  unitarias, métricas, secretos, build real, Smoke E2E Playwright (6m08s) y release gate. El workflow
+  conserva además captura y consola del login cuando el setup falla.
+- **Siguiente exacto:** ninguno para este bloque; continuar con el siguiente ítem funcional del
+  backlog. Reabrir solo si aparece una regresión reproducible de login, recuperación o menú móvil.
 
 # CERRADO, FUSIONADO Y DESPLEGADO · Recuperación de miniaturas caducadas de Instagram (12-oct-2026, Codex)
 
