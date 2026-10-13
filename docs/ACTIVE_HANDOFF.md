@@ -1,3 +1,9 @@
+# TABLERO de reclamaciones (se borra la fila al fusionar)
+
+| Agente | Qué | Rama | Ficheros que toca | Fecha |
+| --- | --- | --- | --- | --- |
+| Buffy (Freebuff) | SPEC-14 PR-0: auditoría UX/UI del frontend real (matriz por pantalla + design system + accesible) | `feat/spec14-pr0-ux-audit` | `docs/UX_UI_AUDIT.md` (nuevo), este handoff | 13-oct-2026 |
+
 # COMPLETADO — SPEC-13 PR-0: auditoría de producción y readiness SaaS (13-oct, Buffy) · `feat/spec13-pr0-production-audit`
 
 Matriz de preparación con evidencia por área y veredicto fundado en
