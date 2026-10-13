@@ -144,7 +144,16 @@ export default function LoginPage() {
         </div>
 
         <div className="bg-card/70 backdrop-blur-xl border border-border rounded-2xl p-7 shadow-2xl shadow-black/40">
-          {subcuenta === 'desconocida' ? (
+          {subcuenta === 'comprobando' ? (
+            <div
+              className="flex min-h-40 flex-col items-center justify-center gap-3 text-center"
+              role="status"
+              aria-live="polite"
+            >
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden />
+              <p className="text-sm text-muted-foreground">Comprobando subcuenta…</p>
+            </div>
+          ) : subcuenta === 'desconocida' ? (
             /* Subcuenta inexistente o inactiva: se dice ANTES de pedir credenciales, y se nombra la
                causa más probable —una errata en la dirección— en vez de insinuar un problema de
                permisos. No se revela ninguna otra subcuenta: solo se confirma que ESTA no vale. */

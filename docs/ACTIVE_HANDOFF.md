@@ -6,7 +6,9 @@
 - **Implementado:** el menú móvil reutiliza el `Sheet` Radix ya presente y hereda contención de
   foco, cierre con Escape, clic exterior y devolución del foco; expone estado abierto, destino
   actual y secciones colapsables mediante ARIA. Login anuncia y traduce errores sin filtrar mensajes
-  técnicos de Supabase. Recuperación anuncia el éxito y refuerza el contraste del CTA.
+  técnicos de Supabase. El formulario espera a que termine la validación de subcuenta, evitando
+  pedir credenciales o reemplazar campos durante esa transición. Recuperación anuncia el éxito y
+  refuerza el contraste del CTA.
 - **Rendimiento:** layout y login comparten una única promesa en vuelo para
   `public_tenant_branding`; un fallo transitorio no se cachea y tampoco bloquea el formulario.
 - **TESTED local:** 27/27 regresiones focales PASS; `npm run quality` PASS (1.594 pruebas de
