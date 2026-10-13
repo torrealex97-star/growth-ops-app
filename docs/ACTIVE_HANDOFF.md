@@ -1,8 +1,12 @@
-# TABLERO de reclamaciones (se borra la fila al fusionar)
+# COMPLETADO — SPEC-13 PR-0: auditoría de producción y readiness SaaS (13-oct, Buffy) · `feat/spec13-pr0-production-audit`
 
-| Agente | Qué | Rama | Ficheros que toca | Fecha |
-| --- | --- | --- | --- | --- |
-| Buffy (Freebuff) | SPEC-13 PR-0: auditoría de producción y launches SaaS (matriz + P0/P1 + plan) | `feat/spec13-pr0-production-audit` | `docs/PRODUCTION_READINESS_AUDIT.md` (nuevo), este handoff | 13-oct-2026 |
+Matriz de preparación con evidencia por área y veredicto fundado en
+[PRODUCTION_READINESS_AUDIT.md](PRODUCTION_READINESS_AUDIT.md): **NOT_READY** como SaaS comercial
+self-serve (billing de plataforma MISSING — grep 0 en 117 migraciones; entitlements MISSING;
+restore drill nunca ejecutado; sin staging; rotación de secreto pendiente; excepción
+`resource_links` abierta) y **READY** como plataforma operada internamente (lo que es hoy).
+Plan de remediación PR-0..PR-10 adaptado al real; sin orchestrating code (la SPEC lo pedía así).
+Las 5 decisiones BUSINESS del §5 del doc desbloquean PR-2/3/4/5/6 de esta SPEC.
 
 # COMPLETADO — PR-1 master: batería adversarial transversal de tenant isolation (13-oct, Buffy)
 
