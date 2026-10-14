@@ -100,6 +100,9 @@ test('la lista de excepciones es cerrada y cada una tiene motivo escrito', () =>
     'mcp_oauth_clients',
     'mcp_oauth_codes',
     'mcp_oauth_tokens',
+    // Ajustes globales de plataforma (14-oct): no pertenecen a una subcuenta; RLS sin políticas, solo
+    // service role y gestionados por super admin (docs/SECURITY_HARDENING.md).
+    'platform_settings',
     'resource_link_divisions',
     'resource_links',
     'roles',
