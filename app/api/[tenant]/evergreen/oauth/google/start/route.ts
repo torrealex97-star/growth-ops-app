@@ -23,7 +23,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     return NextResponse.json({ error: 'Requiere rol de admin o director' }, { status: 403 })
   }
 
-  const creds = googleCredentials()
+  const creds = await googleCredentials()
   if (!creds) {
     return NextResponse.json(
       {

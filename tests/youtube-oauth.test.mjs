@@ -33,8 +33,10 @@ test('el callback guarda YouTube por tenant en la tabla OAuth común', () => {
 
 test('YouTube, Calendar y GA4 usan el único cliente OAuth global de la plataforma', () => {
   const oauth = read('lib/google/oauth.ts')
-  assert.match(oauth, /process\.env\.GOOGLE_OAUTH_CLIENT_ID/)
-  assert.match(oauth, /process\.env\.GOOGLE_OAUTH_CLIENT_SECRET/)
+  // Un único cliente de plataforma: lo gestiona el super admin (ajustes globales) y la variable de
+  // entorno es el respaldo (lib/platform/settings.ts).
+  assert.match(oauth, /getPlatformSetting\('GOOGLE_OAUTH_CLIENT_ID'\)/)
+  assert.match(oauth, /getPlatformSetting\('GOOGLE_OAUTH_CLIENT_SECRET'\)/)
   assert.doesNotMatch(oauth, /YOUTUBE_CLIENT_ID|YOUTUBE_CLIENT_SECRET|integration_settings/)
 })
 
