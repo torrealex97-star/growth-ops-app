@@ -3753,12 +3753,11 @@ suscripción). La venta sin closer del 3-oct sigue requiriendo corrección manua
 Carriles y reglas en `AGENTS.md` › "Trabajo en paralelo". **Antes de empezar, añade tu fila; al
 fusionar, bórrala.** Si lo que vas a tocar está aquí a nombre de otro, no lo toques.
 
-| Agente      | Qué                                                                                                   | Rama                        | Toca                                                                  | Desde  |
-| ----------- | ----------------------------------------------------------------------------------------------------- | --------------------------- | --------------------------------------------------------------------- | ------ |
-| Freebuff    | Cierre de merges 3-oct; dependabot majors en vuelo (#314, #315, #327)                                 | `main` + ramas dependabot   | `package.json`/lock (solo vía dependabot), docs, migraciones          | 3-oct  |
-| Codex       | PR #325 reservation-refunds (E2E en rojo, su autor continúa)                                          | `codex/reservation-refunds` | ventas/cobros (según su rama)                                         | 3-oct  |
-| Claude Code | Plan: F01 (RLS colaborador, P0), F19; sin rama activa aún                                             | —                           | `docs/plan/`, migraciones RLS                                         | 3-oct  |
-
+| Agente      | Qué                                                                   | Rama                        | Toca                                                         | Desde |
+| ----------- | --------------------------------------------------------------------- | --------------------------- | ------------------------------------------------------------ | ----- |
+| Freebuff    | Cierre de merges 3-oct; dependabot majors en vuelo (#314, #315, #327) | `main` + ramas dependabot   | `package.json`/lock (solo vía dependabot), docs, migraciones | 3-oct |
+| Codex       | PR #325 reservation-refunds (E2E en rojo, su autor continúa)          | `codex/reservation-refunds` | ventas/cobros (según su rama)                                | 3-oct |
+| Claude Code | Plan: F01 (RLS colaborador, P0), F19; sin rama activa aún             | —                           | `docs/plan/`, migraciones RLS                                | 3-oct |
 
 ## Reglas de trabajo (2026-09-21)
 
@@ -4288,3 +4287,23 @@ Crons OK; `instagram` falla por token caducado desde el 11-oct. 33 citas pasadas
 **Siguiente (técnico):** deriva de migraciones (`docs/MIGRATION_RECONCILIATION.md`; `20261013143000` está en
 producción y su archivo llegó con #496); restore drill G13 (`docs/runbooks/backup-restore.md`, requiere
 decidir proyecto/PITR); decisiones A5 / firma concurrente / outbox de onboarding.
+
+## 2026-10-14 (tarde) · Ajustes globales de plataforma, backups y dependencias (Claude)
+
+**Fusionado:** #514 (ajustes globales) · #515 (17 dependencias minor/patch + ignora majors de eslint y
+react-table) · #439 (googleapis 183) · #516 (runbook de backups). #436/#437/#438 cerradas por superadas/ignoradas.
+
+- **Ajustes globales (super admin).** Nueva pantalla _Control de plataforma › Ajustes globales_
+  (`/[tenant]/settings/platform/ajustes`) y API `/api/[tenant]/evergreen/platform/settings` (solo super admin,
+  audita la clave sin el valor, nunca devuelve secretos). Gestiona `GOOGLE_OAUTH_CLIENT_ID`,
+  `GOOGLE_OAUTH_CLIENT_SECRET` y `ONBOARDING_INBOUND_SECRET` desde la app; la variable de entorno sigue
+  siendo el respaldo (`lib/platform/settings.ts`, `getPlatformSetting`). Catálogo cerrado: las llaves de
+  infraestructura (`CONFIG_ENC_KEY`, `MCP_JWT_SECRET`) NO se gestionan ahí.
+  **PENDIENTE: aplicar la migración `20261014120000_platform_settings.sql`** (tabla con RLS sin políticas).
+  Sin ella la pantalla avisa y todo sigue con variables de entorno.
+- **Backups (G13): hoy no hay.** La organización de Supabase es plan Free y no hay volcado propio. Ver
+  `docs/runbooks/backup-restore.md` (opciones A/B/C y dónde hacer el restore drill). Pendiente de decisión.
+- **Instagram caducado:** el token de `INSTAGRAM_ACCESS_TOKEN` guardado el 11-oct murió ese mismo día
+  (sesión de usuario de 2 h pese al intercambio a larga duración); Instagram cae al `META_ACCESS_TOKEN` si no
+  hay uno propio. Solución estable: token de System User con permisos de Instagram (docs/META_SYSTEM_USER.md).
+- **F34 confirmado como «no se usa»:** el webhook de onboarding no se está usando; nada que reparar.
