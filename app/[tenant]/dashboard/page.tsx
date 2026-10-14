@@ -3,6 +3,7 @@
 import { useDeferredValue, useEffect, useMemo, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { metodoDePlan } from '@/lib/metrics/agregados'
+import { interpretarRespuestaFuturas, type FilaFutura } from '@/lib/commissions/future-response'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { mensajeDeCarga, primerError } from '@/lib/supabase/resultado'
@@ -118,6 +119,11 @@ const FILTER_ROLES = [
 // GATE del dashboard (§16, §23-25): resuelve el scope de colaborador UNA VEZ y decide qué modo
 // del MISMO /dashboard renderizar. Va en un componente aparte —un early-return dentro del cuerpo
 // del equipo rompería el orden de sus hooks— y evita un portal aparte: misma ruta, mismo login.
+// La ruta /commissions/future contesta { ok: true, rows } con 200 y { error } con 500: el 500
+// LLEGA por .then((r) => r.json()). Mirar solo `d?.rows` codifica el fallo como vacío (cero falso):
+// la interpretación del contrato vive en lib/commissions/future-response.ts, compartida por los
+// tres consumidores y por la carga inicial y el reintento del aviso.
+
 export default function DashboardPage() {
   const sesion = useSesion()
   const tenantId = useTenantId()
@@ -161,16 +167,11 @@ function DashboardEquipo() {
   const [commissions, setCommissions] = useState<
     { user_id: string; sale_id: string | null; commission_amount: number | string; direction: string; status: string }[]
   >([])
-  const [futureCommissions, setFutureCommissions] = useState<
-    {
-      userId: string
-      saleId: string
-      amount: number
-      dueDate: string
-      source: string
-      estado?: 'pending' | 'overdue' | 'review'
-    }[]
-  >([])
+  // UN ERROR DE CARGA NO ES UN ESTADO VACÍO: si /commissions/future falla, la KPI «Comisión futura»
+  // y el desglose mes a mes no pintan 0 (parecería que no hay nada por cobrar): se anuncia
+  // «fuente ilegible + reintentar» (regla #272; S1 §6.8 P1 en el dual de la página de comisiones).
+  const [futureError, setFutureError] = useState<string | null>(null)
+  const [futureCommissions, setFutureCommissions] = useState<FilaFutura[]>([])
   const [users, setUsers] = useState<UserRow[]>([])
   const [roleUsers, setRoleUsers] = useState<RoleUser[]>([])
   const [contacts, setContacts] = useState<
@@ -411,9 +412,18 @@ function DashboardEquipo() {
       fetch(`/api/${tenant}/evergreen/commissions/future`, { signal: cancelar.signal })
         .then((r) => r.json())
         .then((d) => {
-          if (mounted && d?.rows) setFutureCommissions(d.rows)
+          const res = interpretarRespuestaFuturas(d)
+          if (!mounted) return
+          if ('rows' in res) {
+            setFutureCommissions(res.rows)
+            setFutureError(null)
+          } else {
+            setFutureError(res.error)
+          }
         })
-        .catch(() => {})
+        .catch(() => {
+          if (mounted) setFutureError('no se pudo contactar con el servidor')
+        })
     }
     load()
     return () => {
@@ -421,6 +431,22 @@ function DashboardEquipo() {
       cancelar.abort()
     }
   }, [tenant, tenantId, sesion])
+
+  // Reintento manual del aviso de fuente ilegible (mismo criterio que home/P&L #272).
+  const reintentarFuturas = useCallback(() => {
+    setFutureError(null)
+    fetch(`/api/${tenant}/evergreen/commissions/future`)
+      .then((r) => r.json())
+      .then((d) => {
+        const res = interpretarRespuestaFuturas(d)
+        if ('rows' in res) {
+          setFutureCommissions(res.rows)
+        } else {
+          setFutureError(res.error)
+        }
+      })
+      .catch(() => setFutureError('no se pudo contactar con el servidor'))
+  }, [tenant])
 
   // Meses para el selector: últimos 12 (más reciente primero)
   // Personas del rol elegido (para el selector de usuario del filtro de arriba).
@@ -960,6 +986,28 @@ function DashboardEquipo() {
         )}
       </div>
 
+      {/* El fallo de la fuente de futuras se anuncia donde están sus cifras: sin esto, un 500 se
+          pintaría como comisión futura 0 («no hay nada por cobrar»), un cero que no es real. */}
+      {showCommissionSummary && futureError && (
+        <div
+          role="alert"
+          className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm"
+        >
+          <span>
+            <span className="font-medium text-red-300">No se pudieron leer las comisiones futuras</span>{' '}
+            <span className="text-muted-foreground">({futureError})</span> — la comisión futura y el desglose por month
+            no son fiables.
+          </span>
+          <button
+            type="button"
+            onClick={reintentarFuturas}
+            className="text-xs font-medium underline shrink-0 hover:text-foreground"
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
+
       <div
         className={`grid grid-cols-1 ${adSpendAllowed && showCommissionSummary ? 'xl:grid-cols-[2fr_1fr]' : ''} gap-4 items-start`}
       >
@@ -987,7 +1035,7 @@ function DashboardEquipo() {
       {/* Desglose mes a mes de las comisiones futuras: qué ya está cobrado (cash recogido,
           comisión real) y qué depende de que los referidos paguen. Igual para closer, setter y
           afiliado — cada quien ve sus filas respetando los filtros de persona. */}
-      {showCommissionSummary && !loading && futurePorMes.length > 0 && (
+      {showCommissionSummary && !loading && !futureError && futurePorMes.length > 0 && (
         <div className="dashboard-card p-5">
           <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
             <h3 className="text-sm font-semibold text-foreground">Comisiones a futuro, mes a mes</h3>
