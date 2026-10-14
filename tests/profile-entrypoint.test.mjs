@@ -19,11 +19,21 @@ test('la identidad aparece una sola vez y todas sus acciones viven en el header'
 
 test('el superadmin conserva acceso global y entrada explícita a Ver como', () => {
   const header = read('components/os/Header.tsx')
+  const platform = read('app/[tenant]/settings/platform/page.tsx')
   const users = read('app/[tenant]/settings/users/page.tsx')
 
-  assert.match(header, /Superadministrador: puedes cambiar de subcuenta/)
+  assert.match(header, /Superadministrador: gestiona la plataforma completa/)
+  assert.match(header, /href={`\/\$\{tenant\}\/settings\/platform`}/)
+  assert.match(header, /Control de plataforma/)
+  assert.match(header, /href={`\/\$\{tenant\}\/settings\/subcuentas`}/)
+  assert.match(header, /href={`\/\$\{tenant\}\/settings\/mcp`}/)
+  assert.match(header, /Conexiones IA \(MCP\)/)
   assert.match(header, /href={`\/\$\{tenant\}\/settings\/users`}/)
   assert.match(header, /Ver como otro usuario/)
+  assert.match(platform, /if \(!sesion\.isSuperAdmin\)/)
+  assert.match(platform, /Alcance global/)
+  assert.match(platform, /Global por usuario/)
+  assert.match(platform, /Operar el tenant actual/)
   assert.match(users, /isSuperAdminSesion/)
   assert.match(users, /onClick=\{\(\) => verComo\(user\)\}/)
   assert.match(users, /Ver como esta persona/)

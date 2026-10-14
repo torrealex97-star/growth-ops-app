@@ -16,8 +16,8 @@ import {
   TrendingUp,
   Plug,
   Handshake,
-  Building,
   Mail,
+  Settings2,
 } from 'lucide-react'
 import { useSesion, useTenant } from '@/lib/tenant-context'
 
@@ -124,13 +124,12 @@ const SETTINGS_CARDS = [
     bg: 'bg-amber-500/10',
   },
   {
-    // Alta de subcuentas: operación de PLATAFORMA, no de cliente. Por eso no basta con `manageOnly`
-    // (que mira el rol global admin/director/manager): se comprueba `is_super_admin` aparte, y la
-    // ruta de la API lo vuelve a comprobar — esta tarjeta solo decide qué se pinta.
-    title: 'Subcuentas',
-    description: 'Da de alta subcuentas y mira qué le falta a cada una',
-    icon: Building,
-    href: '/settings/subcuentas',
+    // Las operaciones globales viven juntas para no mezclarlas con los ajustes del tenant actual.
+    // La autorización real se mantiene en cada API; esta tarjeta solo decide qué se descubre.
+    title: 'Control de plataforma',
+    description: 'Subcuentas, conexiones MCP y accesos globales de Super Admin',
+    icon: Settings2,
+    href: '/settings/platform',
     color: 'text-violet-400',
     bg: 'bg-violet-500/10',
     superAdminOnly: true,

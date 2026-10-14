@@ -91,7 +91,7 @@ test('un fallo al contar no se convierte en un cero', () => {
   assert.match(sinComentarios(provision), /limit\(20_000\)/, 'sin límite explícito PostgREST trunca en silencio')
 })
 
-test('la tarjeta de Subcuentas solo se pinta para super admin', () => {
+test('la tarjeta de Control de plataforma solo se pinta para super admin', () => {
   const page = read('app/[tenant]/settings/page.tsx')
   assert.match(page, /superAdminOnly: true/)
   // La invariante sigue siendo la misma —super admin NO se deduce del rol de `users`, se pregunta a la
