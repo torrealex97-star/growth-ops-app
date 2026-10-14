@@ -1,3 +1,17 @@
+# VALIDADO EN RAMA — Onboarding de conexión MCP (14-oct-2026, Codex) · rama `codex/mcp-connection-onboarding`
+
+- **Entregado:** Configuración → Conexiones IA (MCP) es ahora un flujo accionable con URL
+  copiable, pasos por cliente, diagnóstico de servidor, explicación OAuth/sin token manual y
+  gestión de conexiones ya autorizadas.
+- **Compatibilidad:** la metadata OAuth anuncia `read offline_access`; la autorización exige
+  `read`, rechaza scopes desconocidos y conserva la rotación de refresh tokens existente.
+- **Ficheros:** `components/settings/McpConexionesPanel.tsx`,
+  `app/api/mcp/management/route.ts`, metadata OAuth MCP, `tests/mcp-server.test.mjs`,
+  `docs/mcp-server.md` y este handoff. Sin DDL ni cambios financieros.
+- **Validación:** focal MCP 14/14, `npm run quality` OK, `npm run build` OK. Los warnings del build
+  son preexistentes y no afectan a los ficheros modificados.
+- **Pendiente de cierre:** PR, merge y comprobación visual/funcional en producción.
+
 # VALIDADO EN RAMA — Centro global de Super Admin (14-oct-2026, Codex) · rama `codex/superadmin-platform-menu`
 
 - **Entregado:** entrada global desde el perfil del superadministrador, centro de plataforma,

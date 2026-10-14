@@ -7,28 +7,42 @@ web. No existe ninguna vía de escritura.
 
 ## Arquitectura
 
-| Pieza | Ruta / fichero | Función |
-|---|---|---|
-| Endpoint MCP | `app/api/mcp/route.ts` | JSON-RPC 2.0 por HTTP (`initialize`, `tools/list`, `tools/call`, `ping`) |
-| OAuth 2.1 | `app/api/mcp/oauth/*` + `lib/mcp/oauth.ts` | authorization_code + PKCE S256, refresh rotativo, registro dinámico |
-| Discovery | `/.well-known/oauth-protected-resource` y `/.well-known/oauth-authorization-server` | RFC 9728 / RFC 8414 |
-| Ejecutor SQL | `lib/mcp/sql-executor.ts` | read-only, RLS, timeout 8 s, máx. 500 filas |
-| Store OAuth | `lib/mcp/store.ts` | clientes, códigos y tokens en Supabase (hashes SHA-256, nunca claro) |
-| Migración | `supabase/migrations/20261009160000_mcp_server_oauth_and_reader.sql` | rol `mcp_reader` + tablas `mcp_oauth_*` |
+| Pieza        | Ruta / fichero                                                                      | Función                                                                  |
+| ------------ | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Endpoint MCP | `app/api/mcp/route.ts`                                                              | JSON-RPC 2.0 por HTTP (`initialize`, `tools/list`, `tools/call`, `ping`) |
+| OAuth 2.1    | `app/api/mcp/oauth/*` + `lib/mcp/oauth.ts`                                          | authorization_code + PKCE S256, refresh rotativo, registro dinámico      |
+| Discovery    | `/.well-known/oauth-protected-resource` y `/.well-known/oauth-authorization-server` | RFC 9728 / RFC 8414                                                      |
+| Ejecutor SQL | `lib/mcp/sql-executor.ts`                                                           | read-only, RLS, timeout 8 s, máx. 500 filas                              |
+| Store OAuth  | `lib/mcp/store.ts`                                                                  | clientes, códigos y tokens en Supabase (hashes SHA-256, nunca claro)     |
+| Migración    | `supabase/migrations/20261009160000_mcp_server_oauth_and_reader.sql`                | rol `mcp_reader` + tablas `mcp_oauth_*`                                  |
 
-## Conexión desde ChatGPT (connector / deep research)
+## Conexión desde ChatGPT
 
-1. Configuración → Connectors → Create → **MCP Server**.
-2. URL: `https://app.scalixsystems.com/api/mcp`
-3. Autenticación: **OAuth** — ChatGPT descubre el servidor vía `/.well-known`, registra un cliente
-   en `/api/mcp/oauth/register` y abre `/api/mcp/oauth/authorize`.
-4. Inicia sesión en la app si no lo estás y pulsa **Autorizar** en la pantalla de consentimiento.
+1. Configuración → Aplicaciones → Configuración avanzada → activa el modo desarrollador.
+2. Aplicaciones → Crear → nombre **GrowthOps**.
+3. URL: `https://app.scalixsystems.com/api/mcp`; autenticación: **OAuth**.
+4. Pulsa **Analizar herramientas**. ChatGPT descubre el servidor vía `/.well-known`, registra un
+   cliente en `/api/mcp/oauth/register` y abre `/api/mcp/oauth/authorize`.
+5. Inicia sesión en la app si no lo estás, pulsa **Autorizar** y termina con **Crear**.
+
+La disponibilidad de aplicaciones MCP y el modo desarrollador depende del plan y los permisos del
+workspace de ChatGPT.
 
 ## Conexión desde Claude (Custom Connector)
 
 1. Claude → Settings → Connectors → **Add custom connector**.
 2. URL: `https://app.scalixsystems.com/api/mcp`
 3. Autenticación OAuth — mismo flujo que ChatGPT.
+
+## Tokens y secretos
+
+El usuario **no crea ni pega ningún token**. ChatGPT, Claude o el cliente compatible realiza el
+registro dinámico y el flujo OAuth 2.1 con PKCE; el servidor entrega access token y refresh token
+al cliente y los rota automáticamente. La pantalla Configuración → Conexiones IA (MCP) solo muestra
+estado y revocación, nunca secretos.
+
+La metadata anuncia `read offline_access`: `read` limita el servidor a lectura y `offline_access`
+permite que clientes como ChatGPT renueven la sesión sin pedir autorización cada 15 minutos.
 
 ## Qué ve el modelo
 
@@ -58,10 +72,10 @@ ni una fila de la B, aunque el prompt lo pida.
 
 ## Variables de entorno
 
-| Variable | Dónde | Descripción |
-|---|---|---|
-| `MCP_JWT_SECRET` | Vercel + local | Secreto HS256, **≥32 caracteres**. Sin él, el servidor responde 503 (fail-closed). |
-| `POSTGRES_URL` | ya existente | Conexión del ejecutor (rol de la conexión: `postgres`; la elevación la limita `mcp_reader` vía `SET ROLE`) |
+| Variable         | Dónde          | Descripción                                                                                                |
+| ---------------- | -------------- | ---------------------------------------------------------------------------------------------------------- |
+| `MCP_JWT_SECRET` | Vercel + local | Secreto HS256, **≥32 caracteres**. Sin él, el servidor responde 503 (fail-closed).                         |
+| `POSTGRES_URL`   | ya existente   | Conexión del ejecutor (rol de la conexión: `postgres`; la elevación la limita `mcp_reader` vía `SET ROLE`) |
 
 > **Nota sobre el rol de conexión:** el ejecutor usa `SET LOCAL ROLE mcp_reader` dentro de la
 > transacción para que los privileges SELECT sean los del rol lector y no los del propietario.

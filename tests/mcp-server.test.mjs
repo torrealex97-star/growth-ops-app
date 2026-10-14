@@ -82,6 +82,15 @@ test('OAuth: refresh con rotación (reutilizar revoca) y access revocable por jt
   assert.match(oauth, /findAccessToken/)
 })
 
+test('OAuth anuncia offline_access y limita los scopes aceptados', () => {
+  const metadata = leer('app/.well-known/oauth-authorization-server/route.ts')
+  const oauth = leer('lib/mcp/oauth.ts')
+  assert.match(metadata, /scopes_supported: \['read', 'offline_access'\]/)
+  assert.match(oauth, /ALLOWED_SCOPES = new Set\(\['read', 'offline_access'\]\)/)
+  assert.match(oauth, /scope read es obligatorio/)
+  assert.match(oauth, /Scope no permitido/)
+})
+
 test('nada de credenciales en claro en la base de datos OAuth', () => {
   const migracion = leer('supabase/migrations/20261009160000_mcp_server_oauth_and_reader.sql')
   assert.match(migracion, /client_secret_hash/)
@@ -164,4 +173,12 @@ test('pantalla de conexiones MCP: revocación acotada al dueño y estado calcula
   const grid = leer('app/[tenant]/settings/page.tsx')
   assert.match(grid, /settings\/mcp/)
   assert.match(panel, /api\/mcp\/management/)
+  // El onboarding entrega la URL completa, pasos por cliente y deja claro que OAuth evita tokens manuales.
+  assert.match(api, /manualTokenRequired: false/)
+  assert.match(api, /endpoint: new URL\('\/api\/mcp'/)
+  assert.match(panel, /Conecta tu asistente/)
+  assert.match(panel, /No necesitas crear ni pegar tokens/)
+  assert.match(panel, /PASOS_CHATGPT/)
+  assert.match(panel, /PASOS_CLAUDE/)
+  assert.match(panel, /Servidor listo/)
 })
