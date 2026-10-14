@@ -114,6 +114,7 @@ export type ResumenSyncFathom = {
   nuevas: number
   enRevision: number
   omitidas: number
+  fallidas: number
   cortado: boolean
 }
 
@@ -128,7 +129,7 @@ export async function sincronizarConexionPersonal(
   conexion: ConexionFathom,
   opts: { paginas?: number; porPagina?: number; deadlineMs?: number } = {}
 ): Promise<ResumenSyncFathom> {
-  const resumen: ResumenSyncFathom = { vistas: 0, nuevas: 0, enRevision: 0, omitidas: 0, cortado: false }
+  const resumen: ResumenSyncFathom = { vistas: 0, nuevas: 0, enRevision: 0, omitidas: 0, fallidas: 0, cortado: false }
   let clave: string
   try {
     clave = decryptSecret(conexion.api_key)
@@ -151,10 +152,19 @@ export async function sincronizarConexionPersonal(
           break
         }
         resumen.vistas++
-        const r = await procesarMeetingFathom(sb, conexion.tenant_id, meeting)
-        if (r.kind === 'emparejadas') resumen.nuevas++
-        else if (r.kind === 'a_revision_ambiguas' || r.kind === 'a_revision_sin_candidatos') resumen.enRevision++
-        else resumen.omitidas++
+        // Una reunión que falla NO tumba la conexión ni el resto de la pasada: se cuenta y se sigue. Antes
+        // una sola excepción marcaba «error» y las reuniones siguientes no se procesaban jamás.
+        try {
+          // `omitirSinCandidatos`: la clave PERSONAL trae también reuniones que no son de este negocio;
+          // solo entran las que tienen contacto en la subcuenta (ver ingesta).
+          const r = await procesarMeetingFathom(sb, conexion.tenant_id, meeting, { omitirSinCandidatos: true })
+          if (r.kind === 'emparejadas') resumen.nuevas++
+          else if (r.kind === 'a_revision_ambiguas' || r.kind === 'a_revision_sin_candidatos') resumen.enRevision++
+          else resumen.omitidas++
+        } catch (e) {
+          resumen.fallidas++
+          console.warn('[fathom-personal] una reunión no se pudo procesar:', e instanceof Error ? e.message : e)
+        }
       }
       if (resumen.cortado || !pagina.nextCursor) break
       cursor = pagina.nextCursor
@@ -169,7 +179,9 @@ export async function sincronizarConexionPersonal(
       status: 'conectada',
       last_error: null,
       last_sync_at: new Date().toISOString(),
-      meetings_seen: conexion.meetings_seen + resumen.vistas,
+      // Solo lo que ENTRÓ (emparejado o a revisión): las mismas 25 reuniones recientes se vuelven a ver en
+      // cada pasada y sumarlas inflaría el contador sin que haya nada nuevo.
+      meetings_seen: conexion.meetings_seen + resumen.nuevas + resumen.enRevision,
       updated_at: new Date().toISOString(),
     })
     .eq('id', conexion.id)

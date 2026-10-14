@@ -721,16 +721,20 @@ async function leerCitasCalendlyGuardadas(
   tenantId: string,
   uris: string[]
 ): Promise<CitaCalendlyGuardada[]> {
-  if (uris.length === 0) return []
-  const { data, error } = await sb
-    .from('appointments')
-    .select('external_id, closer:closer_id, status, evento_actualizado:raw_payload->event->>updated_at')
-    .eq('tenant_id', tenantId)
-    .eq('external_source', 'calendly')
-    .in('external_id', uris)
-  // Si no se puede leer, no se omite nada: lo seguro es reprocesar (idempotente), nunca perder citas.
-  if (error) return []
-  return (data ?? []) as unknown as CitaCalendlyGuardada[]
+  const filas: CitaCalendlyGuardada[] = []
+  // Trozos de 40: 100 URIs de ~88 caracteres en un solo .in() son ~9 KB de URL y el gateway puede
+  // rechazarla; un trozo que falle simplemente no omite nada (reprocesar es idempotente).
+  for (let i = 0; i < uris.length; i += 40) {
+    const { data, error } = await sb
+      .from('appointments')
+      .select('external_id, closer:closer_id, status, evento_actualizado:raw_payload->event->>updated_at')
+      .eq('tenant_id', tenantId)
+      .eq('external_source', 'calendly')
+      .in('external_id', uris.slice(i, i + 40))
+    if (error) continue
+    filas.push(...((data ?? []) as unknown as CitaCalendlyGuardada[]))
+  }
+  return filas
 }
 
 // ── Calendly: scheduled_events + invitees ───────────────────────────────────
