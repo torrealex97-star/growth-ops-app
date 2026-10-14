@@ -85,10 +85,10 @@ test('Calendly sincroniza toda la organización y el cron prioriza las reservas 
     !calendly.includes("url.searchParams.set('user', me.resource.uri)"),
     'no limita la agenda al propietario personal del token'
   )
-  assert.ok(
-    calendly.includes("opts.desdeInicio ? 'start_time:desc' : 'start_time:asc'"),
-    'el cron incremental procesa primero la cola reciente y el histórico conserva un cursor estable'
-  )
+  // Orden ASC siempre (estable) y lo ya guardado sin cambios se omite antes de pedir invitees: con `desc`
+  // el cron recibía primero las reservas más LEJANAS y se cortaba sin llegar a las próximas.
+  assert.ok(calendly.includes("url.searchParams.set('sort', 'start_time:asc')"), 'recorre la ventana en ASC')
+  assert.ok(calendly.includes('if (sinCambios.has(uri)) continue'), 'omite lo guardado y sin cambios')
 })
 
 test('las protecciones existentes siguen intactas (rellenar huecos, nunca reasignar)', () => {

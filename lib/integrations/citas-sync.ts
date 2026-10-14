@@ -670,6 +670,69 @@ export async function syncGhl(
   }
 }
 
+/** Fila ya guardada de un evento de Calendly: lo mínimo para decidir si hay que volver a procesarlo. */
+export type CitaCalendlyGuardada = {
+  external_id: string
+  /** Closer ya asignado (alias de `closer_id` en la consulta). */
+  closer: string | null
+  status: string | null
+  /** `raw_payload.event.updated_at` tal como lo devolvió Calendly la última vez. */
+  evento_actualizado: string | null
+}
+
+/**
+ * Eventos de la página que NO hace falta volver a procesar: ya guardados, con la misma marca
+ * `updated_at` de Calendly, el mismo estado y con closer resuelto (o sin dueño que resolver).
+ *
+ * POR QUÉ. Cada evento nuevo cuesta una llamada a /invitees y varias escrituras; con 20 s de presupuesto
+ * el cron procesaba ~10 eventos por pasada y se cortaba SIEMPRE (`cortado: true, paginas: 1` en todas
+ * las ejecuciones), re-leyendo la misma cabeza y sin llegar nunca al resto: las llamadas de un closer
+ * (Danielle) con citas reservadas solo aparecían de una en una. Saltando lo que no cambió, una pasada
+ * recorre la ventana entera y el presupuesto se gasta solo en lo nuevo o modificado.
+ */
+export function eventosCalendlySinCambios(
+  guardadas: readonly CitaCalendlyGuardada[],
+  eventos: readonly Json[]
+): Set<string> {
+  const porUri = new Map<string, CitaCalendlyGuardada[]>()
+  for (const g of guardadas) porUri.set(g.external_id, [...(porUri.get(g.external_id) ?? []), g])
+  const omitidos = new Set<string>()
+  for (const e of eventos) {
+    const uri = text(e.uri)
+    const upd = text(e.updated_at)
+    if (!uri || !upd) continue
+    const filas = porUri.get(uri)
+    if (!filas || filas.length === 0) continue
+    const estado = e.status === 'canceled' ? 'cancelled' : null
+    const tieneDueno = Boolean(text((e.event_memberships as Json[] | undefined)?.[0]?.user_email))
+    const intacto = filas.every(
+      (f) =>
+        f.evento_actualizado === upd &&
+        (estado === null ? f.status !== 'cancelled' : f.status === 'cancelled') &&
+        (!tieneDueno || Boolean(f.closer))
+    )
+    if (intacto) omitidos.add(uri)
+  }
+  return omitidos
+}
+
+async function leerCitasCalendlyGuardadas(
+  sb: SupabaseClient,
+  tenantId: string,
+  uris: string[]
+): Promise<CitaCalendlyGuardada[]> {
+  if (uris.length === 0) return []
+  const { data, error } = await sb
+    .from('appointments')
+    .select('external_id, closer:closer_id, status, evento_actualizado:raw_payload->event->>updated_at')
+    .eq('tenant_id', tenantId)
+    .eq('external_source', 'calendly')
+    .in('external_id', uris)
+  // Si no se puede leer, no se omite nada: lo seguro es reprocesar (idempotente), nunca perder citas.
+  if (error) return []
+  return (data ?? []) as unknown as CitaCalendlyGuardada[]
+}
+
 // ── Calendly: scheduled_events + invitees ───────────────────────────────────
 export async function syncCalendly(
   sb: SupabaseClient,
@@ -728,7 +791,10 @@ export async function syncCalendly(
     // El cron incremental empieza por lo más reciente: con el orden ascendente y un deadline de
     // 20 s reprocesaba diariamente la misma cabeza antigua de la ventana y nunca alcanzaba las
     // reservas nuevas.
-    url.searchParams.set('sort', opts.desdeInicio ? 'start_time:desc' : 'start_time:asc')
+    // ASC siempre: con `desc` y una ventana que llega hasta el fin del año siguiente, lo primero que
+    // devolvía Calendly eran las reservas MÁS LEJANAS y el corte por presupuesto nunca llegaba a las
+    // próximas. Ahora lo ya guardado y sin cambios se salta, así que una pasada recorre la ventana entera.
+    url.searchParams.set('sort', 'start_time:asc')
     // Ventana: el botón deja sin min/max (5 años atrás → +1 año); el cron acota por desde.
     url.searchParams.set('min_start_time', new Date(desde).toISOString())
     url.searchParams.set('max_start_time', new Date(hasta).toISOString())
@@ -740,6 +806,14 @@ export async function syncCalendly(
       message?: string
     }
     if (!response.ok) throw new Error(body.message || `Calendly respondió ${response.status}`)
+    const sinCambios = eventosCalendlySinCambios(
+      await leerCitasCalendlyGuardadas(
+        sb,
+        tenantId,
+        (body.collection ?? []).map((e) => text(e.uri)).filter(Boolean) as string[]
+      ),
+      body.collection ?? []
+    )
     for (const event of body.collection ?? []) {
       // Reloj ANTES de cada evento (lección #277, cron 504 del 3-oct): el deadline solo
       // comprueba entre páginas y una página de TODOS los eventos de 14 días la mataba tras
@@ -751,6 +825,7 @@ export async function syncCalendly(
       }
       const uri = text(event.uri)
       if (!uri) continue
+      if (sinCambios.has(uri)) continue
       // Reloj ANTES del fetch de invitees (gemelo del guard de antes del bucle): sin esto un
       // corte gastaba hasta 15 s en un evento que de todos modos no iba a procesarse.
       if (opts.deadlineMs && Date.now() > opts.deadlineMs) {
