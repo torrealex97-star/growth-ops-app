@@ -232,6 +232,9 @@ export function DataHealthPanel() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [operational, setOperational] = useState<OperationalHealth | null>(null)
+  // Estado del aviso «fuente ilegible + reintentar» de la sección Duplicados (se pintaba SOLO
+  // si había grupos — un 500 y cero duplicados eran indistinguibles).
+  const [dedupeError, setDedupeError] = useState<string | null>(null)
   const [contactGroups, setContactGroups] = useState<DuplicateContactGroup[]>([])
   const [appointmentGroups, setAppointmentGroups] = useState<DuplicateAppointmentGroup[]>([])
   const [mergingKey, setMergingKey] = useState<string | null>(null)
@@ -239,6 +242,7 @@ export function DataHealthPanel() {
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
+    setDedupeError(null)
     const sb = createClient()
     const operationalRequest = fetch(`/api/${tenant}/evergreen/settings/data-health`)
     const dedupeRequest = fetch(`/api/${tenant}/evergreen/settings/data-health/dedupe`)
@@ -302,11 +306,32 @@ export function DataHealthPanel() {
 
     const operationalResponse = await operationalRequest
     const operationalPayload = await operationalResponse.json().catch(() => null)
+    // UN ERROR DE CARGA NO ES UN ESTADO VACÍO (variante de commissions/future, PR #505): el 500 de
+    // la ruta llega por el MISMO r.json() — si el cuerpo { error } se ignora y nos quedamos con
+    // «respuesta legible», los duplicados se pintan como «no hay» y la salud operativa como
+    // «todo al día». CONTRATO de GET /dedupe: 200 con { contactGroups, appointmentGroups } y
+    // fallo con { error }; el estado se lee POR EL CONTRATO, no por la ausencia de grupos.
     const dedupeResponse = await dedupeRequest
     const dedupePayload = await dedupeResponse.json().catch(() => null)
-    if (dedupeResponse.ok && dedupePayload) {
-      setContactGroups(dedupePayload.contactGroups ?? [])
-      setAppointmentGroups(dedupePayload.appointmentGroups ?? [])
+    const legibleDedupe =
+      dedupeResponse.ok &&
+      dedupePayload != null &&
+      Array.isArray(dedupePayload.contactGroups) &&
+      Array.isArray(dedupePayload.appointmentGroups)
+    if (legibleDedupe) {
+      setDedupeError(null)
+      setContactGroups(dedupePayload.contactGroups)
+      setAppointmentGroups(dedupePayload.appointmentGroups)
+    } else {
+      setContactGroups([])
+      setAppointmentGroups([])
+      setDedupeError(
+        typeof dedupePayload?.error === 'string'
+          ? dedupePayload.error
+          : dedupeResponse.ok
+            ? 'la respuesta del servidor no es legible'
+            : 'no se pudo contactar con el servidor'
+      )
     }
     const firstError = [
       eventCount,
@@ -320,8 +345,14 @@ export function DataHealthPanel() {
       latestEvents,
       latestDeliveries,
     ].find((r) => r.error)?.error
-    if (firstError || !operationalResponse.ok) {
-      setError(firstError?.message || operationalPayload?.error || 'No se pudo calcular la salud de las fuentes')
+    // La salud operativa también se lee por contrato: un 200 con cuerpo roto NO pinta «todo al día».
+    const legibleOperacional = operationalResponse.ok && operationalPayload != null && 'integrity' in operationalPayload
+    if (firstError || !legibleOperacional) {
+      setError(
+        firstError?.message ||
+          operationalPayload?.error ||
+          (operationalResponse.ok ? 'la respuesta del servidor no es legible' : 'no se pudo contactar con el servidor')
+      )
     } else {
       setOperational(operationalPayload as OperationalHealth)
       const recent = (latestEvents.data ?? []) as EventRow[]
@@ -589,6 +620,28 @@ export function DataHealthPanel() {
               />
             </div>
           </section>
+
+          {/* Un error de carga NO se disimula como «sin duplicados»: si no hay grupos puede ser
+              porque no existen O porque la fuente es ilegible — el aviso lo declara (PR #505). */}
+          {dedupeError && (
+            <div
+              role="alert"
+              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm"
+            >
+              <span>
+                <span className="font-medium text-red-300">No se pudieron leer los duplicados</span>{' '}
+                <span className="text-muted-foreground">({dedupeError})</span> — mientras no cargue, la sección de
+                duplicados no es fiable; consolida sin actuar.
+              </span>
+              <button
+                type="button"
+                onClick={() => void load()}
+                className="text-xs font-medium underline shrink-0 hover:text-foreground"
+              >
+                Reintentar
+              </button>
+            </div>
+          )}
 
           {(contactGroups.length > 0 || appointmentGroups.length > 0) && (
             <section className="rounded-xl border border-border bg-card p-5">

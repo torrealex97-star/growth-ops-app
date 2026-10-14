@@ -3724,6 +3724,7 @@ fusionar, bórrala.** Si lo que vas a tocar está aquí a nombre de otro, no lo 
 
 | Agente      | Qué                                                                   | Rama                        | Toca                                                         | Desde |
 | ----------- | --------------------------------------------------------------------- | --------------------------- | ------------------------------------------------------------ | ----- |
+| Buffy       | Barrido: aplicar regla «error de carga ≠ cero» al resto de fetch→json del cliente que tragaban fallos | `fix/barrido-error-carga` | pantallas cliente con fetch().then(json).catch(→[]) + futuro-response | 14-oct |
 | Freebuff    | Cierre de merges 3-oct; dependabot majors en vuelo (#314, #315, #327) | `main` + ramas dependabot   | `package.json`/lock (solo vía dependabot), docs, migraciones | 3-oct |
 | Codex       | PR #325 reservation-refunds (E2E en rojo, su autor continúa)          | `codex/reservation-refunds` | ventas/cobros (según su rama)                                | 3-oct |
 | Claude Code | Plan: F01 (RLS colaborador, P0), F19; sin rama activa aún             | —                           | `docs/plan/`, migraciones RLS                                | 3-oct |
