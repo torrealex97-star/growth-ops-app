@@ -47,8 +47,10 @@ export async function runInstagramSync(
   // IgEnv + YoutubeEnv: la sync también espeja los reels nuevos al canal de YouTube de ESTA
   // subcuenta, así que necesita ambas credenciales en la misma instantánea.
   env: IgEnv & YoutubeEnv,
-  opts?: { mediaLimit?: number; light?: boolean }
+  opts?: { mediaLimit?: number; light?: boolean; presupuestoMs?: number }
 ): Promise<InstagramSyncResult> {
+  const inicio = Date.now()
+  let mediaCortada = 0
   const failures: string[] = []
   const cfg = getInstagramConfig(env)
   if (!cfg) {
@@ -116,43 +118,67 @@ export async function runInstagramSync(
   //    las columnas de transcripción/IA (no van en el payload → se conservan).
   const medias = await fetchIgMedia(cfg, igUserId, mediaLimit)
   let mediaSynced = 0
-  for (const m of medias) {
-    let ins
-    try {
-      ins = await fetchMediaInsights(cfg, m)
-    } catch {
-      continue // un media que no da insights no rompe el resto
+  // Insights de cada media EN PARALELO por lotes: en serie, 100 publicaciones × ~0,6 s superaban los 60 s
+  // de la función (run «timeout» del 14-oct al reconectar el token) y la sync no terminaba nunca, ni
+  // siquiera para guardar lo ya leído. Cada lote se guarda al terminar y, si se agota el presupuesto, se
+  // corta limpiamente: lo más reciente (Meta devuelve de nuevo a antiguo) ya está guardado.
+  const LOTE = 6
+  const limite = inicio + (opts?.presupuestoMs ?? 38_000)
+  for (let i = 0; i < medias.length; i += LOTE) {
+    if (Date.now() > limite) {
+      mediaCortada = medias.length - i
+      break
     }
-    const engagement = ins.reach > 0 ? round2((ins.total_interactions / ins.reach) * 100) : 0
-    const row = {
-      tenant_id: tenantId,
-      external_id: m.id,
-      media_type: m.media_type ?? null,
-      media_product_type: m.media_product_type ?? null,
-      caption: m.caption ?? null,
-      permalink: m.permalink ?? null,
-      thumbnail_url: m.thumbnail_url ?? null,
-      media_url: m.media_url ?? null,
-      published_at: m.timestamp ?? null,
-      reach: ins.reach,
-      views: ins.views,
-      likes: ins.likes,
-      comments: ins.comments,
-      shares: ins.shares,
-      saved: ins.saved,
-      total_interactions: ins.total_interactions,
-      avg_watch_time: ins.avg_watch_time,
-      reach_followers: ins.reach_followers,
-      reach_non_followers: ins.reach_non_followers,
-      follows: ins.follows,
-      engagement_rate: engagement,
-      synced_at: at,
-    }
+    const lote = medias.slice(i, i + LOTE)
+    const filas = (
+      await Promise.all(
+        lote.map(async (m) => {
+          let ins
+          try {
+            ins = await fetchMediaInsights(cfg, m)
+          } catch {
+            return null // un media que no da insights no rompe el resto
+          }
+          const engagement = ins.reach > 0 ? round2((ins.total_interactions / ins.reach) * 100) : 0
+          return {
+            tenant_id: tenantId,
+            external_id: m.id,
+            media_type: m.media_type ?? null,
+            media_product_type: m.media_product_type ?? null,
+            caption: m.caption ?? null,
+            permalink: m.permalink ?? null,
+            thumbnail_url: m.thumbnail_url ?? null,
+            media_url: m.media_url ?? null,
+            published_at: m.timestamp ?? null,
+            reach: ins.reach,
+            views: ins.views,
+            likes: ins.likes,
+            comments: ins.comments,
+            shares: ins.shares,
+            saved: ins.saved,
+            total_interactions: ins.total_interactions,
+            avg_watch_time: ins.avg_watch_time,
+            reach_followers: ins.reach_followers,
+            reach_non_followers: ins.reach_non_followers,
+            follows: ins.follows,
+            engagement_rate: engagement,
+            synced_at: at,
+          }
+        })
+      )
+    ).filter((f): f is NonNullable<typeof f> => f !== null)
+    if (filas.length === 0) continue
+    // Upsert por external_id SIN tocar las columnas de transcripción/IA (no van en el payload).
     const { error } = await sb
       .from('ig_media')
-      .upsert(row, { onConflict: 'tenant_id,external_id', ignoreDuplicates: false })
-    if (error) failures.push(`No se pudo guardar el post ${row.external_id}: ${error.message}`)
-    else mediaSynced++
+      .upsert(filas, { onConflict: 'tenant_id,external_id', ignoreDuplicates: false })
+    if (error) failures.push(`No se pudieron guardar ${filas.length} posts: ${error.message}`)
+    else mediaSynced += filas.length
+  }
+  if (mediaCortada > 0) {
+    console.warn(
+      `[instagram] presupuesto agotado: ${mediaCortada} publicaciones antiguas quedan para la próxima pasada`
+    )
   }
 
   // 4) Facebook: reels cross-posteados a la página vinculada (métricas propias de FB)
