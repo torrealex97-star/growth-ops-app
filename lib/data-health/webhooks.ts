@@ -19,7 +19,7 @@
 //    "al día".
 //  · Una integración que la subcuenta no usa no es una avería: `sin_configurar` no avisa.
 
-export type EstadoSaludWebhook = 'al_dia' | 'silencio' | 'sin_configurar' | 'desconocido'
+export type EstadoSaludWebhook = 'al_dia' | 'silencio' | 'rechazo' | 'sin_configurar' | 'desconocido'
 
 export type SaludWebhook = {
   estado: EstadoSaludWebhook
@@ -61,6 +61,11 @@ export function saludWebhook(input: {
   ultimoSobre: string | null
   /** `false` = la evidencia no se pudo leer: no se afirma que esté al día. */
   leido?: boolean
+  /**
+   * ISO del último envío RECHAZADO por firma inválida (HTTP 401 propio). A diferencia del silencio,
+   * esto SÍ es un fallo confirmado: el proveedor está llamando y nuestro secreto no lo valida.
+   */
+  ultimoRechazo?: string | null
   umbralMs?: number
   ahora?: number
 }): SaludWebhook {
@@ -82,6 +87,22 @@ export function saludWebhook(input: {
       mensaje: 'No se pudo leer la evidencia de recepción: no se sabe cuándo entró lo último.',
       ultimoSobre: null,
       horasDesde: null,
+    }
+  }
+  // FALLO CONFIRMADO: llegan envíos y se rechazan por firma. Es la única señal que justifica el rojo, y
+  // va antes que el silencio porque lo explica (el proveedor no está en silencio: lo estamos rechazando).
+  if (input.ultimoRechazo) {
+    const tr = Date.parse(input.ultimoRechazo)
+    const reciente = !Number.isNaN(tr) && ahora - tr < umbral
+    const ts = input.ultimoSobre ? Date.parse(input.ultimoSobre) : Number.NaN
+    const hayValidoPosterior = !Number.isNaN(ts) && ts >= tr
+    if (reciente && !hayValidoPosterior) {
+      return {
+        estado: 'rechazo',
+        mensaje: `${etiqueta} está enviando eventos y se están rechazando por firma inválida (último hace ${Math.round((ahora - tr) / 3_600_000)} h). El secreto guardado aquí no coincide con el del proveedor: vuelve a copiarlo desde el panel de ${etiqueta}.`,
+        ultimoSobre: input.ultimoSobre,
+        horasDesde: Number.isNaN(ts) ? null : (ahora - ts) / 3_600_000,
+      }
     }
   }
   if (!input.ultimoSobre) {
