@@ -21,3 +21,10 @@ test('una conexión de Google marcada por el fallo antiguo del permiso email se 
   assert.match(s, /ambitosFaltantes\(SCOPES\[fila\.provider\], fila\.scopes\.join\(' '\)\)\.length === 0/)
   assert.match(s, /status: 'conectada', last_error: null/)
 })
+
+test('los pasos opcionales de Instagram solo arrancan con margen y cada paso deja su tiempo en el log', () => {
+  const s = leer('lib/instagram/sync.ts')
+  assert.match(s, /margenOpcionalesMs \?\? 42_000/)
+  assert.equal((s.match(/if \(!hayMargen\(\)\) throw new Error\('sin margen'\)/g) || []).length, 2)
+  assert.ok((s.match(/marca\(/g) || []).length >= 6)
+})
