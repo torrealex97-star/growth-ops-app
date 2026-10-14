@@ -36,7 +36,7 @@ type RpcBody = { jsonrpc?: string; id?: unknown; method?: string; params?: Recor
  * exige apuntar al documento de metadatos del recurso con `resource_metadata`: es lo que permite al
  * cliente descubrir el servidor de autorización sin adivinar rutas.
  */
-export function desafioBearer(request: { url: string }, error?: 'invalid_token'): string {
+function desafioBearer(request: { url: string }, error?: 'invalid_token'): string {
   const origin = new URL(request.url).origin
   const partes = ['realm="mcp"', `resource_metadata="${origin}/.well-known/oauth-protected-resource"`]
   if (error) partes.push(`error="${error}"`)
