@@ -3753,11 +3753,11 @@ suscripción). La venta sin closer del 3-oct sigue requiriendo corrección manua
 Carriles y reglas en `AGENTS.md` › "Trabajo en paralelo". **Antes de empezar, añade tu fila; al
 fusionar, bórrala.** Si lo que vas a tocar está aquí a nombre de otro, no lo toques.
 
-| Agente      | Qué                                                                   | Rama                        | Toca                                                         | Desde |
-| ----------- | --------------------------------------------------------------------- | --------------------------- | ------------------------------------------------------------ | ----- |
+| Agente      | Qué                                                                                                                                                                                                                                                      | Rama                        | Toca                                                         | Desde |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ------------------------------------------------------------ | ----- |
 | Freebuff    | Cierre de dependabots: #439 merged (googleapis, CI verde); #437/#438 majors APLAZADAS (react-table v9, eslint 10 rompen CI); #518 grupo minor bloqueado por lockstep typescript-eslint (ver comentario propio); pendiente PR de config en dependabot.yml | `main` + ramas dependabot   | `package.json`/lock (solo vía dependabot), docs, migraciones | 3-oct |
-| Codex       | PR #325 reservation-refunds (E2E en rojo, su autor continúa)          | `codex/reservation-refunds` | ventas/cobros (según su rama)                                | 3-oct |
-| Claude Code | Plan: F01 (RLS colaborador, P0), F19; sin rama activa aún             | —                           | `docs/plan/`, migraciones RLS                                | 3-oct |
+| Codex       | PR #325 reservation-refunds (E2E en rojo, su autor continúa)                                                                                                                                                                                             | `codex/reservation-refunds` | ventas/cobros (según su rama)                                | 3-oct |
+| Claude Code | Plan: F01 (RLS colaborador, P0), F19; sin rama activa aún                                                                                                                                                                                                | —                           | `docs/plan/`, migraciones RLS                                | 3-oct |
 
 ## Reglas de trabajo (2026-09-21)
 
@@ -4307,3 +4307,25 @@ react-table) · #439 (googleapis 183) · #516 (runbook de backups). #436/#437/#4
   (sesión de usuario de 2 h pese al intercambio a larga duración); Instagram cae al `META_ACCESS_TOKEN` si no
   hay uno propio. Solución estable: token de System User con permisos de Instagram (docs/META_SYSTEM_USER.md).
 - **F34 confirmado como «no se usa»:** el webhook de onboarding no se está usando; nada que reparar.
+
+## 2026-10-14 (noche) · Calendly por closer, Fathom personal, ADS vs WEB, Instagram y revisión (Claude)
+
+**Fusionado:** #522/#523/#524/#525/#526/#528/#530/#531/#532.
+
+- **Calendly (Danielle):** el cron se cortaba siempre tras ~10 eventos y recibía primero las reservas más
+  lejanas (`sort desc`). Ahora ASC y se omite lo ya guardado con el mismo `updated_at`/estado/closer
+  (`eventosCalendlySinCambios`). Danielle pasó de 1 a 7 citas tras dos pasadas; el resto entra en las siguientes.
+- **Fathom por closer:** `user_fathom_connections` (clave cifrada, RLS sin grants), botón «Mi Fathom» en Agendas,
+  cron `cron-fathom-closers.yml` cada 30 min. La clave personal NO encola reuniones sin cita candidata (PII).
+  Calendario personal de Google: ya existía (Agendas › Google Calendar).
+- **Origen ADS vs WEB** (`lib/appointments/lead-origin.ts`): medio de pago, id de anuncio en `utm_source`,
+  red de Meta sin medio orgánico, o anuncio/campaña resuelto → ADS. Directo/SEO/referido/bio → WEB.
+- **Instagram:** la pasada superaba los 60 s (45-54 s ya antes). Medias en lotes de 6 en paralelo con
+  presupuesto, pasos opcionales solo con margen y tiempos por paso en el log. Resultado: 31 s, 25 reels.
+  Un run muerto por 504 deja la fila en `running` y bloquea el cron hasta que el barrido la cierra (30 min).
+- **Google OAuth:** el permiso `email` llega como URL completa; la comparación literal marcaba error. Corregido
+  y la conexión ya marcada se repara sola al abrir Integraciones.
+- **Contratos:** solo bloquea quien tiene un contrato `enviado` desde la app y sin firmar.
+- **Pendiente de Alex:** repegar en Integraciones `META_APP_SECRET`, `RESEND_API_KEY` y `YOUTUBE_CLIENT_SECRET`
+  (aparecen con `decrypt_error`: guardados con otra `CONFIG_ENC_KEY`); que cada closer pulse «Mi Fathom» y
+  «Google Calendar»; elegir A/B/C de backups (hoy no hay; plan Free).
