@@ -47,10 +47,16 @@ export async function runInstagramSync(
   // IgEnv + YoutubeEnv: la sync también espeja los reels nuevos al canal de YouTube de ESTA
   // subcuenta, así que necesita ambas credenciales en la misma instantánea.
   env: IgEnv & YoutubeEnv,
-  opts?: { mediaLimit?: number; light?: boolean; presupuestoMs?: number }
+  opts?: { mediaLimit?: number; light?: boolean; presupuestoMs?: number; margenOpcionalesMs?: number }
 ): Promise<InstagramSyncResult> {
   const inicio = Date.now()
   let mediaCortada = 0
+  // Tiempos por paso en el log: el 14-oct la pasada llegó a los 60 s de la función y moría sin dejar
+  // rastro de QUÉ paso se llevaba el tiempo. Cada paso deja su duración acumulada.
+  const marca = (paso: string) => console.log(`[instagram] ${paso} +${Math.round((Date.now() - inicio) / 100) / 10}s`)
+  // Los pasos opcionales (Facebook, DMs, espejo a YouTube) solo arrancan si queda margen: es mejor
+  // devolver lo esencial a tiempo que perderlo todo por un 504.
+  const hayMargen = () => Date.now() - inicio < (opts?.margenOpcionalesMs ?? 42_000)
   const failures: string[] = []
   const cfg = getInstagramConfig(env)
   if (!cfg) {
@@ -60,6 +66,7 @@ export async function runInstagramSync(
   }
 
   const { id: igUserId } = await resolveIgUserId(cfg)
+  marca('cuenta resuelta')
   const at = new Date().toISOString()
   const mediaLimit = opts?.mediaLimit ?? 100
 
@@ -90,6 +97,7 @@ export async function runInstagramSync(
     if (accDailyErr) failures.push(`No se pudo guardar el snapshot diario de cuenta: ${accDailyErr.message}`)
   }
 
+  marca('perfil e insights de cuenta')
   // 2) Demografía de la audiencia (país/ciudad/edad/género) → snapshot vigente
   let demographicsRows = 0
   try {
@@ -114,6 +122,7 @@ export async function runInstagramSync(
     /* demografía requiere >=100 seguidores; si falla, seguimos */
   }
 
+  marca('demografía')
   // 3) Medias (reels + posts) con sus insights. Upsert por external_id SIN tocar
   //    las columnas de transcripción/IA (no van en el payload → se conservan).
   const medias = await fetchIgMedia(cfg, igUserId, mediaLimit)
@@ -175,6 +184,7 @@ export async function runInstagramSync(
     if (error) failures.push(`No se pudieron guardar ${filas.length} posts: ${error.message}`)
     else mediaSynced += filas.length
   }
+  marca(`medias (${mediaSynced})`)
   if (mediaCortada > 0) {
     console.warn(
       `[instagram] presupuesto agotado: ${mediaCortada} publicaciones antiguas quedan para la próxima pasada`
@@ -187,6 +197,7 @@ export async function runInstagramSync(
   let fbReelsSynced = 0
   let conversations: number | null = null
   try {
+    if (!hayMargen()) throw new Error('sin margen')
     const pageId = await resolveFbPageId(cfg, igUserId)
     if (pageId) {
       const pat = await getPageAccessToken(cfg, pageId)
@@ -249,10 +260,12 @@ export async function runInstagramSync(
   } catch {
     /* FB/conversaciones opcional */
   }
+  marca(`facebook (${fbReelsSynced})`)
 
   // 5) Espejo a YouTube de los reels propios nuevos (opcional, solo si hay credenciales configuradas).
   let youtubeUploaded = 0
   try {
+    if (!hayMargen()) throw new Error('sin margen')
     // Solo reels nuevos aquí (backfillLimit 0): el backfill de reels antiguos va por su propio
     // cron 3 veces al día (mañana/mediodía/noche), ver /api/${tenant}/evergreen/cron/youtube-backfill.
     const youtubeEnv = await loadYoutubeEnv(sb, tenantId, 'youtube_publish')
@@ -260,6 +273,7 @@ export async function runInstagramSync(
   } catch {
     /* YouTube opcional: un fallo aquí no debe romper el sync de Instagram */
   }
+  marca('youtube')
 
   return {
     ok: true,
