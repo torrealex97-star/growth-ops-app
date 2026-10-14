@@ -17,7 +17,7 @@ export type OAuthStatePayload = {
   /** Slug de la subcuenta que inició el flujo. */
   tenant: string
   /** Para qué se pide el permiso. Un flujo de GA4 no debe poder guardarse como conexión de Gmail. */
-  provider: 'ga4' | 'gmail' | 'calendar' | 'youtube'
+  provider: 'ga4' | 'calendar' | 'youtube' | 'youtube_publish'
   /** Usuario autenticado que inició el flujo. Impide reclamar la conexión de otro closer. */
   userId: string
   /** Marca de tiempo de emisión (ms). */
@@ -45,7 +45,10 @@ function signingKey(): Buffer {
   return crypto.createHmac('sha256', master).update('oauth-state-v1').digest()
 }
 
-export function signState(input: Omit<OAuthStatePayload, 'iat' | 'nonce'>): string {
+export function createSignedState(input: Omit<OAuthStatePayload, 'iat' | 'nonce'>): {
+  state: string
+  payload: OAuthStatePayload
+} {
   const payload: OAuthStatePayload = {
     ...input,
     iat: Date.now(),
@@ -53,7 +56,11 @@ export function signState(input: Omit<OAuthStatePayload, 'iat' | 'nonce'>): stri
   }
   const body = b64url(Buffer.from(JSON.stringify(payload), 'utf8'))
   const mac = b64url(crypto.createHmac('sha256', signingKey()).update(body).digest())
-  return `${body}.${mac}`
+  return { state: `${body}.${mac}`, payload }
+}
+
+export function signState(input: Omit<OAuthStatePayload, 'iat' | 'nonce'>): string {
+  return createSignedState(input).state
 }
 
 export type VerifyResult =
@@ -89,9 +96,9 @@ export function verifyState(state: string | null | undefined, now = Date.now()):
     typeof payload.tenant !== 'string' ||
     !payload.tenant ||
     (payload.provider !== 'ga4' &&
-      payload.provider !== 'gmail' &&
       payload.provider !== 'calendar' &&
-      payload.provider !== 'youtube') ||
+      payload.provider !== 'youtube' &&
+      payload.provider !== 'youtube_publish') ||
     typeof payload.userId !== 'string' ||
     !payload.userId ||
     typeof payload.iat !== 'number'

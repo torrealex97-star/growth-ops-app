@@ -62,7 +62,9 @@ export async function accessTokenFromRefresh(
 export type Ga4Property = { name: string; displayName: string; account: string }
 
 /** Propiedades de GA4 accesibles con este token, para que el usuario elija una. */
-export async function listProperties(accessToken: string): Promise<{ items: Ga4Property[] } | { error: string }> {
+export async function listProperties(
+  accessToken: string
+): Promise<{ items: Ga4Property[] } | { error: string; status: number }> {
   const r = await fetch('https://analyticsadmin.googleapis.com/v1beta/accountSummaries?pageSize=200', {
     headers: { Authorization: `Bearer ${accessToken}` },
     signal: AbortSignal.timeout(15_000),
@@ -75,7 +77,7 @@ export async function listProperties(accessToken: string): Promise<{ items: Ga4P
     }>
     error?: { message?: string }
   }
-  if (!r.ok) return { error: j.error?.message || `Google respondió ${r.status}` }
+  if (!r.ok) return { error: j.error?.message || `Google respondió ${r.status}`, status: r.status }
   const items: Ga4Property[] = []
   for (const acc of j.accountSummaries ?? []) {
     for (const prop of acc.propertySummaries ?? []) {
@@ -151,7 +153,7 @@ export async function runReport(opts: {
   from: string
   to: string
   offset: number
-}): Promise<{ rows: Ga4Row[]; total: number } | { error: string }> {
+}): Promise<{ rows: Ga4Row[]; total: number } | { error: string; status: number }> {
   const property = opts.propertyId.startsWith('properties/') ? opts.propertyId : `properties/${opts.propertyId}`
   const r = await fetch(`https://analyticsdata.googleapis.com/v1beta/${property}:runReport`, {
     method: 'POST',
@@ -173,6 +175,6 @@ export async function runReport(opts: {
     rowCount?: number
     error?: { message?: string }
   }
-  if (!r.ok) return { error: j.error?.message || `Google respondió ${r.status}` }
+  if (!r.ok) return { error: j.error?.message || `Google respondió ${r.status}`, status: r.status }
   return { rows: mapReportRows(j), total: j.rowCount ?? 0 }
 }

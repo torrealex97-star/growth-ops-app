@@ -680,35 +680,20 @@ export const INTEGRATION_GROUPS: IntegrationGroup[] = [
   {
     id: 'youtube',
     title: 'YouTube',
-    description: 'Publica reels como Shorts y sincroniza sus métricas.',
+    description: 'Conecta el canal y sus analíticas. La publicación se autoriza por separado.',
     category: 'marketing',
-    test: true,
-    required: ['YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET', 'YOUTUBE_REFRESH_TOKEN'],
+    required: [],
     pasos: [
       {
-        titulo: 'Crea un proyecto en Google Cloud y activa la API de YouTube',
-        detalle:
-          'En console.cloud.google.com crea un proyecto y, en Biblioteca, activa YouTube Data API v3. Sin activarla ' +
-          'las credenciales existen pero toda llamada falla.',
+        titulo: 'Conecta el canal',
+        detalle: 'Pulsa «Conectar canal y analíticas» y elige la cuenta de Google que administra el canal.',
       },
       {
-        titulo: 'Crea credenciales de tipo OAuth',
-        detalle:
-          'Credenciales → Crear → ID de cliente de OAuth, tipo Aplicación web. Registra como URI de redirección ' +
-          'https://app.scalixsystems.com/api/oauth/google/callback. De ahí salen el Client ID y el Client Secret.',
-      },
-      {
-        titulo: 'El refresh token sale de autorizar una vez',
-        detalle:
-          'Guarda el Client ID y el Client Secret y pulsa «Conectar con Google». Google vuelve directamente a la ' +
-          'app y el servidor guarda el refresh token cifrado; no hay que copiar códigos ni usar OAuth Playground.',
+        titulo: 'Autoriza la publicación solo si la necesitas',
+        detalle: 'Publicar Shorts usa un consentimiento independiente; consultar datos nunca concede escritura.',
       },
     ],
-    fields: [
-      { key: 'YOUTUBE_CLIENT_ID', label: 'OAuth Client ID', type: 'text', secret: false },
-      { key: 'YOUTUBE_CLIENT_SECRET', label: 'OAuth Client Secret', type: 'password', secret: true },
-      { key: 'YOUTUBE_REFRESH_TOKEN', label: 'OAuth Refresh Token', type: 'password', secret: true },
-    ],
+    fields: [],
   },
   {
     id: 'sequra',
@@ -969,44 +954,22 @@ export const INTEGRATION_GROUPS: IntegrationGroup[] = [
   },
   {
     id: 'google',
-    title: 'Google (GA4 y Gmail)',
-    description: 'Credenciales del proyecto de Google Cloud. La conexión de cada servicio se autoriza aparte.',
+    title: 'Google Analytics',
+    description: 'Conecta GA4 con una cuenta que tenga acceso de lectura a la propiedad.',
     category: 'marketing',
-    required: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'],
+    required: [],
     pasos: [
       {
-        titulo: 'Crea el proyecto en Google Cloud y activa las APIs',
-        detalle:
-          'En console.cloud.google.com crea un proyecto y activa en Biblioteca las APIs que vayas a usar: Google Analytics Data para GA4, Gmail API para el correo. Cada una se activa por separado.',
+        titulo: 'Conecta tu cuenta de Google',
+        detalle: 'Pulsa «Conectar Google Analytics». No necesitas crear un proyecto ni copiar credenciales.',
       },
       {
-        titulo: 'Crea el ID de cliente de OAuth',
+        titulo: 'Elige una propiedad accesible',
         detalle:
-          'Credenciales → Crear → ID de cliente de OAuth, tipo Aplicación web. Registra ' +
-          'https://app.scalixsystems.com/api/oauth/google/callback como URI de redirección. De ahí salen el Client ID y el Client Secret.',
-      },
-      {
-        titulo: 'Da acceso a la propiedad de GA4',
-        detalle:
-          'Tener credenciales no basta: en Google Analytics la cuenta que autorice necesita al menos permiso de lectura sobre la propiedad. Es el olvido más común y da un error de permisos que parece de credenciales.',
+          'La cuenta autorizada necesita permiso de lectura en GA4. Después de conectar podrás elegir entre sus propiedades.',
       },
     ],
-    fields: [
-      {
-        key: 'GOOGLE_CLIENT_ID',
-        label: 'Client ID',
-        type: 'text',
-        secret: false,
-        help: 'Del cliente OAuth de tipo "Aplicación web". Es público por diseño.',
-      },
-      {
-        key: 'GOOGLE_CLIENT_SECRET',
-        label: 'Client Secret',
-        type: 'password',
-        secret: true,
-        help: 'Google solo lo muestra una vez. Se guarda cifrado y nunca se vuelve a mostrar en claro.',
-      },
-    ],
+    fields: [],
   },
   {
     id: 'negocio',

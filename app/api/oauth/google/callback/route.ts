@@ -1,8 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
-import { encryptSecret, getConfigEncryptionKeyFingerprint } from '@/lib/config'
+import { encryptSecret } from '@/lib/config'
 import { exchangeCode, fetchGoogleEmail, googleCredentials, SCOPES } from '@/lib/google/oauth'
 import { verifyState } from '@/lib/google/oauth-state'
+import { GOOGLE_PKCE_COOKIE, openPkce } from '@/lib/google/pkce'
 import { requireTenant } from '@/lib/auth/requireTenant'
 
 export const runtime = 'nodejs'
@@ -26,7 +27,7 @@ function serviceClient() {
 // en vez de dejarle ante un JSON: viene de una pantalla y tiene que volver a una pantalla.
 function backToGoogleSurface(
   tenant: string,
-  provider: 'ga4' | 'gmail' | 'calendar' | 'youtube',
+  provider: 'ga4' | 'calendar' | 'youtube' | 'youtube_publish',
   params: Record<string, string>,
   req: NextRequest
 ): NextResponse {
@@ -35,7 +36,11 @@ function backToGoogleSurface(
   const pathname = provider === 'calendar' ? `/${tenant}/crm/agendas` : `/${tenant}/settings/integraciones`
   const url = new URL(pathname, req.nextUrl.origin)
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v)
-  return NextResponse.redirect(url)
+  const response = NextResponse.redirect(url)
+  // La cookie contiene el verifier PKCE y debe ser de un solo uso, también cuando Google devuelve
+  // una cancelación o cuando falla el intercambio del código.
+  response.cookies.delete(GOOGLE_PKCE_COOKIE)
+  return response
 }
 
 export async function GET(req: NextRequest) {
@@ -50,7 +55,14 @@ export async function GET(req: NextRequest) {
         { status: 400 }
       )
     }
-    const { tenant, provider, userId } = state.payload
+    const { tenant, provider, userId, nonce } = state.payload
+    const pkce = openPkce(req.cookies.get(GOOGLE_PKCE_COOKIE)?.value)
+    if (!pkce || pkce.nonce !== nonce || pkce.userId !== userId || pkce.provider !== provider) {
+      return NextResponse.json(
+        { error: 'La autorización no pertenece a este navegador o ya fue utilizada.' },
+        { status: 400 }
+      )
+    }
 
     // El callback conserva las cookies de la sesión que inició OAuth. La firma impide manipular el
     // state y esta comprobación adicional impide que un state capturado dentro de sus 10 minutos se
@@ -83,10 +95,10 @@ export async function GET(req: NextRequest) {
     if (!tenantRow) return NextResponse.json({ error: 'Subcuenta desconocida' }, { status: 404 })
     const tenantId = (tenantRow as { id: string }).id
 
-    const creds = await googleCredentials(tenantId, provider)
+    const creds = googleCredentials()
     if (!creds) return backToGoogleSurface(tenant, provider, { google: 'error', motivo: 'sin_credenciales' }, req)
 
-    const token = await exchangeCode(code, creds)
+    const token = await exchangeCode(code, creds, pkce.verifier)
     if (token.error || !token.refresh_token) {
       // Sin refresh_token la conexión moriría en una hora, así que NO se guarda a medias. El caso
       // típico: Google no lo devuelve si ya se autorizó antes y no se fuerza prompt=consent.
@@ -100,37 +112,15 @@ export async function GET(req: NextRequest) {
 
     const email = token.access_token ? await fetchGoogleEmail(token.access_token) : null
 
-    // YouTube conserva el contrato existente del resto de la app: los jobs leen el refresh token
-    // desde integration_settings. El callback reemplaza el antiguo copiar/pegar del Playground.
-    if (provider === 'youtube') {
-      const { error } = await sb.from('integration_settings').upsert(
-        {
-          tenant_id: tenantId,
-          key: 'YOUTUBE_REFRESH_TOKEN',
-          value: encryptSecret(token.refresh_token),
-          is_secret: true,
-          key_fingerprint: getConfigEncryptionKeyFingerprint(),
-          updated_by: userId,
-        },
-        { onConflict: 'tenant_id,key' }
-      )
-      if (error) return backToGoogleSurface(tenant, provider, { google: 'error', motivo: 'no_se_pudo_guardar' }, req)
-      return backToGoogleSurface(
-        tenant,
-        provider,
-        faltan.length > 0
-          ? { google: 'permisos_incompletos', servicio: provider }
-          : { google: 'conectada', servicio: provider },
-        req
-      )
-    }
-
     const connectionValues = {
       tenant_id: tenantId,
       provider,
       google_email: email,
       // Cifrado, nunca en claro: es una credencial de larga duración.
       refresh_token: encryptSecret(token.refresh_token),
+      access_token: token.access_token ? encryptSecret(token.access_token) : null,
+      access_token_expires_at:
+        token.access_token && token.expires_in ? new Date(Date.now() + token.expires_in * 1000).toISOString() : null,
       scopes: granted,
       status: faltan.length > 0 ? 'error' : 'conectada',
       last_error: faltan.length > 0 ? `Faltan permisos concedidos: ${faltan.join(', ')}` : null,
@@ -138,7 +128,8 @@ export async function GET(req: NextRequest) {
       ...(provider === 'calendar' ? { owner_user_id: userId } : {}),
     }
 
-    // El índice tenant+provider de GA4/Gmail pasa a ser parcial para permitir N closers Calendar;
+    // El índice tenant+provider de las conexiones administrativas es parcial para permitir N
+    // closers Calendar;
     // PostgREST no puede inferir índices parciales en onConflict. Esas dos conexiones se sustituyen
     // explícitamente, mientras Calendar conserva un upsert atómico por tenant+provider+usuario.
     let error: { message: string } | null = null
