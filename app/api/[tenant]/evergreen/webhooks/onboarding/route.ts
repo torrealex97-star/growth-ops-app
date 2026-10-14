@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getPlatformSetting } from '@/lib/platform/settings'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { isValidWebhookSecret } from '@/lib/webhooks/verifySecret'
 
@@ -58,7 +59,7 @@ async function resolveContact(
 export async function POST(req: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
   try {
     const secret = req.headers.get('x-ghl-secret') || req.nextUrl.searchParams.get('secret')
-    if (!isValidWebhookSecret(secret, process.env.ONBOARDING_INBOUND_SECRET)) {
+    if (!isValidWebhookSecret(secret, (await getPlatformSetting('ONBOARDING_INBOUND_SECRET')) ?? undefined)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

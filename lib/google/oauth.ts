@@ -1,4 +1,5 @@
 // Piezas compartidas del flujo OAuth con Google.
+import { getPlatformSetting } from '@/lib/platform/settings'
 import { isGoogleOAuthClientId } from '@/lib/integrations/oauth-credentials'
 
 /**
@@ -48,9 +49,10 @@ export type GoogleCredentials = { clientId: string; clientSecret: string }
  * Cliente OAuth propiedad de la plataforma. Nunca depende de la subcuenta: el aislamiento lo dan
  * el state firmado y la fila tenant-scoped que contiene cada refresh token.
  */
-export function googleCredentials(): GoogleCredentials | null {
-  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID?.trim()
-  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim()
+export async function googleCredentials(): Promise<GoogleCredentials | null> {
+  // Ajustes de plataforma (gestionados por super admin) primero; la variable de entorno es el respaldo.
+  const clientId = await getPlatformSetting('GOOGLE_OAUTH_CLIENT_ID')
+  const clientSecret = await getPlatformSetting('GOOGLE_OAUTH_CLIENT_SECRET')
   if (!clientId || !isGoogleOAuthClientId(clientId) || !clientSecret) return null
   return { clientId, clientSecret }
 }
