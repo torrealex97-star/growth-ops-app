@@ -29,7 +29,15 @@ export async function procesarMeetingFathom(
   sb: SupabaseClient,
   tenantId: string,
   meeting: FathomMeeting,
-  opts: { dryRun?: boolean } = {}
+  opts: {
+    dryRun?: boolean
+    /**
+     * No anota en la cola de revisión las reuniones SIN ninguna cita candidata. Es para las claves
+     * personales: traen también llamadas que no son de este negocio, y encolarlas guardaría el correo y
+     * la grabación de personas ajenas a la subcuenta y ahogaría la cola real.
+     */
+    omitirSinCandidatos?: boolean
+  } = {}
 ): Promise<ResultadoIngesta> {
   const dryRun = opts.dryRun === true
   const fathomMeetingId = meetingId(meeting)
@@ -130,6 +138,15 @@ export async function procesarMeetingFathom(
       return { kind: 'a_revision_sin_candidatos', razon, candidateIds: [decision.appointmentId] }
     }
     return { kind: 'emparejadas', via: decision.via }
+  }
+
+  // Sin ninguna cita candidata y con la omisión pedida: no hay nada de este negocio que revisar.
+  if (opts.omitirSinCandidatos && decision.kind !== 'ambigua' && candidates.length === 0) {
+    return {
+      kind: 'a_revision_sin_candidatos',
+      razon: 'omitida: sin cita candidata en esta subcuenta',
+      candidateIds: [],
+    }
   }
 
   // Ambigua o sin candidatos: a la cola, nunca una escritura a ciegas.

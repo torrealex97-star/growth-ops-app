@@ -61,16 +61,20 @@ function servicio(): SupabaseClient {
 }
 
 type Fila = { key: string; value: string; is_secret: boolean; key_fingerprint: string | null; updated_at: string }
-let cache: { filas: Map<string, Fila>; hasta: number } | null = null
+let cache: { filas: Map<string, Fila>; hasta: number; fallo?: boolean } | null = null
 const TTL_MS = 30_000
 
 async function leerFilas(force = false): Promise<Map<string, Fila> | null> {
-  if (!force && cache && cache.hasta > Date.now()) return cache.filas
+  if (!force && cache && cache.hasta > Date.now()) return cache.fallo ? null : cache.filas
   const { data, error } = await servicio()
     .from('platform_settings')
     .select('key,value,is_secret,key_fingerprint,updated_at')
-  // Sin tabla (migración pendiente) o sin lectura: se cae al entorno, nunca se rompe lo que funciona.
-  if (error) return null
+  // Sin tabla (migración pendiente) o sin lectura: se cae al entorno, nunca se rompe lo que funciona. El
+  // fallo también se cachea (lo que dura el TTL): sin esto cada petición repetiría una consulta inútil.
+  if (error) {
+    cache = { filas: new Map(), hasta: Date.now() + TTL_MS, fallo: true }
+    return null
+  }
   const filas = new Map<string, Fila>((data ?? []).map((f) => [f.key as string, f as Fila]))
   cache = { filas, hasta: Date.now() + TTL_MS }
   return filas

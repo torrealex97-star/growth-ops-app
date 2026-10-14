@@ -35,7 +35,7 @@ test('la API solo opera sobre el usuario de la sesión y nunca devuelve la clave
 test('la clave se guarda cifrada y el cron exige CRON_SECRET', () => {
   const l = leer('lib/fathom/conexion-personal.ts')
   assert.match(l, /api_key: encryptSecret\(clave\)/)
-  assert.match(l, /procesarMeetingFathom\(sb, conexion\.tenant_id, meeting\)/)
+  assert.match(l, /procesarMeetingFathom\(sb, conexion\.tenant_id, meeting,/)
   const c = leer('app/api/[tenant]/evergreen/cron/fathom-closers/route.ts')
   assert.match(c, /Bearer \$\{process\.env\.CRON_SECRET\}/)
   assert.ok(existsWorkflow())
@@ -55,4 +55,32 @@ test('la migración deja la tabla sin grants externos y con aislamiento por subc
 test('el botón «Mi Fathom» está en Agendas junto al calendario personal', () => {
   const p = leer('app/[tenant]/crm/agendas/page.tsx')
   assert.match(p, /<FathomPersonalSettings tenant=\{tenant\} \/>/)
+})
+
+test('una reunión que falla no tumba la conexión; el contador solo suma lo que entra', () => {
+  const l = leer('lib/fathom/conexion-personal.ts')
+  assert.match(l, /resumen\.fallidas\+\+/)
+  assert.match(l, /meetings_seen: conexion\.meetings_seen \+ resumen\.nuevas \+ resumen\.enRevision/)
+  assert.doesNotMatch(l, /meetings_seen: conexion\.meetings_seen \+ resumen\.vistas/)
+})
+
+test('la clave personal no encola reuniones sin cita candidata (PII ajena)', () => {
+  assert.match(leer('lib/fathom/conexion-personal.ts'), /\{ omitirSinCandidatos: true \}/)
+  const i = leer('lib/fathom/ingesta.ts')
+  assert.match(i, /opts\.omitirSinCandidatos && decision\.kind !== 'ambigua' && candidates\.length === 0/)
+  assert.ok(
+    i.indexOf('opts.omitirSinCandidatos &&') <
+      i.indexOf(
+        'await anotarRevision(sb, tenantId, fathomMeetingId, meeting, email, startedAt, {\n      kind: decision.kind'
+      )
+  )
+})
+
+test('la lectura de citas de Calendly va en trozos de 40 y los ajustes cachean el fallo', () => {
+  const c = leer('lib/integrations/citas-sync.ts')
+  assert.match(c, /i \+= 40/)
+  assert.match(c, /uris\.slice\(i, i \+ 40\)/)
+  const s = leer('lib/platform/settings.ts')
+  assert.match(s, /fallo: true/)
+  assert.match(s, /cache\.fallo \? null : cache\.filas/)
 })
