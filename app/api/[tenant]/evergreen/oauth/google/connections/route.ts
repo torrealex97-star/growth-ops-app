@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { googleCredentials } from '@/lib/google/oauth'
+import { ambitosFaltantes, googleCredentials, SCOPES } from '@/lib/google/oauth'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireTenant } from '@/lib/auth/requireTenant'
 import { decryptSecret } from '@/lib/config'
@@ -31,15 +31,42 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ ten
   const { tenant } = await params
   const auth = await requireManage(tenant)
   if (!auth.ok) return auth.response
-  const { data, error } = await serviceClient()
+  const sb = serviceClient()
+  const { data, error } = await sb
     .from('google_oauth_connections')
     .select('provider,google_email,status,scopes,ga4_property_id,last_sync_at,last_error,reauth_required_at,updated_at')
     .eq('tenant_id', auth.session.tenantId)
     .in('provider', ['ga4', 'youtube', 'youtube_publish'])
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // AUTOCURACIÓN: una conexión marcada «Faltan permisos concedidos» por el fallo antiguo de la
+  // comparación (Google devuelve `email` como URL completa) ya tiene todos sus permisos guardados en
+  // `scopes`. Se recalcula con la comparación corregida y, si no falta nada, se repara sin obligar a
+  // reconectar. Si de verdad falta un permiso, se deja tal cual.
+  const conexiones = []
+  for (const c of data ?? []) {
+    const fila = c as { provider: GoogleProvider; status: string; last_error: string | null; scopes: string[] | null }
+    if (
+      fila.status === 'error' &&
+      (fila.last_error || '').startsWith('Faltan permisos concedidos') &&
+      Array.isArray(fila.scopes) &&
+      ambitosFaltantes(SCOPES[fila.provider], fila.scopes.join(' ')).length === 0
+    ) {
+      const { error: upErr } = await sb
+        .from('google_oauth_connections')
+        .update({ status: 'conectada', last_error: null })
+        .eq('tenant_id', auth.session.tenantId)
+        .eq('provider', fila.provider)
+      if (!upErr) {
+        conexiones.push({ ...c, status: 'conectada', last_error: null })
+        continue
+      }
+    }
+    conexiones.push(c)
+  }
   return NextResponse.json({
     configured: Boolean(await googleCredentials()),
-    connections: data ?? [],
+    connections: conexiones,
   })
 }
 
