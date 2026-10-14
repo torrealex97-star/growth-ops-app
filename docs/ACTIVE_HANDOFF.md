@@ -1,3 +1,17 @@
+# VALIDADO EN RAMA — Centro global de Super Admin (14-oct-2026, Codex) · rama `codex/superadmin-platform-menu`
+
+- **Entregado:** entrada global desde el perfil del superadministrador, centro de plataforma,
+  accesos explícitos a Subcuentas y Conexiones IA (MCP), distinción visual entre alcance global y
+  tenant actual, y guard visual para que el centro solo se pinte a un Super Admin. MCP conserva su
+  modelo correcto: conexiones globales por usuario y acceso únicamente a sus tenants autorizados.
+- **Ficheros:** `components/os/Header.tsx`, `app/[tenant]/settings/page.tsx`,
+  `app/[tenant]/settings/platform/page.tsx`, `tests/profile-entrypoint.test.mjs`,
+  `tests/tenant-provisioning.test.mjs` y este handoff. Sin cambios de API, base de datos, RLS ni
+  lógica financiera.
+- **Verificación:** `npm run quality` PASS (1.697 pruebas de app + 789 de métricas, 0 fallos),
+  `npm run build` PASS, pruebas focales 23/23, `git diff --check` PASS y `npm run dead-code` PASS
+  informativo (solo deuda preexistente).
+
 # COMPLETADO — error de carga ≠ cero en proyección de comisiones futuras (14-oct, Buffy) · `fix/futuras-error-de-carga` (PR #505, merged)
 
 Bug S1 §6.8 «un error de carga no es un estado vacío» (variante de cliente), confirmado con captura:

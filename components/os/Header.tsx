@@ -17,6 +17,9 @@ import {
   LogOut,
   ShieldCheck,
   UserRound,
+  Bot,
+  Building2,
+  Settings2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -407,14 +410,14 @@ export function Header({ user, onMenuClick, menuOpen = false, title, isSuperAdmi
               <ChevronsUpDown className="hidden h-3.5 w-3.5 text-muted-foreground sm:block" aria-hidden="true" />
             </button>
           </PopoverTrigger>
-          <PopoverContent align="end" className="w-72 border-border bg-card p-1.5">
+          <PopoverContent align="end" className="w-80 border-border bg-card p-1.5">
             <div className="px-2.5 py-2">
               <p className="truncate text-sm font-semibold text-foreground">{user.full_name}</p>
               <p className="mt-0.5 text-xs text-muted-foreground">{ROLE_LABELS[role]} en esta subcuenta</p>
               {isSuperAdmin && (
                 <p className="mt-2 flex items-start gap-1.5 text-xs leading-5 text-muted-foreground">
                   <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-400" aria-hidden="true" />
-                  Superadministrador: puedes cambiar de subcuenta y comprobar la experiencia de cualquier usuario.
+                  Superadministrador: gestiona la plataforma completa y comprueba la experiencia de cualquier usuario.
                 </p>
               )}
             </div>
@@ -427,13 +430,46 @@ export function Header({ user, onMenuClick, menuOpen = false, title, isSuperAdmi
               Mi perfil y contraseña
             </Link>
             {isSuperAdmin && (
-              <Link
-                href={`/${tenant}/settings/users`}
-                className="flex items-center gap-2 rounded-md px-2.5 py-2 text-sm text-foreground transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <Eye className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-                Ver como otro usuario
-              </Link>
+              <>
+                <div className="my-1 h-px bg-border" />
+                <p className="px-2.5 pb-1 pt-1.5 text-2xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  Plataforma · global
+                </p>
+                <Link
+                  href={`/${tenant}/settings/platform`}
+                  className="flex items-center gap-2 rounded-md border border-brand-500/20 bg-brand-500/5 px-2.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-brand-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Settings2 className="h-4 w-4 text-brand-400" aria-hidden="true" />
+                  <span className="flex-1">Control de plataforma</span>
+                  <span className="rounded bg-brand-500/10 px-1.5 py-0.5 text-3xs font-semibold uppercase text-brand-400">
+                    Global
+                  </span>
+                </Link>
+                <Link
+                  href={`/${tenant}/settings/subcuentas`}
+                  className="mt-1 flex items-center gap-2 rounded-md px-2.5 py-2 text-sm text-foreground transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Building2 className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  Subcuentas
+                </Link>
+                <Link
+                  href={`/${tenant}/settings/mcp`}
+                  className="flex items-center gap-2 rounded-md px-2.5 py-2 text-sm text-foreground transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Bot className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  Conexiones IA (MCP)
+                </Link>
+                <p className="px-2.5 pb-1 pt-2 text-2xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  Tenant actual
+                </p>
+                <Link
+                  href={`/${tenant}/settings/users`}
+                  className="flex items-center gap-2 rounded-md px-2.5 py-2 text-sm text-foreground transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Eye className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  Ver como otro usuario
+                </Link>
+              </>
             )}
             <button
               type="button"
