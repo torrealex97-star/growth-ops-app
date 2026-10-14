@@ -1,8 +1,8 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireTenant } from '@/lib/auth/requireTenant'
-import { accessTokenFromRefresh, listProperties, runReport, GA4_PAGE_SIZE, type Ga4Row } from '@/lib/google/ga4'
-import { googleCredentials } from '@/lib/google/oauth'
+import { listProperties, runReport, GA4_PAGE_SIZE, type Ga4Row } from '@/lib/google/ga4'
+import { getValidGoogleAccessToken } from '@/lib/google/token-store'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -20,6 +20,8 @@ function serviceClient(): SupabaseClient {
 type Connection = {
   id: string
   refresh_token: string
+  access_token: string | null
+  access_token_expires_at: string | null
   ga4_property_id: string | null
   status: string
   last_sync_at: string | null
@@ -29,7 +31,7 @@ type Connection = {
 async function loadConnection(sb: SupabaseClient, tenantId: string): Promise<Connection | null> {
   const { data } = await sb
     .from('google_oauth_connections')
-    .select('id,refresh_token,ga4_property_id,status,last_sync_at,google_email')
+    .select('id,refresh_token,access_token,access_token_expires_at,ga4_property_id,status,last_sync_at,google_email')
     .eq('tenant_id', tenantId)
     .eq('provider', 'ga4')
     .maybeSingle()
@@ -68,15 +70,20 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     }
     if (new URL(req.url).searchParams.get('propiedades') !== '1') return NextResponse.json(base)
 
-    const creds = await googleCredentials(auth.session.tenantId)
-    if (!creds) return NextResponse.json({ ...base, error: 'Faltan las credenciales de Google' }, { status: 400 })
-    const token = await accessTokenFromRefresh(conn.refresh_token, creds)
+    const token = await getValidGoogleAccessToken(sb, conn)
     if ('error' in token) {
       await marcarError(sb, conn.id, token.error, token.revoked)
       return NextResponse.json({ ...base, error: token.error, revocada: token.revoked }, { status: 400 })
     }
     const props = await listProperties(token.token)
-    if ('error' in props) return NextResponse.json({ ...base, error: props.error }, { status: 400 })
+    if ('error' in props) {
+      const message =
+        props.status === 403 ? 'Tu cuenta de Google no tiene acceso a esta propiedad de GA4.' : props.error
+      return NextResponse.json(
+        { ...base, error: message, code: props.status === 403 ? 'ga4_sin_acceso' : 'ga4_error' },
+        { status: 400 }
+      )
+    }
     return NextResponse.json({ ...base, propiedades: props.items })
   } catch (err) {
     console.error('[api/ga4 GET]', err)
@@ -143,9 +150,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     }
     if (from > to) return NextResponse.json({ error: 'La fecha de inicio es posterior a la de fin' }, { status: 400 })
 
-    const creds = await googleCredentials(session.tenantId)
-    if (!creds) return NextResponse.json({ error: 'Faltan las credenciales de Google' }, { status: 400 })
-    const token = await accessTokenFromRefresh(conn.refresh_token, creds)
+    const token = await getValidGoogleAccessToken(sb, conn)
     if ('error' in token) {
       await marcarError(sb, conn.id, token.error, token.revoked)
       return NextResponse.json(
@@ -176,8 +181,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
         offset,
       })
       if ('error' in page) {
-        await marcarError(sb, conn.id, page.error, false)
-        return NextResponse.json({ error: page.error, leidas, escritas }, { status: 400 })
+        const message =
+          page.status === 403 ? 'Tu cuenta de Google no tiene acceso a esta propiedad de GA4.' : page.error
+        await marcarError(sb, conn.id, message, false)
+        return NextResponse.json(
+          { error: message, code: page.status === 403 ? 'ga4_sin_acceso' : 'ga4_error', leidas, escritas },
+          { status: 400 }
+        )
       }
       leidas += page.rows.length
       if (muestra.length < 10) muestra.push(...page.rows.slice(0, 10 - muestra.length))

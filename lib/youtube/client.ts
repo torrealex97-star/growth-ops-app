@@ -1,30 +1,62 @@
-// Cliente de la YouTube Data API v3 para espejar reels propios de Instagram como Shorts.
-// Requiere credenciales OAuth de un canal de YouTube (no API key: subir vídeo exige un usuario
-// autorizado). Ver README de configuración en el mensaje de setup — variables:
-//   YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET, YOUTUBE_REFRESH_TOKEN
+// Cliente de la YouTube Data API v3 para consultar el canal y, con consentimiento separado,
+// espejar reels propios de Instagram como Shorts. El cliente OAuth es global; solo el refresh token
+// cifrado identifica la cuenta autorizada de cada subcuenta.
 import { google } from 'googleapis'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { Readable } from 'stream'
-import { googleRedirectUri } from '@/lib/google/oauth'
+import { googleCredentials, googleRedirectUri } from '@/lib/google/oauth'
+import { decryptSecret } from '@/lib/config'
+import { getValidGoogleAccessToken } from '@/lib/google/token-store'
 
 /**
- * Credenciales de YouTube de UNA subcuenta. Explícitas, como en Meta e Instagram: leerlas de
- * `process.env` significaba subir los reels de una subcuenta al canal de otra (lo que hubiera dejado
- * ahí la última llamada a `ensureConfig`), o no subir nada en una lambda recién arrancada aunque las
- * credenciales estuvieran guardadas en Integraciones.
+ * Credenciales efectivas de UNA subcuenta. El client id/secret siempre pertenece a la plataforma;
+ * el refresh token sale exclusivamente de la fila tenant-scoped.
  */
 export type YoutubeEnv = {
   YOUTUBE_CLIENT_ID?: string
   YOUTUBE_CLIENT_SECRET?: string
   YOUTUBE_REFRESH_TOKEN?: string
+  YOUTUBE_ACCESS_TOKEN?: string
 }
 
 export function isYoutubeConfigured(env: YoutubeEnv): boolean {
   return !!(env.YOUTUBE_CLIENT_ID && env.YOUTUBE_CLIENT_SECRET && env.YOUTUBE_REFRESH_TOKEN)
 }
 
+export async function loadYoutubeEnv(
+  sb: SupabaseClient,
+  tenantId: string,
+  provider: 'youtube' | 'youtube_publish' = 'youtube_publish'
+): Promise<YoutubeEnv> {
+  const credentials = googleCredentials()
+  if (!credentials) return {}
+  const { data, error } = await sb
+    .from('google_oauth_connections')
+    .select('id,refresh_token,access_token,access_token_expires_at,status')
+    .eq('tenant_id', tenantId)
+    .eq('provider', provider)
+    .maybeSingle()
+  if (error || !data || data.status !== 'conectada') return {}
+  try {
+    const access = await getValidGoogleAccessToken(sb, data)
+    if ('error' in access) return {}
+    return {
+      YOUTUBE_CLIENT_ID: credentials.clientId,
+      YOUTUBE_CLIENT_SECRET: credentials.clientSecret,
+      YOUTUBE_REFRESH_TOKEN: decryptSecret(data.refresh_token),
+      YOUTUBE_ACCESS_TOKEN: access.token,
+    }
+  } catch {
+    return {}
+  }
+}
+
 function getAuthClient(env: YoutubeEnv) {
   const oauth2Client = new google.auth.OAuth2(env.YOUTUBE_CLIENT_ID, env.YOUTUBE_CLIENT_SECRET, googleRedirectUri())
-  oauth2Client.setCredentials({ refresh_token: env.YOUTUBE_REFRESH_TOKEN })
+  oauth2Client.setCredentials({
+    refresh_token: env.YOUTUBE_REFRESH_TOKEN,
+    access_token: env.YOUTUBE_ACCESS_TOKEN,
+  })
   return oauth2Client
 }
 

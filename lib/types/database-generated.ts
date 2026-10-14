@@ -3102,6 +3102,10 @@ export type EsquemaPublico = {
         provider: string | null
         google_email: string | null
         refresh_token: string | null
+        access_token: string | null
+        access_token_expires_at: string | null
+        last_refresh_at: string | null
+        reauth_required_at: string | null
         scopes: string | null
         ga4_property_id: string | null
         status: string | null
@@ -3118,6 +3122,10 @@ export type EsquemaPublico = {
         provider: string | null | undefined
         google_email: string | null | undefined
         refresh_token: string | null | undefined
+        access_token: string | null | undefined
+        access_token_expires_at: string | null | undefined
+        last_refresh_at: string | null | undefined
+        reauth_required_at: string | null | undefined
         scopes: string | null | undefined
         ga4_property_id: string | null | undefined
         status: string | null | undefined
@@ -3134,6 +3142,10 @@ export type EsquemaPublico = {
         provider: string | undefined
         google_email: string | undefined
         refresh_token: string | undefined
+        access_token: string | undefined
+        access_token_expires_at: string | undefined
+        last_refresh_at: string | undefined
+        reauth_required_at: string | undefined
         scopes: string | undefined
         ga4_property_id: string | undefined
         status: string | undefined

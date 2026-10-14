@@ -16,6 +16,7 @@ import {
   type IgEnv,
 } from './client'
 import { runYoutubeSync } from '@/lib/youtube/backfill'
+import { loadYoutubeEnv } from '@/lib/youtube/client'
 import type { YoutubeEnv } from '@/lib/youtube/client'
 
 const today = (): string => new Date().toISOString().slice(0, 10)
@@ -228,7 +229,8 @@ export async function runInstagramSync(
   try {
     // Solo reels nuevos aquí (backfillLimit 0): el backfill de reels antiguos va por su propio
     // cron 3 veces al día (mañana/mediodía/noche), ver /api/${tenant}/evergreen/cron/youtube-backfill.
-    youtubeUploaded = await runYoutubeSync(sb, cfg, tenantId, env, { backfillLimit: 0 })
+    const youtubeEnv = await loadYoutubeEnv(sb, tenantId, 'youtube_publish')
+    youtubeUploaded = await runYoutubeSync(sb, cfg, tenantId, youtubeEnv, { backfillLimit: 0 })
   } catch {
     /* YouTube opcional: un fallo aquí no debe romper el sync de Instagram */
   }

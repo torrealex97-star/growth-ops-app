@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { getInstagramConfig } from '@/lib/instagram/client'
 import { runYoutubeSync } from '@/lib/youtube/backfill'
 import { getTenantConfigWithFallback } from '@/lib/config'
+import { loadYoutubeEnv } from '@/lib/youtube/client'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -38,7 +39,8 @@ export async function GET(req: NextRequest) {
         perTenant[tn.slug] = null
         continue
       }
-      perTenant[tn.slug] = await runYoutubeSync(sb, cfg, tn.id, tenantEnv, { backfillLimit: 1 })
+      const youtubeEnv = await loadYoutubeEnv(sb, tn.id, 'youtube_publish')
+      perTenant[tn.slug] = await runYoutubeSync(sb, cfg, tn.id, youtubeEnv, { backfillLimit: 1 })
     }
     return NextResponse.json({ ok: true, uploaded: perTenant, at: new Date().toISOString() })
   } catch (e) {

@@ -24,17 +24,19 @@ test('el callback verifica la firma del state antes de cualquier otra cosa', () 
   assert.ok(cuerpo.indexOf('exchangeCode(') > posVerify, 'se intercambia el código antes de validar el state')
   assert.ok(cuerpo.indexOf("from('tenants')") > posVerify, 'se consulta la subcuenta antes de validar el state')
   // La subcuenta sale del state verificado, nunca de un parámetro de la URL.
-  assert.match(cuerpo, /const \{ tenant, provider, userId \} = state\.payload/)
+  assert.match(cuerpo, /const \{ tenant, provider, userId, nonce \} = state\.payload/)
+  assert.match(cuerpo, /openPkce\(/)
+  assert.match(cuerpo, /pkce\.nonce !== nonce/)
   assert.match(cuerpo, /await requireTenant\(tenant\)/)
   assert.match(cuerpo, /session\.userId !== userId/)
   assert.doesNotMatch(cuerpo, /searchParams\.get\('tenant'\)/)
 })
 
-test('el refresh token se guarda cifrado y el access token no se guarda', () => {
+test('refresh y access token se guardan cifrados con su caducidad', () => {
   const code = read(CALLBACK)
   assert.match(code, /refresh_token: encryptSecret\(token\.refresh_token\)/)
-  // El access token caduca en una hora: guardarlo solo añadiría otra credencial a proteger.
-  assert.doesNotMatch(code, /access_token: token\.access_token/)
+  assert.match(code, /access_token: token\.access_token \? encryptSecret\(token\.access_token\) : null/)
+  assert.match(code, /access_token_expires_at/)
 })
 
 test('sin refresh token no se guarda una conexión a medias', () => {
@@ -51,17 +53,15 @@ test('se guardan los ámbitos concedidos, no los pedidos', () => {
   assert.match(code, /faltan\.length > 0 \? 'error' : 'conectada'/)
 })
 
-test('los ámbitos de Google no conceden escritura', () => {
+test('GA4, Calendar y lectura de YouTube usan scopes mínimos; publicar va separado', () => {
   const lib = read('lib/google/oauth.ts')
-  // El SCOPES de lib/google es el del cliente de GA4/Gmail: YouTube usa OTRO cliente OAuth (el de
-  // Integraciones) y otros ámbitos, pedidos por la UI (tests/youtube-oauth.test.mjs).
-  const scopes = lib.slice(lib.indexOf('export const SCOPES'), lib.indexOf('youtube:'))
-  const encontrados = [...scopes.matchAll(/auth\/([a-z0-9.]+)/g)].map((m) => m[1])
-  assert.ok(encontrados.length >= 3, 'no se han encontrado los ámbitos')
-  for (const s of encontrados) assert.match(s, /readonly|metadata|userinfo\.email/)
-  // Nada de escritura, envío ni borrado.
-  assert.doesNotMatch(scopes, /gmail\.send|gmail\.modify|analytics\.edit|drive/)
-  assert.doesNotMatch(scopes, /auth\/calendar(?:['"]|,)/)
+  const readScopes = lib.slice(lib.indexOf('export const SCOPES'), lib.indexOf('youtube_publish:'))
+  assert.match(readScopes, /analytics\.readonly/)
+  assert.match(readScopes, /calendar\.events\.readonly/)
+  assert.match(readScopes, /youtube\.readonly/)
+  assert.match(readScopes, /yt-analytics\.readonly/)
+  assert.doesNotMatch(readScopes, /gmail\.|youtube\.upload|analytics\.edit|auth\/calendar['"]/)
+  assert.match(lib, /youtube_publish: \['openid', 'email', 'https:\/\/www\.googleapis\.com\/auth\/youtube\.upload'\]/)
 })
 
 test('el login con Google conserva el aislamiento por subcuenta después del callback', () => {
@@ -82,11 +82,43 @@ test('el flujo pide offline + consent para recibir refresh token', () => {
   assert.match(lib, /prompt', 'consent'/)
 })
 
-test('el inicio del flujo liga el state a la sesión; Calendar permite al miembro y GA4/Gmail exigen liderazgo', () => {
+test('el cliente OAuth es global y la UI no pide credenciales por subcuenta', () => {
+  const oauth = read('lib/google/oauth.ts')
+  const catalog = read('lib/integrations-catalog.ts')
+  const ui = read('app/[tenant]/settings/integraciones/page.tsx')
+  assert.match(oauth, /process\.env\.GOOGLE_OAUTH_CLIENT_ID/)
+  assert.match(oauth, /process\.env\.GOOGLE_OAUTH_CLIENT_SECRET/)
+  assert.doesNotMatch(catalog, /key: 'GOOGLE_CLIENT_ID'|key: 'GOOGLE_CLIENT_SECRET'/)
+  assert.match(ui, /Conecta una cuenta con acceso de lectura a GA4/)
+  assert.match(ui, /Canal y analíticas/)
+})
+
+test('desconectar revoca el token y el refresh automático marca reautorización', () => {
+  const connections = read('app/api/[tenant]/evergreen/oauth/google/connections/route.ts')
+  const tokenStore = read('lib/google/token-store.ts')
+  assert.match(connections, /revokeGoogleToken\(decryptSecret\(connection\.refresh_token\)\)/)
+  assert.match(connections, /eq\('tenant_id', auth\.session\.tenantId\)/)
+  assert.match(tokenStore, /body\.error === 'invalid_grant'/)
+  assert.match(tokenStore, /reauth_required_at/)
+  assert.match(tokenStore, /access_token_expires_at/)
+})
+
+test('GA4 explica los permisos y permite elegir una propiedad', () => {
+  const route = read(GA4_ROUTE)
+  const ui = read('app/[tenant]/settings/integraciones/page.tsx')
+  assert.match(route, /Tu cuenta de Google no tiene acceso a esta propiedad de GA4/)
+  assert.match(route, /propiedades=1|new URL\(req\.url\).*propiedades/s)
+  assert.match(ui, /Guardar propiedad/)
+  assert.match(ui, /propiedad: ga4Property/)
+})
+
+test('el inicio liga state y PKCE a la sesión; Calendar permite al miembro y GA4/YouTube exigen liderazgo', () => {
   const code = read(START)
   assert.match(code, /await requireTenant\(tenant\)/)
   assert.match(code, /provider !== 'calendar'.*session\.role !== 'admin'/s)
-  assert.match(code, /signState\(\{ tenant, provider, userId: session\.userId \}\)/)
+  assert.match(code, /createSignedState\(\{ tenant, provider, userId: session\.userId \}\)/)
+  assert.match(code, /createPkce\(\)/)
+  assert.match(code, /codeChallenge: pkce\.challenge/)
   // Sin CONFIG_ENC_KEY no se puede firmar: antes fallar que seguir sin firma.
   assert.match(code, /catch \(e\)/)
 })

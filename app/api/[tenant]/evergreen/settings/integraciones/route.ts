@@ -27,6 +27,7 @@ import { comprobarSaludInstagram } from '@/lib/instagram/salud'
 import { stripeGet } from '@/lib/stripe/client'
 import { listarModelos, ModelosError, resolverModelo } from '@/lib/ai/modelos'
 import { DEEPSEEK_MODELOS_PREFERIDOS } from '@/lib/ai/provider'
+import { getValidGoogleAccessToken } from '@/lib/google/token-store'
 import {
   WEBHOOKS_ENTRANTES,
   evaluarSecret,
@@ -185,19 +186,33 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ ten
   // sincronizaciones pueden funcionar. Es lo que decide la luz verde/gris/roja, en vez de pintar
   // "conectado" por el simple hecho de que exista un token escrito.
   const lastChecks = parseLastChecks(dbRows[HEALTH_KEY]?.value)
-  const [rowCounts, lastRuns] = await Promise.all([
+  const [rowCounts, lastRuns, googleOauth] = await Promise.all([
     countSyncTables(svc(), auth.tenantId),
     // Última ejecución de cada sincronización: es lo que convierte "la tabla está vacía" en "la
     // última sincronización falló por esto". Sin esto el panel mandaba a "revisar el último error
     // del sync" sin que ese error se guardara en ninguna parte.
     lastRunsByJob(svc(), auth.tenantId),
+    svc()
+      .from('google_oauth_connections')
+      .select('provider,status')
+      .eq('tenant_id', auth.tenantId)
+      .in('provider', ['ga4', 'youtube', 'youtube_publish']),
   ])
+  const configuredKeys = new Set(
+    Object.entries(state)
+      .filter(([, v]) => v.source !== 'none' && v.indescifrable !== true)
+      .map(([k]) => k)
+  )
+  if (
+    (googleOauth.data ?? []).some(
+      (connection) => connection.provider === 'youtube_publish' && connection.status === 'conectada'
+    )
+  ) {
+    // Clave lógica para el motor de health: el secreto real nunca vuelve a integration_settings.
+    configuredKeys.add('YOUTUBE_REFRESH_TOKEN')
+  }
   const facts = {
-    configuredKeys: new Set(
-      Object.entries(state)
-        .filter(([, v]) => v.source !== 'none' && v.indescifrable !== true)
-        .map(([k]) => k)
-    ),
+    configuredKeys,
     rowCounts,
     vercelScheduled: VERCEL_CRON_ROUTES,
     pgCronReady: PG_CRON_READY,
@@ -221,6 +236,30 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ ten
       { facts, lastCheck: lastChecks[g.id] }
     )
   )
+  // Google y YouTube ya no se configuran mediante claves del catálogo. Su fuente de verdad es la
+  // conexión OAuth tenant-scoped; se reemplaza únicamente su cabecera, conservando el diagnóstico
+  // de sincronizaciones que ya calculó assessIntegration.
+  for (const [groupId, provider] of [
+    ['google', 'ga4'],
+    ['youtube', 'youtube'],
+  ] as const) {
+    const index = health.findIndex((item) => item.id === groupId)
+    if (index < 0) continue
+    const connection = (googleOauth.data ?? []).find((item) => item.provider === provider)
+    health[index] = {
+      ...health[index],
+      status: connection?.status === 'conectada' ? 'conectada' : connection ? 'error' : 'sin_configurar',
+      headline: connection?.status === 'conectada' ? 'Conectada' : connection ? 'Requiere atención' : 'Sin conectar',
+      detail:
+        connection?.status === 'conectada'
+          ? 'Cuenta de Google autorizada mediante OAuth.'
+          : connection
+            ? 'La autorización ya no es válida. Vuelve a conectar la cuenta.'
+            : 'Pulsa Conectar y autoriza la cuenta de Google.',
+      fix: connection ? 'Vuelve a conectar la cuenta con Google.' : undefined,
+      stale: false,
+    }
+  }
 
   // ── Webhooks ENTRANTES: la mitad receptora de las integraciones ──
   // Estado del secreto esperado + última recepción con evidencia real por webhook. La evidencia
@@ -830,31 +869,24 @@ async function probeGroup(group: string, tenantId: string): Promise<ProbeResult>
       }
     }
     if (group === 'youtube') {
-      const sin: string[] = []
-      if (!cfg.YOUTUBE_CLIENT_ID) sin.push('Client ID')
-      if (!cfg.YOUTUBE_CLIENT_SECRET) sin.push('Client Secret')
-      if (!cfg.YOUTUBE_REFRESH_TOKEN) sin.push('Refresh Token')
-      if (sin.length > 0) {
-        const pista =
-          sin.includes('Refresh Token') && sin.length === 1
-            ? ' Usa el botón "Autorizar con Google" de esta integración para obtenerlo.'
-            : ''
-        return { ok: false, message: `Faltan credenciales OAuth de YouTube: ${sin.join(', ')}.${pista}` }
+      const sb = svc()
+      const { data: connection, error } = await sb
+        .from('google_oauth_connections')
+        .select('id,refresh_token,access_token,access_token_expires_at')
+        .eq('tenant_id', tenantId)
+        .eq('provider', 'youtube')
+        .maybeSingle()
+      if (error || !connection) {
+        return { ok: false, message: 'Conecta primero el canal de YouTube.', code: 'token_invalido' }
       }
-      const r = await probeFetch('https://oauth2.googleapis.com/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          client_id: cfg.YOUTUBE_CLIENT_ID,
-          client_secret: cfg.YOUTUBE_CLIENT_SECRET,
-          refresh_token: cfg.YOUTUBE_REFRESH_TOKEN,
-          grant_type: 'refresh_token',
-        }),
+      const token = await getValidGoogleAccessToken(sb, connection)
+      if ('error' in token) return { ok: false, message: token.error, code: 'token_invalido' }
+      const r = await probeFetch('https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true&maxResults=1', {
+        headers: { Authorization: `Bearer ${token.token}` },
       })
-      const j = (await r.json().catch(() => ({}))) as { error_description?: string }
       return r.ok
-        ? { ok: true, message: 'OAuth de YouTube válido.' }
-        : { ok: false, message: j.error_description || 'Credenciales OAuth inválidas.', code: 'token_invalido' }
+        ? { ok: true, message: 'Canal y analíticas de YouTube conectados.' }
+        : { ok: false, message: `YouTube respondió ${r.status}.`, code: codeFromStatus(r.status) }
     }
     if (group === 'sequra') {
       if (!cfg.SEQURA_MCP_TOKEN) return { ok: false, message: 'Falta el token MCP de SeQura.' }

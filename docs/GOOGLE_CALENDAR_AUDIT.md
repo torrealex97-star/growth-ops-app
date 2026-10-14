@@ -1,8 +1,9 @@
 # Google Calendar por closer — auditoría y plan de conciliación
 
-Fecha: 8-oct-2026. Estado: Fases 0–3 cerradas; pendiente de OAuth real de un closer para verificar
-la ingesta contra Google. No confundir **INSPECTED/TESTED** con
-**VERIFIED**.
+Fecha: 8-oct-2026; actualización OAuth: 13-oct-2026. Estado: Fases 0–3 cerradas; Calendar ya usa el
+cliente OAuth global de la plataforma, state+PKCE y tokens cifrados por miembro. Sigue pendiente una
+autorización real de un closer para verificar la ingesta contra Google. No confundir
+**INSPECTED/TESTED** con **VERIFIED**.
 
 ## Impact map
 
@@ -30,8 +31,8 @@ Riesgo: **HIGH** (OAuth, credenciales, RLS, multi-tenant e identidad de citas).
 ## Decisiones de arquitectura
 
 1. `appointments` sigue siendo la única agenda comercial y la única fuente de KPIs.
-2. La conexión Calendar pertenece a `(tenant_id, owner_user_id, provider)`. GA4/Gmail conservan
-   una conexión por tenant.
+2. La conexión Calendar pertenece a `(tenant_id, owner_user_id, provider)`. GA4 y cada permiso de
+   YouTube conservan una conexión por tenant. Gmail API queda fuera; Resend cubre el envío.
 3. El MVP es solo lectura. Escribir eventos requerirá autorización incremental y un interruptor
    explícito posterior.
 4. Un calendario de conflicto bloquea disponibilidad, pero jamás crea contacto, agenda o KPI.
@@ -79,8 +80,8 @@ Riesgo: **HIGH** (OAuth, credenciales, RLS, multi-tenant e identidad de citas).
 ## Acción humana pendiente
 
 1. En Google Cloud, activar Google Calendar API y registrar exactamente
-   `https://app.scalixsystems.com/api/oauth/google/callback` en el cliente usado por
-   `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`.
+   `https://app.scalixsystems.com/api/oauth/google/callback` en el cliente global configurado como
+   `GOOGLE_OAUTH_CLIENT_ID`/`GOOGLE_OAUTH_CLIENT_SECRET`.
 2. Cada closer autoriza su propia cuenta desde CRM › Agendas › Mi Google Calendar, selecciona al
    menos un calendario y pulsa **Sincronizar ahora**.
 

@@ -1,11 +1,12 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireTenant } from '@/lib/auth/requireTenant'
-import { googleCredentials } from '@/lib/google/oauth'
-import { accessTokenFromRefresh } from '@/lib/google/ga4'
+import { decryptSecret } from '@/lib/config'
 import { listGoogleCalendars, type GoogleCalendarListItem } from '@/lib/google/calendar'
 import { syncGoogleCalendars } from '@/lib/google/calendar-sync'
 import { reconcileGoogleCalendarEvents } from '@/lib/google/calendar-reconciliation'
+import { revokeGoogleToken } from '@/lib/google/oauth'
+import { getValidGoogleAccessToken } from '@/lib/google/token-store'
 import { recordSyncRun, SyncBusyError } from '@/lib/integrations/sync-runs'
 
 export const runtime = 'nodejs'
@@ -21,7 +22,9 @@ async function ownConnection(tenantId: string, userId: string) {
   const sb = serviceClient()
   const result = await sb
     .from('google_oauth_connections')
-    .select('id, google_email, refresh_token, scopes, status, last_sync_at, last_error, updated_at')
+    .select(
+      'id, google_email, refresh_token, access_token, access_token_expires_at, scopes, status, last_sync_at, last_error, updated_at'
+    )
     .eq('tenant_id', tenantId)
     .eq('provider', 'calendar')
     .eq('owner_user_id', userId)
@@ -30,10 +33,16 @@ async function ownConnection(tenantId: string, userId: string) {
   return { sb, connection: result.data }
 }
 
-async function usableGoogleCalendars(tenantId: string, encryptedRefreshToken: string) {
-  const creds = await googleCredentials(tenantId)
-  if (!creds) return { error: 'Faltan las credenciales OAuth de Google del tenant.', revoked: false } as const
-  const access = await accessTokenFromRefresh(encryptedRefreshToken, creds)
+async function usableGoogleCalendars(
+  sb: ReturnType<typeof serviceClient>,
+  connection: {
+    id: string
+    refresh_token: string
+    access_token?: string | null
+    access_token_expires_at?: string | null
+  }
+) {
+  const access = await getValidGoogleAccessToken(sb, connection)
   if ('error' in access) return access
   const calendars = await listGoogleCalendars(access.token)
   if ('error' in calendars) return { error: calendars.error, revoked: false } as const
@@ -61,7 +70,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
 
     let available: GoogleCalendarListItem[] = []
     if (req.nextUrl.searchParams.get('discover') === '1') {
-      const discovery = await usableGoogleCalendars(session.tenantId, connection.refresh_token)
+      const discovery = await usableGoogleCalendars(sb, connection)
       if ('error' in discovery) {
         await sb
           .from('google_oauth_connections')
@@ -104,7 +113,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ tena
 
     const { sb, connection } = await ownConnection(session.tenantId, session.userId)
     if (!connection) return NextResponse.json({ error: 'Conecta Google Calendar primero.' }, { status: 409 })
-    const discovery = await usableGoogleCalendars(session.tenantId, connection.refresh_token)
+    const discovery = await usableGoogleCalendars(sb, connection)
     if ('error' in discovery) {
       await sb
         .from('google_oauth_connections')
@@ -186,7 +195,10 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ te
           tenantId: session.tenantId,
           userId: session.userId,
           ownerEmail: connection.google_email,
+          connectionId: connection.id,
           encryptedRefreshToken: connection.refresh_token,
+          encryptedAccessToken: connection.access_token,
+          accessTokenExpiresAt: connection.access_token_expires_at,
           calendars: calendars.data,
         })
         const fingerprintSecret = process.env.CONFIG_ENC_KEY
@@ -269,6 +281,14 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ t
         .select('id')
       if (removedCalendar.error) throw removedCalendar.error
       return NextResponse.json({ ok: true, removed: (removedCalendar.data?.length ?? 0) > 0 })
+    }
+    const { connection } = await ownConnection(session.tenantId, session.userId)
+    if (connection) {
+      try {
+        await revokeGoogleToken(decryptSecret(connection.refresh_token))
+      } catch {
+        // Desconectar localmente sigue siendo seguro si Google ya revocó el token o no se descifra.
+      }
     }
     const removed = await sb
       .from('google_oauth_connections')

@@ -1,34 +1,32 @@
 // Piezas compartidas del flujo OAuth con Google.
-import { getTenantConfigWithFallback } from '@/lib/config'
 import { isGoogleOAuthClientId } from '@/lib/integrations/oauth-credentials'
 
 /**
- * Ámbitos por servicio. TODOS de solo lectura: esta app nunca necesita escribir en la analítica ni
- * en el correo del cliente, y pedir un permiso que no se usa es una responsabilidad gratuita — si
- * la app se ve comprometida, el alcance del daño es lo que se concedió, no lo que se usaba.
+ * Ámbitos mínimos por servicio. Los permisos de lectura y publicación de YouTube viven en
+ * autorizaciones separadas para que consultar analítica nunca conceda permiso para publicar.
  */
-export type GoogleProvider = 'ga4' | 'gmail' | 'calendar' | 'youtube'
+export type GoogleProvider = 'ga4' | 'calendar' | 'youtube' | 'youtube_publish'
 
 export const SCOPES: Record<GoogleProvider, string[]> = {
-  ga4: ['https://www.googleapis.com/auth/analytics.readonly'],
-  gmail: ['https://www.googleapis.com/auth/gmail.readonly', 'https://www.googleapis.com/auth/gmail.metadata'],
+  ga4: ['openid', 'email', 'https://www.googleapis.com/auth/analytics.readonly'],
   // Calendar empieza deliberadamente en solo lectura. calendarlist.readonly permite que el closer
   // elija su calendario principal y los de conflicto; events.readonly permite conciliarlos. El
   // write-back exigirá una autorización incremental separada cuando exista esa función.
   calendar: [
     'openid',
-    'https://www.googleapis.com/auth/userinfo.email',
+    'email',
     'https://www.googleapis.com/auth/calendar.calendarlist.readonly',
     'https://www.googleapis.com/auth/calendar.events.readonly',
   ],
-  // YouTube necesita upload para publicar Shorts y readonly para sincronizar sus métricas. Se pide
-  // en un consentimiento separado: conectar Calendar no debe conceder acceso al canal.
+  // Consultar el canal y sus analíticas no concede permiso para publicar. La autorización de
+  // escritura vive en `youtube_publish` y se solicita solo cuando el usuario activa esa función.
   youtube: [
     'openid',
-    'https://www.googleapis.com/auth/userinfo.email',
-    'https://www.googleapis.com/auth/youtube.upload',
+    'email',
     'https://www.googleapis.com/auth/youtube.readonly',
+    'https://www.googleapis.com/auth/yt-analytics.readonly',
   ],
+  youtube_publish: ['openid', 'email', 'https://www.googleapis.com/auth/youtube.upload'],
 }
 
 /**
@@ -46,21 +44,23 @@ export function googleRedirectUri(): string {
 
 export type GoogleCredentials = { clientId: string; clientSecret: string }
 
-/** Credenciales del proyecto de Google Cloud, guardadas cifradas por subcuenta. */
-export async function googleCredentials(
-  tenantId: string,
-  provider: GoogleProvider = 'ga4'
-): Promise<GoogleCredentials | null> {
-  const cfg = await getTenantConfigWithFallback(tenantId, true)
-  // YouTube mantiene compatibilidad con sus credenciales históricas. El resto usa el cliente
-  // común de Google; en ambos casos la persona solo pulsa OAuth y el secreto nunca pasa al browser.
-  const clientId = provider === 'youtube' ? cfg.YOUTUBE_CLIENT_ID : cfg.GOOGLE_CLIENT_ID
-  const clientSecret = provider === 'youtube' ? cfg.YOUTUBE_CLIENT_SECRET : cfg.GOOGLE_CLIENT_SECRET
-  if (!isGoogleOAuthClientId(clientId) || !clientSecret) return null
+/**
+ * Cliente OAuth propiedad de la plataforma. Nunca depende de la subcuenta: el aislamiento lo dan
+ * el state firmado y la fila tenant-scoped que contiene cada refresh token.
+ */
+export function googleCredentials(): GoogleCredentials | null {
+  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID?.trim()
+  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim()
+  if (!clientId || !isGoogleOAuthClientId(clientId) || !clientSecret) return null
   return { clientId, clientSecret }
 }
 
-export function authorizationUrl(opts: { clientId: string; scopes: string[]; state: string }): string {
+export function authorizationUrl(opts: {
+  clientId: string
+  scopes: string[]
+  state: string
+  codeChallenge: string
+}): string {
   const url = new URL('https://accounts.google.com/o/oauth2/v2/auth')
   url.searchParams.set('client_id', opts.clientId)
   url.searchParams.set('redirect_uri', googleRedirectUri())
@@ -72,6 +72,8 @@ export function authorizationUrl(opts: { clientId: string; scopes: string[]; sta
   url.searchParams.set('prompt', 'consent')
   url.searchParams.set('include_granted_scopes', 'true')
   url.searchParams.set('state', opts.state)
+  url.searchParams.set('code_challenge', opts.codeChallenge)
+  url.searchParams.set('code_challenge_method', 'S256')
   return url.toString()
 }
 
@@ -85,13 +87,13 @@ export type TokenResponse = {
 }
 
 /**
- * Intercambia el código de autorización por tokens. `redirectUriOverride` debe ser exactamente la
- * URI usada al pedir la autorización (Google la compara como cadena): los clientes OAuth que solo
- * tienen el playground registrado (YouTube de las subcuentas) exigen este override.
+ * Intercambia el código de autorización por tokens. `redirectUriOverride` solo existe para pruebas;
+ * producción utiliza siempre el callback único registrado por la plataforma.
  */
 export async function exchangeCode(
   code: string,
   creds: GoogleCredentials,
+  codeVerifier: string,
   redirectUriOverride?: string
 ): Promise<TokenResponse> {
   const r = await fetch('https://oauth2.googleapis.com/token', {
@@ -103,10 +105,23 @@ export async function exchangeCode(
       client_secret: creds.clientSecret,
       redirect_uri: redirectUriOverride || googleRedirectUri(),
       grant_type: 'authorization_code',
+      code_verifier: codeVerifier,
     }),
     signal: AbortSignal.timeout(15_000),
   })
   return (await r.json().catch(() => ({}))) as TokenResponse
+}
+
+/** Revocación best-effort usada al desconectar. Google acepta access o refresh token. */
+export async function revokeGoogleToken(token: string): Promise<boolean> {
+  const body = new URLSearchParams({ token })
+  const response = await fetch('https://oauth2.googleapis.com/revoke', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body,
+    signal: AbortSignal.timeout(15_000),
+  })
+  return response.ok
 }
 
 /** Email de la cuenta que autorizó, para que la pantalla diga de quién es la conexión. */
