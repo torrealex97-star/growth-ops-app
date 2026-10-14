@@ -4127,6 +4127,32 @@ export type EsquemaPublico = {
         tenant_id: string | undefined
       }
     }
+    PlatformSettings: {
+      Row: {
+        key: string | null
+        value: string | null
+        is_secret: boolean | null
+        key_fingerprint: string | null
+        updated_by: string | null
+        updated_at: string | null
+      }
+      Insert: {
+        key: string | null | undefined
+        value: string | null | undefined
+        is_secret: boolean | null | undefined
+        key_fingerprint: string | null | undefined
+        updated_by: string | null | undefined
+        updated_at: string | null | undefined
+      }
+      Update: {
+        key: string | undefined
+        value: string | undefined
+        is_secret: boolean | undefined
+        key_fingerprint: string | undefined
+        updated_by: string | undefined
+        updated_at: string | undefined
+      }
+    }
     PositiveNotes: {
       Row: {
         id: string | null

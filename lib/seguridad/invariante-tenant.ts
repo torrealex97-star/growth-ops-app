@@ -50,6 +50,9 @@ export const EXCEPCIONES_SIN_TENANT: Readonly<Record<string, string>> = {
   mcp_oauth_tokens:
     'tokens MCP: ídem, con RLS por user_id y owner — la sesión MCP es del usuario, no de una ' +
     'subcuenta; los datos que lee el servidor SÍ quedan acotados por tenant vía RLS de negocio',
+  platform_settings:
+    'ajustes GLOBALES de plataforma (cliente OAuth de Google, secreto de onboarding): no pertenecen a una ' +
+    'subcuenta. RLS activo sin políticas y sin grants: solo el service role, y solo un super admin los gestiona',
 }
 
 // NOTA PARA F0: `organizations` será la segunda tabla raíz sin tenant_id
