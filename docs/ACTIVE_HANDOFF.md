@@ -3736,12 +3736,12 @@ suscripción). La venta sin closer del 3-oct sigue requiriendo corrección manua
 Carriles y reglas en `AGENTS.md` › "Trabajo en paralelo". **Antes de empezar, añade tu fila; al
 fusionar, bórrala.** Si lo que vas a tocar está aquí a nombre de otro, no lo toques.
 
-| Agente      | Qué                                                                   | Rama                        | Toca                                                         | Desde |
-| ----------- | --------------------------------------------------------------------- | --------------------------- | ------------------------------------------------------------ | ----- |
-| Buffy       | Barrido: aplicar regla «error de carga ≠ cero» al resto de fetch→json del cliente que tragaban fallos | `fix/barrido-error-carga` | pantallas cliente con fetch().then(json).catch(→[]) + futuro-response | 14-oct |
-| Freebuff    | Cierre de merges 3-oct; dependabot majors en vuelo (#314, #315, #327) | `main` + ramas dependabot   | `package.json`/lock (solo vía dependabot), docs, migraciones | 3-oct |
-| Codex       | PR #325 reservation-refunds (E2E en rojo, su autor continúa)          | `codex/reservation-refunds` | ventas/cobros (según su rama)                                | 3-oct |
-| Claude Code | Plan: F01 (RLS colaborador, P0), F19; sin rama activa aún             | —                           | `docs/plan/`, migraciones RLS                                | 3-oct |
+| Agente      | Qué                                                                                                   | Rama                        | Toca                                                                  | Desde  |
+| ----------- | ----------------------------------------------------------------------------------------------------- | --------------------------- | --------------------------------------------------------------------- | ------ |
+| Buffy       | Barrido: aplicar regla «error de carga ≠ cero» al resto de fetch→json del cliente que tragaban fallos | `fix/barrido-error-carga`   | pantallas cliente con fetch().then(json).catch(→[]) + futuro-response | 14-oct |
+| Freebuff    | Cierre de merges 3-oct; dependabot majors en vuelo (#314, #315, #327)                                 | `main` + ramas dependabot   | `package.json`/lock (solo vía dependabot), docs, migraciones          | 3-oct  |
+| Codex       | PR #325 reservation-refunds (E2E en rojo, su autor continúa)                                          | `codex/reservation-refunds` | ventas/cobros (según su rama)                                         | 3-oct  |
+| Claude Code | Plan: F01 (RLS colaborador, P0), F19; sin rama activa aún                                             | —                           | `docs/plan/`, migraciones RLS                                         | 3-oct  |
 
 ## Reglas de trabajo (2026-09-21)
 
@@ -4238,3 +4238,36 @@ y permite reintentar. No se ejecutó ningún ajuste financiero real durante la v
 - **Validación:** format PASS, lint sin errores (avisos heredados), typecheck PASS, unitarias completas
   PASS y métricas 789/789 PASS. Advisors revisados tras el DDL; no apareció un hallazgo nuevo ligado
   a esta migración (los avisos listados son deuda previa en otros esquemas/tablas).
+
+## 2026-10-14 · Conexión MCP, F23, barrido de ramas y hallazgo F34 (Claude)
+
+**Fusionado:** #510 (transporte MCP) · #511 (F23). También se fusionaron por otros carriles #496 (OAuth Google central), #505, #506, #508 y #509.
+
+- **MCP — "Method Not Allowed" al conectar.** Auditado el servidor contra la spec streamable HTTP 2025-06-18.
+  Desviaciones corregidas en `app/api/mcp/route.ts` y `next.config.js`: 401 sin `resource_metadata`
+  (RFC 9728); `GET` con `Accept: text/event-stream` respondía 200 JSON (ahora 405); `DELETE` respondía 405
+  (ahora 204, servidor sin estado); `notifications/*` desconocidas respondían 404 (ahora 202); faltaban
+  `/.well-known/{oauth-protected-resource,oauth-authorization-server}/api/mcp` (forma con sufijo de ruta) y
+  CORS. Verificado en producción. Test: `tests/mcp-transporte-conexion.test.mjs`.
+  **Pista sin resolver:** el cuerpo del error que veía Alex (`{"type":"error","error":{"type":
+"invalid_request_error","message":"Method Not Allowed"},"request_id":"req_011C…"}`) es el formato de
+  `api.anthropic.com`, no de este servidor. Si persiste tras el despliegue, hay que saber desde qué cliente
+  se conecta (claude.ai conector personalizado, Claude Code, API `mcp_servers`) y qué URL exacta usa.
+- **F23 cerrado:** un envío rechazado por firma inválida es un fallo confirmado (`estado: 'rechazo'`, rojo);
+  el silencio sigue ámbar. `lib/data-health/webhooks.ts`, `tests/f23-rechazo-de-firma.test.mjs`.
+- **F34 — hallazgo:** `ONBOARDING_INBOUND_SECRET` NO existe en las variables de entorno de producción de
+  Vercel. La ruta `/api/[tenant]/evergreen/webhooks/onboarding` solo lee esa variable y es fail-closed, así que
+  hoy rechaza con 401 todo lo que le llegue de GHL (click / booked / completed del alumno). Acción de Alex:
+  generar un secreto, ponerlo en Vercel (`ONBOARDING_INBOUND_SECRET`) y en las URLs/cabeceras `x-ghl-secret` de
+  los workflows de GHL; o mover el secreto a `integration_settings` por subcuenta (decisión de producto).
+- **Ramas:** borradas `fix/funnel-leads-cruce-identidad` y `codex/instagram-radar-handoff` (su contenido ya
+  está en `main`; la de radar solo diferían los dos commits squasheados). Abiertos: Dependabot #436-#439
+  (#436/#437/#438 fallan CI por conflicto de peer deps y majors; #439 `googleapis` pide rebase).
+
+**Estado medido hoy:** `main` verde (typecheck, 1719 unit, métricas, lint). Producción sin errores en 24 h.
+Crons OK; `instagram` falla por token caducado desde el 11-oct. 33 citas pasadas sin marcar (eran 328).
+12 reembolsos con fecha; el pago en USD ya tiene tipo de cambio.
+
+**Siguiente (técnico):** deriva de migraciones (`docs/MIGRATION_RECONCILIATION.md`; `20261013143000` está en
+producción y su archivo llegó con #496); restore drill G13 (`docs/runbooks/backup-restore.md`, requiere
+decidir proyecto/PITR); decisiones A5 / firma concurrente / outbox de onboarding.
