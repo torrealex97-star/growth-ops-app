@@ -1737,6 +1737,7 @@ export type EsquemaPublico = {
         last_utm_term: string | null
         tenant_id: string | null
         collaborator_id: string | null
+        collaborator_attribution_blocked: boolean | null
       }
       Insert: {
         id: string | null | undefined
@@ -1766,6 +1767,7 @@ export type EsquemaPublico = {
         last_utm_term: string | null | undefined
         tenant_id: string | null | undefined
         collaborator_id: string | null | undefined
+        collaborator_attribution_blocked: boolean | null | undefined
       }
       Update: {
         id: string | undefined
@@ -1795,6 +1797,7 @@ export type EsquemaPublico = {
         last_utm_term: string | undefined
         tenant_id: string | undefined
         collaborator_id: string | undefined
+        collaborator_attribution_blocked: boolean | undefined
       }
     }
     ContactNotes: {

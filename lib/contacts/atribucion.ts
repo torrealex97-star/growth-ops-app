@@ -251,7 +251,7 @@ export async function registrarToque(
     // Se leen también el último toque y los first_* actuales: el update decide con ellos si
     // rellena huecos del origen y si el toque entrante puede presentarse como el último.
     .select(
-      'id, first_touch_at, last_touch_at, collaborator_id, source, funnel, first_utm_source, first_utm_medium, first_utm_campaign, first_utm_content, first_utm_term'
+      'id, first_touch_at, last_touch_at, collaborator_id, collaborator_attribution_blocked, source, funnel, first_utm_source, first_utm_medium, first_utm_campaign, first_utm_content, first_utm_term'
     )
     .eq('tenant_id', tenantId)
     .eq('contact_id', contactId)
@@ -301,6 +301,7 @@ export async function registrarToque(
       first_utm_campaign: string | null
       first_utm_content: string | null
       first_utm_term: string | null
+      collaborator_attribution_blocked: boolean
     }
     const esAnterior = !!filas.last_touch_at && new Date(ahora).getTime() < new Date(filas.last_touch_at).getTime()
     const huecos: Record<string, string> = {}
@@ -322,8 +323,12 @@ export async function registrarToque(
     // estado válido, y el primer colaborador válido se queda). El cambio queda
     // en audit_logs: quién/qué/cuándo, para poder explicar comisiones futuras.
     const colaboradorEntrante = toque.colaboradorId ?? null
-    const colaboradorActual = (existente as { collaborator_id: string | null }).collaborator_id ?? null
-    if (colaboradorEntrante && !colaboradorActual) {
+    const estadoColaborador = existente as {
+      collaborator_id: string | null
+      collaborator_attribution_blocked: boolean
+    }
+    const colaboradorActual = estadoColaborador.collaborator_id ?? null
+    if (colaboradorEntrante && !colaboradorActual && !estadoColaborador.collaborator_attribution_blocked) {
       const { error: errorFill } = await sb
         .from('contact_attributions')
         .update({ collaborator_id: colaboradorEntrante })

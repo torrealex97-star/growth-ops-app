@@ -8,6 +8,12 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)))
 const page = readFileSync(join(root, 'app/[tenant]/crm/contactos/[id]/page.tsx'), 'utf8')
 const route = readFileSync(join(root, 'app/api/[tenant]/evergreen/colaboradores/attribution/route.ts'), 'utf8')
 const tipos = readFileSync(join(root, 'lib/types/database.ts'), 'utf8')
+const registrarToque = readFileSync(join(root, 'lib/contacts/atribucion.ts'), 'utf8')
+const resolverVenta = readFileSync(join(root, 'lib/commissions/attribution.ts'), 'utf8')
+const migracionBloqueo = readFileSync(
+  join(root, 'supabase/migrations/20261013214851_block_manual_collaborator_reattribution.sql'),
+  'utf8'
+)
 
 // Petición: "Debo poder atribuirle o quitarle atribucion de leads a los afiliados de forma facil"
 // — la ficha del contacto debe permitir asignar/quitar el colaborador llamando al endpoint de
@@ -16,6 +22,7 @@ const tipos = readFileSync(join(root, 'lib/types/database.ts'), 'utf8')
 test('ContactAttribution incluye collaborator_id (ya existe en la tabla desde la migración 20260918150000)', () => {
   const bloque = tipos.split('export type ContactAttribution = {')[1].split('\n\n')[0]
   assert.match(bloque, /collaborator_id: string \| null/)
+  assert.match(bloque, /collaborator_attribution_blocked: boolean/)
 })
 
 test('la ficha de contacto carga los colaboradores activos de la subcuenta', () => {
@@ -45,4 +52,14 @@ test('el endpoint sigue exigiendo motivo y auditando el cambio (no se duplica la
   assert.match(route, /if \(!reason\) return NextResponse\.json/)
   assert.match(route, /entity_type: 'contact_attribution'/)
   assert.match(route, /action: 'collaborator_attribution_override'/)
+})
+
+test('quitar un colaborador bloquea la reatribución automática hasta que un admin asigne otro', () => {
+  assert.match(route, /const bloquearReatribucion = collaboratorId === null/)
+  assert.match(route, /collaborator_attribution_blocked: bloquearReatribucion/)
+  assert.match(registrarToque, /!estadoColaborador\.collaborator_attribution_blocked/)
+  assert.match(resolverVenta, /!collaboratorAttributionBlocked/)
+  assert.match(migracionBloqueo, /AND NOT ca\.collaborator_attribution_blocked/)
+  assert.match(migracionBloqueo, /contact_attributions_enforce_collaborator_block/)
+  assert.match(migracionBloqueo, /NEW\.collaborator_id := NULL/)
 })

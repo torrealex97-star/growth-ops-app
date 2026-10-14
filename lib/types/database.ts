@@ -177,6 +177,8 @@ export type ContactAttribution = {
   last_touch_at: string | null
   is_primary: boolean
   collaborator_id: string | null
+  /** Un admin quitó expresamente la atribución; webhooks y backfills no pueden recrearla. */
+  collaborator_attribution_blocked: boolean
   // v7 — UTMs de primer y último contacto
   first_utm_source: string | null
   first_utm_medium: string | null

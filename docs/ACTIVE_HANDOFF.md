@@ -4138,3 +4138,28 @@ y permite reintentar. No se ejecutó ningún ajuste financiero real durante la v
   `no_show_cancel`) se leen sin cambiar el vocabulario canónico escrito por las integraciones.
 - **Validación provisional:** typecheck PASS; focales de métricas y asistencia 42/42 PASS. Falta quality
   completa, commit, PR, CI y verificación de despliegue.
+
+# EN CURSO · Integridad de reservas y exclusión manual de atribución (13-oct-2026, Codex)
+
+- **Rama:** `codex/noelia-commission-reconcile`, desde `main` (`812c693b`).
+- **Alcance reclamado:** impedir que un cobro marcado como no elegible genere comisiones, incluso
+  durante una reconciliación; hacer persistente una exclusión manual de colaborador para que los
+  backfills no la reviertan; y ejecutar una corrección financiera auditada autorizada por el
+  propietario. No se modifican las asignaciones ni comisiones de setter/closer.
+- **Protección de datos:** nombres, identificadores e importes reales del tenant quedan fuera del
+  repositorio, commits y PR. La corrección productiva se validará con dry-run y dejará `audit_logs`;
+  cualquier borrado autorizado conserva antes un snapshot completo y trazable en auditoría.
+- **Decisión posterior del propietario:** las filas marcadas como liquidadas pero sin factura real
+  también debían borrarse. Se conservó una copia completa de cada fila en `audit_logs` antes del
+  borrado, sin tocar ventas, cobros ni lanes de setter/closer.
+- **Producción:** migración `block_manual_collaborator_reattribution` aplicada y registrada. El
+  ensayo de la corrección completa pasó dentro de `BEGIN/ROLLBACK`; después se ejecutó en una única
+  transacción. Resultado verificado: 14 ventas ajenas desvinculadas, 14 contactos bloqueados frente
+  a reatribución automática, 21 comisiones de atribución incorrecta y 3 de reserva eliminadas con
+  snapshot auditado. Quedan 15 ventas válidas, 0 ventas ajenas y 0 comisiones de reserva.
+- **Código:** el hot path corta antes de leer reglas si el cobro no es elegible; la reconciliación
+  filtra `is_eligible_for_commission=true`; quitar un colaborador marca un bloqueo persistente que
+  respetan API, webhooks, resolver financiero, backfill SQL y un trigger defensivo en PostgreSQL.
+- **Validación:** format PASS, lint sin errores (avisos heredados), typecheck PASS, unitarias completas
+  PASS y métricas 789/789 PASS. Advisors revisados tras el DDL; no apareció un hallazgo nuevo ligado
+  a esta migración (los avisos listados son deuda previa en otros esquemas/tablas).

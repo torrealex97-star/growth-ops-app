@@ -19,6 +19,7 @@ const collection = (over = {}) => ({
   collected_at: '2026-09-01T10:00:00Z',
   gross_amount: 1000,
   commissionable_amount: 1000,
+  is_eligible_for_commission: true,
   ...over,
 })
 
@@ -121,6 +122,19 @@ test('devuelve las comisiones ESCRITAS, no las calculadas', async () => {
   // Y todo lo insertado lleva la subcuenta.
   assert.ok(sb.log.inserted.length > 0)
   for (const row of sb.log.inserted) assert.equal(row.tenant_id, TENANT)
+})
+
+test('un cobro no elegible (incluida una reserva) nunca genera comisiones', async () => {
+  const sb = fakeSb()
+  const n = await generateCommissionsForCollection(
+    sb,
+    TENANT,
+    collection({ is_eligible_for_commission: false, gross_amount: 50, commissionable_amount: 50 }),
+    sale()
+  )
+  assert.equal(n, 0)
+  assert.equal(sb.log.tablas.length, 0, 'la frontera de elegibilidad debe cortar antes de consultar reglas o reps')
+  assert.equal(sb.log.inserted.length, 0)
 })
 
 test('un insert que falla se propaga: nunca más "3 comisiones generadas" con 0 filas', async () => {
