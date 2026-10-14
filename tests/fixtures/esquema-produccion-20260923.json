@@ -539,6 +539,13 @@
     "politicas": 6
   },
   {
+    "tabla": "platform_settings",
+    "tieneTenantId": false,
+    "tenantIdNotNull": false,
+    "rlsHabilitada": true,
+    "politicas": 0
+  },
+  {
     "tabla": "positive_notes",
     "tieneTenantId": true,
     "tenantIdNotNull": true,
