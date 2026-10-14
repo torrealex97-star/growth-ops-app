@@ -64,7 +64,7 @@ code, Smoke E2E, gitleaks, Release gate). PR-1 queda BLOQUEADO por decisión BUS
 de roles de plataforma propuesta (owner/admin/soporte/cs/billing/auditor) esperando aprobación
 del dueño antes de crear `platform_staff_memberships`.
 
-# IMPLEMENTADO Y VALIDADO EN RAMA — OAuth Google centralizado (13-oct-2026, Codex) · rama `codex/google-oauth-central`
+# MIGRACIÓN LIVE + RAMA VALIDADA — OAuth Google centralizado (14-oct-2026, Codex) · rama `codex/google-oauth-central`
 
 - **Alcance:** credenciales globales para GA4, Google Calendar y YouTube; consentimientos y tokens
   separados por servicio; retirada de Gmail API y de Client ID/Secret por tenant.
@@ -78,19 +78,20 @@ del dueño antes de crear `platform_staff_memberships`.
   desconectar, autorización tenant-scoped, consentimiento de Calendar ligado al usuario y cero
   scopes restringidos de Gmail. Revisión focal de seguridad sin hallazgos abiertos.
 - **Migración:** `20261013143000_google_oauth_centralized.sql` añade access token/expiry/estado de
-  reautorización y las variantes `youtube` / `youtube_publish`. Creada localmente; **no aplicada en
-  producción** desde esta rama.
-- **Validación:** `npm run quality` local PASS (1.677 tests de aplicación y 788 de métricas tras
-  rebase sobre `main`); `npm run build` PASS; Vercel Preview PASS; gitleaks PASS. El quality gate
-  conectado al esquema vivo queda bloqueado únicamente porque producción todavía no tiene
-  `access_token`, `access_token_expires_at` ni `reauth_required_at`: es la señal esperada hasta
-  aplicar `20261013143000_google_oauth_centralized.sql`, no un fallo que deba silenciarse.
-- **Activación pendiente (humana/producción):** aplicar la migración; crear/seleccionar el cliente
-  OAuth Web global, registrar exactamente `https://app.scalixsystems.com/api/oauth/google/callback`,
-  activar Analytics Admin/Data, Calendar, YouTube Data y YouTube Analytics APIs, configurar las dos
-  variables globales en Vercel y completar la pantalla de consentimiento/verificación de Google.
-  Después: smoke real con una cuenta autorizada de cada servicio y una cuenta Calendar de un closer.
-- **Base:** `639a130b` (`origin/main`).
+  reautorización y las variantes `youtube` / `youtube_publish`. **Aplicada en producción** el
+  14-oct mediante transacción después de `BEGIN … ROLLBACK`; registrada con la versión exacta
+  `20261013143000`. Verificación live: cuatro columnas presentes, cero providers inválidos y cero
+  formas de owner incompatibles. Advisors ejecutados: ningún hallazgo nuevo atribuible a este DDL.
+- **Validación fresca tras rebase sobre `main`:** `npm run quality` PASS (aplicación + 789 métricas,
+  0 fallos) y `npm run build` PASS. El rebase conserva tanto el OAuth central con PKCE como el
+  diagnóstico/fingerprint de `CONFIG_ENC_KEY` fusionado después.
+- **Activación pendiente (externa):** Vercel no contiene todavía `GOOGLE_OAUTH_CLIENT_ID` ni
+  `GOOGLE_OAUTH_CLIENT_SECRET`. Crear/seleccionar el cliente OAuth Web global, registrar exactamente
+  `https://app.scalixsystems.com/api/oauth/google/callback`, activar Analytics Admin/Data, Calendar,
+  YouTube Data y YouTube Analytics APIs, configurar esas dos variables para Production + Preview y
+  completar la pantalla de consentimiento/verificación de Google. Después: smoke real con GA4,
+  YouTube lectura/publicación y Calendar de un closer.
+- **Base revalidada:** `d3ee52da` (`origin/main`).
 
 # COMPLETADO — SPEC-15 PR-0 + slice PR-1: automation audit + capa de señales (13-oct, Buffy) · `feat/spec15-pr0-automation-audit`
 
