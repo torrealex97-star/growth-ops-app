@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { listarClientesDeUsuario, listarSesionesDeUsuario, revocarCliente, revocarSesion } from '@/lib/mcp/store'
+import { jwtSecret } from '@/lib/mcp/oauth'
 
 export const runtime = 'nodejs'
 
@@ -48,7 +49,7 @@ function estadoSesion(row: {
   return 'activa'
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const userId = await userIdActual()
   if (!userId) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
@@ -58,6 +59,12 @@ export async function GET() {
       {
         clientes: clientes.map((c) => ({ ...c, redirect_uris: c.redirect_uris })),
         sesiones: sesiones.map((s) => ({ ...s, estado: estadoSesion(s) })),
+        servidor: {
+          endpoint: new URL('/api/mcp', request.nextUrl.origin).toString(),
+          ready: Boolean(jwtSecret()),
+          authentication: 'OAuth 2.1 + PKCE' as const,
+          manualTokenRequired: false as const,
+        },
       },
       { headers: { 'Cache-Control': 'no-store' } }
     )

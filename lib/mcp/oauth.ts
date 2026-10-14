@@ -15,6 +15,7 @@ import { consumeCode, findAccessToken, getClient, insertCode, insertToken, revok
 const CODE_TTL_S = 60
 const ACCESS_TTL_S = 15 * 60
 const REFRESH_TTL_S = 30 * 24 * 60 * 60
+const ALLOWED_SCOPES = new Set(['read', 'offline_access'])
 
 export const MCP_JWT_SECRET_ENV = 'MCP_JWT_SECRET'
 
@@ -57,6 +58,10 @@ export async function validarAutorizacion(params: {
   }
   if (!code_challenge) return { error: 'PKCE obligatorio: falta code_challenge' }
   if (code_challenge_method !== 'S256') return { error: 'code_challenge_method debe ser S256' }
+  const scopes = (params.scope || 'read').split(/\s+/).filter(Boolean)
+  if (!scopes.includes('read')) return { error: 'El scope read es obligatorio' }
+  const noPermitido = scopes.find((scope) => !ALLOWED_SCOPES.has(scope))
+  if (noPermitido) return { error: `Scope no permitido: ${noPermitido}` }
   return { redirectUri: redirect_uri, state, clientName: client.name }
 }
 
