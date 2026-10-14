@@ -95,7 +95,7 @@ export async function GET(req: NextRequest) {
     if (!tenantRow) return NextResponse.json({ error: 'Subcuenta desconocida' }, { status: 404 })
     const tenantId = (tenantRow as { id: string }).id
 
-    const creds = googleCredentials()
+    const creds = await googleCredentials()
     if (!creds) return backToGoogleSurface(tenant, provider, { google: 'error', motivo: 'sin_credenciales' }, req)
 
     const token = await exchangeCode(code, creds, pkce.verifier)

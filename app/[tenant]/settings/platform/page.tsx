@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowLeft, ArrowUpRight, Bot, Building2, Eye, Settings2, SlidersHorizontal } from 'lucide-react'
+import { ArrowLeft, ArrowUpRight, Bot, Building2, Eye, KeyRound, Settings2, SlidersHorizontal } from 'lucide-react'
 import { EstadoPanel } from '@/components/ui/carga/EstadoPanel'
 import { useSesion, useTenant } from '@/lib/tenant-context'
 
@@ -70,6 +70,27 @@ export default function PlatformControlPage() {
                 Crear, revisar, archivar y gestionar miembros de todos los tenants.
               </span>
               <span className="mt-3 inline-flex rounded bg-violet-500/10 px-2 py-1 text-2xs font-semibold uppercase tracking-wide text-violet-400">
+                Global
+              </span>
+            </span>
+          </Link>
+
+          <Link href={`/${tenant}/settings/platform/ajustes`} className={CARD_CLASS}>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-400">
+              <KeyRound className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center justify-between gap-2">
+                <span className="font-medium text-foreground">Ajustes globales</span>
+                <ArrowUpRight
+                  className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-foreground"
+                  aria-hidden="true"
+                />
+              </span>
+              <span className="mt-1 block text-sm leading-5 text-muted-foreground">
+                Credenciales de toda la plataforma: cliente OAuth de Google y secreto del webhook de onboarding.
+              </span>
+              <span className="mt-3 inline-flex rounded bg-amber-500/10 px-2 py-1 text-2xs font-semibold uppercase tracking-wide text-amber-400">
                 Global
               </span>
             </span>

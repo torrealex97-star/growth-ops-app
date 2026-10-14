@@ -86,8 +86,10 @@ test('el cliente OAuth es global y la UI no pide credenciales por subcuenta', ()
   const oauth = read('lib/google/oauth.ts')
   const catalog = read('lib/integrations-catalog.ts')
   const ui = read('app/[tenant]/settings/integraciones/page.tsx')
-  assert.match(oauth, /process\.env\.GOOGLE_OAUTH_CLIENT_ID/)
-  assert.match(oauth, /process\.env\.GOOGLE_OAUTH_CLIENT_SECRET/)
+  // Un único cliente de plataforma: lo gestiona el super admin (ajustes globales) y la variable de
+  // entorno es el respaldo (lib/platform/settings.ts).
+  assert.match(oauth, /getPlatformSetting\('GOOGLE_OAUTH_CLIENT_ID'\)/)
+  assert.match(oauth, /getPlatformSetting\('GOOGLE_OAUTH_CLIENT_SECRET'\)/)
   assert.doesNotMatch(catalog, /key: 'GOOGLE_CLIENT_ID'|key: 'GOOGLE_CLIENT_SECRET'/)
   assert.match(ui, /Conecta una cuenta con acceso de lectura a GA4/)
   assert.match(ui, /Canal y analíticas/)
