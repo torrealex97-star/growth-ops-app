@@ -38,12 +38,16 @@ function Metric({ label, value, note }: { label: string; value: string; note: st
 export function CommissionControlCenter({
   rows,
   future,
+  futureError = null,
   loading,
   restricted,
   tenant,
 }: {
   rows: CommissionDashboardRow[]
   future: FutureCommission[]
+  /** Error de carga de /commissions/future: la previsión de cobro sujeta no se muestra
+   *  a 0 (parecería que no hay nada por cobrar); se anuncia el fallo con reintentar. */
+  futureError?: string | null
   loading: boolean
   restricted: boolean
   tenant: string
@@ -106,12 +110,18 @@ export function CommissionControlCenter({
             <Clock3 className="h-4 w-4" aria-hidden="true" />
             Previsión para <span className="capitalize">{monthLabel(settlement.next)}</span>
           </span>
-          <span className="font-medium tabular-nums text-foreground">
-            {formatCurrency(settlement.nextCommitted + nextProjected)}
-            <span className="ml-2 text-xs font-normal text-muted-foreground">
-              {formatCurrency(settlement.nextCommitted)} generada · {formatCurrency(nextProjected)} sujeta a cobro
+          {futureError ? (
+            <span className="text-amber-400" role="alert">
+              ⚠ Fuente de cuotas por cobrar ilegible ({futureError}) — importe no calculado
             </span>
-          </span>
+          ) : (
+            <span className="font-medium tabular-nums text-foreground">
+              {formatCurrency(settlement.nextCommitted + nextProjected)}
+              <span className="ml-2 text-xs font-normal text-muted-foreground">
+                {formatCurrency(settlement.nextCommitted)} generada · {formatCurrency(nextProjected)} sujeta a cobro
+              </span>
+            </span>
+          )}
         </div>
       </section>
 

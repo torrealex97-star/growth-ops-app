@@ -6,6 +6,7 @@ import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { interpretarRespuestaFuturas, type FilaFutura } from '@/lib/commissions/future-response'
 import { CommissionsTable } from '@/components/commissions/CommissionsTable'
 import { CommissionInvoicePanel } from '@/components/commissions/CommissionInvoicePanel'
 import { CommissionControlCenter } from '@/components/commissions/CommissionControlCenter'
@@ -37,25 +38,7 @@ type CommissionableMember = SimpleMember & {
 type LinkTemplate = { id: string; name: string; base_url: string; applies_to: string[] | null }
 type ActiveCampaign = { id: string; name: string; base_url: string }
 
-type FutureRow = {
-  installmentId: string
-  saleId: string
-  contact: string
-  dueDate: string
-  userId: string
-  userName: string
-  participantType: ParticipantType
-  base: number
-  percent: number
-  amount: number
-  source: 'installment' | 'review'
-  collectionId?: string
-  /** NUEVO = será el primer cobro de una venta que aún no cobró; RECURRENTE = cuota del
-   * plan de una venta que ya cobró (MRR). Canónico: lib/finance/nuevo-vs-recurrente. */
-  tipo?: 'nuevo' | 'recurrente'
-  /** Exento (pays_commissions=false): fila visible con importe 0 — aviso, no promesa. */
-  exento?: boolean
-}
+// Tipo canónico compartido con la ruta y con el dashboard/ColaboradorDashboard.
 
 const PARTICIPANT_LABELS: Record<ParticipantType, string> = {
   setter: 'Setter',
@@ -96,7 +79,12 @@ export default function CommissionsPage() {
   // Sesión ya resuelta por el layout: evita repetir auth.getUser() + from('users') aquí.
   const sesion = useSesion()
   const [commissions, setCommissions] = useState<CommissionDashboardRow[]>([])
-  const [future, setFuture] = useState<FutureRow[]>([])
+  // UN ERROR DE CARGA NO ES UN ESTADO VACÍO (variante UI del principio «un hueco no es un cero»):
+  // si /commissions/future responde 500, dibujar `future` como [] equivaldría a "0 EUR de comisiones
+  // futuras", que el equipo podría leer como que no hay nada por cobrar. Un fallo de lectura deja
+  // el hueco VISIBLE con el detalle y reintentar; cantidad falsa nunca (S1 §6.8 P1, mitad de UI).
+  const [futureError, setFutureError] = useState<string | null>(null)
+  const [future, setFuture] = useState<FilaFutura[]>([])
   const [members, setMembers] = useState<SimpleMember[]>([])
   const [commissionableMembers, setCommissionableMembers] = useState<CommissionableMember[]>([])
   const [linkTemplates, setLinkTemplates] = useState<LinkTemplate[]>([])
@@ -276,9 +264,17 @@ export default function CommissionsPage() {
     fetch(`/api/${tenant}/evergreen/commissions/future`)
       .then((r) => r.json())
       .then((d) => {
-        if (d?.rows) setFuture(d.rows as FutureRow[])
+        // La ruta contesta { ok: true, rows } con 200 y { error } con 500. Un 500 sin `rows`
+        // LLEGA AQUÍ: el fallo solo se ve si se distingue explícitamente antes de tocar el estado.
+        const res = interpretarRespuestaFuturas(d)
+        if ('rows' in res) {
+          setFuture(res.rows)
+          setFutureError(null)
+        } else {
+          setFutureError(res.error)
+        }
       })
-      .catch(() => {})
+      .catch(() => setFutureError('no se pudo contactar con el servidor'))
   }
 
   useEffect(() => {
@@ -817,6 +813,7 @@ export default function CommissionsPage() {
       <CommissionControlCenter
         rows={filteredCommissions}
         future={filteredFuture}
+        futureError={futureError}
         loading={loading}
         restricted={esColaborador}
         tenant={tenant}
@@ -924,100 +921,122 @@ export default function CommissionsPage() {
               </span>
             </div>
           )}
-          <div className="rounded-lg border border-border overflow-hidden">
-            <div className="divide-y divide-border max-h-[520px] overflow-y-auto">
-              {filteredFuture.length === 0 ? (
-                <div className="p-6 text-center text-sm text-muted-foreground">
-                  No hay comisiones futuras por cobrar
-                </div>
-              ) : (
-                filteredFuture
-                  .slice()
-                  .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
-                  .map((f) => (
-                    <div
-                      key={`${f.installmentId}-${f.userId}-${f.participantType}`}
-                      className="px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-card/40"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className="text-xs text-muted-foreground shrink-0 w-20">
-                          {new Date(f.dueDate).toLocaleDateString('es-ES', {
-                            day: '2-digit',
-                            month: 'short',
-                            year: '2-digit',
-                          })}
-                        </span>
-                        <span className="text-sm text-foreground truncate">{f.userName}</span>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground capitalize shrink-0">
-                          {PARTICIPANT_LABELS[f.participantType] ?? f.participantType}
-                        </span>
-                        {f.tipo === 'nuevo' && (
-                          <span
-                            className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 shrink-0"
-                            title="Primera cuota de una venta que aún no ha cobrado nada"
-                          >
-                            Nuevo
-                          </span>
-                        )}
-                        {f.tipo === 'recurrente' && (
-                          <span
-                            className="text-xs px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-400 shrink-0"
-                            title="Cuota del plan de una venta que ya ha cobrado (MRR)"
-                          >
-                            Recurrente
-                          </span>
-                        )}
-                        {f.exento ? (
-                          <span
-                            className="text-xs px-2 py-0.5 rounded-full bg-zinc-500/20 text-zinc-400 shrink-0"
-                            title="Persona exenta de comisiones (Settings › Usuarios): el motor nunca generará este pago"
-                          >
-                            Exenta
-                          </span>
-                        ) : null}
-                        {f.source === 'review' && (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 shrink-0">
-                            En revisión
-                          </span>
-                        )}
-                        <span className="text-xs text-muted-foreground truncate hidden sm:inline">{f.contact}</span>
-                      </div>
-                      <div className="flex items-center gap-4 shrink-0">
-                        <span className="text-xs text-muted-foreground">{f.percent}%</span>
-                        {f.exento ? (
-                          <span
-                            className="text-sm font-medium text-zinc-500 line-through"
-                            title="Exenta: no se generará"
-                          >
-                            {formatCurrency((f.base * f.percent) / 100)}
-                          </span>
-                        ) : (
-                          <span className="text-sm font-medium text-amber-400">{formatCurrency(f.amount)}</span>
-                        )}
-                        {f.source === 'review' && canReview && f.collectionId && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs"
-                            disabled={approvingReview === f.collectionId}
-                            onClick={() => handleApproveReview(f.collectionId!)}
-                          >
-                            {approvingReview === f.collectionId ? 'Aprobando...' : 'Aprobar'}
-                          </Button>
-                        )}
-                        <Link
-                          href={`/${tenant}/ventas/registro/${f.saleId}`}
-                          className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300"
-                        >
-                          Venta
-                          <ExternalLink className="w-3 h-3" />
-                        </Link>
-                      </div>
-                    </div>
-                  ))
-              )}
+          {/* El fallo de carga se declara visible: sin banner, un 500 se ve igual que
+              "todavía no hay cuotas por cobrar" (bug S1 confirmado con captura). */}
+          {futureError ? (
+            <div
+              role="alert"
+              className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm"
+            >
+              <span>
+                <span className="font-medium text-red-300">No se pudieron leer las comisiones futuras</span>{' '}
+                <span className="text-muted-foreground">({futureError})</span> — hasta que cargue, el listado y las
+                sumas de esta sección no son fiables.
+              </span>
+              <button
+                type="button"
+                onClick={() => fetchFuture()}
+                className="text-xs font-medium underline shrink-0 hover:text-foreground"
+              >
+                Reintentar
+              </button>
             </div>
-          </div>
+          ) : (
+            <div className="rounded-lg border border-border overflow-hidden">
+              <div className="divide-y divide-border max-h-[520px] overflow-y-auto">
+                {filteredFuture.length === 0 ? (
+                  <div className="p-6 text-center text-sm text-muted-foreground">
+                    No hay comisiones futuras por cobrar
+                  </div>
+                ) : (
+                  filteredFuture
+                    .slice()
+                    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+                    .map((f) => (
+                      <div
+                        key={`${f.installmentId}-${f.userId}-${f.participantType}`}
+                        className="px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-card/40"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="text-xs text-muted-foreground shrink-0 w-20">
+                            {new Date(f.dueDate).toLocaleDateString('es-ES', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: '2-digit',
+                            })}
+                          </span>
+                          <span className="text-sm text-foreground truncate">{f.userName}</span>
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground capitalize shrink-0">
+                            {PARTICIPANT_LABELS[f.participantType] ?? f.participantType}
+                          </span>
+                          {f.tipo === 'nuevo' && (
+                            <span
+                              className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 shrink-0"
+                              title="Primera cuota de una venta que aún no ha cobrado nada"
+                            >
+                              Nuevo
+                            </span>
+                          )}
+                          {f.tipo === 'recurrente' && (
+                            <span
+                              className="text-xs px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-400 shrink-0"
+                              title="Cuota del plan de una venta que ya ha cobrado (MRR)"
+                            >
+                              Recurrente
+                            </span>
+                          )}
+                          {f.exento ? (
+                            <span
+                              className="text-xs px-2 py-0.5 rounded-full bg-zinc-500/20 text-zinc-400 shrink-0"
+                              title="Persona exenta de comisiones (Settings › Usuarios): el motor nunca generará este pago"
+                            >
+                              Exenta
+                            </span>
+                          ) : null}
+                          {f.source === 'review' && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 shrink-0">
+                              En revisión
+                            </span>
+                          )}
+                          <span className="text-xs text-muted-foreground truncate hidden sm:inline">{f.contact}</span>
+                        </div>
+                        <div className="flex items-center gap-4 shrink-0">
+                          <span className="text-xs text-muted-foreground">{f.percent}%</span>
+                          {f.exento ? (
+                            <span
+                              className="text-sm font-medium text-zinc-500 line-through"
+                              title="Exenta: no se generará"
+                            >
+                              {formatCurrency((f.base * f.percent) / 100)}
+                            </span>
+                          ) : (
+                            <span className="text-sm font-medium text-amber-400">{formatCurrency(f.amount)}</span>
+                          )}
+                          {f.source === 'review' && canReview && f.collectionId && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs"
+                              disabled={approvingReview === f.collectionId}
+                              onClick={() => handleApproveReview(f.collectionId!)}
+                            >
+                              {approvingReview === f.collectionId ? 'Aprobando...' : 'Aprobar'}
+                            </Button>
+                          )}
+                          <Link
+                            href={`/${tenant}/ventas/registro/${f.saleId}`}
+                            className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300"
+                          >
+                            Venta
+                            <ExternalLink className="w-3 h-3" />
+                          </Link>
+                        </div>
+                      </div>
+                    ))
+                )}
+              </div>
+            </div>
+          )}
         </TabsContent>
         <TabsContent value="negative" className="mt-4">
           {loading ? <Skeleton className="h-48" /> : <CommissionsTable commissions={negative} canApprove={false} />}

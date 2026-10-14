@@ -17,7 +17,7 @@
 // Patrón de carga: se leen UNA VEZ las filas del scope (RLS ya escopa por tenant) y el
 // filtro de periodo se aplica en memoria — cambiar de periodo no dispara refetch.
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { PeriodFilterBar } from '@/components/os/PeriodFilterBar'
 import {
@@ -32,6 +32,7 @@ import { isAttended, isNoShow } from '@/lib/appointments/status'
 import { formatCurrency } from '@/lib/utils'
 import { KPICard } from '@/components/os/DashboardKPICard'
 import { contactIdsDeScope, type ScopeColaborador } from '@/lib/collaborators/scope'
+import { interpretarRespuestaFuturas, type FilaFutura } from '@/lib/commissions/future-response'
 import { useTenant, useTenantId, type SesionTenant } from '@/lib/tenant-context'
 import { Users, CalendarCheck, PhoneCall, Trophy, Euro, Clock, BadgeCheck, Banknote } from 'lucide-react'
 
@@ -56,18 +57,6 @@ type ComisionRow = {
   commission_amount: number | null
   created_at: string | null
   liquidation_month: string | null
-}
-type FilaFutura = {
-  installmentId: string
-  amount: number | string
-  dueDate: string
-  source: string
-  estado?: 'pending' | 'overdue' | 'review'
-  /** NUEVO = primera cuota de una venta que aún no cobró; RECURRENTE = cuota del plan de
-   * una venta que ya cobró (MRR). Canónico: lib/finance/nuevo-vs-recurrente. */
-  tipo?: 'nuevo' | 'recurrente'
-  /** Exenta (pays_commissions=false): importe 0 — nunca se generará. */
-  exento?: boolean
 }
 
 type Actividad = {
@@ -111,6 +100,9 @@ export default function ColaboradorDashboard({
   const [ventas, setVentas] = useState<VentaRow[]>([])
   const [comisiones, setComisiones] = useState<ComisionRow[]>([])
   const [futuras, setFuturas] = useState<FilaFutura[]>([])
+  // UN ERROR DE CARGA NO ES UN ESTADO VACÍO: la proyección/impagos del colaborador no debe
+  // pintarse a 0 cuando /commissions/future falla — se anuncia la fuente ilegible, con reintentar.
+  const [futurasError, setFuturasError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -119,6 +111,7 @@ export default function ColaboradorDashboard({
     let vivo = true
     setCargando(true)
     setError(null)
+    setFuturasError(null)
     ;(async () => {
       // Scope del colaborador, fail-closed: [] si aún no tiene nadie atribuido.
       const contactIds = await contactIdsDeScope(sb, tenantId, scope)
@@ -173,20 +166,37 @@ export default function ColaboradorDashboard({
       // COBROS (§25): qué tiene por cobrar (cuotas pendientes/vencidas de SUS
       // ventas). La ruta /commissions/future ya filtra SU lane y su scope; de
       // ahí salen la proyección del próximo mes y los impagos (overdue).
-      try {
-        const resF = await fetch(`/api/${tenant}/evergreen/commissions/future`)
-        if (resF.ok) {
-          const data = (await resF.json()) as { rows?: FilaFutura[] }
-          if (vivo) setFuturas(data.rows ?? [])
+      const resF = await fetch(`/api/${tenant}/evergreen/commissions/future`).catch(() => null)
+      if (!vivo) return
+      if (!resF) {
+        setFuturasError('no se pudo contactar con el servidor')
+      } else {
+        const res = interpretarRespuestaFuturas(await resF.json().catch(() => null))
+        if ('rows' in res) {
+          setFuturas(res.rows)
+          setFuturasError(null)
+        } else {
+          setFuturasError(res.error)
         }
-      } catch {
-        // La proyección es accesoría: un fallo no tumba el dashboard.
       }
     })()
     return () => {
       vivo = false
     }
   }, [sb, tenantId, tenant, scope, sesion.userId])
+
+  // Reintento manual del aviso de fuente ilegible: solo la proyección, sin recargar todo el panel.
+  const reintentarFuturas = useCallback(() => {
+    setFuturasError(null)
+    fetch(`/api/${tenant}/evergreen/commissions/future`)
+      .then((r) => r.json())
+      .then((d) => {
+        const res = interpretarRespuestaFuturas(d)
+        if ('rows' in res) setFuturas(res.rows)
+        else setFuturasError(res.error)
+      })
+      .catch(() => setFuturasError('no se pudo contactar con el servidor'))
+  }, [tenant])
 
   const rango = useMemo(() => getPeriodRange(preset, customFrom, customTo), [preset, customFrom, customTo])
   const rangoPrevio = useMemo(() => getPreviousPeriodRange(rango), [rango])
@@ -490,16 +500,37 @@ export default function ColaboradorDashboard({
         />
         <KPICard
           title="Impagos de tus leads"
-          value={eur(cobros.impagos)}
+          value={futurasError ? '—' : eur(cobros.impagos)}
           icon={Euro}
           loading={cargando}
           description="Cuotas vencidas sin cobrar — comisión proyectada"
         />
+        {/* Proyección e impagos dependen de /commissions/future: si la fuente falló, las cifras
+            no se pintan a 0 («no hay nada por cobrar»); el aviso + reintentar lo dejan visto. */}
+        {futurasError && !cargando && (
+          <div
+            className="md:col-span-2 lg:col-span-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm"
+            role="alert"
+          >
+            <span>
+              <span className="font-medium text-red-300">No se pudieron leer tus comisiones futuras</span>{' '}
+              <span className="text-muted-foreground">({futurasError})</span> — proyección y desglose por mes no
+              fiables.
+            </span>
+            <button
+              type="button"
+              onClick={reintentarFuturas}
+              className="text-xs font-medium underline shrink-0 hover:text-foreground"
+            >
+              Reintentar
+            </button>
+          </div>
+        )}
       </section>
 
       {/* Desglose mes a mes de SUS comisiones a futuro: qué está confirmado (cash recogido)
           y qué depende de que sus leads paguen. Misma vista que el dashboard del equipo. */}
-      {!cargando && futurePorMes.length > 0 && (
+      {!cargando && !futurasError && futurePorMes.length > 0 && (
         <section className="dashboard-card p-5">
           <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
             <h2 className="text-sm font-semibold text-foreground">Comisiones a futuro, mes a mes</h2>
