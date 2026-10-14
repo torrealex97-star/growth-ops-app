@@ -123,6 +123,7 @@ export function AppointmentDetail({
       source: appointment.source,
       externalSource: appointment.external_source,
       utmSource: appointment.utm_source,
+      utmMedium: appointment.utm_medium,
     })
   const [updating, setUpdating] = useState(false)
   const [updatingFollowUp, setUpdatingFollowUp] = useState(false)

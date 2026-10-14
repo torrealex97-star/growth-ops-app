@@ -74,3 +74,66 @@ test('un fallo de atribución no se presenta como tráfico web', () => {
   assert.equal(origin.kind, 'unknown')
   assert.equal(origin.shortLabel, '—')
 })
+
+// ── ADS vs WEB: lo que viene de un anuncio lo dice; WEB queda para directo/SEO/referidos ───────────────
+import { esOrigenAnuncio } from '../lib/appointments/lead-origin.ts'
+
+const base = { attributionLoaded: true }
+
+test('anuncio por medio de pago, por id de anuncio en la fuente o por red de Meta sin medio orgánico', () => {
+  const casos = [
+    { utmSource: '120252786405750750', utmMedium: 'paid' },
+    { utmSource: 'facebook', utmMedium: 'paid_social' },
+    { utmSource: '120252786405750750', utmMedium: null },
+    { utmSource: 'fb', utmMedium: 'cpc' },
+    { utmSource: 'instagram', utmMedium: null },
+  ]
+  for (const c of casos) {
+    const r = resolveAppointmentLeadOrigin({ ...base, ...c })
+    assert.equal(r.kind, 'ads', JSON.stringify(c))
+    assert.equal(r.shortLabel, 'ADS')
+  }
+})
+
+test('directo, SEO, referido y enlaces de bio siguen siendo WEB y no ADS', () => {
+  const casos = [
+    { utmSource: 'direct', utmMedium: 'none' },
+    { utmSource: 'google', utmMedium: 'organic_search' },
+    { utmSource: 'chatgpt.com', utmMedium: 'none' },
+    { utmSource: 'linktr.ee', utmMedium: 'embed-linktree' },
+    { utmSource: 'IG', utmMedium: 'Bio' },
+    { utmSource: 'Tk', utmMedium: 'Bio' },
+  ]
+  for (const c of casos) {
+    const r = resolveAppointmentLeadOrigin({ ...base, ...c })
+    assert.equal(r.kind, 'web', JSON.stringify(c))
+    assert.equal(r.shortLabel, 'WEB')
+  }
+})
+
+test('un anuncio o campaña de Meta resuelto manda sobre un utm_source genérico', () => {
+  const r = resolveAppointmentLeadOrigin({ ...base, utmSource: 'direct', utmMedium: 'none', evidenciaAnuncio: true })
+  assert.equal(r.kind, 'ads')
+  assert.equal(esOrigenAnuncio({ utmSource: 'direct', utmMedium: 'none' }), false)
+})
+
+test('setter y colaborador siguen ganando sobre ads', () => {
+  assert.equal(
+    resolveAppointmentLeadOrigin({ ...base, setterId: 's1', utmSource: '120252786405750750', utmMedium: 'paid' }).kind,
+    'setter'
+  )
+  assert.equal(
+    resolveAppointmentLeadOrigin({
+      ...base,
+      hasCollaboratorAttribution: true,
+      utmSource: 'facebook',
+      utmMedium: 'paid',
+    }).kind,
+    'collaborator'
+  )
+})
+
+test('sin ninguna señal sigue «sin atribuir», no ADS ni WEB', () => {
+  const r = resolveAppointmentLeadOrigin({ ...base })
+  assert.equal(r.kind, 'unknown')
+})

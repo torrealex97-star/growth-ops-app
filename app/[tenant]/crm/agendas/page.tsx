@@ -671,6 +671,7 @@ export default function AppointmentsPage() {
   const leadOriginFor = useCallback(
     (appointment: AppointmentWithRelations) => {
       const collaborator = collaboratorOrigins[appointment.contact_id]
+      const meta = metaAttributionFor(appointment)
       const origin = resolveAppointmentLeadOrigin({
         setterId: appointment.setter_id,
         setterName: appointment.setter?.full_name,
@@ -681,8 +682,10 @@ export default function AppointmentsPage() {
         source: appointment.source,
         externalSource: appointment.external_source,
         utmSource: appointment.utm_source,
+        utmMedium: appointment.utm_medium,
+        // Un anuncio o campaña de Meta resuelto es la evidencia más fuerte de que es de ads.
+        evidenciaAnuncio: Boolean(meta.ad.externalId || meta.ad.name || meta.campaign.name || meta.campaign.externalId),
       })
-      const meta = metaAttributionFor(appointment)
       const metaDetail = meta.ad.name
         ? `Anuncio: ${meta.ad.name}`
         : meta.campaign.name

@@ -1,8 +1,8 @@
-export type AppointmentLeadOriginKind = 'setter' | 'collaborator' | 'web' | 'unknown'
+export type AppointmentLeadOriginKind = 'setter' | 'collaborator' | 'ads' | 'web' | 'unknown'
 
 export type AppointmentLeadOrigin = {
   kind: AppointmentLeadOriginKind
-  shortLabel: 'SET' | 'COLAB' | 'WEB' | '—'
+  shortLabel: 'SET' | 'COLAB' | 'ADS' | 'WEB' | '—'
   label: string
   detail: string
 }
@@ -17,6 +17,49 @@ type LeadOriginInput = {
   source?: string | null
   externalSource?: string | null
   utmSource?: string | null
+  utmMedium?: string | null
+  /**
+   * `true` si la cita se resolvió contra un anuncio o campaña de Meta (id de anuncio/campaña o nombre).
+   * Es evidencia más fuerte que cualquier texto de UTM.
+   */
+  evidenciaAnuncio?: boolean
+}
+
+// Medios que significan «pago»: lo que Meta/Google rellenan en utm_medium para anuncios.
+const MEDIO_DE_PAGO = /^(paid|paid[\s_-]?social|paid[\s_-]?search|cpc|ppc|cpm|cpv|ads?|display|social[\s_-]?paid)$/i
+// Medios que, aun con una red social de fuente, indican tráfico ORGÁNICO (el enlace de la bio, un post…).
+const MEDIO_ORGANICO =
+  /^(bio|link[\s_-]?in[\s_-]?bio|organic|organic[\s_-]?(social|search)|social|story|stories|profile|referral|embed[\w-]*|email|newsletter|dm)$/i
+// Redes de Meta: como fuente, solo son anuncios si el medio no es claramente orgánico.
+const FUENTE_META = new Set([
+  'facebook',
+  'fb',
+  'meta',
+  'meta_ads',
+  'facebook_ads',
+  'ig',
+  'instagram',
+  'instagram_ads',
+  'an',
+  'audience_network',
+  'messenger',
+])
+// Meta suele meter el id del anuncio en utm_source ({{ad.id}}): un número largo es un anuncio.
+const ID_NUMERICO_META = /^\d{12,}$/
+
+/**
+ * ¿Esta cita viene de un ANUNCIO? Evidencia, por orden: el anuncio/campaña resuelto, un medio de pago,
+ * un id de anuncio en la fuente, o una red de Meta como fuente sin un medio orgánico que lo desmienta.
+ * «direct», «google/organic», «linktr.ee», un enlace de bio o un referido NO son anuncios.
+ */
+export function esOrigenAnuncio(input: Pick<LeadOriginInput, 'utmSource' | 'utmMedium' | 'evidenciaAnuncio'>): boolean {
+  if (input.evidenciaAnuncio) return true
+  const medio = (input.utmMedium || '').trim()
+  const fuente = (input.utmSource || '').trim()
+  if (medio && MEDIO_DE_PAGO.test(medio)) return true
+  if (fuente && ID_NUMERICO_META.test(fuente)) return true
+  if (fuente && FUENTE_META.has(fuente.toLowerCase()) && !MEDIO_ORGANICO.test(medio)) return true
+  return false
 }
 
 /**
@@ -59,12 +102,26 @@ export function resolveAppointmentLeadOrigin(input: LeadOriginInput): Appointmen
   // La única señal de adquisición que recibe este resolver es `utmSource`; el resto de la
   // trayectoria se consulta en la ficha del contacto sin rellenar este badge con inferencias.
   const channel = input.utmSource
+  if (!channel && input.evidenciaAnuncio) {
+    return { kind: 'ads', shortLabel: 'ADS', label: 'Ads', detail: 'Ads · anuncio de Meta resuelto' }
+  }
   if (!channel) {
     return {
       kind: 'unknown',
       shortLabel: '—',
       label: 'Sin atribuir',
       detail: 'No hay una fuente de adquisición verificable',
+    }
+  }
+
+  // ADS: lo que viene de un anuncio lo dice. WEB queda para el resto con señal de adquisición
+  // (directo, SEO, referidos, enlaces de bio).
+  if (esOrigenAnuncio(input)) {
+    return {
+      kind: 'ads',
+      shortLabel: 'ADS',
+      label: 'Ads',
+      detail: ID_NUMERICO_META.test(channel.trim()) ? `Ads · anuncio ${channel.trim()}` : `Ads · ${channel}`,
     }
   }
 
