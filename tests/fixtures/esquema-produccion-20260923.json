@@ -763,6 +763,13 @@
     "politicas": 2
   },
   {
+    "tabla": "user_fathom_connections",
+    "tieneTenantId": true,
+    "tenantIdNotNull": true,
+    "rlsHabilitada": true,
+    "politicas": 2
+  },
+  {
     "tabla": "users",
     "tieneTenantId": false,
     "tenantIdNotNull": false,

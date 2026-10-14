@@ -5775,6 +5775,47 @@ export type EsquemaPublico = {
         updated_at: string | undefined
       }
     }
+    UserFathomConnections: {
+      Row: {
+        id: string | null
+        tenant_id: string | null
+        user_id: string | null
+        api_key: string | null
+        key_fingerprint: string | null
+        status: string | null
+        last_sync_at: string | null
+        last_error: string | null
+        meetings_seen: number | null
+        created_at: string | null
+        updated_at: string | null
+      }
+      Insert: {
+        id: string | null | undefined
+        tenant_id: string | null | undefined
+        user_id: string | null | undefined
+        api_key: string | null | undefined
+        key_fingerprint: string | null | undefined
+        status: string | null | undefined
+        last_sync_at: string | null | undefined
+        last_error: string | null | undefined
+        meetings_seen: number | null | undefined
+        created_at: string | null | undefined
+        updated_at: string | null | undefined
+      }
+      Update: {
+        id: string | undefined
+        tenant_id: string | undefined
+        user_id: string | undefined
+        api_key: string | undefined
+        key_fingerprint: string | undefined
+        status: string | undefined
+        last_sync_at: string | undefined
+        last_error: string | undefined
+        meetings_seen: number | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+      }
+    }
     Users: {
       Row: {
         id: string | null
