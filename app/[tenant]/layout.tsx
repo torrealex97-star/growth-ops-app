@@ -229,13 +229,17 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
       if (roleKey && CONTRACT_GATED_ROLES.includes(roleKey)) {
         // `pedir` no lanza y trae timeout propio: si la comprobación del contrato se cuelga, no se lleva
         // por delante el arranque de toda la aplicación.
-        const res = await pedir<{ hasSigned?: boolean; pendingToken?: string | null }>(
-          `/api/${tenant}/evergreen/contracts/my-status`,
-          { signal: cancelar.signal }
-        )
+        const res = await pedir<{
+          hasSigned?: boolean
+          pendingToken?: string | null
+          bloqueaAcceso?: boolean
+          signingToken?: string | null
+        }>(`/api/${tenant}/evergreen/contracts/my-status`, { signal: cancelar.signal })
         if (!mounted || cancelar.signal.aborted) return
-        if (res.ok && res.data?.hasSigned === false) {
-          setContractGate({ pendingToken: res.data.pendingToken ?? null })
+        // Solo se bloquea si la app LE ENVIÓ un contrato y sigue sin firmar. Sin contrato enviado se deja
+        // pasar: lo más probable es que haya firmado por otra vía.
+        if (res.ok && res.data?.bloqueaAcceso === true && res.data.signingToken) {
+          setContractGate({ pendingToken: res.data.signingToken })
           setUser(data as UserWithRole)
           setLoading(false)
           return
@@ -424,9 +428,8 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
               <span className="text-foreground font-medium">firmar tu contrato</span>.
             </p>
             <p className="text-muted-foreground text-sm mb-8">
-              {contractGate.pendingToken
-                ? 'Tienes un contrato pendiente de firma. Púlsalo para revisarlo y firmarlo — también te lo hemos enviado por email.'
-                : 'Aún no tienes ningún contrato asignado. Contacta con administración para que te lo envíen.'}
+              Tienes un contrato pendiente de firma. Púlsalo para revisarlo y firmarlo — también te lo hemos enviado por
+              email.
             </p>
             <div className="flex flex-col gap-3">
               {contractGate.pendingToken && (
