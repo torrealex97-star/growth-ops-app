@@ -31,6 +31,18 @@ function jsonRpcError(id: unknown, code: number, message: string) {
 
 type RpcBody = { jsonrpc?: string; id?: unknown; method?: string; params?: Record<string, unknown> }
 
+/**
+ * Desafío `WWW-Authenticate` de un recurso protegido MCP. La especificación (2025-06-18, RFC 9728)
+ * exige apuntar al documento de metadatos del recurso con `resource_metadata`: es lo que permite al
+ * cliente descubrir el servidor de autorización sin adivinar rutas.
+ */
+function desafioBearer(request: { url: string }, error?: 'invalid_token'): string {
+  const origin = new URL(request.url).origin
+  const partes = ['realm="mcp"', `resource_metadata="${origin}/.well-known/oauth-protected-resource"`]
+  if (error) partes.push(`error="${error}"`)
+  return `Bearer ${partes.join(', ')}`
+}
+
 async function autenticar(
   request: NextRequest
 ): Promise<{ userId: string; email: string; clientId: string } | NextResponse> {
@@ -45,13 +57,18 @@ async function autenticar(
   if (!header.startsWith('Bearer ')) {
     return NextResponse.json(
       { error: 'Falta el Bearer token. Conecta el cliente MCP vía OAuth en /api/mcp/oauth/authorize.' },
-      { status: 401, headers: { 'WWW-Authenticate': 'Bearer realm="mcp"' } }
+      { status: 401, headers: { 'WWW-Authenticate': desafioBearer(request) } }
     )
   }
   // Validación canónica única (lib/mcp/oauth.ts): firma + jti presente en BD y no revocado.
   // Comprobar contra BD es lo que permite revocar sesiones sin esperar a que caduque el token.
   const sesion = await validarAccessToken(header.slice(7).trim())
-  if (!sesion) return NextResponse.json({ error: 'Token inválido, revocado o caducado' }, { status: 401 })
+  if (!sesion) {
+    return NextResponse.json(
+      { error: 'Token inválido, revocado o caducado' },
+      { status: 401, headers: { 'WWW-Authenticate': desafioBearer(request, 'invalid_token') } }
+    )
+  }
   return sesion
 }
 
@@ -201,6 +218,9 @@ export async function POST(request: NextRequest) {
     case 'ping':
       return NextResponse.json(jsonRpc(id, {}), { headers: JSON_RPC_HEADERS })
     default:
+      // Toda notificación (mensaje sin respuesta, p. ej. `notifications/cancelled`) se acepta con 202:
+      // contestarle un error HTTP a una notificación hace que algunos clientes marquen la conexión caída.
+      if (body.method.startsWith('notifications/')) return new NextResponse(null, { status: 202 })
       return NextResponse.json(jsonRpcError(id, -32601, `Método no soportado: ${body.method}`), {
         status: 404,
         headers: JSON_RPC_HEADERS,
@@ -208,9 +228,14 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET() {
-  // Sin SSE por ahora: los clientes modernos (Claude, ChatGPT) usan POST streamable.
-  // Un GET informa de cómo conectarse — nunca expone nada.
+export async function GET(request: NextRequest) {
+  // Transporte streamable HTTP (2025-06-18): un GET con `Accept: text/event-stream` pide el canal SSE
+  // del servidor. Este servidor es sin estado y no lo ofrece, y la especificación manda responder 405
+  // en ese caso. Antes devolvía 200 con JSON, que los clientes intentaban leer como un flujo SSE.
+  if ((request.headers.get('accept') || '').includes('text/event-stream')) {
+    return new NextResponse(null, { status: 405, headers: { Allow: 'POST, DELETE, OPTIONS' } })
+  }
+  // Para personas y comprobaciones: un GET normal informa de cómo conectarse y nunca expone nada.
   return NextResponse.json(
     {
       server: 'growth-ops-mcp',
@@ -224,4 +249,10 @@ export async function GET() {
     },
     { headers: JSON_RPC_HEADERS }
   )
+}
+
+// Cierre de sesión del cliente. El servidor es sin estado (no emite `Mcp-Session-Id`), así que no hay
+// nada que cerrar: se responde 204 en vez de 405 para que el cliente se desconecte sin error.
+export async function DELETE() {
+  return new NextResponse(null, { status: 204 })
 }

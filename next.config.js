@@ -23,8 +23,25 @@ const nextConfig = {
       { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' },
       { key: 'X-DNS-Prefetch-Control', value: 'off' },
     ]
+    // CORS del servidor MCP y de su descubrimiento: los clientes con navegador (MCP Inspector,
+    // conectores web) lo necesitan. Es una API con token Bearer —sin cookies ni credenciales—, así que
+    // `*` no concede nada que el token no conceda. La pantalla de consentimiento (authorize) NO entra.
+    const corsMcp = [
+      { key: 'Access-Control-Allow-Origin', value: '*' },
+      { key: 'Access-Control-Allow-Methods', value: 'GET, POST, DELETE, OPTIONS' },
+      {
+        key: 'Access-Control-Allow-Headers',
+        value: 'Authorization, Content-Type, Accept, Mcp-Protocol-Version, Mcp-Session-Id, Last-Event-ID',
+      },
+      { key: 'Access-Control-Expose-Headers', value: 'WWW-Authenticate, Mcp-Session-Id, Mcp-Protocol-Version' },
+      { key: 'Access-Control-Max-Age', value: '86400' },
+    ]
     return [
       { source: '/:path*', headers: comunes },
+      { source: '/api/mcp', headers: corsMcp },
+      { source: '/api/mcp/oauth/token', headers: corsMcp },
+      { source: '/api/mcp/oauth/register', headers: corsMcp },
+      { source: '/.well-known/:path*', headers: corsMcp },
       {
         // Todo salvo /embed y los scripts públicos de tracking.
         source: '/((?!embed|tracker\\.js).*)',
