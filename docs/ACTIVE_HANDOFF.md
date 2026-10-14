@@ -1,3 +1,20 @@
+# COMPLETADO — barrido «error de carga ≠ cero»: DataHealthPanel dedupe (14-oct, Buffy) · `fix/barrido-error-carga` (PR #509, merged)
+
+Continuación del barrido de PR #505 sobre el resto de `fetch→json` del cliente. Las pantallas de decisión
+(subcuentas, fathom-revision, fin de subcuentas, registro de afiliados) ya declaraban el fallo; el único hueco real
+era el dedupe de DataHealthPanel: la sección «Duplicados detectados»
+solo se pintaba si había grupos, así que una fuente ilegible (500 o cuerpo roto) y «cero duplicados» eran
+indistinguibles — la sección desaparecía en silencio. Arreglo: estado `dedupeError` con aviso visible
+«fuente ilegible + Reintentar» en la sección, interpretación de contrato al estilo de `commissions/future`, y test de
+regresión `tests/data-health-dedupe-error.test.mjs`. Validación: `npm run quality` PASS en local; CI VERDE del SHA
+fusionado `91ab033f` (Release gate SUCCESS, 5 checks); deployment de producción de Vercel **READY** para ese SHA exacto.
+
+Incidente menor documentado como regla nueva: el job **Smoke E2E** de CI usa un grupo de concurrencia GLOBAL
+`e2e-tenant-qa` con `cancel-in-progress: true` sin scope por rama, de modo que otro PR en vuelo cancela el E2E del
+corriente (y al revés). Un run del Release gate en `E2E_RESULT=cancelled` es COLISIÓN, no fallo del código: esperar a
+que el otro run termine y rerun del job ≥ tocar el workflow (no se scopeó el grupo a propósito — existe para
+serializar la QA contra la misma BD de tenant).
+
 # VALIDADO EN RAMA — Onboarding de conexión MCP (14-oct-2026, Codex) · rama `codex/mcp-connection-onboarding`
 
 - **Entregado:** Configuración → Conexiones IA (MCP) es ahora un flujo accionable con URL
@@ -3738,10 +3755,10 @@ fusionar, bórrala.** Si lo que vas a tocar está aquí a nombre de otro, no lo 
 
 | Agente      | Qué                                                                                                   | Rama                        | Toca                                                                  | Desde  |
 | ----------- | ----------------------------------------------------------------------------------------------------- | --------------------------- | --------------------------------------------------------------------- | ------ |
-| Buffy       | Barrido: aplicar regla «error de carga ≠ cero» al resto de fetch→json del cliente que tragaban fallos | `fix/barrido-error-carga`   | pantallas cliente con fetch().then(json).catch(→[]) + futuro-response | 14-oct |
 | Freebuff    | Cierre de merges 3-oct; dependabot majors en vuelo (#314, #315, #327)                                 | `main` + ramas dependabot   | `package.json`/lock (solo vía dependabot), docs, migraciones          | 3-oct  |
 | Codex       | PR #325 reservation-refunds (E2E en rojo, su autor continúa)                                          | `codex/reservation-refunds` | ventas/cobros (según su rama)                                         | 3-oct  |
 | Claude Code | Plan: F01 (RLS colaborador, P0), F19; sin rama activa aún                                             | —                           | `docs/plan/`, migraciones RLS                                         | 3-oct  |
+
 
 ## Reglas de trabajo (2026-09-21)
 
