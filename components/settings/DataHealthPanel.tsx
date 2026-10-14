@@ -213,12 +213,14 @@ function MetricWebhook({ label, salud }: { label: string; salud: SaludWebhook })
             ? '—'
             : salud.estado === 'desconocido'
               ? 'sin evidencia'
-              : 'sin recepciones'
+              : salud.estado === 'rechazo'
+                ? 'firma rechazada'
+                : 'sin recepciones'
       }
       detail={salud.mensaje}
       // Ámbar, no rojo: el silencio no demuestra una avería (puede no haber actividad). El rojo se reserva
-      // para un fallo confirmado.
-      tone={salud.estado === 'al_dia' ? 'good' : 'warn'}
+      // para un fallo confirmado: envíos rechazados por firma inválida.
+      tone={salud.estado === 'al_dia' ? 'good' : salud.estado === 'rechazo' ? 'bad' : 'warn'}
     />
   )
 }

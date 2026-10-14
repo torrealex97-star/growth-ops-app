@@ -188,6 +188,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ ten
         proveedor: 'stripe',
         configurado: Boolean(cfg.STRIPE_SECRET_KEY) || clavesConfiguradas.has('STRIPE_WEBHOOK_SECRET'),
         ultimoSobre: entregasStripe ? (eventosStripe(entregasStripe).ultimo_valido?.fecha ?? null) : null,
+        ultimoRechazo: entregasStripe ? (eventosStripe(entregasStripe).ultimo_rechazo?.fecha ?? null) : null,
         leido: entregasStripe !== null,
       }),
     }

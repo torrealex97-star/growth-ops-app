@@ -172,9 +172,10 @@ test('el panel pinta la sección "Webhooks entrantes" con los tres y no inventa 
   // distintos con significados distintos.
   assert.match(panel, /sin recepciones/)
   assert.match(panel, /sin evidencia/)
-  // Solo «al día» pinta verde: el fallo de lectura y el silencio jamás. Y el silencio va en ÁMBAR, no
-  // en rojo (F23): no recibir nada en 24 h no demuestra una avería, puede no haber habido actividad.
-  assert.match(panel, /tone=\{salud\.estado === 'al_dia' \? 'good' : 'warn'\}/)
+  // Solo «al día» pinta verde: el fallo de lectura y el silencio jamás. El silencio va en ÁMBAR, no en
+  // rojo (F23): no recibir nada en 24 h no demuestra una avería. El rojo es SOLO para el rechazo por
+  // firma (fallo confirmado).
+  assert.match(panel, /salud\.estado === 'al_dia' \? 'good' : salud\.estado === 'rechazo' \? 'bad' : 'warn'/)
   assert.doesNotMatch(panel, /salud\.estado === 'silencio' \? 'bad'/)
   // Y el texto no afirma rotura por silencio.
   assert.doesNotMatch(panel, /el tiempo real está roto/)
