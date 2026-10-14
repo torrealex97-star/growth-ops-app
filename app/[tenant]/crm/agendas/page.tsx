@@ -26,6 +26,7 @@ import { AgendasAnalysisView } from '@/components/appointments/AgendasAnalysisVi
 import { AgendasMetricsView } from '@/components/appointments/AgendasMetricsView'
 import { CalendarPopover, DateRangeCalendarPopover } from '@/components/ui/calendar-popover'
 import { GoogleCalendarSettings } from '@/components/crm/GoogleCalendarSettings'
+import { FathomPersonalSettings } from '@/components/crm/FathomPersonalSettings'
 import {
   Calendar,
   Search,
@@ -1417,6 +1418,7 @@ export default function AppointmentsPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <GoogleCalendarSettings tenant={tenant} />
+          <FathomPersonalSettings tenant={tenant} />
           <Button
             ref={nuevaAgendaTriggerRef}
             onClick={() => setShowNewModal(true)}

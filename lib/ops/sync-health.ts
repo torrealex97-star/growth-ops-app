@@ -97,6 +97,16 @@ export const SYNC_DEFS: SyncDef[] = [
       'Se comprueba a diario por GitHub Actions (03:50 UTC, cron-social-radar.yml) y solo consume créditos cuando "Radar diario automático" está activado y hay perfiles configurados.',
   },
   {
+    id: 'fathom-closers',
+    label: 'Fathom personal de cada closer',
+    route: 'cron/fathom-closers',
+    table: 'user_fathom_connections',
+    requiredKeys: [],
+    scheduler: 'manual',
+    manualReason:
+      'Se ejecuta cada 30 min por GitHub Actions (cron-fathom-closers.yml) y solo actúa para los closers que han pegado su propia clave en «Mi Fathom». Cada conexión muestra su última sincronización y su error.',
+  },
+  {
     id: 'analyze-calls',
     label: 'Análisis de llamadas con IA',
     route: 'cron/analyze-calls',

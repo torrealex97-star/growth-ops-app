@@ -44,10 +44,11 @@ export function meetingTranscript(meeting: FathomMeeting): string | null {
 
 export async function fetchMeetingsPage(
   apiKey: string,
-  cursor: string
+  cursor: string,
+  opts: { limit?: number } = {}
 ): Promise<{ items: FathomMeeting[]; nextCursor: string }> {
   const url = new URL(MEETINGS_URL)
-  url.searchParams.set('limit', '100')
+  url.searchParams.set('limit', String(Math.max(1, Math.min(opts.limit ?? 100, 100))))
   url.searchParams.set('include_summary', 'true')
   url.searchParams.set('include_transcript', 'true')
   if (cursor) url.searchParams.set('cursor', cursor)
@@ -87,4 +88,26 @@ export async function findMeetingById(
     cursor = nextCursor
   }
   return null
+}
+
+/**
+ * ¿Es válida esta clave de Fathom? Una llamada mínima (1 reunión, sin resumen ni transcripción):
+ * sirve para rechazar una clave mal pegada ANTES de guardarla, sin descargar contenido.
+ */
+export async function validarClaveFathom(
+  apiKey: string
+): Promise<{ ok: true } | { ok: false; motivo: 'clave_invalida' | 'error' | 'red'; detalle?: string }> {
+  try {
+    const url = new URL(MEETINGS_URL)
+    url.searchParams.set('limit', '1')
+    const response = await fetch(url, {
+      headers: { 'X-Api-Key': apiKey, Accept: 'application/json' },
+      signal: AbortSignal.timeout(15_000),
+    })
+    if (response.ok) return { ok: true }
+    if (response.status === 401 || response.status === 403) return { ok: false, motivo: 'clave_invalida' }
+    return { ok: false, motivo: 'error', detalle: `Fathom respondió ${response.status}` }
+  } catch {
+    return { ok: false, motivo: 'red' }
+  }
 }

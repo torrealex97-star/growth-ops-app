@@ -1,0 +1,28 @@
+# Fathom PERSONAL: trae las reuniones recientes de cada closer que ha conectado su propia cuenta.
+# Idempotente (la ingesta es la canónica) y barato: 1 página pequeña por conexión.
+name: 'cron: fathom-closers'
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+permissions: {}
+concurrency:
+  group: cron-fathom-closers
+  cancel-in-progress: false
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: GET /api/_/evergreen/cron/fathom-closers
+        env:
+          APP_URL: ${{ vars.CRON_APP_URL || 'https://app.scalixsystems.com' }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -o response.json -w '%{http_code}' --max-time 120 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/_/evergreen/cron/fathom-closers")
+          echo "HTTP $code"
+          cat response.json; echo
+          case "$code" in 2*) exit 0 ;; *) exit 1 ;; esac
