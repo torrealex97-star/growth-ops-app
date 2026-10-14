@@ -43,6 +43,24 @@ export function googleRedirectUri(): string {
   return `${base}/api/oauth/google/callback`
 }
 
+// Google devuelve en `scope` los ámbitos con su URL completa: pedimos `email` y `openid` (alias cortos de
+// OpenID Connect), pero concede `https://www.googleapis.com/auth/userinfo.email`. Comparar el alias con la
+// URL daba «Faltan permisos concedidos: email» aunque el usuario aceptara todo.
+const ALIAS_AMBITO: Record<string, string> = {
+  email: 'https://www.googleapis.com/auth/userinfo.email',
+  profile: 'https://www.googleapis.com/auth/userinfo.profile',
+}
+
+function ambitoCanonico(s: string): string {
+  return ALIAS_AMBITO[s] ?? s
+}
+
+/** Ámbitos pedidos que Google NO concedió (comparando alias y URL completa como el mismo ámbito). */
+export function ambitosFaltantes(pedidos: readonly string[], concedidosCrudos: string | null | undefined): string[] {
+  const concedidos = new Set((concedidosCrudos || '').split(/\s+/).filter(Boolean).map(ambitoCanonico))
+  return pedidos.filter((p) => !concedidos.has(ambitoCanonico(p)))
+}
+
 export type GoogleCredentials = { clientId: string; clientSecret: string }
 
 /**
