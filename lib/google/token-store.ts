@@ -28,7 +28,7 @@ export async function getValidGoogleAccessToken(
     }
   }
 
-  const credentials = googleCredentials()
+  const credentials = await googleCredentials()
   if (!credentials) {
     return { error: 'OAuth global de Google no configurado', revoked: false, reauthRequired: false }
   }

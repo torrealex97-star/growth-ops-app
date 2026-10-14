@@ -28,7 +28,7 @@ export async function loadYoutubeEnv(
   tenantId: string,
   provider: 'youtube' | 'youtube_publish' = 'youtube_publish'
 ): Promise<YoutubeEnv> {
-  const credentials = googleCredentials()
+  const credentials = await googleCredentials()
   if (!credentials) return {}
   const { data, error } = await sb
     .from('google_oauth_connections')

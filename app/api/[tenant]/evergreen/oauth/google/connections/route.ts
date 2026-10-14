@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { googleCredentials } from '@/lib/google/oauth'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireTenant } from '@/lib/auth/requireTenant'
 import { decryptSecret } from '@/lib/config'
@@ -37,7 +38,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ ten
     .in('provider', ['ga4', 'youtube', 'youtube_publish'])
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({
-    configured: Boolean(process.env.GOOGLE_OAUTH_CLIENT_ID && process.env.GOOGLE_OAUTH_CLIENT_SECRET),
+    configured: Boolean(await googleCredentials()),
     connections: data ?? [],
   })
 }
