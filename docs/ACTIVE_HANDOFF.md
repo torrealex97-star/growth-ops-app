@@ -1,3 +1,20 @@
+# COMPLETADO — error de carga ≠ cero en proyección de comisiones futuras (14-oct, Buffy) · `fix/futuras-error-de-carga` (PR #505, merged)
+
+Bug S1 §6.8 «un error de carga no es un estado vacío» (variante de cliente), confirmado con captura:
+los tres consumidores de `GET /api/[tenant]/evergreen/commissions/future` (página de comisiones,
+dashboard de equipo y ColaboradorDashboard) hacían `d?.rows ?? []`: el 500 llega por el MISMO
+`r.json()`, su cuerpo `{ error }` no lleva `rows` y el `.catch` devolvía `[]` — así «no se pudo leer
+la fuente» se pintaba como «no hay comisiones por cobrar» y las cifras de proyección, impagos y
+cobros del próximo mes eran 0 EUR con look de certeza. Arreglo: contrato dividido canónico en
+[lib/commissions/future-response.ts](../lib/commissions/future-response.ts)
+(`interpretarRespuestaFuturas()` + tipo `FilaFutura` completo, retirando las copias locales de tipo)
+y aviso visible «fuente ilegible + Reintentar» en los tres paneles y en el centro de control; ningún
+importe falso. Test de regresión `tests/comisiones-futuras-error-carga.test.mjs` (contrato del
+helper con fixtures + aserciones fuente para congelar el patrón). Validación: `npm run quality`
+PASS en local (format:check, lint sin warnings nuevos, typecheck —2 errores de tipo cruzado al unificar FilaFutura, resueltos por causa raíz—, 1705/1705 + 789/789) y CI VERDE del SHA fusionado
+`edc81aae` (9 checks: Build, FLTC+dead code, Smoke E2E, gitleaks, Release gate). El dead-code no
+reporta hallazgo para los ficheros tocados.
+
 # VERIFICADO LIVE — sonda RLS multitenant PASS (13-oct, Buffy) · gate G1 con modo live cerrado
 
 `RLS_LIVE_CONFIRM=1 npm run test:rls:live` (autorización explícita del dueño en la sesión) ejecutó
@@ -3693,7 +3710,6 @@ fusionar, bórrala.** Si lo que vas a tocar está aquí a nombre de otro, no lo 
 
 | Agente      | Qué                                                                   | Rama                        | Toca                                                         | Desde |
 | ----------- | --------------------------------------------------------------------- | --------------------------- | ------------------------------------------------------------ | ----- |
-| Buffy       | Fix: error de carga ≠ cero en proyección de comisiones futuras (p1 mit UI S1) | `fix/futuras-error-de-carga` | comisiones/dashboard/ColaboradorDashboard (fetch del endpoint commissions/future) + test | 14-oct |
 | Freebuff    | Cierre de merges 3-oct; dependabot majors en vuelo (#314, #315, #327) | `main` + ramas dependabot   | `package.json`/lock (solo vía dependabot), docs, migraciones | 3-oct |
 | Codex       | PR #325 reservation-refunds (E2E en rojo, su autor continúa)          | `codex/reservation-refunds` | ventas/cobros (según su rama)                                | 3-oct |
 | Claude Code | Plan: F01 (RLS colaborador, P0), F19; sin rama activa aún             | —                           | `docs/plan/`, migraciones RLS                                | 3-oct |
