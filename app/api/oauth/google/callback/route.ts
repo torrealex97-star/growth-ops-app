@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { encryptSecret } from '@/lib/config'
-import { exchangeCode, fetchGoogleEmail, googleCredentials, SCOPES } from '@/lib/google/oauth'
+import { ambitosFaltantes, exchangeCode, fetchGoogleEmail, googleCredentials, SCOPES } from '@/lib/google/oauth'
 import { verifyState } from '@/lib/google/oauth-state'
 import { GOOGLE_PKCE_COOKIE, openPkce } from '@/lib/google/pkce'
 import { requireTenant } from '@/lib/auth/requireTenant'
@@ -108,7 +108,7 @@ export async function GET(req: NextRequest) {
     // Los ámbitos que Google concedió DE VERDAD, que pueden ser menos que los pedidos si el usuario
     // desmarcó alguno. Guardar los pedidos haría creer que hay un permiso que no está.
     const granted = (token.scope || '').split(/\s+/).filter(Boolean)
-    const faltan = SCOPES[provider].filter((s) => !granted.includes(s))
+    const faltan = ambitosFaltantes(SCOPES[provider], token.scope)
 
     const email = token.access_token ? await fetchGoogleEmail(token.access_token) : null
 
