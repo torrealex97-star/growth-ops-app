@@ -1,8 +1,8 @@
-export type AppointmentLeadOriginKind = 'setter' | 'collaborator' | 'ads' | 'web' | 'unknown'
+export type AppointmentLeadOriginKind = 'setter' | 'collaborator' | 'ads' | 'organic' | 'web' | 'unknown'
 
 export type AppointmentLeadOrigin = {
   kind: AppointmentLeadOriginKind
-  shortLabel: 'SET' | 'COLAB' | 'ADS' | 'WEB' | '—'
+  shortLabel: 'SET' | 'COLAB' | 'ADS' | 'ORG' | 'WEB' | '—'
   label: string
   detail: string
 }
@@ -44,6 +44,8 @@ const FUENTE_META = new Set([
   'audience_network',
   'messenger',
 ])
+// Redes sociales (Meta y otras) que, con un medio orgánico (bio, story, perfil…), son social ORGÁNICO.
+const RED_SOCIAL = /^(ig|instagram|fb|facebook|tk|tiktok|yt|youtube|threads|x|twitter|linkedin)$/i
 // Meta suele meter el id del anuncio en utm_source ({{ad.id}}): un número largo es un anuncio.
 const ID_NUMERICO_META = /^\d{12,}$/
 
@@ -123,6 +125,12 @@ export function resolveAppointmentLeadOrigin(input: LeadOriginInput): Appointmen
       label: 'Ads',
       detail: ID_NUMERICO_META.test(channel.trim()) ? `Ads · anuncio ${channel.trim()}` : `Ads · ${channel}`,
     }
+  }
+
+  // ORG: una red social con medio orgánico explícito (IG/Bio, TikTok/story…). Un enlace de linktree
+  // o «direct» sigue siendo WEB: sin red social identificable no se afirma que sea social orgánico.
+  if (RED_SOCIAL.test(channel.trim()) && MEDIO_ORGANICO.test((input.utmMedium || '').trim())) {
+    return { kind: 'organic', shortLabel: 'ORG', label: 'Orgánico', detail: `Orgánico · ${channel}` }
   }
 
   return {
