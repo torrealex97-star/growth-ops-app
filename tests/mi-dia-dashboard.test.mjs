@@ -62,3 +62,8 @@ test('el dashboard monta «Mi día» solo para quien no es liderazgo', () => {
   assert.match(p, /!isLeadership\(myRoleKey\) && tenantId && \(/)
   assert.match(p, /<MiDia tenant=\{tenant\}/)
 })
+
+test('el <main> con scroll es `relative`: contiene los sr-only y no alarga el documento', () => {
+  const l = readFileSync(new URL('../app/[tenant]/layout.tsx', import.meta.url), 'utf8')
+  assert.match(l, /<main className="relative flex-1 overflow-y-auto/)
+})
