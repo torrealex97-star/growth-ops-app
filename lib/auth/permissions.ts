@@ -178,14 +178,21 @@ const normalizeAllowedPrefixes = (prefixes: string[]) =>
 //   1) page_overrides → lista EXPLÍCITA de páginas (on/off una a una)
 //   2) dept_overrides → todas las páginas de esos departamentos
 //   3) por rol (undefined = liderazgo, sin restricción)
+/** Roles con dashboard personal (inicio propio). Siempre pueden entrar a /dashboard. */
+const PERSONAL_HOME_ROLES: ReadonlySet<AppRole> = new Set<AppRole>(['setter', 'closer', 'affiliate'])
+
 export function allowedPrefixesFor(
   role: AppRole,
   deptOverrides?: string[] | null,
   pageOverrides?: string[] | null
 ): string[] | undefined {
-  if (pageOverrides && pageOverrides.length > 0) return normalizeAllowedPrefixes(pageOverrides)
+  // El DASHBOARD PERSONAL es la pantalla de inicio de cada miembro (sus llamadas, lo que le falta por
+  // marcar, sus ventas): no depende de una lista de páginas a medida. Antes, un closer con
+  // `page_overrides` que no incluía /dashboard se quedaba sin ella y sin saber por qué.
+  const inicio = PERSONAL_HOME_ROLES.has(role) ? ['/dashboard'] : []
+  if (pageOverrides && pageOverrides.length > 0) return normalizeAllowedPrefixes([...pageOverrides, ...inicio])
   if (deptOverrides && deptOverrides.length > 0) {
-    const set = new Set<string>()
+    const set = new Set<string>(inicio)
     for (const d of deptOverrides) (DEPARTMENT_PREFIXES[d as Department] || []).forEach((p) => set.add(p))
     return normalizeAllowedPrefixes(Array.from(set))
   }

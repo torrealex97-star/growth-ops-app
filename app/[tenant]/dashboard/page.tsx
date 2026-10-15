@@ -26,6 +26,7 @@ import {
 } from '@/lib/filters/period'
 import { isLeadership, type AppRole } from '@/lib/auth/permissions'
 import ColaboradorDashboard from '@/components/collaborators/ColaboradorDashboard'
+import MiDia from '@/components/dashboard/MiDia'
 import { promedioPrimerPago } from '@/lib/finance/nuevo-vs-recurrente'
 import { canonicalCash, serieCanonicaCash, type StripePaymentRow } from '@/lib/canonical/cash'
 import { resolverScopeColaborador, type ScopeColaborador } from '@/lib/collaborators/scope'
@@ -913,6 +914,10 @@ function DashboardEquipo() {
           <p className="text-muted-foreground text-sm mt-1">Todo tu negocio, de un vistazo.</p>
         </div>
       </div>
+
+      {!loading && userId && myRoleKey && !isLeadership(myRoleKey) && tenantId && (
+        <MiDia tenant={tenant} tenantId={tenantId} userId={userId} rol={myRoleKey} />
+      )}
 
       <PeriodFilterBar
         preset={periodPreset}
