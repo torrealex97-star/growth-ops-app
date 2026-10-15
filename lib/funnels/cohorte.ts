@@ -34,6 +34,8 @@ export type Cohorte = {
   conVenta: number
   /** Leads de la cohorte sin campaña atribuida. */
   sinAtribuir: number
+  /** Solo los leads con campaña atribuida: lo que la inversión en anuncios realmente trajo. */
+  ads: { leads: number; conAgenda: number; conAsistencia: number; conVenta: number }
   /** true si el último lead del periodo aún no ha tenido `DIAS_MADUREZ` días para convertir. */
   enMaduracion: boolean
 }
@@ -71,7 +73,14 @@ export function cohorteDeLeads(
 
   const alguno = (ids: Set<string>, l: (typeof leads)[number]) => l.members.some((m) => ids.has(m.id))
   const ultimo = delPeriodo.reduce((max, l) => Math.max(max, Date.parse(l.createdAt as string)), 0)
+  const deAds = delPeriodo.filter((l) => l.members.some((m) => (m as Contacto).campaign_id))
   return {
+    ads: {
+      leads: deAds.length,
+      conAgenda: deAds.filter((l) => alguno(conAgenda, l)).length,
+      conAsistencia: deAds.filter((l) => alguno(conAsistencia, l)).length,
+      conVenta: deAds.filter((l) => alguno(conVenta, l)).length,
+    },
     leads: delPeriodo.length,
     conAgenda: delPeriodo.filter((l) => alguno(conAgenda, l)).length,
     conAsistencia: delPeriodo.filter((l) => alguno(conAsistencia, l)).length,

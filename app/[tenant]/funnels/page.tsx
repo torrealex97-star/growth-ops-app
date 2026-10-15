@@ -320,6 +320,33 @@ export default function FunnelsPage() {
                   </div>
                 ))}
               </dl>
+              {data.cohorte.ads && data.cohorte.ads.leads > 0 && (
+                <div className="mt-4 border-t border-border/60 pt-3">
+                  <p className="text-xs font-medium text-foreground">
+                    Solo de anuncios: {num(data.cohorte.ads.leads)} leads con campaña
+                    {data.inversion !== null && data.inversion > 0
+                      ? ` · ${formatCurrency(data.inversion / data.cohorte.ads.leads)} por lead de anuncios`
+                      : ''}
+                  </p>
+                  <dl className="mt-2 grid grid-cols-3 gap-3">
+                    {[
+                      ['Con agenda', data.cohorte.ads.conAgenda],
+                      ['Con llamada celebrada', data.cohorte.ads.conAsistencia],
+                      ['Con venta', data.cohorte.ads.conVenta],
+                    ].map(([etiqueta, n]) => (
+                      <div key={etiqueta as string}>
+                        <dt className="text-xs text-muted-foreground">{etiqueta}</dt>
+                        <dd className="font-mono text-lg text-foreground">
+                          {num(n as number)}
+                          <span className="ml-1 text-xs text-muted-foreground">
+                            {pctText(((n as number) / (data.cohorte as Cohorte).ads.leads) * 100)}
+                          </span>
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              )}
             </section>
           )}
 
