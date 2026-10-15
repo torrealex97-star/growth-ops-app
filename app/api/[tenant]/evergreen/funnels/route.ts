@@ -65,7 +65,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       trackingEventsSeen = error ? null : (count ?? 0)
     }
 
-    const { counts, inversion, cohorte } = await loadFunnelCounts(
+    const { counts, inversion, cohorte, conciliacionVisitas } = await loadFunnelCounts(
       sb,
       session.tenantId,
       family,

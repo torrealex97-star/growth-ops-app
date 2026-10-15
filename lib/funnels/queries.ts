@@ -4,6 +4,7 @@
 // que existe.** Donde no hay fuente conectada o falta un mapeo, se devuelve `no_configurada` con el
 // motivo, no un 0 y tampoco un error rojo. Inventar un vocabulario de eventos o rellenar huecos con
 // ceros es precisamente lo que haría que esta pantalla mintiera.
+import { conciliarVisitas, type Conciliacion } from '@/lib/tracking/conciliacion'
 import { cohorteDeLeads, type Cohorte } from '@/lib/funnels/cohorte'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { fetchAllRows } from '@/lib/supabase/paginate'
@@ -11,7 +12,7 @@ import { buildPeriodFunnel } from '@/lib/metrics/period-funnel'
 import { metodoDePlan } from '@/lib/metrics/agregados'
 import { type FunnelFamily, stagesOf } from '@/lib/funnels/definitions'
 import { type EventMap, namesFor } from '@/lib/funnels/event-map'
-import { errorFuente, fromCount, noConfigurada, type MetricValue } from '@/lib/funnels/types'
+import { errorFuente, fromCount, isUsable, noConfigurada, type MetricValue } from '@/lib/funnels/types'
 
 // Familia del motor → tipo de asignación manual (campaign_funnel_assignments.funnel_type).
 // web_seo es orgánico/GA4: no filtra campañas de pago.
@@ -151,12 +152,13 @@ async function metaStages(
   } = await fetchAllRows<{
     impressions: number | null
     link_clicks: number | null
+    landing_views: number | null
     reach: number | null
     spend: number | null
   }>(() => {
     let q = sb
       .from('campaign_daily')
-      .select('impressions,link_clicks,reach,spend,date')
+      .select('impressions,link_clicks,landing_views,reach,spend,date')
       .eq('tenant_id', tenantId)
       .gte('date', range.from)
       .lte('date', range.to)
@@ -176,10 +178,11 @@ async function metaStages(
       clics: fromCount(fail.rows, 'meta', { error: fail.error }),
       alcance: fromCount(fail.rows, 'meta', { error: fail.error }),
       inversion: null as number | null,
+      visitasLandingMeta: null as number | null,
     }
   }
   const rows = data
-  const sum = (k: 'impressions' | 'link_clicks' | 'reach' | 'spend') =>
+  const sum = (k: 'impressions' | 'link_clicks' | 'landing_views' | 'reach' | 'spend') =>
     rows.reduce((a, r) => a + (Number(r[k]) || 0), 0)
   return {
     impresiones: fromCount(sum('impressions'), 'meta'),
@@ -190,6 +193,8 @@ async function metaStages(
         : noConfigurada('meta', 'El alcance único del periodo no se obtiene sumando días o campañas.'),
     // La inversión se devuelve aparte: no es una etapa, es el denominador de los costes.
     inversion: rows.length > 0 ? sum('spend') : null,
+    // Visitas a la landing según Meta (landing_page_view): la referencia con la que se concilia el pixel.
+    visitasLandingMeta: rows.length > 0 ? sum('landing_views') : null,
   }
 }
 
@@ -270,7 +275,12 @@ export async function loadFunnelCounts(
   eventMap: EventMap = {},
   // Cuentas de ads seleccionadas en Integraciones (vacío = todas, el convenio de la app).
   cuentasAds: string[] = []
-): Promise<{ counts: Record<string, MetricValue>; inversion: number | null; cohorte: Cohorte | null }> {
+): Promise<{
+  counts: Record<string, MetricValue>
+  inversion: number | null
+  cohorte: Cohorte | null
+  conciliacionVisitas: Conciliacion | null
+}> {
   const stages = stagesOf(family)
   const needsCrm = stages.some((s) => s.source === 'crm')
   const needsMeta = stages.some((s) => s.source === 'meta')
@@ -320,7 +330,13 @@ export async function loadFunnelCounts(
     cierres: MetricValue
   }
   type Ga4Stages = { sesiones: MetricValue }
-  type MetaStages = { impresiones: MetricValue; clics: MetricValue; alcance: MetricValue; inversion: number | null }
+  type MetaStages = {
+    impresiones: MetricValue
+    clics: MetricValue
+    alcance: MetricValue
+    inversion: number | null
+    visitasLandingMeta: number | null
+  }
 
   const counts: Record<string, MetricValue> = {}
   for (const stage of stages) {
@@ -395,7 +411,14 @@ export async function loadFunnelCounts(
   // inversion solo se extrae si meta funcionó (no si devolvió { error }).
   const inversion = meta && !isSourceError(meta) ? (meta as unknown as MetaStages).inversion : null
   const cohorte = crm && !isSourceError(crm) ? (crm as unknown as CrmStages).cohorte : null
-  return { counts, inversion, cohorte }
+  // Conciliación de visitas: solo cuando la familia mide «visitas» con el pixel Y hay referencia de Meta.
+  const visitas = counts['visitas']
+  const metaOk = meta && !isSourceError(meta) ? (meta as unknown as MetaStages).visitasLandingMeta : null
+  const conciliacionVisitas =
+    visitas && visitas.source === 'vsl' && metaOk !== null
+      ? conciliarVisitas({ pixel: isUsable(visitas) ? (visitas.value as number | null) : null, meta: metaOk })
+      : null
+  return { counts, inversion, cohorte, conciliacionVisitas }
 }
 
 // ── Etapas de VSL desde vsl_sessions (tracking propio del player) ──────────
