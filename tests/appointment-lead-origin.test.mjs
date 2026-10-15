@@ -95,19 +95,28 @@ test('anuncio por medio de pago, por id de anuncio en la fuente o por red de Met
   }
 })
 
-test('directo, SEO, referido y enlaces de bio siguen siendo WEB y no ADS', () => {
+test('directo, SEO y referido siguen siendo WEB y no ADS', () => {
   const casos = [
     { utmSource: 'direct', utmMedium: 'none' },
     { utmSource: 'google', utmMedium: 'organic_search' },
     { utmSource: 'chatgpt.com', utmMedium: 'none' },
     { utmSource: 'linktr.ee', utmMedium: 'embed-linktree' },
-    { utmSource: 'IG', utmMedium: 'Bio' },
-    { utmSource: 'Tk', utmMedium: 'Bio' },
   ]
   for (const c of casos) {
     const r = resolveAppointmentLeadOrigin({ ...base, ...c })
     assert.equal(r.kind, 'web', JSON.stringify(c))
     assert.equal(r.shortLabel, 'WEB')
+  }
+})
+
+test('redes sociales con medio orgánico son ORG, no WEB ni ADS', () => {
+  for (const c of [
+    { utmSource: 'IG', utmMedium: 'Bio' },
+    { utmSource: 'Tk', utmMedium: 'Bio' },
+  ]) {
+    const r = resolveAppointmentLeadOrigin({ ...base, ...c })
+    assert.equal(r.kind, 'organic', JSON.stringify(c))
+    assert.equal(r.shortLabel, 'ORG')
   }
 })
 

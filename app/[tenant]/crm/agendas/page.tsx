@@ -2049,6 +2049,9 @@ export default function AppointmentsPage() {
               <strong className="font-semibold text-foreground">COLAB</strong> colaborador
             </span>
             <span>
+              <strong className="font-semibold text-foreground">ORG</strong> social orgánico
+            </span>
+            <span>
               <strong className="font-semibold text-foreground">WEB</strong> web/directo
             </span>
           </div>
