@@ -7,7 +7,7 @@
 //   · Próximas: citas futuras en los siguientes 7 días.
 
 import { businessToday, addDaysYmd } from '@/lib/dates/business'
-import { ESTADOS_SIN_RESOLVER } from '@/lib/appointments/status'
+import { ESTADOS_SIN_RESOLVER, isAttended, isNoShow } from '@/lib/appointments/status'
 
 export type CitaMiDia = {
   id: string
@@ -57,4 +57,34 @@ export function columnaDeMisCitas(rol: string): 'closer_id' | 'setter_id' | 'col
   if (rol === 'setter') return 'setter_id'
   if (rol === 'cold_caller') return 'cold_caller_id'
   return null
+}
+
+export type TasasMiDia = {
+  /** Asistidas / (asistidas + no show) en las citas ya resueltas. `null` = sin citas resueltas: un hueco, no un 0. */
+  show: number | null
+  /** Ventas del mes / asistidas del mes. `null` = sin asistidas este mes. */
+  cierre: number | null
+  asistidasMes: number
+}
+
+/**
+ * Tasas personales. El denominador del show son solo citas RESUELTAS: las pendientes de marcar no
+ * cuentan ni a favor ni en contra (por eso «Por marcar» importa: sin marcar no hay tasa fiable).
+ */
+export function tasasMiDia(citas: readonly CitaMiDia[], ventasMes: number, ahora: Date = new Date()): TasasMiDia {
+  const mes = businessToday(ahora).slice(0, 7)
+  let asist = 0
+  let noShow = 0
+  let asistMes = 0
+  for (const c of citas) {
+    if (isAttended(c.status)) {
+      asist++
+      if (dia(c.appointment_datetime).startsWith(mes)) asistMes++
+    } else if (isNoShow(c.status)) noShow++
+  }
+  return {
+    show: asist + noShow > 0 ? (asist / (asist + noShow)) * 100 : null,
+    cierre: asistMes > 0 ? (ventasMes / asistMes) * 100 : null,
+    asistidasMes: asistMes,
+  }
 }

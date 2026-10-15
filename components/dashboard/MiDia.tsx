@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { CalendarClock, CheckCircle2, ClipboardCheck, CalendarDays } from 'lucide-react'
+import { CalendarClock, CheckCircle2, ClipboardCheck, CalendarDays, Percent } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { columnaDeMisCitas, resumenMiDia, type CitaMiDia } from '@/lib/dashboard/mi-dia'
+import { columnaDeMisCitas, resumenMiDia, tasasMiDia, type CitaMiDia } from '@/lib/dashboard/mi-dia'
 import { cuentaComoVenta } from '@/lib/analytics'
 import { metodoDePlan } from '@/lib/metrics/agregados'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatPercent } from '@/lib/utils'
 
 type FilaCita = {
   id: string
@@ -55,6 +55,26 @@ export default function MiDia({
   const [citas, setCitas] = useState<CitaMiDia[] | null>(null)
   const [ventas, setVentas] = useState<FilaVenta[] | null>(null)
   const [error, setError] = useState(false)
+  const [marcando, setMarcando] = useState<string | null>(null)
+  const [errorMarca, setErrorMarca] = useState<string | null>(null)
+
+  async function marcar(id: string, status: 'show' | 'no_show') {
+    setMarcando(id)
+    setErrorMarca(null)
+    try {
+      const r = await fetch(`/api/${tenant}/evergreen/appointments/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appointmentId: id, status }),
+      })
+      if (!r.ok) throw new Error((await r.json().catch(() => null))?.error ?? 'No se pudo marcar')
+      setCitas((prev) => (prev ? prev.map((c) => (c.id === id ? { ...c, status } : c)) : prev))
+    } catch (e) {
+      setErrorMarca(e instanceof Error ? e.message : 'No se pudo marcar')
+    } finally {
+      setMarcando(null)
+    }
+  }
 
   useEffect(() => {
     if (!columna) return
@@ -113,6 +133,8 @@ export default function MiDia({
     [ventas]
   )
 
+  const tasas = useMemo(() => (citas ? tasasMiDia(citas, misVentas.length) : null), [citas, misVentas.length])
+
   if (!columna) return null
   if (error) {
     return (
@@ -128,7 +150,7 @@ export default function MiDia({
 
   return (
     <section aria-label="Mi día" className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <Tarjeta
           icono={CalendarClock}
           titulo="Hoy"
@@ -154,6 +176,16 @@ export default function MiDia({
           valor={ventas === null ? '—' : String(misVentas.length)}
           nota={ventas === null ? '' : formatCurrency(total)}
         />
+        <Tarjeta
+          icono={Percent}
+          titulo="Show / cierre"
+          valor={
+            tasas === null
+              ? '—'
+              : `${tasas.show === null ? '—' : formatPercent(tasas.show, 0)} / ${tasas.cierre === null ? '—' : formatPercent(tasas.cierre, 0)}`
+          }
+          nota="show (45 d) · cierre sobre asistidas del mes"
+        />
       </div>
 
       {resumen && resumen.porMarcar.length > 0 && (
@@ -173,9 +205,32 @@ export default function MiDia({
                 <span className="shrink-0 text-xs text-muted-foreground">
                   {fechaCorta(c.appointment_datetime)} · {hora(c.appointment_datetime)}
                 </span>
+                <span className="flex shrink-0 gap-1">
+                  <button
+                    type="button"
+                    disabled={marcando === c.id}
+                    onClick={() => marcar(c.id, 'show')}
+                    className="rounded border border-emerald-500/40 px-2 py-0.5 text-xs text-emerald-400 hover:bg-emerald-500/10 disabled:opacity-50"
+                  >
+                    Asistió
+                  </button>
+                  <button
+                    type="button"
+                    disabled={marcando === c.id}
+                    onClick={() => marcar(c.id, 'no_show')}
+                    className="rounded border border-red-500/40 px-2 py-0.5 text-xs text-red-400 hover:bg-red-500/10 disabled:opacity-50"
+                  >
+                    No asistió
+                  </button>
+                </span>
               </li>
             ))}
           </ul>
+          {errorMarca && (
+            <p role="alert" className="mt-2 text-xs text-red-400">
+              {errorMarca}
+            </p>
+          )}
           {resumen.porMarcar.length > 6 && (
             <p className="mt-2 text-xs text-muted-foreground">y {resumen.porMarcar.length - 6} más en Agendas.</p>
           )}
