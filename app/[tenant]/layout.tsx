@@ -50,6 +50,8 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
   const [tenantId, setTenantId] = useState<string | null>(null)
   const [branding, setBranding] = useState<TenantBranding>(() => resolveTenantBranding(null))
   const [contractGate, setContractGate] = useState<ContractGate | null>(null)
+  // Contrato enviado hace tiempo y sin firmar: aviso que NO bloquea (lo más probable es que ya firmara fuera).
+  const [contractReminder, setContractReminder] = useState<string | null>(null)
   // EL FALLO TENÍA QUE PODER VERSE. Antes, si la resolución de sesión/tenant fallaba, no había ningún
   // estado para contarlo: `loading` se quedaba en true y la pantalla no volvía nunca.
   const [fallo, setFallo] = useState<string | null>(null)
@@ -233,11 +235,15 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
           hasSigned?: boolean
           pendingToken?: string | null
           bloqueaAcceso?: boolean
+          recordatorio?: boolean
           signingToken?: string | null
         }>(`/api/${tenant}/evergreen/contracts/my-status`, { signal: cancelar.signal })
         if (!mounted || cancelar.signal.aborted) return
         // Solo se bloquea si la app LE ENVIÓ un contrato y sigue sin firmar. Sin contrato enviado se deja
         // pasar: lo más probable es que haya firmado por otra vía.
+        if (res.ok && res.data?.recordatorio === true && res.data.signingToken) {
+          setContractReminder(res.data.signingToken)
+        }
         if (res.ok && res.data?.bloqueaAcceso === true && res.data.signingToken) {
           setContractGate({ pendingToken: res.data.signingToken })
           setUser(data as UserWithRole)
@@ -471,6 +477,20 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
                 onMenuClick={() => setSidebarOpen(true)}
                 isSuperAdmin={isSuperAdmin}
               />
+              {contractReminder && (
+                <div
+                  role="status"
+                  className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-300"
+                >
+                  <span>
+                    Tienes un contrato pendiente de firma en la app. Si ya lo firmaste por otra vía, avisa a
+                    administración.
+                  </span>
+                  <a href={`/firmar/${contractReminder}`} className="font-medium underline underline-offset-2">
+                    Firmar ahora
+                  </a>
+                </div>
+              )}
               <main className="flex-1 overflow-y-auto p-4 lg:p-6">{children}</main>
             </div>
           </div>
