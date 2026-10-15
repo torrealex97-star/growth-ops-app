@@ -8,6 +8,7 @@ import { FUNNEL_DEFS, FUNNEL_FAMILIES, type FunnelFamily } from '@/lib/funnels/d
 import { STATUS_LABELS, type MetricStatus } from '@/lib/funnels/types'
 import type { FunnelResult } from '@/lib/funnels/compute'
 import type { Cohorte } from '@/lib/funnels/cohorte'
+import type { Conciliacion } from '@/lib/tracking/conciliacion'
 import { formatCurrency, formatNumber } from '@/lib/utils'
 import { FunnelChart } from '@/components/os/FunnelChart'
 import { DateRangeCalendarPopover } from '@/components/ui/calendar-popover'
@@ -18,6 +19,8 @@ import { DateRangeCalendarPopover } from '@/components/ui/calendar-popover'
 type FunnelResponse = FunnelResult & {
   range: { from: string; to: string }
   cohorte: Cohorte | null
+  /** Píxel propio frente a Meta; null si la familia no mide visitas con el píxel. */
+  conciliacionVisitas?: Conciliacion | null
   /** Eventos de tracking recibidos en 90 días; null si la familia no usa tracking propio. */
   trackingEventsSeen?: number | null
 }
@@ -236,6 +239,42 @@ export default function FunnelsPage() {
               </tbody>
             </table>
           </div>
+
+          {data.conciliacionVisitas && data.conciliacionVisitas.estado !== 'sin_datos' && (
+            <section
+              aria-label="Conciliación de visitas"
+              className={`rounded-lg border p-4 ${
+                data.conciliacionVisitas.estado === 'ok'
+                  ? 'border-emerald-500/30 bg-emerald-500/5'
+                  : data.conciliacionVisitas.estado === 'critico'
+                    ? 'border-red-500/30 bg-red-500/5'
+                    : 'border-amber-500/30 bg-amber-500/5'
+              }`}
+            >
+              <h3 className="text-sm font-semibold text-foreground">Visitas: píxel frente a Meta</h3>
+              <dl className="mt-2 flex flex-wrap gap-x-8 gap-y-1 text-sm">
+                <div>
+                  <dt className="text-xs text-muted-foreground">Píxel (page_view)</dt>
+                  <dd className="font-mono text-foreground">
+                    {data.conciliacionVisitas.pixel === null ? '—' : num(data.conciliacionVisitas.pixel)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Meta (landing_page_view)</dt>
+                  <dd className="font-mono text-foreground">
+                    {data.conciliacionVisitas.meta === null ? '—' : num(data.conciliacionVisitas.meta)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Coinciden</dt>
+                  <dd className="font-mono text-foreground">
+                    {data.conciliacionVisitas.ratio === null ? '—' : pctText(data.conciliacionVisitas.ratio * 100)}
+                  </dd>
+                </div>
+              </dl>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">{data.conciliacionVisitas.mensaje}</p>
+            </section>
+          )}
 
           {data.cohorte && data.cohorte.leads > 0 && (
             <section className="rounded-lg border border-border p-4" aria-label="Cohorte de leads del periodo">
