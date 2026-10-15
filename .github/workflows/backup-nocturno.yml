@@ -1,0 +1,59 @@
+# Backup nocturno propio (opción B del runbook docs/runbooks/backup-restore.md).
+# El repo es PÚBLICO: el volcado se cifra (AES-256, gpg simétrico) ANTES de subirse como artifact y
+# nunca se imprime. Sin los dos secretos el workflow falla a propósito: un backup que no se hace no
+# debe parecer un backup que se hizo.
+#   BACKUP_DATABASE_URL  cadena de conexión por el pooler (aws-1-eu-west-1.pooler.supabase.com:6543)
+#   BACKUP_PASSPHRASE    frase de cifrado; guárdala también en el gestor de contraseñas
+name: 'backup: nocturno'
+on:
+  schedule:
+    - cron: '30 3 * * *' # 03:30 UTC, fuera de la ventana de los demás crons
+  workflow_dispatch:
+permissions: {}
+concurrency:
+  group: backup-nocturno
+  cancel-in-progress: false
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Comprobar secretos
+        env:
+          DB: ${{ secrets.BACKUP_DATABASE_URL }}
+          PASS: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          [ -n "$DB" ] && [ -n "$PASS" ] || { echo "Faltan BACKUP_DATABASE_URL / BACKUP_PASSPHRASE"; exit 1; }
+      - name: Instalar cliente PostgreSQL 17
+        run: |
+          set -euo pipefail
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+      - name: Volcar y cifrar
+        env:
+          DB: ${{ secrets.BACKUP_DATABASE_URL }}
+          PASS: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          umask 077
+          f="growthops-$(date -u +%Y%m%dT%H%M%SZ)"
+          /usr/lib/postgresql/17/bin/pg_dump "$DB" --format=custom --no-owner --no-privileges \
+            --schema=public --schema=auth --file="$f.dump"
+          # Un volcado vacío da falsa confianza: debe listar tablas.
+          n=$(/usr/lib/postgresql/17/bin/pg_restore --list "$f.dump" | grep -c 'TABLE DATA' || true)
+          echo "Tablas con datos en el volcado: $n"
+          [ "$n" -ge 20 ] || { echo "Volcado sospechosamente pequeño"; exit 1; }
+          gpg --batch --yes --pinentry-mode loopback --passphrase "$PASS" \
+            --symmetric --cipher-algo AES256 --output "$f.dump.gpg" "$f.dump"
+          rm -f "$f.dump"
+          echo "FILE=$f.dump.gpg" >> "$GITHUB_ENV"
+      - name: Subir copia cifrada
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-${{ github.run_id }}
+          path: ${{ env.FILE }}
+          retention-days: 30
+          if-no-files-found: error

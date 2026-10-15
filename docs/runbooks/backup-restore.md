@@ -29,6 +29,18 @@ cobrar o se abra al público** (los gates de lanzamiento lo exigen). PITR (100 U
 En un **segundo proyecto Supabase Free** (el plan Free permite dos proyectos): coste 0, aislado de producción y
 sirve además de staging para G8/G10/G15. Alternativa sin cuenta: un Postgres 17 local con Docker.
 
+## Opción B implantada (15-oct-2026)
+
+Workflow `.github/workflows/backup-nocturno.yml`: cada noche 03:30 UTC, `pg_dump` (schemas `public` y `auth`),
+comprobación de que el volcado lista ≥20 tablas con datos, cifrado AES-256 con gpg y subida como artifact con
+retención de 30 días. El repo es público, por eso va cifrado y nunca se imprime.
+
+Requiere dos secretos del repo: `BACKUP_DATABASE_URL` (cadena del pooler) y `BACKUP_PASSPHRASE`. Guarda la frase
+en el gestor de contraseñas: sin ella la copia no se puede abrir.
+
+Restaurar: descargar el artifact, `gpg --decrypt backup.dump.gpg > backup.dump` y
+`pg_restore --no-owner -d <proyecto-nuevo> backup.dump` (nunca contra producción). No cubre Storage (15 MB).
+
 ## Qué backups existen hoy
 
 Gestionados por Supabase a nivel de plataforma (no hay ningún script propio en este repo, y no debería haberlo —
