@@ -96,6 +96,15 @@ export function FunnelChart({ result, state = 'ok', message, onStageClick, tabla
   const stages = result.stages
   const ws = anchos(stages)
   const sinNingunDato = stages.every((s) => !isUsable(s.count))
+  // La fuga mayor: la etapa comparable que menos conserva de la anterior. Se marca por posición
+  // relativa, sin umbrales inventados: lo «sano» depende del negocio y no se decide aquí.
+  const conv = stages.map((s) => (isUsable(s.count) ? s.conversionFromPrevious : null))
+  const comparables = conv.filter((c): c is number => c != null)
+  const minConv = comparables.length >= 2 ? Math.min(...comparables) : null
+  const iFuga = minConv == null ? -1 : conv.findIndex((c) => c === minConv)
+  // Dos tramos cuando el embudo mezcla tráfico (eventos) y personas: la unidad cambia y se dice.
+  const hayDosTramos =
+    stages.some((s) => s.stage.counts === 'eventos') && stages.some((s) => s.stage.counts === 'personas')
 
   return (
     <Contenedor className={className}>
@@ -137,8 +146,19 @@ export function FunnelChart({ result, state = 'ok', message, onStageClick, tabla
               // Barra estrecha: el texto NO cabe dentro y la barra recorta lo que sobra. En ese
               // caso la etiqueta y la cifra se pintan debajo, donde sí se leen.
               const estrecha = ws[i] < ANCHO_LEGIBLE
+              const cabeceraTramo =
+                hayDosTramos && (i === 0 || stages[i - 1].stage.counts !== s.stage.counts)
+                  ? s.stage.counts === 'eventos'
+                    ? 'Tráfico (visitas y clics, no personas)'
+                    : 'Personas (cada una cuenta una vez)'
+                  : null
               return (
                 <li key={s.stage.id}>
+                  {cabeceraTramo ? (
+                    <p className="text-muted-foreground mb-1 mt-2 text-3xs font-medium uppercase tracking-wide">
+                      {cabeceraTramo}
+                    </p>
+                  ) : null}
                   <Fila
                     {...(clicable
                       ? {
@@ -194,7 +214,10 @@ export function FunnelChart({ result, state = 'ok', message, onStageClick, tabla
                       ) : (
                         <>
                           {s.conversionFromPrevious != null ? (
-                            <span className="tabular-nums">{fmtPct(s.conversionFromPrevious)} desde la anterior</span>
+                            <span className={`tabular-nums ${i === iFuga ? 'font-medium text-amber-400' : ''}`}>
+                              {fmtPct(s.conversionFromPrevious)} desde la anterior
+                              {i === iFuga ? ' · mayor fuga' : ''}
+                            </span>
                           ) : i > 0 ? (
                             <span>conversión no calculable</span>
                           ) : null}

@@ -158,16 +158,17 @@ export default function FunnelsPage() {
           )}
           {/* Distingue "pixel funciona, falta el mapeo" de "no llega nada": el mismo aviso ámbar es
               acción distinta según qué lado falte, y sin esto el usuario no puede saberlo. */}
-          {typeof data.trackingEventsSeen === 'number' && (
-            <p className="flex items-start gap-2 text-xs text-muted-foreground">
-              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              {data.trackingEventsSeen === 0
-                ? 'El pixel no ha enviado ningún evento de tracking en los últimos 90 días: si esperabas visitas de la landing, revisa que el snippet esté instalado y el dominio autorizado en Configuración › Data Health.'
-                : data.unconfiguredSources.includes('vsl')
-                  ? `Tu pixel está funcionando: ha enviado ${num(data.trackingEventsSeen)} eventos en los últimos 90 días. Las etapas de tracking salen vacías SOLO porque no están mapeadas todavía.`
-                  : ''}
-            </p>
-          )}
+          {typeof data.trackingEventsSeen === 'number' &&
+            (data.trackingEventsSeen === 0 || data.unconfiguredSources.includes('vsl')) && (
+              <p className="flex items-start gap-2 text-xs text-muted-foreground">
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                {data.trackingEventsSeen === 0
+                  ? 'El pixel no ha enviado ningún evento de tracking en los últimos 90 días: si esperabas visitas de la landing, revisa que el snippet esté instalado y el dominio autorizado en Configuración › Data Health.'
+                  : data.unconfiguredSources.includes('vsl')
+                    ? `Tu pixel está funcionando: ha enviado ${num(data.trackingEventsSeen)} eventos en los últimos 90 días. Las etapas de tracking salen vacías SOLO porque no están mapeadas todavía.`
+                    : ''}
+              </p>
+            )}
 
           {/* El embudo VISUAL va primero: la caída entre etapas se ve, y la tabla de debajo queda
               como el detalle (coste unitario, fuente, motivo de cada hueco). La tabla interna del
