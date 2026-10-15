@@ -1,3 +1,20 @@
+# COMPLETADO — píxel, embudo, GA4, «Mi día», contratos y backup (14-15 oct) · PRs #534–#543 (merged)
+
+- **#534 píxel**: el tracker v1.2.0 envía `text/plain` en `sendBeacon`/`fetch` (evita el preflight CORS que
+  perdía ~91 % de visitas en iOS/WebKit). Confirmar en 2–3 días que el píxel se acerca a las visitas de Meta.
+- **Conciliación píxel vs Meta** (`lib/tracking/conciliacion.ts`): ok ≥0,7 · revisar 0,4–0,7 o >1,3 · crítico <0,4.
+- **#536 GA4**: el selector de propiedades distingue 403 (API Admin sin activar) y permite ID manual.
+- **#537 «Mi día»** por rol y `/dashboard` siempre accesible para setter/closer/afiliado; **#543** añade show/cierre
+  personales (hueco, no cero) y marcar asistencia con un clic.
+- **#538 contratos**: un contrato sin firmar de hace más de 7 días ya no bloquea; «Firmado fuera» para liderazgo.
+- **#539 scroll**: `<main className="relative">` contiene los `.sr-only` absolutos (adiós al scroll vacío).
+- **#540/#541 embudo**: coste por etapa solo sobre base de anuncios (`ads` / `todo CRM`); dos tramos
+  (tráfico/personas) y marca de «mayor fuga».
+- **#542 backup**: `backup-nocturno.yml` (pg_dump cifrado, artifact 30 d). PENDIENTE del dueño: secretos
+  `BACKUP_DATABASE_URL` y `BACKUP_PASSPHRASE`; después lanzarlo a mano una vez.
+
+Pendiente de mi lado: comisión del mes en «Mi día», cohorte de anuncios en etapas bajas del embudo, etiqueta ORG.
+
 # COMPLETADO — barrido «error de carga ≠ cero»: DataHealthPanel dedupe (14-oct, Buffy) · `fix/barrido-error-carga` (PR #509, merged)
 
 Continuación del barrido de PR #505 sobre el resto de `fetch→json` del cliente. Las pantallas de decisión
