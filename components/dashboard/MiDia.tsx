@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { CalendarClock, CheckCircle2, ClipboardCheck, CalendarDays, Percent } from 'lucide-react'
+import { CalendarClock, CheckCircle2, ClipboardCheck, CalendarDays, Percent, Wallet } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { columnaDeMisCitas, resumenMiDia, tasasMiDia, type CitaMiDia } from '@/lib/dashboard/mi-dia'
+import { commissionSettlementSummary, type CommissionDashboardRow } from '@/lib/commissions/dashboard'
 import { cuentaComoVenta } from '@/lib/analytics'
 import { metodoDePlan } from '@/lib/metrics/agregados'
 import { formatCurrency, formatPercent } from '@/lib/utils'
@@ -55,6 +56,8 @@ export default function MiDia({
   const [citas, setCitas] = useState<CitaMiDia[] | null>(null)
   const [ventas, setVentas] = useState<FilaVenta[] | null>(null)
   const [error, setError] = useState(false)
+  // null = cargando o no disponible: se pinta «—», nunca 0 (un hueco no es un cero).
+  const [comisiones, setComisiones] = useState<CommissionDashboardRow[] | null>(null)
   const [marcando, setMarcando] = useState<string | null>(null)
   const [errorMarca, setErrorMarca] = useState<string | null>(null)
 
@@ -118,6 +121,22 @@ export default function MiDia({
         }))
       )
       setVentas((v.data ?? []) as unknown as FilaVenta[])
+      // Mis comisiones: filas ya generadas por el motor (D8 reservas y D9 veto se aplican al generar);
+      // aquí se repite el veto en lectura, igual que Comisiones. Un fallo deja «—», no rompe «Mi día».
+      const { data: cm, error: ce } = await sb
+        .from('commissions')
+        .select(
+          'id, commission_amount, direction, status, liquidation_month, created_at, users!commissions_user_id_fkey(pays_commissions)'
+        )
+        .eq('tenant_id', tenantId)
+        .eq('user_id', userId)
+        .limit(1000)
+      if (!vivo || ce) return
+      setComisiones(
+        (
+          (cm ?? []) as unknown as (CommissionDashboardRow & { users?: { pays_commissions?: boolean } | null })[]
+        ).filter((r) => r.users?.pays_commissions !== false)
+      )
     })()
     return () => {
       vivo = false
@@ -133,6 +152,7 @@ export default function MiDia({
     [ventas]
   )
 
+  const comision = useMemo(() => (comisiones ? commissionSettlementSummary(comisiones) : null), [comisiones])
   const tasas = useMemo(() => (citas ? tasasMiDia(citas, misVentas.length) : null), [citas, misVentas.length])
 
   if (!columna) return null
@@ -150,7 +170,7 @@ export default function MiDia({
 
   return (
     <section aria-label="Mi día" className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <Tarjeta
           icono={CalendarClock}
           titulo="Hoy"
@@ -175,6 +195,16 @@ export default function MiDia({
           titulo="Mis ventas del mes"
           valor={ventas === null ? '—' : String(misVentas.length)}
           nota={ventas === null ? '' : formatCurrency(total)}
+        />
+        <Tarjeta
+          icono={Wallet}
+          titulo="Mi comisión del mes"
+          valor={comision === null ? '—' : formatCurrency(comision.toApprove + comision.readyToPay + comision.paid)}
+          nota={
+            comision === null
+              ? ''
+              : `pagada ${formatCurrency(comision.paid)} · por pagar ${formatCurrency(comision.readyToPay)} · por aprobar ${formatCurrency(comision.toApprove)}`
+          }
         />
         <Tarjeta
           icono={Percent}
