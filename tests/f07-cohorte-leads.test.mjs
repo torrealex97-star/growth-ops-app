@@ -24,7 +24,15 @@ test('la cohorte sigue a las personas que entraron en el periodo, no a los hecho
     { contact_id: 'viejo', status: 'active', gross_amount: 900, sale_date: '2026-08-20' },
   ]
   const c = cohorteDeLeads(contactos, citas, ventas, rango, ahora)
-  assert.deepEqual(c, { leads: 2, conAgenda: 1, conAsistencia: 1, conVenta: 1, sinAtribuir: 1, enMaduracion: false })
+  assert.deepEqual(c, {
+    ads: { leads: 1, conAgenda: 1, conAsistencia: 1, conVenta: 1 },
+    leads: 2,
+    conAgenda: 1,
+    conAsistencia: 1,
+    conVenta: 1,
+    sinAtribuir: 1,
+    enMaduracion: false,
+  })
 })
 
 test('una cohorte reciente está en maduración y una vacía no inventa nada', () => {
@@ -32,6 +40,7 @@ test('una cohorte reciente está en maduración y una vacía no inventa nada', (
   assert.equal(reciente.enMaduracion, true)
   const vacia = cohorteDeLeads([], [], [], rango, ahora)
   assert.deepEqual(vacia, {
+    ads: { leads: 0, conAgenda: 0, conAsistencia: 0, conVenta: 0 },
     leads: 0,
     conAgenda: 0,
     conAsistencia: 0,
