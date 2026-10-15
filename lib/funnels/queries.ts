@@ -4,6 +4,7 @@
 // que existe.** Donde no hay fuente conectada o falta un mapeo, se devuelve `no_configurada` con el
 // motivo, no un 0 y tampoco un error rojo. Inventar un vocabulario de eventos o rellenar huecos con
 // ceros es precisamente lo que haría que esta pantalla mintiera.
+import { esOrigenAnuncio } from '@/lib/appointments/lead-origin'
 import { conciliarVisitas, type Conciliacion } from '@/lib/tracking/conciliacion'
 import { cohorteDeLeads, type Cohorte } from '@/lib/funnels/cohorte'
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -71,7 +72,7 @@ async function crmStages(sb: SupabaseClient, tenantId: string, range: DateRange)
     fetchAllRows(() =>
       sb
         .from('appointments')
-        .select('id,contact_id,status,appointment_datetime,offered,result')
+        .select('id,contact_id,status,appointment_datetime,offered,result,utm_source,utm_medium')
         .eq('tenant_id', tenantId)
         .order('id')
     ),
@@ -96,12 +97,42 @@ async function crmStages(sb: SupabaseClient, tenantId: string, range: DateRange)
       to: new Date(range.to.length === 10 ? `${range.to}T23:59:59.999Z` : range.to),
     }
   )
+  // BASE DE COSTE SOLO-ADS. El coste por agenda/llamada/cierre dividía la inversión de Meta entre TODA la
+  // actividad del CRM (orgánico, setters, colaboradores): salía por debajo del real. La población de
+  // anuncios son los contactos con campaña atribuida o con alguna cita de origen anuncio (medio de pago,
+  // id de anuncio en utm_source, red de Meta sin medio orgánico). Se recorre con EXACTAMENTE la misma
+  // función del periodo, así que los denominadores tienen la misma semántica que las etapas.
+  const idsAds = new Set<string>()
+  for (const c of contacts.rows) if (c.campaign_id) idsAds.add(c.id)
+  for (const a of appointments.rows) {
+    if (a.contact_id && esOrigenAnuncio({ utmSource: a.utm_source, utmMedium: a.utm_medium })) idsAds.add(a.contact_id)
+  }
+  const deAds = buildPeriodFunnel(
+    contacts.rows.filter((c) => idsAds.has(c.id)),
+    appointments.rows.filter((a) => a.contact_id && idsAds.has(a.contact_id)),
+    sales.rows
+      .filter((s) => s.contact_id && idsAds.has(s.contact_id))
+      .map((s) => ({ ...s, payment_plan_method: metodoDePlan(s) })),
+    true,
+    {
+      from: new Date(range.from.length === 10 ? `${range.from}T00:00:00Z` : range.from),
+      to: new Date(range.to.length === 10 ? `${range.to}T23:59:59.999Z` : range.to),
+    }
+  )
+  // `leads` queda fuera A PROPÓSITO: un opt-in solo se reconoce como de anuncio si llegó a agendar o trae
+  // campaña, así que dividir entre esos dejaría el coste por opt-in muy por encima del real.
+  const denominadoresCoste = {
+    agendas: deAds.agendas,
+    llamadas: deAds.asistencias,
+    cierres: deAds.cierres,
+  }
   const activity = (value: number): MetricValue => ({ ...fromCount(value, 'crm'), periodActivity: true })
   const cohorte = cohorteDeLeads(contacts.rows, appointments.rows, sales.rows, {
     from: new Date(range.from.length === 10 ? `${range.from}T00:00:00Z` : range.from),
     to: new Date(range.to.length === 10 ? `${range.to}T23:59:59.999Z` : range.to),
   })
   return {
+    denominadoresCoste,
     cohorte,
     leads: activity(result.leads),
     agendas: activity(result.agendas),
@@ -280,6 +311,8 @@ export async function loadFunnelCounts(
   inversion: number | null
   cohorte: Cohorte | null
   conciliacionVisitas: Conciliacion | null
+  /** Denominadores SOLO-ADS por etapa del CRM para el coste unitario (null = no calculable). */
+  denominadoresCoste: Record<string, number | null>
 }> {
   const stages = stagesOf(family)
   const needsCrm = stages.some((s) => s.source === 'crm')
@@ -323,6 +356,7 @@ export async function loadFunnelCounts(
     v !== null && typeof v === 'object' && 'error' in v && typeof (v as { error: unknown }).error === 'string'
 
   type CrmStages = {
+    denominadoresCoste: Record<string, number>
     cohorte: Cohorte
     leads: MetricValue
     agendas: MetricValue
@@ -418,7 +452,9 @@ export async function loadFunnelCounts(
     visitas && visitas.source === 'vsl' && metaOk !== null
       ? conciliarVisitas({ pixel: isUsable(visitas) ? (visitas.value as number | null) : null, meta: metaOk })
       : null
-  return { counts, inversion, cohorte, conciliacionVisitas }
+  const denominadoresCoste: Record<string, number | null> =
+    crm && !isSourceError(crm) ? { ...(crm as unknown as CrmStages).denominadoresCoste } : {}
+  return { counts, inversion, cohorte, conciliacionVisitas, denominadoresCoste }
 }
 
 // ── Etapas de VSL desde vsl_sessions (tracking propio del player) ──────────

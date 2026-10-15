@@ -14,6 +14,11 @@ export type StageResult = {
   /** Coste por unidad de esta etapa, si se conoce la inversión. */
   costPerUnit: number | null
   /**
+   * Sobre qué población se calcula el coste: `ads` = solo lo atribuido a anuncios (comparable con la
+   * inversión de Meta); `todo` = toda la actividad de la etapa (puede incluir orgánico → coste a la baja).
+   */
+  baseCoste: 'ads' | 'todo'
+  /**
    * Por qué una conversión no se pudo calcular. Que la UI pueda decir "la fuente falló" en vez de
    * un "—" indistinguible de "el denominador era 0".
    */
@@ -38,9 +43,16 @@ export type ComputeInput = {
   /** Recuento por id de etapa. Las etapas ausentes se tratan como no leídas, no como 0. */
   counts: Record<string, MetricValue>
   inversion?: number | null
+  /** Denominador SOLO-ADS por id de etapa para el coste unitario. Una etapa presente aquí usa esa base. */
+  denominadoresCoste?: Record<string, number | null>
 }
 
-export function computeFunnel({ family, counts, inversion = null }: ComputeInput): FunnelResult {
+export function computeFunnel({
+  family,
+  counts,
+  inversion = null,
+  denominadoresCoste = {},
+}: ComputeInput): FunnelResult {
   const def = FUNNEL_DEFS[family]
   const stages: StageResult[] = []
   const failed = new Set<string>()
@@ -89,7 +101,17 @@ export function computeFunnel({ family, counts, inversion = null }: ComputeInput
       count,
       conversionFromPrevious,
       conversionFromTop,
-      costPerUnit: usable && inversion !== null ? div(inversion, value as number) : null,
+      costPerUnit:
+        inversion === null
+          ? null
+          : Object.hasOwn(denominadoresCoste, stage.id)
+            ? denominadoresCoste[stage.id]
+              ? div(inversion, denominadoresCoste[stage.id] as number)
+              : null
+            : usable
+              ? div(inversion, value as number)
+              : null,
+      baseCoste: Object.hasOwn(denominadoresCoste, stage.id) ? 'ads' : 'todo',
       ...(blockedBy ? { blockedBy } : {}),
     })
 

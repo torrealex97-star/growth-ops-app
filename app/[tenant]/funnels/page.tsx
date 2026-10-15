@@ -222,6 +222,18 @@ export default function FunnelsPage() {
                       <td className="p-3 text-right font-mono text-muted-foreground">{pctText(s.conversionFromTop)}</td>
                       <td className="p-3 text-right font-mono text-muted-foreground">
                         {s.costPerUnit === null ? '—' : formatCurrency(s.costPerUnit)}
+                        {s.costPerUnit !== null && s.stage.source === 'crm' && (
+                          <span
+                            className="ml-1 font-sans text-3xs"
+                            title={
+                              s.baseCoste === 'ads'
+                                ? 'Inversión de Meta entre lo atribuido a anuncios: comparable con el gasto.'
+                                : 'Inversión de Meta entre TODA la actividad del CRM (orgánico incluido): queda por debajo del coste real de captar con anuncios.'
+                            }
+                          >
+                            {s.baseCoste === 'ads' ? 'ads' : 'todo CRM'}
+                          </span>
+                        )}
                       </td>
                       <td className="p-3">
                         <span className="flex items-center gap-2">

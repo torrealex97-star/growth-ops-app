@@ -65,7 +65,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       trackingEventsSeen = error ? null : (count ?? 0)
     }
 
-    const { counts, inversion, cohorte, conciliacionVisitas } = await loadFunnelCounts(
+    const { counts, inversion, cohorte, conciliacionVisitas, denominadoresCoste } = await loadFunnelCounts(
       sb,
       session.tenantId,
       family,
@@ -77,7 +77,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       parseAccountIds(cfg.META_AD_ACCOUNT_ID)
     )
     return NextResponse.json({
-      ...computeFunnel({ family, counts, inversion }),
+      ...computeFunnel({ family, counts, inversion, denominadoresCoste }),
       cohorte,
       range: { from, to },
       // null = no aplicable a esta familia; número = eventos de tracking recibidos en 90 días.
