@@ -61,10 +61,32 @@ export async function accessTokenFromRefresh(
 
 export type Ga4Property = { name: string; displayName: string; account: string }
 
+export type MotivoErrorGa4 = 'api_desactivada' | 'sin_acceso' | 'token' | 'otro'
+
+/**
+ * Un 403 de Google NO siempre significa «esta cuenta no tiene acceso»: el caso más habitual al conectar
+ * por primera vez es que la API de Google Analytics Admin no esté ACTIVADA en el proyecto de Google
+ * Cloud (reason SERVICE_DISABLED). Confundirlos manda a la persona a revisar permisos que ya tiene.
+ */
+export function clasificarErrorGa4(
+  status: number,
+  error?: { message?: string; status?: string; details?: Array<{ reason?: string }> }
+): MotivoErrorGa4 {
+  const razones = (error?.details ?? []).map((d) => d.reason)
+  if (
+    razones.includes('SERVICE_DISABLED') ||
+    /has not been used|is disabled|API .* disabled/i.test(error?.message ?? '')
+  )
+    return 'api_desactivada'
+  if (status === 401) return 'token'
+  if (status === 403) return 'sin_acceso'
+  return 'otro'
+}
+
 /** Propiedades de GA4 accesibles con este token, para que el usuario elija una. */
 export async function listProperties(
   accessToken: string
-): Promise<{ items: Ga4Property[] } | { error: string; status: number }> {
+): Promise<{ items: Ga4Property[] } | { error: string; status: number; motivo: MotivoErrorGa4 }> {
   const r = await fetch('https://analyticsadmin.googleapis.com/v1beta/accountSummaries?pageSize=200', {
     headers: { Authorization: `Bearer ${accessToken}` },
     signal: AbortSignal.timeout(15_000),
@@ -75,9 +97,19 @@ export async function listProperties(
       displayName?: string
       propertySummaries?: Array<{ property?: string; displayName?: string }>
     }>
-    error?: { message?: string }
+    error?: {
+      message?: string
+      status?: string
+      details?: Array<{ reason?: string; metadata?: Record<string, string> }>
+    }
   }
-  if (!r.ok) return { error: j.error?.message || `Google respondió ${r.status}`, status: r.status }
+  if (!r.ok) {
+    return {
+      error: j.error?.message || `Google respondió ${r.status}`,
+      status: r.status,
+      motivo: clasificarErrorGa4(r.status, j.error),
+    }
+  }
   const items: Ga4Property[] = []
   for (const acc of j.accountSummaries ?? []) {
     for (const prop of acc.propertySummaries ?? []) {

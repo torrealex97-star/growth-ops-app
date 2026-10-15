@@ -77,12 +77,20 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     }
     const props = await listProperties(token.token)
     if ('error' in props) {
-      const message =
-        props.status === 403 ? 'Tu cuenta de Google no tiene acceso a esta propiedad de GA4.' : props.error
-      return NextResponse.json(
-        { ...base, error: message, code: props.status === 403 ? 'ga4_sin_acceso' : 'ga4_error' },
-        { status: 400 }
-      )
+      const mensajes: Record<string, { message: string; code: string }> = {
+        api_desactivada: {
+          message:
+            'La API «Google Analytics Admin» no está activada en el proyecto de Google Cloud de la plataforma. Actívala en console.cloud.google.com › APIs y servicios › Biblioteca › «Google Analytics Admin API» › Habilitar. Mientras tanto puedes escribir el ID de la propiedad a mano.',
+          code: 'ga4_api_desactivada',
+        },
+        sin_acceso: {
+          message: 'La cuenta de Google conectada no tiene acceso de lectura a ninguna propiedad de GA4.',
+          code: 'ga4_sin_acceso',
+        },
+        token: { message: 'La conexión con Google caducó: vuelve a conectar.', code: 'ga4_token' },
+      }
+      const m = mensajes[props.motivo] ?? { message: props.error, code: 'ga4_error' }
+      return NextResponse.json({ ...base, error: m.message, code: m.code }, { status: 400 })
     }
     return NextResponse.json({ ...base, propiedades: props.items })
   } catch (err) {
@@ -126,6 +134,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     }
 
     if (body.propiedad) {
+      // Acepta «properties/123» o solo el número (copiado de GA4 › Administrar › Detalles de la
+      // propiedad). Se normaliza a «properties/123»; cualquier otra cosa se rechaza.
+      const crudo = String(body.propiedad).trim()
+      const m = /^(?:properties\/)?(\d{5,15})$/.exec(crudo)
+      if (!m) {
+        return NextResponse.json(
+          {
+            error:
+              'El ID de la propiedad debe ser un número, p. ej. 123456789 (GA4 › Administrar › Detalles de la propiedad).',
+          },
+          { status: 400 }
+        )
+      }
+      body.propiedad = `properties/${m[1]}`
       const { data, error } = await sb
         .from('google_oauth_connections')
         .update({ ga4_property_id: body.propiedad, status: 'conectada', last_error: null })
