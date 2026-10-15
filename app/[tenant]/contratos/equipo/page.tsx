@@ -227,6 +227,34 @@ export default function ContratosEquipoPage() {
                 {c.status !== 'firmado' && (
                   <AttachSignedContractButton tenant={tenant} contractId={c.id} onDone={load} />
                 )}
+                {c.status !== 'firmado' && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground hover:text-foreground"
+                    title="La persona lo firmó fuera de la app: se da por firmado y se le deja acceder"
+                    onClick={async () => {
+                      if (
+                        !window.confirm(
+                          '¿Dar este contrato por firmado fuera de la app? Se le dejará acceder al panel.'
+                        )
+                      )
+                        return
+                      const res = await fetch(`/api/${tenant}/evergreen/contracts/mark-external`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ contractId: c.id }),
+                      })
+                      const d = await res.json().catch(() => ({}))
+                      if (res.ok) {
+                        toast.success('Contrato marcado como firmado fuera de la app')
+                        void load()
+                      } else toast.error('No se pudo marcar', { description: d?.error })
+                    }}
+                  >
+                    Firmado fuera
+                  </Button>
+                )}
                 {c.signed_pdf_url && (
                   <button
                     type="button"
