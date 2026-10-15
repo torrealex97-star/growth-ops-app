@@ -224,7 +224,7 @@ export default function FunnelsPage() {
                         {s.costPerUnit === null ? '—' : formatCurrency(s.costPerUnit)}
                         {s.costPerUnit !== null && s.stage.source === 'crm' && (
                           <span
-                            className="ml-1 text-[10px] font-sans"
+                            className="ml-1 font-sans text-3xs"
                             title={
                               s.baseCoste === 'ads'
                                 ? 'Inversión de Meta entre lo atribuido a anuncios: comparable con el gasto.'

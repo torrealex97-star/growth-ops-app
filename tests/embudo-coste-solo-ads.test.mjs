@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { computeFunnel } from '../lib/funnels/compute.ts'
 
-const ok = (value, source = 'crm') => ({ value, status: 'dato_real', source, lastSync: null })
+const ok = (value, source = 'crm') => ({ value, status: 'ok', source, lastSync: null })
 
 test('con denominadores solo-ads, el coste por etapa usa lo atribuido a anuncios', () => {
   const r = computeFunnel({
@@ -25,10 +25,7 @@ test('con denominadores solo-ads, el coste por etapa usa lo atribuido a anuncios
   assert.equal(por.agendas.baseCoste, 'ads')
   assert.equal(por.cierres.costPerUnit, 250)
   // Sin denominador de ads (opt-ins) se mantiene sobre todo el CRM y se declara.
-  assert.equal(
-    por.leads.costPerUnit,
-    Math.round((1000 / 253) * 1e6) / 1e6 === por.leads.costPerUnit ? por.leads.costPerUnit : 1000 / 253
-  )
+  assert.ok(Math.abs(por.leads.costPerUnit - 1000 / 253) < 1e-9)
   assert.equal(por.leads.baseCoste, 'todo')
 })
 
