@@ -8,7 +8,7 @@
 // Eventos manuales (CTAs, formularios, ventas):
 //   window.gop('cta_click', { cta: 'reservar' })
 //   window.gop('lead', { email: '...@...' })  // solo lo que el form ya envía al negocio
-export const TRACKER_JS_VERSION = '1.1.0'
+export const TRACKER_JS_VERSION = '1.2.0'
 
 export const TRACKER_JS = String.raw`
 (function () {
@@ -108,14 +108,21 @@ export const TRACKER_JS = String.raw`
       if (attrs[k]) payload[k] = attrs[k]
     })
     var body = JSON.stringify(payload)
+    // TEXT/PLAIN A PROPÓSITO: es un tipo «simple» de CORS, así que el envío entre dominios NO necesita
+    // preflight. Con el tipo JSON el navegador tiene que preguntar antes (OPTIONS) y en iOS/WebKit
+    // —el navegador interno de Instagram y Facebook, por donde llega el tráfico de anuncios— el
+    // preflight de sendBeacon falla en silencio: sendBeacon devolvía true, no había fallback y el
+    // evento se perdía (el pixel recogía ~9 % de las visitas que Meta contaba). El servidor lee el
+    // cuerpo como texto y lo parsea, así que el tipo no le importa.
     try {
-      if (navigator.sendBeacon && navigator.sendBeacon(ENDPOINT, new Blob([body], { type: 'application/json' }))) return
+      if (navigator.sendBeacon && navigator.sendBeacon(ENDPOINT, new Blob([body], { type: 'text/plain;charset=UTF-8' })))
+        return
     } catch (e) {
       // sendBeacon no disponible o bloqueado: el fetch de abajo es el fallback.
     }
     fetch(ENDPOINT, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
       body: body,
       keepalive: true,
       credentials: 'omit',
