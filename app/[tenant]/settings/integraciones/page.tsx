@@ -106,6 +106,7 @@ type GoogleConnection = {
 }
 
 type Ga4Property = { id: string; name: string }
+type Ga4PropiedadApi = { name: string; displayName?: string; account?: string }
 
 function currentValue(drafts: Record<string, string>, state: Record<string, StateEntry>, key: string): string {
   return (drafts[key] ?? state[key]?.value ?? '').trim()
@@ -557,14 +558,24 @@ export default function IntegracionesPage() {
     setGa4PropertiesError(null)
     const result = await pedir<{
       propiedad: string | null
-      propiedades?: Ga4Property[]
+      propiedades?: Ga4PropiedadApi[]
       error?: string
     }>(`/api/${tenant}/evergreen/ga4?propiedades=1`)
     if (!result.ok) {
+      // Un fallo NO deja el selector «Cargando…» para siempre: se muestra el motivo y se habilita la
+      // entrada manual del ID de la propiedad.
+      setGa4Properties([])
       if (esFalloVisible(result)) setGa4PropertiesError(result.mensaje)
+      else setGa4PropertiesError('No se pudo leer la lista de propiedades. Escribe el ID a mano.')
       return
     }
-    setGa4Properties(result.data.propiedades ?? [])
+    // La API devuelve {name: 'properties/123', displayName, account}; la lista del selector usa {id, name}.
+    setGa4Properties(
+      (result.data.propiedades ?? []).map((p) => ({
+        id: p.name,
+        name: p.displayName ? `${p.displayName}${p.account ? ` · ${p.account}` : ''} (${p.name})` : p.name,
+      }))
+    )
     setGa4Property(result.data.propiedad ?? '')
   }, [tenant])
 
@@ -2492,6 +2503,19 @@ export default function IntegracionesPage() {
                                         </Button>
                                         {ga4PropertiesError ? (
                                           <p className="w-full text-xs text-red-400">{ga4PropertiesError}</p>
+                                        ) : null}
+                                        {ga4Properties !== null && ga4Properties.length === 0 ? (
+                                          <label className="w-full text-xs text-muted-foreground">
+                                            ID de la propiedad (GA4 › Administrar › Detalles de la propiedad)
+                                            <input
+                                              type="text"
+                                              inputMode="numeric"
+                                              placeholder="123456789"
+                                              value={ga4Property.replace(/^properties\//, '')}
+                                              onChange={(event) => setGa4Property(event.target.value.trim())}
+                                              className="border-border bg-background/60 text-foreground mt-1 block w-full rounded-lg border px-3 py-2 text-sm"
+                                            />
+                                          </label>
                                         ) : null}
                                       </div>
                                     ) : null}
