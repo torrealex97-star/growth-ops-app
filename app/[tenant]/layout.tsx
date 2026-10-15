@@ -491,7 +491,11 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
                   </a>
                 </div>
               )}
-              <main className="flex-1 overflow-y-auto p-4 lg:p-6">{children}</main>
+              {/* `relative` es lo que contiene los elementos `sr-only` (position:absolute) DENTRO del scroll de la
+                  página. Sin él, sus captions quedaban posicionados respecto al documento y alargaban el scroll
+                  del <html> miles de píxeles más allá del contenido (medido: 3128 px de scroll con 699 de
+                  ventana, una pantalla casi vacía al final). */}
+              <main className="relative flex-1 overflow-y-auto p-4 lg:p-6">{children}</main>
             </div>
           </div>
           <AgentLauncher />
