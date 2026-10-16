@@ -89,6 +89,10 @@ export default function SalesPage() {
   const [isAdmin, setIsAdmin] = useState(false)
   // Canal de origen por contacto (first-touch UTM source) → contact_id -> source
   const [channelByContact, setChannelByContact] = useState<Map<string, string>>(new Map())
+  // Contactos cuyo origen es una colaboradora: ESE es su origen, no el UTM que también llevara.
+  const [colabByContact, setColabByContact] = useState<Map<string, string>>(new Map())
+  // Vista de colaboradora: solo lo suyo y sencillo (pagos, cuotas, reservas).
+  const [esColab, setEsColab] = useState(false)
 
   // Filters
   const [search, setSearch] = useState('')
@@ -137,7 +141,7 @@ export default function SalesPage() {
         supabase.from('products').select('*').eq('is_active', true).eq('tenant_id', tenantId),
         supabase
           .from('contact_attributions')
-          .select('contact_id, first_utm_source, utm_source')
+          .select('contact_id, first_utm_source, utm_source, collaborator_id')
           .eq('tenant_id', tenantId),
       ])
 
@@ -162,6 +166,39 @@ export default function SalesPage() {
         if (a.contact_id && src && !chMap.has(a.contact_id)) chMap.set(a.contact_id, src)
       }
       setChannelByContact(chMap)
+      setEsColab(scopeColab.tipo === 'collaborator')
+
+      // Origen colaboradora: contact_attributions.collaborator_id manda sobre cualquier UTM.
+      const colabIds = [
+        ...new Set(
+          ((attrRes.data ?? []) as { collaborator_id?: string | null }[])
+            .map((a) => a.collaborator_id)
+            .filter((x): x is string => !!x)
+        ),
+      ]
+      const nombrePerfil = new Map<string, string>()
+      if (colabIds.length > 0) {
+        const { data: perfiles } = await supabase
+          .from('collaborator_profiles')
+          .select('id, code, users(full_name)')
+          .eq('tenant_id', tenantId)
+          .in('id', colabIds)
+        for (const pf of (perfiles ?? []) as unknown as {
+          id: string
+          code: string | null
+          users: { full_name: string | null } | { full_name: string | null }[] | null
+        }[]) {
+          const u = Array.isArray(pf.users) ? pf.users[0] : pf.users
+          nombrePerfil.set(pf.id, u?.full_name || pf.code || 'Colaboradora')
+        }
+      }
+      const colabMap = new Map<string, string>()
+      for (const a of (attrRes.data ?? []) as { contact_id: string; collaborator_id?: string | null }[]) {
+        if (a.contact_id && a.collaborator_id && !colabMap.has(a.contact_id)) {
+          colabMap.set(a.contact_id, `Colaboradora · ${nombrePerfil.get(a.collaborator_id) ?? 'sin nombre'}`)
+        }
+      }
+      setColabByContact(colabMap)
 
       setUsers(usersRes.data ?? [])
       setProducts(productsRes.data ?? [])
@@ -236,12 +273,14 @@ export default function SalesPage() {
   // Canal de una venta: first-touch UTM del contacto → si no, lead_channel del contacto → Directo
   const channelOfSale = useCallback(
     (s: SaleWithRelations): string => {
+      const colab = s.contact_id ? colabByContact.get(s.contact_id) : undefined
+      if (colab) return colab
       const src =
         (s.contact_id && channelByContact.get(s.contact_id)) ||
         (s.contacts as { lead_channel?: string } | null)?.lead_channel
       return channelLabel(src)
     },
-    [channelByContact]
+    [channelByContact, colabByContact]
   )
 
   // Desglose de ventas por canal (respeta los filtros aplicados)
@@ -303,14 +342,16 @@ export default function SalesPage() {
             <Download className="w-4 h-4 mr-2" />
             Exportar CSV
           </Button>
-          <Button onClick={() => router.push(`/${tenant}/ventas/registro/nueva`)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Nueva Venta
-          </Button>
+          {!esColab && (
+            <Button onClick={() => router.push(`/${tenant}/ventas/registro/nueva`)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Nueva Venta
+            </Button>
+          )}
         </div>
       </div>
 
-      <PaymentInbox />
+      {!esColab && <PaymentInbox />}
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-center">
@@ -364,47 +405,53 @@ export default function SalesPage() {
           </SelectContent>
         </Select>
 
-        <Select value={setterFilter} onValueChange={setSetterFilter}>
-          <SelectTrigger className="w-40 bg-card border-border">
-            <SelectValue placeholder="Setter" />
-          </SelectTrigger>
-          <SelectContent className="bg-card border-border">
-            <SelectItem value="all">Todos los setters</SelectItem>
-            {setters.map((u) => (
-              <SelectItem key={u.id} value={u.id}>
-                {u.full_name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {!esColab && (
+          <Select value={setterFilter} onValueChange={setSetterFilter}>
+            <SelectTrigger className="w-40 bg-card border-border">
+              <SelectValue placeholder="Setter" />
+            </SelectTrigger>
+            <SelectContent className="bg-card border-border">
+              <SelectItem value="all">Todos los setters</SelectItem>
+              {setters.map((u) => (
+                <SelectItem key={u.id} value={u.id}>
+                  {u.full_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
 
-        <Select value={closerFilter} onValueChange={setCloserFilter}>
-          <SelectTrigger className="w-40 bg-card border-border">
-            <SelectValue placeholder="Closer" />
-          </SelectTrigger>
-          <SelectContent className="bg-card border-border">
-            <SelectItem value="all">Todos los closers</SelectItem>
-            {closers.map((u) => (
-              <SelectItem key={u.id} value={u.id}>
-                {u.full_name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {!esColab && (
+          <Select value={closerFilter} onValueChange={setCloserFilter}>
+            <SelectTrigger className="w-40 bg-card border-border">
+              <SelectValue placeholder="Closer" />
+            </SelectTrigger>
+            <SelectContent className="bg-card border-border">
+              <SelectItem value="all">Todos los closers</SelectItem>
+              {closers.map((u) => (
+                <SelectItem key={u.id} value={u.id}>
+                  {u.full_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
 
-        <Select value={productFilter} onValueChange={setProductFilter}>
-          <SelectTrigger className="w-44 bg-card border-border">
-            <SelectValue placeholder="Producto" />
-          </SelectTrigger>
-          <SelectContent className="bg-card border-border">
-            <SelectItem value="all">Todos los productos</SelectItem>
-            {products.map((p) => (
-              <SelectItem key={p.id} value={p.id}>
-                {p.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {!esColab && (
+          <Select value={productFilter} onValueChange={setProductFilter}>
+            <SelectTrigger className="w-44 bg-card border-border">
+              <SelectValue placeholder="Producto" />
+            </SelectTrigger>
+            <SelectContent className="bg-card border-border">
+              <SelectItem value="all">Todos los productos</SelectItem>
+              {products.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
 
         <DateRangeCalendarPopover
           from={dateFrom}
@@ -437,7 +484,7 @@ export default function SalesPage() {
       ) : (
         <>
           {/* Desglose por canal de origen (first-touch UTM del contacto) */}
-          {salesByChannel.length > 0 && (
+          {!esColab && salesByChannel.length > 0 && (
             <div className="rounded-lg border border-border bg-card/50 p-4">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-medium text-foreground">Ventas por origen registrado</h2>

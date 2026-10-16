@@ -45,6 +45,7 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
+  Undo2,
 } from 'lucide-react'
 import { formatDateTime, formatDate, formatCurrency } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -155,6 +156,8 @@ export default function AppointmentsPage() {
   // En modo día, closers a mostrar como columnas (lanes) estilo GHL. Vacío = todos.
   const [dayCloserIds, setDayCloserIds] = useState<string[]>([])
   const [sales, setSales] = useState<Sale[]>([])
+  // Contactos que pagaron o reservaron y recibieron la devolución: marca visible para todo el equipo.
+  const [devueltos, setDevueltos] = useState<Set<string>>(new Set())
   const [calendarUserFilter, setCalendarUserFilter] = useState<string>('all')
 
   // En móvil la semana completa obliga a hacer scroll horizontal a ciegas. Se abre hoy en modo día;
@@ -222,6 +225,31 @@ export default function AppointmentsPage() {
   useEffect(() => {
     setNaContactTimezone(guessContactTimezone(naSelectedContact))
   }, [naSelectedContact])
+
+  // Marca de devoluciones: solo se pregunta por los contactos de las agendas que este usuario ya ve.
+  // Un fallo no rompe la pantalla: simplemente no hay marca (no se inventa ni se oculta nada más).
+  const fetchDevueltos = useCallback(
+    async (appts: AppointmentWithRelations[]) => {
+      const ids = Array.from(new Set(appts.map((a) => a.contact_id).filter((id): id is string => !!id)))
+      const out = new Set<string>()
+      try {
+        for (let i = 0; i < ids.length; i += 400) {
+          const res = await fetch(`/api/${tenant}/evergreen/agendas/devueltas`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contactIds: ids.slice(i, i + 400) }),
+          })
+          if (!res.ok) continue
+          const d = (await res.json().catch(() => null)) as { devueltos?: string[] } | null
+          for (const id of d?.devueltos ?? []) out.add(id)
+        }
+      } catch {
+        /* sin marca */
+      }
+      setDevueltos(out)
+    },
+    [tenant]
+  )
 
   // Batch: consulta los conflictos de closer para todos los contactos visibles de una sola vez
   // (no por fila) para no disparar N llamadas a la API.
@@ -383,6 +411,7 @@ export default function AppointmentsPage() {
       const appts = appRes.data as AppointmentWithRelations[]
       setAppointments(appts)
       fetchCloserConflicts(appts)
+      fetchDevueltos(appts)
       fetchMetaAttributionCatalog(appts)
     }
 
@@ -417,7 +446,7 @@ export default function AppointmentsPage() {
     setUsers(usersRes.data ?? [])
     setSales((salesRes.data as Sale[]) ?? [])
     setLoading(false)
-  }, [sesion, tenantId, fetchCloserConflicts, fetchMetaAttributionCatalog])
+  }, [sesion, tenantId, fetchCloserConflicts, fetchDevueltos, fetchMetaAttributionCatalog])
 
   useEffect(() => {
     fetchData()
@@ -1252,6 +1281,12 @@ export default function AppointmentsPage() {
                 {category === 'compra' && <Banknote className="w-3 h-3" />}
                 {CATEGORY_LABELS[category]}
               </Badge>
+              {row.original.contact_id && devueltos.has(row.original.contact_id) ? (
+                <Badge className="border text-xs gap-1 bg-red-500/10 text-red-400 border-red-500/30">
+                  <Undo2 className="w-3 h-3" />
+                  Devuelto
+                </Badge>
+              ) : null}
               {row.original.needs_followup ? (
                 <Badge className="border text-xs bg-indigo-500/20 text-indigo-300 border-indigo-500/30">
                   Seguimiento
@@ -1384,6 +1419,7 @@ export default function AppointmentsPage() {
     ],
     [
       closerConflicts,
+      devueltos,
       reassigningConflictId,
       canReassignConflict,
       handleReassignConflict,
@@ -1945,6 +1981,9 @@ export default function AppointmentsPage() {
                               <p className="text-2xs leading-none text-foreground truncate flex items-center gap-1">
                                 {category === 'compra' && (
                                   <Banknote className="w-3 h-3 text-green-400 shrink-0" aria-label="Venta" />
+                                )}
+                                {appt.contact_id && devueltos.has(appt.contact_id) && (
+                                  <Undo2 className="w-3 h-3 text-red-400 shrink-0" aria-label="Devuelto" />
                                 )}
                                 {new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit' }).format(
                                   new Date(appt.appointment_datetime)
