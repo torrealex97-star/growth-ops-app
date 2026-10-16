@@ -180,12 +180,18 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
       // supabase/migrations/20260911140000_multi_tenant_foundation.sql).
       // Si no hay fila, no tiene acceso a esta subcuenta — RLS es la última
       // línea de defensa aunque este check corra en cliente.
-      const { data: tenantRow, error: tenantErr } = await supabase
-        .from('tenants')
-        .select('id, status')
-        .eq('slug', tenant)
-        .abortSignal(cancelar.signal)
-        .maybeSingle()
+      // Las tres lecturas son independientes (el perfil se pide por id de usuario, no por tenant): en
+      // paralelo el panel espera UN viaje de red antes de pintar, no dos seguidos.
+      const [{ data: tenantRow, error: tenantErr }, { data: superAdminCheck }, { data, error }] = await Promise.all([
+        supabase.from('tenants').select('id, status').eq('slug', tenant).abortSignal(cancelar.signal).maybeSingle(),
+        supabase.rpc('is_super_admin').abortSignal(cancelar.signal),
+        supabase
+          .from('users')
+          .select('*, roles(key, name)')
+          .eq('id', authUser.id)
+          .abortSignal(cancelar.signal)
+          .single(),
+      ])
 
       if (!mounted || cancelar.signal.aborted) return
 
@@ -200,20 +206,6 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
       }
 
       setTenantId(tenantRow.id)
-
-      // EN PARALELO. Eran dos await encadenados y ninguno dependía del otro: se pagaban dos viajes de
-      // red seguidos antes de pintar un solo píxel, en CADA entrada al panel.
-      const [{ data: superAdminCheck }, { data, error }] = await Promise.all([
-        supabase.rpc('is_super_admin').abortSignal(cancelar.signal),
-        supabase
-          .from('users')
-          .select('*, roles(key, name)')
-          .eq('id', authUser.id)
-          .abortSignal(cancelar.signal)
-          .single(),
-      ])
-
-      if (!mounted || cancelar.signal.aborted) return
       setIsSuperAdmin(!!superAdminCheck)
 
       if (error || !data) {
