@@ -89,7 +89,7 @@ export const NAV_SECTIONS: NavSection[] = [
         label: 'Tareas',
         href: '/tasks',
         icon: ListChecks,
-        roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller'],
+        roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller', 'affiliate'],
       },
     ],
   },
@@ -143,13 +143,13 @@ export const NAV_SECTIONS: NavSection[] = [
         label: 'Métricas y KPIs',
         href: '/analitica/embudo',
         icon: BarChart3,
-        roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller'],
+        roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller', 'affiliate'],
         children: [
           {
             label: 'Embudo',
             href: '/analitica/embudo',
             icon: BarChart3,
-            roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller'],
+            roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller', 'affiliate'],
           },
           {
             label: 'Ranking',
@@ -175,9 +175,14 @@ export const NAV_SECTIONS: NavSection[] = [
         label: 'Ventas & Cobros',
         href: '/ventas/registro',
         icon: ShoppingCart,
-        roles: [...LEAD, 'setter', 'closer', 'cobros'],
+        roles: [...LEAD, 'setter', 'closer', 'cobros', 'affiliate'],
         children: [
-          { label: 'Registro', href: '/ventas/registro', icon: ShoppingCart, roles: [...LEAD, 'setter', 'closer'] },
+          {
+            label: 'Registro',
+            href: '/ventas/registro',
+            icon: ShoppingCart,
+            roles: [...LEAD, 'setter', 'closer', 'affiliate'],
+          },
           { label: 'Pagos', href: '/ventas/pagos', icon: Wallet, roles: [...LEAD, 'setter', 'closer', 'cobros'] },
           { label: 'Reservas', href: '/ventas/reservas', icon: CreditCard, roles: [...LEAD, 'setter', 'closer'] },
         ],

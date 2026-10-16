@@ -27,7 +27,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
 
     const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
     const role = t.role || ''
-    if (!['admin', 'director', 'manager'].includes(role)) {
+    // Liderazgo crea para cualquiera. Una colaboradora crea SOLO para sí misma (el asignado se fuerza abajo).
+    const esColab = role === 'affiliate'
+    if (!['admin', 'director', 'manager'].includes(role) && !esColab) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
 
@@ -38,7 +40,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       .map((task) => ({
         title: task.title!.trim(),
         description: task.description?.toString().trim() || null,
-        assignee_id: task.assignee_id || null,
+        assignee_id: esColab ? t.userId : task.assignee_id || null,
         stage: task.stage || 'backlog',
         priority: task.priority || 'media',
         due_date: task.due_date || null,

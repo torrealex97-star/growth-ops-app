@@ -71,6 +71,8 @@ export default function TasksPage() {
   const [showNew, setShowNew] = useState(false)
   const [canDelete, setCanDelete] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  // Colaboradora: crea y ve SUS tareas (las suyas y las que le asigna el equipo), nunca las del resto.
+  const [esColab, setEsColab] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [scope, setScope] = useState<'mias' | 'todas'>('todas')
   const [dragTaskId, setDragTaskId] = useState<string | null>(null)
@@ -105,11 +107,16 @@ export default function TasksPage() {
   const load = async () => {
     const supabase = createClient()
     const [tRes, uRes] = await Promise.all([
-      supabase
-        .from('tasks')
-        .select('*, assignee:assignee_id(full_name)')
-        .eq('tenant_id', tenantId)
-        .order('created_at', { ascending: false }),
+      (() => {
+        const q = supabase
+          .from('tasks')
+          .select('*, assignee:assignee_id(full_name)')
+          .eq('tenant_id', tenantId)
+          .order('created_at', { ascending: false })
+        // La RLS deja leer todas las tareas de la subcuenta al equipo; a una colaboradora se le acota
+        // aquí a lo suyo (asignado a ella o creado por ella).
+        return sesion?.rol === 'affiliate' ? q.or(`assignee_id.eq.${sesion.userId},created_by.eq.${sesion.userId}`) : q
+      })(),
       activeUserNamesQuery(supabase, tenantId),
     ])
     setTasks((tRes.data as Task[]) || [])
@@ -121,6 +128,7 @@ export default function TasksPage() {
       const admin = roleKey === 'admin' || roleKey === 'director' || roleKey === 'manager'
       setCanDelete(roleKey === 'admin' || roleKey === 'director')
       setIsAdmin(admin)
+      setEsColab(roleKey === 'affiliate')
       // El equipo ve por defecto SUS tareas; el liderazgo ve todas.
       setScope(admin ? 'todas' : 'mias')
     }
@@ -319,7 +327,7 @@ export default function TasksPage() {
               <Sparkles className="w-4 h-4" /> Generar con IA
             </button>
           )}
-          {isAdmin && (
+          {(isAdmin || esColab) && (
             <button
               onClick={() => setShowNew(true)}
               className="flex items-center gap-2 px-3 py-2 rounded-[10px] text-sm bg-white text-black hover:bg-zinc-200 whitespace-nowrap"
@@ -437,20 +445,22 @@ export default function TasksPage() {
                 className={inputCls}
               />
             </Field>
-            <Field label="Asignar a">
-              <select
-                value={nt.assignee_id}
-                onChange={(e) => setNt({ ...nt, assignee_id: e.target.value })}
-                className={inputCls}
-              >
-                <option value="">— sin asignar —</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.full_name}
-                  </option>
-                ))}
-              </select>
-            </Field>
+            {!esColab && (
+              <Field label="Asignar a">
+                <select
+                  value={nt.assignee_id}
+                  onChange={(e) => setNt({ ...nt, assignee_id: e.target.value })}
+                  className={inputCls}
+                >
+                  <option value="">— sin asignar —</option>
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.full_name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <Field label="Etapa">
                 <select

@@ -89,7 +89,7 @@ test('el rol colaborador accede a SU dashboard (misma app, scope distinto)', () 
   const src = read('lib/auth/permissions.ts')
   // Sin '/dashboard' en los prefijos de affiliate, el layout expulsaba al colaborador
   // de su propio dashboard (el root redirect manda a /dashboard).
-  assert.match(src, /affiliate: \['\/dashboard'/)
+  assert.match(src, /affiliate: \[\s*'\/dashboard'/)
 })
 
 test('firmar el contrato de equipo ACTIVA al colaborador', () => {
