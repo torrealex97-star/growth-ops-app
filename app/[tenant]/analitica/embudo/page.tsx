@@ -22,6 +22,7 @@ import { metodoDePlan } from '@/lib/metrics/agregados'
 import { canonicalizeAppointments } from '@/lib/canonical/dedup'
 import { buildPeriodFunnel } from '@/lib/metrics/period-funnel'
 import { useSesion, useTenantId, useTenant } from '@/lib/tenant-context'
+import EmbudoColaboradora from '@/components/analitica/EmbudoColaboradora'
 import { AnotacionesInspector } from '@/components/metrics/AnotacionesInspector'
 import type { TrendAnnotation } from '@/components/os/TrendChart'
 import type { Annotation } from '@/app/api/[tenant]/evergreen/anotaciones/route'
@@ -108,7 +109,7 @@ function KPICard({
   )
 }
 
-export default function VentasMetricasPage() {
+function VentasMetricasCompleta() {
   const tenant = useTenant()
   const tenantId = useTenantId()
   const [loadError, setLoadError] = useState(false)
@@ -899,4 +900,13 @@ export default function VentasMetricasPage() {
       <QualificationInsights />
     </div>
   )
+}
+
+// Las colaboradoras ven una versión sencilla (sus personas: agendaron, asistieron, cerraron); el resto,
+// el embudo completo. Se decide en un envoltorio para no alterar los hooks de la pantalla completa.
+export default function VentasMetricasPage() {
+  const sesion = useSesion()
+  const tenantId = useTenantId()
+  if (sesion?.rol === 'affiliate') return <EmbudoColaboradora tenantId={tenantId} userId={sesion.userId} />
+  return <VentasMetricasCompleta />
 }

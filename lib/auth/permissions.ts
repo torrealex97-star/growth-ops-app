@@ -228,7 +228,16 @@ const ROLE_ALLOWED_PREFIXES: Partial<Record<AppRole, string[]>> = {
   closer: ['/dashboard', '/crm', '/ventas', '/analitica', '/comisiones', '/tasks', '/recursos'],
   triager: ['/crm', '/analitica', '/tasks', '/recursos/testimonios'],
   cold_caller: ['/crm', '/analitica', '/tasks', '/recursos/enlaces', '/recursos/biblioteca', '/recursos/testimonios'],
-  affiliate: ['/dashboard', '/marketing/afiliados', '/comisiones', '/recursos/enlaces'],
+  affiliate: [
+    '/dashboard',
+    '/marketing/afiliados',
+    '/comisiones',
+    '/recursos/enlaces',
+    // Vista sencilla de colaboradora: sus tareas, su embudo (agendaron/asistieron/cerraron) y sus pagos.
+    '/tasks',
+    '/analitica/embudo',
+    '/ventas/registro',
+  ],
   // gestoria antes veía el prefijo completo '/finanzas' (dashboard) + '/facturas' + '/gestoria' +
   // '/pnl' sueltos — ninguno de esos daba acceso a Gastos/Cobros/Devoluciones/Morosidad, así que al
   // anidar todo bajo /finanzas se usan sub-prefijos precisos para no ampliar su acceso.
