@@ -54,12 +54,16 @@ export async function requireTenant(tenantSlug: string): Promise<
     return { error: NextResponse.json({ error: 'No autenticado' }, { status: 401 }) }
   }
 
-  const { data: tenant } = await authed.from('tenants').select('id, status').eq('slug', tenantSlug).maybeSingle()
+  // Las tres lecturas son independientes entre sí: en paralelo se paga UN viaje a la BD en vez de tres
+  // seguidos (esto corre en cada una de las ~158 rutas API).
+  const [{ data: tenant }, { data: isSuperAdminData }, { data: callerRow }] = await Promise.all([
+    authed.from('tenants').select('id, status').eq('slug', tenantSlug).maybeSingle(),
+    authed.rpc('is_super_admin'),
+    authed.from('users').select('roles(key)').eq('id', user.id).single(),
+  ])
   if (!tenant || tenant.status !== 'active') {
     return { error: NextResponse.json({ error: 'Subcuenta no encontrada' }, { status: 404 }) }
   }
-
-  const { data: isSuperAdminData } = await authed.rpc('is_super_admin')
   const isSuperAdmin = !!isSuperAdminData
 
   // El rol de tenencia EN ESTA SUBCUENTA se lee aquí, junto con la membresía: es lo que pone el techo
@@ -91,7 +95,6 @@ export async function requireTenant(tenantSlug: string): Promise<
     requestId: cabeceras.get(CABECERA_REQUEST_ID) || undefined,
   })
 
-  const { data: callerRow } = await authed.from('users').select('roles(key)').eq('id', user.id).single()
   const rolGlobal = ((callerRow?.roles as { key?: string } | null)?.key ?? null) as AppRole | null
 
   // AQUÍ SE CIERRA LA ESCALADA. `role` sale ya acotado, así que las ~11 rutas que comprueban

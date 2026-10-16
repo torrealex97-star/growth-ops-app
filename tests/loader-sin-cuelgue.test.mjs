@@ -96,7 +96,11 @@ test('el loader del panel ya no es un rectángulo con la palabra "Cargando"', ()
 // entrada al panel antes de pintar un píxel.
 test('las consultas independientes del arranque van en paralelo', () => {
   const codigo = sinComentarios(leer(LAYOUT))
-  assert.match(codigo, /await Promise\.all\(\[\s*supabase\.rpc\('is_super_admin'\)/)
+  // Tenant, super_admin y perfil: tres lecturas independientes en UN solo Promise.all.
+  assert.match(
+    codigo,
+    /await Promise\.all\(\[\s*supabase\.from\('tenants'\)[\s\S]*?supabase\.rpc\('is_super_admin'\)[\s\S]*?\.from\('users'\)/
+  )
 })
 
 // ---------------------------------------------------------------------------------------------
