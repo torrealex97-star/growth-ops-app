@@ -26,8 +26,13 @@ export function contactosDevueltos(
   const idsDeVentas = new Set(
     ventas.filter((v) => v.status === 'refunded' && v.contact_id).map((v) => v.contact_id as string)
   )
+  // Quien ya volvió a comprar (venta activa) es cliente vigente: no se le marca Devuelto.
+  const idsConVentaViva = new Set(
+    ventas.filter((v) => v.status === 'active' && v.contact_id).map((v) => v.contact_id as string)
+  )
   const out = new Set<string>()
   for (const c of contactos) {
+    if (idsConVentaViva.has(c.id)) continue
     if (idsDeVentas.has(c.id) || (norm(c.email) && emailsDevueltos.has(norm(c.email)))) out.add(c.id)
   }
   return out

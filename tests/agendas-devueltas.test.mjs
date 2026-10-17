@@ -28,3 +28,12 @@ test('una venta refunded también marca, y un contacto sin email no se cruza con
   )
   assert.deepEqual([...r], ['a'])
 })
+
+test('quien vuelve a comprar (venta activa) no sale como Devuelto', () => {
+  const r = contactosDevueltos(
+    [{ id: 'a', email: 'a@x.test' }],
+    [{ customer_email: 'a@x.test', status: 'refunded' }],
+    [{ contact_id: 'a', status: 'active' }]
+  )
+  assert.equal(r.size, 0)
+})

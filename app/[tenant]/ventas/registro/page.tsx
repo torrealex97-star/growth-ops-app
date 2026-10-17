@@ -92,7 +92,8 @@ export default function SalesPage() {
   // Contactos cuyo origen es una colaboradora: ESE es su origen, no el UTM que también llevara.
   const [colabByContact, setColabByContact] = useState<Map<string, string>>(new Map())
   // Vista de colaboradora: solo lo suyo y sencillo (pagos, cuotas, reservas).
-  const [esColab, setEsColab] = useState(false)
+  // Se parte del rol de la sesión (ya disponible) para que ni la bandeja de pagos se monte mientras carga.
+  const [esColab, setEsColab] = useState(sesion?.rol === 'affiliate')
 
   // Filters
   const [search, setSearch] = useState('')
@@ -166,7 +167,7 @@ export default function SalesPage() {
         if (a.contact_id && src && !chMap.has(a.contact_id)) chMap.set(a.contact_id, src)
       }
       setChannelByContact(chMap)
-      setEsColab(scopeColab.tipo === 'collaborator')
+      setEsColab(scopeColab.tipo === 'collaborator' || sesion?.rol === 'affiliate')
 
       // Origen colaboradora: contact_attributions.collaborator_id manda sobre cualquier UTM.
       const colabIds = [

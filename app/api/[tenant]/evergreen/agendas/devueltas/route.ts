@@ -5,7 +5,8 @@ import { contactosDevueltos } from '@/lib/appointments/devueltas'
 
 export const runtime = 'nodejs'
 
-const MAX_IDS = 400
+// Lotes pequeños: cada id viaja en la URL de PostgREST y 400 uuids rozan el límite de longitud.
+const MAX_IDS = 100
 
 // Devuelve cuáles de los contactos PEDIDOS tienen un pago devuelto. Por qué POST con ids: el cliente
 // solo pregunta por los contactos de las agendas que ya puede ver (RLS/scope de colaboradora), así
@@ -28,25 +29,23 @@ export async function POST(req: Request, { params }: { params: Promise<{ tenant:
       .from('sales')
       .select('contact_id, status')
       .eq('tenant_id', auth.tenantId)
-      .eq('status', 'refunded')
+      .in('status', ['refunded', 'active'])
       .in('contact_id', ids),
   ])
   if (contactosRes.error || ventasRes.error) {
     return NextResponse.json({ error: 'No se pudo comprobar las devoluciones' }, { status: 500 })
   }
   const contactos = (contactosRes.data ?? []) as { id: string; email: string | null }[]
-  const emails = contactos.map((c) => c.email?.trim().toLowerCase()).filter((e): e is string => !!e)
-  let pagos: { customer_email: string | null; status: string | null }[] = []
-  if (emails.length > 0) {
-    const pagosRes = await sb
-      .from('stripe_payments')
-      .select('customer_email, status')
-      .eq('tenant_id', auth.tenantId)
-      .eq('status', 'refunded')
-      .in('customer_email', emails)
-    if (pagosRes.error) return NextResponse.json({ error: 'No se pudo comprobar las devoluciones' }, { status: 500 })
-    pagos = (pagosRes.data ?? []) as typeof pagos
-  }
+  // Los pagos devueltos del tenant son pocos: se traen todos y se cruza en memoria. Así no hay `.in` por
+  // email (URL larga) y la comparación no depende de mayúsculas (contactosDevueltos normaliza).
+  const pagosRes = await sb
+    .from('stripe_payments')
+    .select('customer_email, status')
+    .eq('tenant_id', auth.tenantId)
+    .eq('status', 'refunded')
+    .limit(2000)
+  if (pagosRes.error) return NextResponse.json({ error: 'No se pudo comprobar las devoluciones' }, { status: 500 })
+  const pagos = (pagosRes.data ?? []) as { customer_email: string | null; status: string | null }[]
   const devueltos = contactosDevueltos(
     contactos,
     pagos,

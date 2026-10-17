@@ -8,6 +8,7 @@ import { columnaDeMisCitas, resumenMiDia, tasasMiDia, type CitaMiDia } from '@/l
 import { commissionSettlementSummary, type CommissionDashboardRow } from '@/lib/commissions/dashboard'
 import { cuentaComoVenta } from '@/lib/analytics'
 import { metodoDePlan } from '@/lib/metrics/agregados'
+import { businessToday } from '@/lib/dates/business'
 import { formatCurrency, formatPercent } from '@/lib/utils'
 
 type FilaCita = {
@@ -85,9 +86,9 @@ export default function MiDia({
     const sb = createClient()
     const desde = new Date(Date.now() - 45 * 86_400_000).toISOString()
     const hasta = new Date(Date.now() + 8 * 86_400_000).toISOString()
-    const inicioMes = new Date()
-    inicioMes.setDate(1)
-    const ymd = inicioMes.toISOString().slice(0, 10)
+    // Primer día del mes EN LA ZONA DEL NEGOCIO: toISOString del día local cae en el mes anterior
+    // entre las 00:00 y las 02:00 del día 1.
+    const ymd = `${businessToday().slice(0, 7)}-01`
     ;(async () => {
       const [c, v] = await Promise.all([
         sb
