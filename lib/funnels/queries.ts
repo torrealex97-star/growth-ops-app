@@ -6,6 +6,7 @@
 // ceros es precisamente lo que haría que esta pantalla mintiera.
 import { esOrigenAnuncio } from '@/lib/appointments/lead-origin'
 import { conciliarVisitas, type Conciliacion } from '@/lib/tracking/conciliacion'
+import { contarSesionesPixel } from '@/lib/tracking/sesiones'
 import { cohorteDeLeads, type Cohorte } from '@/lib/funnels/cohorte'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { fetchAllRows } from '@/lib/supabase/paginate'
@@ -275,12 +276,32 @@ async function ga4Stages(sb: SupabaseClient, tenantId: string, range: DateRange)
 // `canonical_events.event_name` es texto libre. Sin un mapeo explícito de qué nombre de evento
 // corresponde a cada etapa, esto NO cuenta nada: ni 0 ni una suposición. Con mapeo, cuenta las filas
 // cuyo event_name está en la lista que eligió el usuario.
-async function vslStage(sb: SupabaseClient, tenantId: string, range: DateRange, names: string[]): Promise<MetricValue> {
-  const { rows, error } = await countRows(sb, 'canonical_events', tenantId, 'occurred_at', range, {
-    column: 'event_name',
-    in: names,
-  })
-  return fromCount(rows, 'vsl', { error })
+async function vslStage(
+  sb: SupabaseClient,
+  tenantId: string,
+  range: DateRange,
+  names: string[]
+): Promise<{ metric: MetricValue; sesionesAds: number | null }> {
+  // Se cuentan SESIONES distintas, no filas: una recarga no es otra visita (lib/tracking/sesiones.ts).
+  const { rows, error, truncated } = await fetchAllRows(() =>
+    sb
+      .from('canonical_events')
+      .select('session_id, url:properties->>url')
+      .eq('tenant_id', tenantId)
+      .in('event_name', names)
+      .gte('occurred_at', range.from)
+      .lte('occurred_at', range.to)
+      .order('id')
+  )
+  // Un recuento truncado sería un número falso: se declara fallo, no se pinta a medias.
+  if (error || truncated) {
+    return {
+      metric: fromCount(null, 'vsl', { error: error ?? 'Demasiadas filas para contar sesiones' }),
+      sesionesAds: null,
+    }
+  }
+  const { total, ads } = contarSesionesPixel(rows as { session_id: string | null; url: string | null }[])
+  return { metric: fromCount(total, 'vsl'), sesionesAds: ads }
 }
 
 // ── Fuentes que todavía no pueden alimentar una etapa, y por qué ────────────
@@ -373,6 +394,7 @@ export async function loadFunnelCounts(
   }
 
   const counts: Record<string, MetricValue> = {}
+  let pixelSesionesAds: number | null = null
   for (const stage of stages) {
     if (stage.source === 'crm') {
       if (isSourceError(crm)) {
@@ -429,7 +451,9 @@ export async function loadFunnelCounts(
       try {
         const names = namesFor(eventMap, family, stage.id)
         if (names.length > 0) {
-          counts[stage.id] = await vslStage(sb, tenantId, range, names)
+          const r = await vslStage(sb, tenantId, range, names)
+          counts[stage.id] = r.metric
+          if (stage.id === 'visitas') pixelSesionesAds = r.sesionesAds
           continue
         }
         const sesion = await vslSessionStage(sb, tenantId, range, stage.id)
@@ -450,7 +474,12 @@ export async function loadFunnelCounts(
   const metaOk = meta && !isSourceError(meta) ? (meta as unknown as MetaStages).visitasLandingMeta : null
   const conciliacionVisitas =
     visitas && visitas.source === 'vsl' && metaOk !== null
-      ? conciliarVisitas({ pixel: isUsable(visitas) ? (visitas.value as number | null) : null, meta: metaOk })
+      ? conciliarVisitas({
+          // Meta cuenta solo tráfico de anuncio: se compara con las sesiones del píxel que llegaron de
+          // anuncio. Si no se pudo separar, se usa el total.
+          pixel: pixelSesionesAds ?? (isUsable(visitas) ? (visitas.value as number | null) : null),
+          meta: metaOk,
+        })
       : null
   const denominadoresCoste: Record<string, number | null> =
     crm && !isSourceError(crm) ? { ...(crm as unknown as CrmStages).denominadoresCoste } : {}

@@ -1,3 +1,13 @@
+# COMPLETADO — embudo: visitas del píxel por SESIÓN y conciliación con Meta solo de anuncios (17 oct)
+
+- El píxel ya funciona tras #534 (15–17 oct: 59 → 132 sesiones/día). Las visitas del embudo contaban FILAS de evento
+  (161 eventos para 132 sesiones el 16-oct); ahora cuentan sesiones distintas (`lib/tracking/sesiones.ts`, idea del
+  embudo por sesión de Umami, MIT).
+- La conciliación compara `landing_page_view` de Meta con las sesiones del píxel que llegaron DE ANUNCIO (`fbclid` o
+  utm de pago en la URL), que es lo comparable; si no se puede separar, usa el total.
+- Medido el 17-oct (3 días): ~222 sesiones de anuncio del píxel frente a ~256 de Meta.
+- Atribución primer/último clic (Umami) y estado «aplazada» (Chatwoot) quedan como ideas, sin implementar.
+
 # COMPLETADO — píxel, embudo, GA4, «Mi día», contratos y backup (14-15 oct) · PRs #534–#543 (merged)
 
 - **#534 píxel**: el tracker v1.2.0 envía `text/plain` en `sendBeacon`/`fetch` (evita el preflight CORS que
