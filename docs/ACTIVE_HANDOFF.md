@@ -1,3 +1,23 @@
+# COMPLETADO — colaboradoras, devoluciones, revisión y limpieza (16-17 oct) · PRs #545–#554
+
+- **Colaboradoras**: tareas propias (crean solo para sí; RLS de lectura acotada, migración `20261016100000` aplicada),
+  embudo sencillo (agendaron/asistieron/cerraron) y registro de pagos simplificado con su origen («Colaboradora · X»).
+- **Devoluciones**: marca «Devuelto» en Agendas para todo el equipo (venta `refunded` o pago devuelto en Stripe por
+  email; no marca a quien recompró). Caso: pago del 14-oct devuelto el 15-oct sin venta en la app.
+- **Revisión (#554)**: reserva abierta no cuenta como cierre en el embudo sencillo (D8); la bandeja de pagos no se
+  monta para colaboradoras; `.in()` por email sustituido por cruce en memoria; mes de «Mi día» en zona del negocio.
+- **Embudo**: visitas del píxel por SESIÓN y conciliación con Meta solo de anuncios (#553); cohorte solo-ads (#546).
+- Ramas: solo `main` y un PR de Dependabot (#552, conflicto de peer deps de `@typescript-eslint`; que Dependabot lo
+  rebase o cerrarlo). `backup: nocturno` falla cada noche hasta que existan los secretos (esperado).
+
+Próximos pasos MÍOS: mejorar el recuento de sesiones del píxel con una función SQL (hoy descarga filas; vale hasta
+decenas de miles); modelos de atribución primer/último clic (idea Umami, MIT); estado «aplazada» en seguimiento
+(idea Chatwoot); `/login` sin subcuenta debería llevar al selector en vez de «subcuenta no existe»; revisar #552.
+Próximos pasos TUYOS: secretos `BACKUP_DATABASE_URL` y `BACKUP_PASSPHRASE`; Google Analytics Admin API + propiedad
+GA4; closers conectan Fathom/Calendar; 48 asistencias por marcar; «Firmado fuera» en Noelia; orígenes del píxel;
+Cloudflare rate limiting; protección de contraseñas filtradas en Supabase; `META_APP_SECRET`/`RESEND_API_KEY`;
+probar la app como colaboradora, closer y setter y decir qué chirría.
+
 # COMPLETADO — embudo: visitas del píxel por SESIÓN y conciliación con Meta solo de anuncios (17 oct)
 
 - El píxel ya funciona tras #534 (15–17 oct: 59 → 132 sesiones/día). Las visitas del embudo contaban FILAS de evento
