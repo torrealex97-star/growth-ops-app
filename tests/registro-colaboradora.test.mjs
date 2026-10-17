@@ -15,3 +15,7 @@ test('la colaboradora ve una vista sencilla: sin bandeja, sin nueva venta, sin d
   assert.match(src, /!esColab && <PaymentInbox/)
   assert.match(src, /!esColab && salesByChannel\.length > 0/)
 })
+
+test('la vista de colaboradora se decide desde la sesión, antes de cargar datos', () => {
+  assert.match(src, /useState\(sesion\?\.rol === 'affiliate'\)/)
+})

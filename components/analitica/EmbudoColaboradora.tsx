@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { contactIdsDeScope, resolverScopeColaborador } from '@/lib/collaborators/scope'
 import { embudoSimple, type EmbudoSimple } from '@/lib/collaborators/embudo-simple'
 import { formatPercent } from '@/lib/utils'
+import { metodoDePlan } from '@/lib/metrics/agregados'
 
 const LOTE = 80
 
@@ -48,7 +49,13 @@ export default function EmbudoColaboradora({ tenantId, userId }: { tenantId: str
           ventas.push(...((v.data ?? []) as unknown as typeof ventas))
         }
         if (!vivo) return
-        setDatos(embudoSimple(contactos, citas, ventas as never))
+        // D8: una reserva abierta no es venta. cuentaComoVenta necesita el método del plan, que aquí llega
+        // anidado en payment_plans.
+        const ventasConPlan = ventas.map((v) => ({
+          ...v,
+          payment_plan_method: metodoDePlan(v as { payment_plans?: unknown }),
+        }))
+        setDatos(embudoSimple(contactos, citas, ventasConPlan as never))
       } catch {
         if (vivo) setError(true)
       }

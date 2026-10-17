@@ -233,11 +233,11 @@ export default function AppointmentsPage() {
       const ids = Array.from(new Set(appts.map((a) => a.contact_id).filter((id): id is string => !!id)))
       const out = new Set<string>()
       try {
-        for (let i = 0; i < ids.length; i += 400) {
+        for (let i = 0; i < ids.length; i += 100) {
           const res = await fetch(`/api/${tenant}/evergreen/agendas/devueltas`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contactIds: ids.slice(i, i + 400) }),
+            body: JSON.stringify({ contactIds: ids.slice(i, i + 100) }),
           })
           if (!res.ok) continue
           const d = (await res.json().catch(() => null)) as { devueltos?: string[] } | null

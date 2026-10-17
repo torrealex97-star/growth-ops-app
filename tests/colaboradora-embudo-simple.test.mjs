@@ -44,3 +44,8 @@ test('una colaboradora solo crea tareas para sí misma', () => {
   const r = readFileSync('app/api/[tenant]/evergreen/tasks/route.ts', 'utf8')
   assert.match(r, /esColab \? t\.userId/)
 })
+
+test('el embudo sencillo calcula el método del plan para que una reserva abierta no cuente como cierre (D8)', () => {
+  const c = readFileSync('components/analitica/EmbudoColaboradora.tsx', 'utf8')
+  assert.match(c, /payment_plan_method: metodoDePlan/)
+})
