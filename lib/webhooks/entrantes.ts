@@ -35,7 +35,15 @@ export type WebhookEntrante = {
    * (contratos): `ultimo_evento` quedará null — no se sustituye por "hay contratos firmados",
    * que sería derivar recepción de resultado.
    */
-  evidencia: 'audit_ghl' | 'audit_calendly' | 'audit_onboarding' | 'raw_stripe' | 'raw_hotmart' | 'raw_whop' | null
+  evidencia:
+    | 'audit_ghl'
+    | 'audit_calendly'
+    | 'audit_onboarding'
+    | 'raw_stripe'
+    | 'raw_hotmart'
+    | 'raw_whop'
+    | 'raw_typeform'
+    | null
   /**
    * Aviso persistente cuando aplica. No es un error: es una limitación de la plataforma
    * que de otro modo nadie recordaría al configurar.
@@ -110,6 +118,18 @@ export const WEBHOOKS_ENTRANTES: WebhookEntrante[] = [
     // rechazada. El estado distingue "recibido" del rechazo de firma más reciente.
     evidencia: 'raw_hotmart',
     doc: '/docs/webhooks-hotmart.md',
+  },
+  {
+    id: 'typeform',
+    groupId: 'typeform',
+    titulo: 'Typeform — respuestas de formularios',
+    descripcion: 'Cualificación de leads antes de agendar y feedback de alumnos, en el momento y sin crear duplicados.',
+    path: '/api/{tenant}/evergreen/webhooks/typeform',
+    metodo: 'POST',
+    auth: { tipo: 'firma', nombre: 'typeform-signature', configKey: 'TYPEFORM_WEBHOOK_SECRET' },
+    eventos: ['form_response'],
+    // Como Stripe, Hotmart y Whop: escribe TODO en raw_events, incluidos los rechazos de firma.
+    evidencia: 'raw_typeform',
   },
   {
     id: 'whop',

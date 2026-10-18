@@ -282,7 +282,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ ten
       .from('raw_events')
       .select('source,received_at,processing_status')
       .eq('tenant_id', auth.tenantId)
-      .in('source', ['stripe', 'hotmart', 'whop'])
+      .in('source', ['stripe', 'hotmart', 'whop', 'typeform'])
       .order('received_at', { ascending: false })
       .limit(150)
       .then(({ data }) => (data ?? []) as Parameters<typeof eventosPorFuente>[0]),
@@ -292,7 +292,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ ten
     const secret: EstadoSecretInfo = evaluarSecret(state[webhook.auth.configKey])
     let ultimoEvento: UltimoEvento = null
     let ultimoRechazo: UltimoEvento = null
-    if (webhook.evidencia === 'raw_stripe' || webhook.evidencia === 'raw_hotmart' || webhook.evidencia === 'raw_whop') {
+    if (
+      webhook.evidencia === 'raw_stripe' ||
+      webhook.evidencia === 'raw_hotmart' ||
+      webhook.evidencia === 'raw_whop' ||
+      webhook.evidencia === 'raw_typeform'
+    ) {
       const r = entregasPorFuente[webhook.evidencia.replace('raw_', '')] ?? {
         ultimo_valido: null,
         ultimo_rechazo: null,
