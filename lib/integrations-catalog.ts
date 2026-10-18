@@ -778,6 +778,55 @@ export const INTEGRATION_GROUPS: IntegrationGroup[] = [
     ],
   },
   {
+    id: 'typeform',
+    title: 'Typeform',
+    description:
+      'Formularios de cualificación de leads y de feedback de alumnos: cada respuesta llega en tiempo real, encaja por email y viaja a las agendas.',
+    category: 'ventas',
+    required: ['TYPEFORM_WEBHOOK_SECRET'],
+    webhookPath: '/api/{tenant}/evergreen/webhooks/typeform',
+    pasos: [
+      {
+        titulo: 'Crea el webhook en tu formulario',
+        detalle:
+          'En Typeform abre el formulario → Connect → Webhooks → Add a webhook. Pega la dirección de arriba como Destination URL, escribe un Secret (una frase larga y aleatoria) y activa el webhook. Repite en cada formulario que quieras conectar.',
+      },
+      {
+        titulo: 'Guarda el mismo secreto aquí',
+        detalle:
+          'Pega ese mismo Secret en el campo de abajo. La app lo usa para comprobar que cada respuesta viene realmente de Typeform; sin él se rechazan todas.',
+      },
+      {
+        titulo: 'Cualificación de leads (lo habitual)',
+        detalle:
+          'Pide siempre el email en el formulario (campo de tipo Email). Si pones los UTMs en la URL del formulario como campos ocultos (utm_source, utm_medium, utm_campaign…) la respuesta también queda atribuida. Quien rellena el formulario y luego agenda llega a la agenda con sus respuestas.',
+      },
+      {
+        titulo: 'Feedback de alumnos',
+        detalle:
+          'Para un formulario de feedback añade el campo oculto purpose=feedback a su URL, o apunta su id en «Formularios de feedback» abajo. Estas respuestas no crean contactos nuevos: se guardan en la ficha del alumno (CSM) con su nota si el formulario trae una escala.',
+      },
+    ],
+    fields: [
+      {
+        key: 'TYPEFORM_WEBHOOK_SECRET',
+        label: 'Secret del webhook',
+        type: 'password',
+        secret: true,
+        help: 'El mismo Secret que escribiste al crear el webhook en Typeform. Se usa para verificar la firma de cada respuesta.',
+      },
+      {
+        key: 'TYPEFORM_FEEDBACK_FORMS',
+        label: 'Formularios de feedback (ids)',
+        type: 'text',
+        secret: false,
+        advanced: true,
+        placeholder: 'abc123, xyz789',
+        help: 'Opcional. Ids de los formularios (los ves en su URL) que son de feedback de alumnos y no de captación, separados por comas. También puedes usar el campo oculto purpose=feedback.',
+      },
+    ],
+  },
+  {
     id: 'whop',
     title: 'Whop',
     description: 'Membresías y pagos de tu comunidad en Whop: cotejo por API y recepción en tiempo real por webhook.',

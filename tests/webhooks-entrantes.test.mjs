@@ -38,6 +38,7 @@ test('la cabecera que el catálogo declara es la que la ruta comprueba de verdad
     stripe: { cabecera: 'stripe-signature', clave: 'STRIPE_WEBHOOK_SECRET' },
     hotmart: { cabecera: 'x-hotmart-hottok', clave: 'HOTMART_WEBHOOK_SECRET' },
     whop: { cabecera: 'webhook-signature', clave: 'WHOP_WEBHOOK_SECRET' },
+    typeform: { cabecera: 'typeform-signature', clave: 'TYPEFORM_WEBHOOK_SECRET' },
     contratos: { cabecera: 'x-ghl-secret', clave: 'GHL_WEBHOOK_SECRET' },
     onboarding: { cabecera: 'x-ghl-secret', clave: 'ONBOARDING_INBOUND_SECRET' },
   }
@@ -60,6 +61,7 @@ test('los webhooks declaran correctamente cabecera plana o firma criptográfica'
   assert.equal(porId.calendly.auth.tipo, 'firma')
   assert.equal(porId.hotmart.auth.tipo, 'cabecera')
   assert.equal(porId.whop.auth.tipo, 'firma')
+  assert.equal(porId.typeform.auth.tipo, 'firma')
   assert.equal(porId.contratos.auth.configKey, 'GHL_WEBHOOK_SECRET', 'contratos reutiliza el secret de GHL')
 })
 
