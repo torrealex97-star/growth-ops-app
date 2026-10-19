@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { fetchAllRows } from '@/lib/supabase/paginate'
-import { funnelBySource, leadDate } from '@/lib/analytics'
+import { funnelBySource, leadDate, type ModeloAtribucion } from '@/lib/analytics'
 import { metodoDePlan } from '@/lib/metrics/agregados'
 import { canonicalizeAppointments, canonicalizeLeads } from '@/lib/canonical/dedup'
 import { createClient } from '@/lib/supabase/client'
@@ -149,7 +149,15 @@ export default function AttributionPage() {
   const tenantId = useTenantId()
   const [globalError, setGlobalError] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [rows, setRows] = useState<FunnelRow[]>([])
+  // Entradas del embudo por fuente: se guardan para poder recalcularlo al cambiar el modelo sin volver a
+  // pedir nada al servidor.
+  const [funnelInputs, setFunnelInputs] = useState<Parameters<typeof funnelBySource> | null>(null)
+  const [modelo, setModelo] = useState<ModeloAtribucion>('primer')
+  const rows = useMemo<FunnelRow[]>(
+    () =>
+      funnelInputs ? funnelBySource(funnelInputs[0], funnelInputs[1], funnelInputs[2], funnelInputs[3], modelo) : [],
+    [funnelInputs, modelo]
+  )
   const [loadingTouch, setLoadingTouch] = useState(true)
   const [touchRows, setTouchRows] = useState<UtmTouchRow[]>([])
   const [apptError, setApptError] = useState(false)
@@ -220,7 +228,7 @@ export default function AttributionPage() {
       if (!mounted) return
       if ([contactsRes, apptsRes, salesRes, touchRes].some((r) => r.error || r.truncated)) {
         setGlobalError(true)
-        setRows([])
+        setFunnelInputs(null)
         setTouchRows([])
         setLoading(false)
         setLoadingTouch(false)
@@ -246,14 +254,12 @@ export default function AttributionPage() {
       const periodSales = (salesRes.rows ?? [])
         .map((v) => ({ ...v, payment_plan_method: metodoDePlan(v) }))
         .filter((v) => inPeriod(v.sale_date, range))
-      setRows(
-        funnelBySource(
-          leadIds,
-          touchRes.rows.map((a) => ({ ...a, contact_id: aliases.get(a.contact_id) ?? a.contact_id })),
-          periodSales.map((a) => ({ ...a, contact_id: aliases.get(a.contact_id ?? '') ?? a.contact_id })),
-          uniqueAppointments.map((a) => ({ ...a, contact_id: aliases.get(a.contact_id ?? '') ?? a.contact_id }))
-        )
-      )
+      setFunnelInputs([
+        leadIds,
+        touchRes.rows.map((a) => ({ ...a, contact_id: aliases.get(a.contact_id) ?? a.contact_id })),
+        periodSales.map((a) => ({ ...a, contact_id: aliases.get(a.contact_id ?? '') ?? a.contact_id })),
+        uniqueAppointments.map((a) => ({ ...a, contact_id: aliases.get(a.contact_id ?? '') ?? a.contact_id })),
+      ])
       setLoading(false)
       setTouchRows(
         (touchRes.rows || [])
@@ -633,7 +639,36 @@ export default function AttributionPage() {
 
       {/* Embudo por fuente (RPC) */}
       <div className="dashboard-card p-5">
-        <h3 className="text-sm font-semibold text-foreground mb-4">Actividad por fuente / anuncio</h3>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold text-foreground">Actividad por fuente / anuncio</h3>
+          <div
+            role="group"
+            aria-label="Modelo de atribución"
+            className="inline-flex overflow-hidden rounded-lg border border-border text-xs"
+          >
+            {(
+              [
+                ['primer', 'Primer toque'],
+                ['ultimo', 'Último toque'],
+              ] as const
+            ).map(([valor, etiqueta]) => (
+              <button
+                key={valor}
+                type="button"
+                aria-pressed={modelo === valor}
+                onClick={() => setModelo(valor)}
+                className={`px-3 py-1.5 ${modelo === valor ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'}`}
+              >
+                {etiqueta}
+              </button>
+            ))}
+          </div>
+        </div>
+        <p className="text-muted-foreground mb-3 text-xs">
+          {modelo === 'primer'
+            ? 'Cada lead cuenta para el canal que lo trajo: quién capta.'
+            : 'Cada lead cuenta para el último canal con el que tocó: quién remata. Si no hay último toque registrado se usa el primero.'}
+        </p>
         {loading ? (
           <div className="h-40 animate-pulse bg-muted rounded" />
         ) : rows.length === 0 ? (

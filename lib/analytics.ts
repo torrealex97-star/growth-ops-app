@@ -61,6 +61,9 @@ export type AttributionRow = {
   is_primary: boolean
   // Relación estructurada contacto→colaborador (FK a collaborator_profiles). null = directo.
   collaborator_id?: string | null
+  // Último toque conocido (el primero vive en `source`/`utm_source`). Solo hace falta para el modelo
+  // «último toque» de funnelBySource.
+  last_utm_source?: string | null
 }
 export type AppointmentRow = {
   appointment_datetime: string | null
@@ -387,15 +390,31 @@ export type FunnelRow = {
   apptToSale: number
   leadToSale: number
 }
+/**
+ * MODELO DE ATRIBUCIÓN. `primer` (por defecto, lo que siempre se ha mostrado) reparte cada lead entre
+ * el canal que lo trajo; `ultimo` entre el último toque conocido (el que remata). Ninguno es «el
+ * bueno»: el primero dice quién capta, el segundo quién cierra, y comparar los dos enseña qué canales
+ * solo remata y cuáles captan de verdad. Un lead con un único toque sale igual en los dos modelos, y si
+ * no hay último toque registrado se usa el primero (no se inventa un canal).
+ */
+export type ModeloAtribucion = 'primer' | 'ultimo'
+
 export function funnelBySource(
   contactIds: string[],
   attributions: AttributionRow[],
   sales: SaleRow[],
-  appointments: AppointmentRow[]
+  appointments: AppointmentRow[],
+  modelo: ModeloAtribucion = 'primer'
 ): FunnelRow[] {
   const contactSource = new Map<string, string>()
   const primaryFirst = [...attributions].sort((a, b) => Number(b.is_primary) - Number(a.is_primary))
-  for (const a of primaryFirst) if (!contactSource.has(a.contact_id)) contactSource.set(a.contact_id, labelSource(a))
+  for (const a of primaryFirst) {
+    if (contactSource.has(a.contact_id)) continue
+    // Mismo filtro que el primer toque: un «ghl» como último toque describe el sistema, no el canal.
+    const ultimo =
+      modelo === 'ultimo' ? labelSource({ source: null, utm_source: (a.last_utm_source ?? '').trim() || null }) : null
+    contactSource.set(a.contact_id, ultimo && ultimo !== SOURCE_FALLBACK ? ultimo : labelSource(a))
+  }
   const srcOf = (cid?: string | null) => (cid && contactSource.get(cid)) || SOURCE_FALLBACK
 
   const map = new Map<string, FunnelRow>()
