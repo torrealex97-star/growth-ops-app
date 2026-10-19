@@ -90,6 +90,20 @@ interface AppointmentDetailProps {
   onFollowUpChange?: (id: string, needsFollowup: boolean) => void
   onCloserChanged?: (id: string, closer: { id: string; full_name: string } | null) => void
   onSetterChanged?: (id: string, setter: { id: string; full_name: string } | null) => void
+  /**
+   * Avisa al padre de lo que YA está guardado (notas, enlace, transcripción). Sin esto la lista de la
+   * pantalla seguía con el valor viejo: al cerrar y reabrir la agenda las notas aparecían vacías aunque
+   * estuvieran en la base de datos, y el closer concluía que «no se guardan».
+   */
+  onFieldsSaved?: (
+    id: string,
+    campos: {
+      notes?: string | null
+      recording_url?: string | null
+      transcript?: string | null
+      transcript_drive_url?: string | null
+    }
+  ) => void
 }
 
 export function AppointmentDetail({
@@ -110,6 +124,7 @@ export function AppointmentDetail({
   onFollowUpChange,
   onCloserChanged,
   onSetterChanged,
+  onFieldsSaved,
 }: AppointmentDetailProps) {
   const tenant = useTenant()
   const appointment = appointmentProp as AppointmentWithAi
@@ -347,7 +362,10 @@ export function AppointmentDetail({
     }
   }
 
-  const saveNote = async () => {
+  // `silent`: guardado automático al salir del campo. Sin confeti ni «deshacer»: es una red de seguridad
+  // para que lo escrito no se pierda al cerrar la agenda sin pulsar Guardar.
+  const saveNote = async (silent = false) => {
+    if (savingNote) return
     setSavingNote(true)
     try {
       const res = await fetch(`/api/${tenant}/evergreen/appointments/update`, {
@@ -360,6 +378,18 @@ export function AppointmentDetail({
       })
       const data = await res.json()
       if (!res.ok || data?.error) throw new Error(data?.error || 'No se pudo guardar')
+      // Lo guardado es lo recortado: se refleja en los campos y en la lista del padre para que `dirty`
+      // vuelva a false y la agenda reabierta enseñe las notas.
+      setNotes(notes.trim())
+      setRecordingUrl(recordingUrl.trim())
+      onFieldsSaved?.(appointment.id, {
+        notes: notes.trim() || null,
+        recording_url: recordingUrl.trim() || null,
+      })
+      if (silent) {
+        toast.success('Notas guardadas')
+        return
+      }
       fireConfetti()
       toast.success('¡Guardado! 🎉', {
         description: cheerMessage(currentUserName),
@@ -386,6 +416,10 @@ export function AppointmentDetail({
                 }
                 setNotes(appointment.notes ?? '')
                 setRecordingUrl(appointment.recording_url ?? '')
+                onFieldsSaved?.(appointment.id, {
+                  notes: appointment.notes ?? null,
+                  recording_url: appointment.recording_url ?? null,
+                })
                 toast.success('Cambio deshecho')
               },
             }
@@ -515,6 +549,7 @@ export function AppointmentDetail({
         if (!saveRecording.ok || recordingData?.error) {
           throw new Error(recordingData?.error || 'No se pudo guardar el enlace de grabación')
         }
+        onFieldsSaved?.(appointment.id, { recording_url: recordingUrl.trim() })
       }
       // Con enlace de Drive (y sin transcripción pegada) → se procesa en segundo plano
       // (el worker soporta cualquier duración). La app solo lo encola.
@@ -581,6 +616,10 @@ export function AppointmentDetail({
       })
       const data = await res.json()
       if (!res.ok || data?.error) throw new Error(data?.error || 'No se pudo guardar')
+      onFieldsSaved?.(appointment.id, {
+        transcript: transcriptText.trim() || null,
+        transcript_drive_url: driveUrl.trim() || null,
+      })
       toast.success('Guardado')
     } catch (err) {
       toast.error('No se pudo guardar', { description: err instanceof Error ? err.message : undefined })
@@ -1254,6 +1293,9 @@ export function AppointmentDetail({
             type="url"
             value={recordingUrl}
             onChange={(e) => setRecordingUrl(e.target.value)}
+            onBlur={() => {
+              if (dirty && !savingNote) void saveNote(true)
+            }}
             aria-label="Enlace externo de grabación"
             placeholder="https://… (Drive, Zoom, Meet, Fathom)"
             className="w-full bg-muted border border-border rounded-lg p-2.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus:border-brand-500"
@@ -1276,6 +1318,9 @@ export function AppointmentDetail({
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
+            onBlur={() => {
+              if (dirty && !savingNote) void saveNote(true)
+            }}
             rows={3}
             placeholder="Objeciones, próximos pasos, contexto…"
             className="w-full bg-muted border border-border rounded-lg p-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus:border-brand-500 resize-y"
@@ -1297,7 +1342,7 @@ export function AppointmentDetail({
 
         {/* Acciones */}
         <div className="flex justify-end gap-2">
-          <Button size="sm" onClick={saveNote} disabled={savingNote || !dirty}>
+          <Button size="sm" onClick={() => saveNote()} disabled={savingNote || !dirty}>
             {savingNote ? 'Guardando…' : 'Guardar'}
           </Button>
           <Button size="sm" onClick={analyzeCall} disabled={analyzing} className="bg-brand-600 hover:bg-brand-500">
