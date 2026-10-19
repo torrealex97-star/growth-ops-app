@@ -1,5 +1,6 @@
 'use client'
 
+import { useParamUrl } from '@/lib/hooks/useParamUrl'
 import { Skeleton } from '@/components/ui/skeleton'
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
@@ -105,13 +106,17 @@ export default function SalesPage() {
     const t = setTimeout(() => setDebouncedSearch(search), 250)
     return () => clearTimeout(t)
   }, [search])
-  const [statusFilter, setStatusFilter] = useState('all')
-  const [setterFilter, setSetterFilter] = useState('all')
-  const [closerFilter, setCloserFilter] = useState('all')
-  const [productFilter, setProductFilter] = useState('all')
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
-  const [periodPreset, setPeriodPreset] = useState<PeriodPreset>(DEFAULT_PERIOD)
+  const [statusFilter, setStatusFilter] = useParamUrl<string>('estado', 'all')
+  const [setterFilter, setSetterFilter] = useParamUrl<string>('setter', 'all')
+  const [closerFilter, setCloserFilter] = useParamUrl<string>('closer', 'all')
+  const [productFilter, setProductFilter] = useParamUrl<string>('producto', 'all')
+  const [dateFrom, setDateFrom] = useParamUrl<string>('desde', '')
+  const [dateTo, setDateTo] = useParamUrl<string>('hasta', '')
+  const [periodPreset, setPeriodPreset] = useParamUrl<PeriodPreset>(
+    'periodo',
+    DEFAULT_PERIOD,
+    Object.keys(PERIOD_LABELS) as PeriodPreset[]
+  )
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
 

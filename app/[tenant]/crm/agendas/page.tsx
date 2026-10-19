@@ -75,6 +75,7 @@ import {
 import { appointmentLeadScore } from '@/lib/appointments/lead-score'
 import { resolveAppointmentLeadOrigin } from '@/lib/appointments/lead-origin'
 import { patronContiene } from '@/lib/search/like'
+import { useParamUrl } from '@/lib/hooks/useParamUrl'
 import {
   collectMetaAttributionSignals,
   resolveMetaAttribution,
@@ -151,7 +152,12 @@ export default function AppointmentsPage() {
   const [reassigningConflictId, setReassigningConflictId] = useState<string | null>(null)
 
   // View switcher
-  const [view, setView] = useState<'tabla' | 'calendario' | 'analisis' | 'metricas'>('calendario')
+  const [view, setView] = useParamUrl<'tabla' | 'calendario' | 'analisis' | 'metricas'>('vista', 'calendario', [
+    'tabla',
+    'calendario',
+    'analisis',
+    'metricas',
+  ])
   const [weekStart, setWeekStart] = useState<Date>(() => getMondayOfWeek(new Date()))
   const [calMode, setCalMode] = useState<'week' | 'day'>('week')
   // En modo día, closers a mostrar como columnas (lanes) estilo GHL. Vacío = todos.
@@ -171,12 +177,12 @@ export default function AppointmentsPage() {
   }, [])
 
   // Filters
-  const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [channelFilter, setChannelFilter] = useState<string>('all')
-  const [setterFilter, setSetterFilter] = useState<string>('all')
-  const [closerFilter, setCloserFilter] = useState<string>('all')
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
+  const [statusFilter, setStatusFilter] = useParamUrl<string>('estado', 'all')
+  const [channelFilter, setChannelFilter] = useParamUrl<string>('canal', 'all')
+  const [setterFilter, setSetterFilter] = useParamUrl<string>('setter', 'all')
+  const [closerFilter, setCloserFilter] = useParamUrl<string>('closer', 'all')
+  const [dateFrom, setDateFrom] = useParamUrl<string>('desde', '')
+  const [dateTo, setDateTo] = useParamUrl<string>('hasta', '')
   const [search, setSearch] = useState('')
   // Aísla las agendas duplicadas (mismo contacto y misma hora) para poder limpiarlas.
   const [onlyDuplicates, setOnlyDuplicates] = useState(false)
