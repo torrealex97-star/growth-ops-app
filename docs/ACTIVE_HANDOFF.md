@@ -1,3 +1,17 @@
+# COMPLETADO — plan «aprender de apps open source» (19 oct) · #553 y #559
+
+Licencias verificadas en los repos; se estudiaron los MIT (Umami, PostHog, Chatwoot, Mixpost, Ghost, Payload) y no se
+copió código (solo ideas, sin avisos de licencia necesarios). Resultado por idea:
+
+- **Adoptada — embudo por sesión (Umami):** visitas del píxel por sesión y conciliación con Meta solo de anuncios (#553).
+- **Adoptada — modelos de atribución (Umami):** selector «Primer toque / Último toque» en el embudo por fuente de
+  Atribución (#559, `funnelBySource(..., modelo)`; sin último toque se usa el primero).
+- **Descartada — estados de contenido (Mixpost):** Contenido ya tiene un pipeline editorial más rico (idea →
+  guionizado → grabado → editando → editado → publicado).
+- **Descartada — «aplazada» (Chatwoot):** Seguimiento ya tiene `pendiente_recontacto` y las demás etapas; una etapa
+  nueva exigiría migración (CHECK de `followup_stage`) para un beneficio marginal.
+- **Sin resolver — Numok:** no se localizó su repo oficial, así que no se confirmó licencia.
+
 # COMPLETADO — colaboradoras, devoluciones, revisión y limpieza (16-17 oct) · PRs #545–#554
 
 - **Colaboradoras**: tareas propias (crean solo para sí; RLS de lectura acotada, migración `20261016100000` aplicada),
