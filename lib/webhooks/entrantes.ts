@@ -51,6 +51,27 @@ export type WebhookEntrante = {
   aviso?: string
   /** Documentación del alta (limitaciones conocidas incluidas). */
   doc?: string
+  /**
+   * CÓMO SE CONECTA, en tres frases que cualquiera pueda seguir sin que haya alguien técnico delante.
+   * Es OBLIGATORIO: un webhook nuevo que no diga dónde se crea, dónde va el secreto y cómo se prueba
+   * no compila ni pasa el test. El secreto es lo que más se pierde: tiene que decirse en QUÉ DOS
+   * SITIOS se pone (el proveedor y aquí) y que es el mismo valor.
+   */
+  guia: GuiaConexion
+}
+
+export type GuiaConexion = {
+  /** Dónde se da de alta el webhook en el proveedor (ruta de menús). */
+  donde: string
+  /** Dónde se escribe o se copia el secreto en el proveedor, y dónde se pega aquí. */
+  secreto: string
+  /** Cómo provocar un evento real y cómo confirmar que llegó. */
+  prueba: string
+  /**
+   * true cuando el secreto lo INVENTAS tú (Typeform, GHL): se ofrece un botón para generarlo. false
+   * cuando lo da el proveedor (Stripe, Whop, Hotmart): se copia de allí, no se genera.
+   */
+  secretoLoEligesTu: boolean
 }
 
 export const WEBHOOKS_ENTRANTES: WebhookEntrante[] = [
@@ -71,6 +92,14 @@ export const WEBHOOKS_ENTRANTES: WebhookEntrante[] = [
     // con 401, sin que GHL lo explique.
     aviso:
       'GHL solo puede enviar la cabecera desde un Workflow con acción «Custom Webhook» (LC Premium): su herramienta simple de webhooks no admite cabeceras personalizadas.',
+    guia: {
+      donde:
+        'GoHighLevel → Automation → Workflows → crea un workflow → acción «Custom Webhook» (método POST, con la dirección de arriba).',
+      secreto:
+        'Tú eliges el secreto. Pégalo aquí en Integraciones → GoHighLevel → Webhook Secret, y en el Custom Webhook de GHL añade una cabecera llamada x-ghl-secret con ese mismo valor.',
+      prueba: 'Crea un lead o una cita de prueba en GHL. Aquí, «Último evento» debe cambiar a «hace un momento».',
+      secretoLoEligesTu: true,
+    },
   },
   {
     id: 'calendly',
@@ -84,6 +113,14 @@ export const WEBHOOKS_ENTRANTES: WebhookEntrante[] = [
     evidencia: 'audit_calendly',
     aviso:
       'La Signing Key se lee del entorno del servidor (CALENDLY_WEBHOOK_SECRET en Vercel): si la cambias aquí no se aplica hasta actualizarla en Vercel.',
+    guia: {
+      donde:
+        'Calendly crea la suscripción del webhook por su API con tu token personal; al crearla te da una Signing Key.',
+      secreto:
+        'Copia esa Signing Key y guárdala en Vercel como CALENDLY_WEBHOOK_SECRET (ver el aviso de abajo): es la que verifica cada reserva.',
+      prueba: 'Haz una reserva de prueba en un enlace de Calendly. Aquí, «Último evento» debe cambiar.',
+      secretoLoEligesTu: false,
+    },
   },
   {
     id: 'stripe',
@@ -98,6 +135,14 @@ export const WEBHOOKS_ENTRANTES: WebhookEntrante[] = [
     // intentos con firma rechazada (rejected). El estado distingue ambos: "recibido" es la
     // última entrega válida, y el rechazo más reciente avisa de una firma que no cuadra.
     evidencia: 'raw_stripe',
+    guia: {
+      donde:
+        'Stripe → Developers → Webhooks → Add endpoint, con la dirección de arriba y los eventos de pago y reembolso.',
+      secreto:
+        'Stripe te enseña el Signing secret (empieza por whsec_) en la ficha del endpoint, con «Reveal». Cópialo y pégalo aquí en Integraciones → Stripe.',
+      prueba: 'En la ficha del endpoint de Stripe pulsa «Send test webhook». Aquí, «Último evento» debe cambiar.',
+      secretoLoEligesTu: false,
+    },
   },
   {
     id: 'hotmart',
@@ -118,6 +163,14 @@ export const WEBHOOKS_ENTRANTES: WebhookEntrante[] = [
     // rechazada. El estado distingue "recibido" del rechazo de firma más reciente.
     evidencia: 'raw_hotmart',
     doc: '/docs/webhooks-hotmart.md',
+    guia: {
+      donde: 'Hotmart → Herramientas → Webhook → da de alta la dirección de arriba y marca los eventos de compra.',
+      secreto:
+        'El Hottok sale en Herramientas → Webhook → Autenticación de Hotmart. Cópialo y pégalo aquí en Integraciones → Hotmart → Webhook Secret.',
+      prueba:
+        'Usa la opción de probar o reenviar un evento del propio Hotmart, o haz una compra de prueba. Aquí, «Último evento» debe cambiar.',
+      secretoLoEligesTu: false,
+    },
   },
   {
     id: 'typeform',
@@ -130,6 +183,15 @@ export const WEBHOOKS_ENTRANTES: WebhookEntrante[] = [
     eventos: ['form_response'],
     // Como Stripe, Hotmart y Whop: escribe TODO en raw_events, incluidos los rechazos de firma.
     evidencia: 'raw_typeform',
+    guia: {
+      donde:
+        'Typeform → abre el formulario → Connect → Webhooks → Add a webhook. Pega la dirección de arriba como Destination URL y déjalo en «On».',
+      secreto:
+        'Tú eliges el secreto: genéralo aquí con el botón y pégalo en dos sitios. En Typeform: Connect → Webhooks → Edit → Add a Secret. Aquí: el campo «Secret del webhook». Tiene que ser EXACTAMENTE el mismo valor, sin espacios.',
+      prueba:
+        'Envía el formulario público con tu email (la vista previa del editor no dispara el webhook). En Typeform, Webhooks → View deliveries debe mostrar un 200; aquí, «Último evento» cambia.',
+      secretoLoEligesTu: true,
+    },
   },
   {
     id: 'whop',
@@ -142,6 +204,13 @@ export const WEBHOOKS_ENTRANTES: WebhookEntrante[] = [
     eventos: ['payment.succeeded', 'payment.failed', 'refund.created', 'membership.activated'],
     evidencia: 'raw_whop',
     doc: '/docs/webhooks-whop.md',
+    guia: {
+      donde: 'Whop → Developer → Webhooks → Create webhook, con la dirección de arriba.',
+      secreto:
+        'Whop enseña el signing secret (empieza por ws_) UNA SOLA VEZ al crear el webhook: cópialo en ese momento y pégalo aquí en Integraciones → Whop.',
+      prueba: 'Haz un pago de prueba en Whop. Aquí, «Último evento» debe cambiar.',
+      secretoLoEligesTu: false,
+    },
   },
   {
     id: 'contratos',
@@ -155,6 +224,14 @@ export const WEBHOOKS_ENTRANTES: WebhookEntrante[] = [
     auth: { tipo: 'cabecera', nombre: 'x-ghl-secret', configKey: 'GHL_WEBHOOK_SECRET' },
     eventos: ['Contrato firmado'],
     evidencia: null,
+    guia: {
+      donde:
+        'Va por el flujo de GoHighLevel de firma de contratos: una acción «Custom Webhook» que llama a la dirección de arriba.',
+      secreto:
+        'Usa el MISMO secreto que el webhook de GHL (Integraciones → GoHighLevel → Webhook Secret), enviado en la cabecera x-ghl-secret.',
+      prueba: 'Firma un contrato de prueba: debe pasar a «firmado» en la app con su PDF.',
+      secretoLoEligesTu: true,
+    },
   },
   {
     id: 'onboarding',
@@ -167,6 +244,14 @@ export const WEBHOOKS_ENTRANTES: WebhookEntrante[] = [
     eventos: ['click (accesos)', 'booked (sesión agendada)', 'completed (onboarding realizado)'],
     evidencia: 'audit_onboarding',
     aviso: 'Secreto global (ONBOARDING_INBOUND_SECRET en el entorno), no por subcuenta: es el mismo valor para todas.',
+    guia: {
+      donde:
+        'Va por el flujo de GoHighLevel de onboarding de alumnos: acciones «Custom Webhook» que llaman a la dirección de arriba.',
+      secreto:
+        'Es un secreto global del entorno (ONBOARDING_INBOUND_SECRET), el mismo para todas las subcuentas. Se envía en la cabecera x-ghl-secret.',
+      prueba: 'Haz clic en el enlace de accesos de un alumno de prueba: el pipeline de alumnos debe marcar el paso.',
+      secretoLoEligesTu: false,
+    },
   },
 ]
 
@@ -207,6 +292,7 @@ export type WebhookEntranteEstado = {
   eventos: string[]
   aviso: string | null
   doc: string | null
+  guia: GuiaConexion
   secret: EstadoSecretInfo
   /** Última recepción con evidencia real; null = nunca ha llegado ninguna (NO "0"). */
   ultimoEvento: UltimoEvento

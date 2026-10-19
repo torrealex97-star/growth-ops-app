@@ -789,12 +789,12 @@ export const INTEGRATION_GROUPS: IntegrationGroup[] = [
       {
         titulo: 'Crea el webhook en tu formulario',
         detalle:
-          'En Typeform abre el formulario → Connect → Webhooks → Add a webhook. Pega la dirección de arriba como Destination URL, escribe un Secret (una frase larga y aleatoria) y activa el webhook. Repite en cada formulario que quieras conectar.',
+          'En Typeform abre el formulario → Connect → Webhooks → Add a webhook. Pega la dirección de arriba como Destination URL y déjalo en «On». Repite en cada formulario que quieras conectar.',
       },
       {
-        titulo: 'Guarda el mismo secreto aquí',
+        titulo: 'Pon el mismo secreto en Typeform y aquí',
         detalle:
-          'Pega ese mismo Secret en el campo de abajo. La app lo usa para comprobar que cada respuesta viene realmente de Typeform; sin él se rechazan todas.',
+          'Genera un secreto con el botón de «Eventos en tiempo real» (más abajo). En Typeform pulsa Edit junto al webhook → Add a Secret y pégalo. Pega ese MISMO valor en el campo «Secret del webhook» de abajo y guarda. La app lo usa para comprobar que cada respuesta viene de Typeform; sin él, o si no coincide, se rechazan todas.',
       },
       {
         titulo: 'Cualificación de leads (lo habitual)',
