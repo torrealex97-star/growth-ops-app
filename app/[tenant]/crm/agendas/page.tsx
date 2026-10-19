@@ -74,6 +74,7 @@ import {
 } from '@/lib/appointments/status'
 import { appointmentLeadScore } from '@/lib/appointments/lead-score'
 import { resolveAppointmentLeadOrigin } from '@/lib/appointments/lead-origin'
+import { patronContiene } from '@/lib/search/like'
 import {
   collectMetaAttributionSignals,
   resolveMetaAttribution,
@@ -463,12 +464,17 @@ export default function AppointmentsPage() {
     setNaSearchLoading(true)
     const timer = setTimeout(async () => {
       const supabase = createClient()
-      const q = naContactSearch.trim()
+      const patron = patronContiene(naContactSearch)
+      if (!patron) {
+        setNaContactResults([])
+        setNaSearchLoading(false)
+        return
+      }
       const { data } = await supabase
         .from('contacts')
         .select('*')
         .eq('tenant_id', tenantId)
-        .or(`full_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`)
+        .or(`full_name.ilike.${patron},email.ilike.${patron},phone.ilike.${patron}`)
         .limit(10)
       setNaContactResults(data ?? [])
       setNaSearchLoading(false)

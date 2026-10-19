@@ -7,6 +7,7 @@ import { suggestPayment, type PaymentEvidence } from '@/lib/sales/payment-recogn
 import { readPaymentInbox } from '@/lib/sales/payment-inbox'
 import { sugerirContactos, type SugerenciaContacto } from '@/lib/sales/identidad-pago'
 import { fetchAllRows, type RangeQuery } from '@/lib/supabase/paginate'
+import { patronContiene } from '@/lib/search/like'
 import { canViewPaymentInbox } from '@/lib/sales/payment-inbox-access'
 import { resolveByPriceId } from '@/lib/sales/priceRecognition'
 import { planCuotasDeVenta, type CobroPlanCuotas, type CuotaReal } from '@/lib/sales/plan-cuotas'
@@ -29,12 +30,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       if (!session.isSuperAdmin && !['admin', 'director'].includes(session.role ?? ''))
         return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
       if (buscar.length < 3) return NextResponse.json({ resultados: [] })
-      // `%` y `_` son comodines de LIKE y se escapan para que «a_b» no encuentre «axb»; `,()"` romperían el
-      // filtro `or()` de PostgREST y se quitan.
-      const patron = `%${buscar
-        .replace(/[,()"]/g, ' ')
-        .trim()
-        .replace(/[\\%_]/g, '\\$&')}%`
+      const patron = patronContiene(buscar)
+      if (!patron) return NextResponse.json({ resultados: [] })
       const { data, error } = await sb
         .from('contacts')
         .select('id,full_name,email')

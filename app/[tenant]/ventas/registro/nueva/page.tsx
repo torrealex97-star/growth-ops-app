@@ -17,6 +17,7 @@ import { addDays } from 'date-fns'
 import { parseFechaDia, aFechaDia, addMonthsUTC } from '@/lib/sales/plan-cuotas'
 import type { Contact, Product, PaymentPlan, User as DbUser, Appointment } from '@/lib/types/database'
 import { useSesion, useTenant, useTenantId } from '@/lib/tenant-context'
+import { patronContiene } from '@/lib/search/like'
 
 // UUID v4 con fallback para navegadores sin crypto.randomUUID (contextos no seguros/antiguos).
 function genUuid(): string {
@@ -226,12 +227,17 @@ export default function NewSalePage() {
         setContactResults([])
         return
       }
+      const patron = patronContiene(query)
+      if (!patron) {
+        setContactResults([])
+        return
+      }
       setSearchLoading(true)
       const supabase = createClient()
       const { data } = await supabase
         .from('contacts')
         .select('*')
-        .or(`full_name.ilike.%${query}%,email.ilike.%${query}%`)
+        .or(`full_name.ilike.${patron},email.ilike.${patron}`)
         .eq('tenant_id', tenantId)
         .limit(8)
 

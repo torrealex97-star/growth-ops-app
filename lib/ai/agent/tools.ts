@@ -22,6 +22,7 @@ import {
 // tool: re-exportar los tipos mantiene la definición en un solo sitio (lib/ai/knowledge.ts).
 export type { KnowledgeCategory, KnowledgeType }
 import type { Campaign, ContactAttribution, Appointment, Sale, ContactNote } from '@/lib/types/database'
+import { patronContiene } from '@/lib/search/like'
 
 export type ToolContext = {
   tenantId: string
@@ -386,12 +387,14 @@ export async function getContacts({ tenantId, sb }: ToolContext, query: string, 
   const safeLimit = Math.min(Math.max(limit, 1), 25)
   const q = query.trim()
   if (!q) return []
+  const patron = patronContiene(q)
+  if (!patron) return []
   const { data } = await sb
     .from('contacts')
     .select('id,full_name,email,phone,lead_status,lead_channel,created_at,first_seen_at')
     .eq('tenant_id', tenantId)
     .is('merged_into', null)
-    .or(`full_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`)
+    .or(`full_name.ilike.${patron},email.ilike.${patron},phone.ilike.${patron}`)
     .order('created_at', { ascending: false })
     .limit(safeLimit)
   return data || []
@@ -439,12 +442,14 @@ export async function searchTranscripts({ tenantId, sb }: ToolContext, query: st
   const safeLimit = Math.min(Math.max(limit, 1), 20)
   const q = query.trim()
   if (!q) return []
+  const patronTranscripcion = patronContiene(q)
+  if (!patronTranscripcion) return []
   const { data } = await sb
     .from('appointments')
     .select('id,contact_id,appointment_datetime,transcript,ai_summary,contacts(full_name)')
     .eq('tenant_id', tenantId)
     .not('transcript', 'is', null)
-    .ilike('transcript', `%${q}%`)
+    .ilike('transcript', patronTranscripcion)
     .order('appointment_datetime', { ascending: false })
     .limit(safeLimit)
 
