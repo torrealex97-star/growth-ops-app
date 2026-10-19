@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { fetchAllRows, type RangeQuery } from '@/lib/supabase/paginate'
+import { emailsDeContacto, aliasDeContacto } from '@/lib/sales/identidad-pago'
 
 export type InboxPayment = {
   customer_id?: string | null
@@ -12,11 +13,14 @@ export type InboxPayment = {
   status: string
   paid_at: string | null
 }
-type Contact = { id: string; email: string | null; full_name: string | null }
+type Contact = { id: string; email: string | null; full_name: string | null; custom_fields?: unknown }
 export type PendingPayment = InboxPayment & {
   contactId: string | null
   contactName: string | null
-  identitySource: 'customer' | 'email' | null
+  /** `alias`: el correo de pago es un correo alternativo que se recordó en el contacto. */
+  identitySource: 'customer' | 'email' | 'alias' | null
+  /** Nombre del cliente en Stripe (si se conoce): ayuda a sugerir quién es cuando el correo no encaja. */
+  customerName: string | null
 }
 
 /** A receipt is a task, never a sale. Ambiguous identities require an administrator. */
@@ -25,12 +29,12 @@ export function pendingPayments(
   contacts: Contact[],
   references: Set<string>,
   allowedContacts: Set<string> | null,
-  customerLinks: { stripe_customer_id: string; contact_id: string | null }[] = []
+  customerLinks: { stripe_customer_id: string; contact_id: string | null; name?: string | null }[] = []
 ): PendingPayment[] {
   const byEmail = new Map<string, Contact[]>()
+  // El correo principal Y los alternativos recordados: quien paga con otro correo ya vinculado encaja solo.
   for (const c of contacts) {
-    const email = c.email?.trim().toLowerCase()
-    if (email) byEmail.set(email, [...(byEmail.get(email) ?? []), c])
+    for (const email of emailsDeContacto(c)) byEmail.set(email, [...(byEmail.get(email) ?? []), c])
   }
   return payments.flatMap((p) => {
     if (!['succeeded', 'partially_refunded'].includes(p.status) || Number(p.amount) <= Number(p.refunded_amount))
@@ -44,9 +48,23 @@ export function pendingPayments(
     const conflict =
       linkedIds.size > 1 || matches.length > 1 || (linked && matches.length === 1 && matches[0].id !== linked.id)
     const contact = conflict ? null : (linked ?? (matches.length === 1 ? matches[0] : null))
-    const identitySource = contact ? (linked ? ('customer' as const) : ('email' as const)) : null
+    const porAlias =
+      !!contact &&
+      !linked &&
+      !!p.customer_email &&
+      aliasDeContacto(contact).includes(p.customer_email.trim().toLowerCase())
+    const identitySource = contact
+      ? linked
+        ? ('customer' as const)
+        : porAlias
+          ? ('alias' as const)
+          : ('email' as const)
+      : null
     if (allowedContacts && (!contact || !allowedContacts.has(contact.id))) return []
-    return [{ ...p, contactId: contact?.id ?? null, contactName: contact?.full_name ?? null, identitySource }]
+    const customerName = customerLinks.find((c) => c.stripe_customer_id === p.customer_id)?.name ?? null
+    return [
+      { ...p, contactId: contact?.id ?? null, contactName: contact?.full_name ?? null, identitySource, customerName },
+    ]
   })
 }
 
@@ -63,7 +81,7 @@ export async function readPaymentInbox(sb: SupabaseClient, tenantId: string, clo
       'stripe_payments',
       'payment_id,charge_id,customer_id,customer_email,amount,refunded_amount,currency,status,paid_at'
     ),
-    read<Contact>('contacts', 'id,email,full_name'),
+    read<Contact>('contacts', 'id,email,full_name,custom_fields'),
     read<{ payment_reference: string | null }>('collections', 'payment_reference'),
     closerId
       ? read<{ contact_id: string; closer_id: string | null }>('appointments', 'contact_id,closer_id')
@@ -71,9 +89,9 @@ export async function readPaymentInbox(sb: SupabaseClient, tenantId: string, clo
     closerId
       ? read<{ contact_id: string; closer_id: string | null }>('sales', 'contact_id,closer_id')
       : Promise.resolve([]),
-    read<{ stripe_customer_id: string; contact_id: string | null }>(
+    read<{ stripe_customer_id: string; contact_id: string | null; name: string | null }>(
       'stripe_customers',
-      'stripe_customer_id,contact_id'
+      'stripe_customer_id,contact_id,name'
     ),
   ])
   const allowed = closerId

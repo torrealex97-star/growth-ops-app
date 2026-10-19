@@ -12,9 +12,12 @@ import { canViewPaymentInbox } from '@/lib/sales/payment-inbox-access'
 import type { suggestPayment } from '@/lib/sales/payment-recognition'
 import type { PendingPayment } from '@/lib/sales/payment-inbox'
 import { loadPaymentInbox, invalidatePaymentInbox } from '@/lib/sales/payment-inbox-client'
+import { VincularCobro } from '@/components/sales/VincularCobro'
+import type { SugerenciaContacto } from '@/lib/sales/identidad-pago'
 
 type Detail = {
   payment: PendingPayment
+  sugerencias?: SugerenciaContacto[]
   products: { id: string; name: string }[]
   plans: {
     id: string
@@ -317,13 +320,18 @@ export function PaymentInbox({ compact = false, onCount }: { compact?: boolean; 
           </div>
           {detail &&
             (!detail.payment.contactId ? (
-              <p className="text-sm">
-                No hay un contacto único con este email.{' '}
-                <Link className="text-primary underline" href={`/${tenant}/crm/contactos`}>
-                  Identifica el contacto en CRM
-                </Link>{' '}
-                y actualiza la bandeja.
-              </p>
+              <VincularCobro
+                tenant={tenant}
+                paymentId={detail.payment.payment_id}
+                pagador={detail.payment.customer_email ?? detail.payment.customerName ?? 'este pagador'}
+                sugerencias={detail.sugerencias ?? []}
+                puedeVincular={isSuperAdmin || role === 'admin' || role === 'director'}
+                onVinculado={() => {
+                  if (userId) invalidatePaymentInbox({ tenant, userId, role, isSuperAdmin })
+                  void refresh()
+                  void open(detail.payment.payment_id)
+                }}
+              />
             ) : (
               <div className="space-y-4">
                 <p className="text-sm text-muted-foreground" role="status">
