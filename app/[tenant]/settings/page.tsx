@@ -39,8 +39,8 @@ const SETTINGS_CARDS = [
     description: 'Conecta y verifica las fuentes de datos de esta subcuenta',
     icon: Plug,
     href: '/settings/integraciones',
-    color: 'text-cyan-400',
-    bg: 'bg-cyan-500/10',
+    color: 'text-brand-400',
+    bg: 'bg-brand-500/10',
   },
   {
     title: 'Conexiones IA (MCP)',

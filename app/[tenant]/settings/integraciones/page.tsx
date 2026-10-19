@@ -191,7 +191,7 @@ const GROUP_META: Record<string, { icon: typeof Plug; tone: string; steps: strin
   },
   calendly: {
     icon: CalendarDays,
-    tone: 'from-blue-500/25 to-cyan-500/5',
+    tone: 'from-blue-500/25 to-brand-500/5',
     steps: [
       'Abre Integraciones y aplicaciones en Calendly.',
       'Crea un Personal Access Token para esta cuenta.',
@@ -309,7 +309,7 @@ const GROUP_META: Record<string, { icon: typeof Plug; tone: string; steps: strin
   },
   tracking: {
     icon: Radar,
-    tone: 'from-cyan-500/20 to-blue-500/5',
+    tone: 'from-brand-500/20 to-blue-500/5',
     steps: [
       'Genera una clave larga y exclusiva para esta subcuenta.',
       'Configúrala también en el emisor de eventos.',
@@ -1493,7 +1493,7 @@ export default function IntegracionesPage() {
                                   href={meta.docs}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="inline-flex items-center gap-1 text-xs text-cyan-400 hover:underline"
+                                  className="inline-flex items-center gap-1 text-xs text-brand-400 hover:underline"
                                 >
                                   Documentación oficial <ExternalLink className="h-3 w-3" />
                                 </a>

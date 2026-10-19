@@ -151,7 +151,7 @@ export default function PlatformControlPage() {
           </Link>
 
           <Link href={`/${tenant}/settings`} className={CARD_CLASS}>
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-cyan-500/10 text-cyan-400">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-500/10 text-brand-400">
               <SlidersHorizontal className="h-5 w-5" aria-hidden="true" />
             </span>
             <span className="min-w-0 flex-1">
@@ -165,7 +165,7 @@ export default function PlatformControlPage() {
               <span className="mt-1 block text-sm leading-5 text-muted-foreground">
                 Integraciones, Data Health, productos, comisiones y equipo del tenant actual.
               </span>
-              <span className="mt-3 inline-flex rounded bg-cyan-500/10 px-2 py-1 text-2xs font-semibold uppercase tracking-wide text-cyan-400">
+              <span className="mt-3 inline-flex rounded bg-brand-500/10 px-2 py-1 text-2xs font-semibold uppercase tracking-wide text-brand-400">
                 Tenant actual
               </span>
             </span>

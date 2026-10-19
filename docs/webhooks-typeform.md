@@ -23,7 +23,7 @@ Envía el formulario **público** con tu email (la vista previa del editor no di
 - Guarda las respuestas en `contacts.qualification` (mismo formato que Calendly: claves conocidas como `ingresos`, `situacion`… más `respuestas`). Lo nuevo gana en sus claves; lo que Calendly ya traía se conserva.
 - Las copia a las **agendas** existentes de la persona (no a las canceladas). Si la agenda ya trae respuestas propias, ganan las de la agenda y Typeform solo rellena lo que falta.
 - Las agendas que se creen **después** (Calendly, GHL, sync, alta manual) las heredan por el trigger `appointments_heredar_cualificacion` (migración `20261018100000`), solo si llegan sin respuestas.
-- Atribución: campos ocultos `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term`… y `ref` (código de colaboradora, p. ej. `WDC-0472`) → atribuye el lead a su perfil. Añádelos a la URL del formulario (`?utm_source=ig&ref=WDC-0472`).
+- Atribución: campos ocultos `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term`… y `ref` (código de colaboradora, p. ej. `COLAB-0001`) → atribuye el lead a su perfil. Añádelos a la URL del formulario (`?utm_source=ig&ref=COLAB-0001`).
 
 ## Feedback de alumnos
 

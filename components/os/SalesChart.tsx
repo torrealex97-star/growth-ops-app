@@ -83,8 +83,8 @@ export function SalesChart({ data, title = 'Cash Collected por día', className,
                 <stop offset="100%" stopColor="hsl(var(--brand-500))" stopOpacity={0} />
               </linearGradient>
               <linearGradient id="salesChartFillCash" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#34d399" stopOpacity={0.14} />
-                <stop offset="100%" stopColor="#34d399" stopOpacity={0} />
+                <stop offset="0%" stopColor="hsl(var(--brand-400))" stopOpacity={0.14} />
+                <stop offset="100%" stopColor="hsl(var(--brand-400))" stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 6" strokeOpacity={0.45} stroke="hsl(var(--border))" vertical={false} />
@@ -117,7 +117,7 @@ export function SalesChart({ data, title = 'Cash Collected por día', className,
                 type="monotone"
                 dataKey="cash"
                 name="Cash Collected"
-                stroke="#34d399"
+                stroke="hsl(var(--brand-400))"
                 strokeWidth={2}
                 fill="url(#salesChartFillCash)"
                 connectNulls

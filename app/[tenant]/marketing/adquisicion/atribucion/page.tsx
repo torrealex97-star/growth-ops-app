@@ -93,7 +93,7 @@ function BarList({
   const colorMap = {
     violet: 'bg-brand-500',
     emerald: 'bg-emerald-500',
-    cyan: 'bg-cyan-500',
+    cyan: 'bg-brand-500',
   }
   const textMap = {
     violet: 'text-brand-400',

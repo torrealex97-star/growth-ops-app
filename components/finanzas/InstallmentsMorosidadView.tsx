@@ -354,7 +354,7 @@ export function InstallmentsMorosidadView() {
                           {row.is_monitoring ? '—' : row.installment_number}
                           {row.is_monitoring && (
                             <span
-                              className="ml-1.5 text-3xs px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/30"
+                              className="ml-1.5 text-3xs px-1.5 py-0.5 rounded bg-brand-500/15 text-brand-400 border border-brand-500/30"
                               title="Cuota del alumno con la financiera (Sequra). Solo control de impago; no es cash nuestro."
                             >
                               monitor. Sequra

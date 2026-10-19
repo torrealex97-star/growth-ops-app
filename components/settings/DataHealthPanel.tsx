@@ -94,7 +94,7 @@ const EMPTY: DataHealthSummary = {
 
 const statusStyle: Record<string, string> = {
   processed: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-  matched: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30',
+  matched: 'bg-brand-500/15 text-brand-400 border-brand-500/30',
   accepted: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
   received: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
   pending: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
@@ -446,7 +446,7 @@ export function DataHealthPanel() {
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <Database className="h-5 w-5 text-cyan-400" />
+            <Database className="h-5 w-5 text-brand-400" />
             <h1 className="text-2xl font-bold text-foreground">Data Health</h1>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">

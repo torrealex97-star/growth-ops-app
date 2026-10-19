@@ -230,7 +230,7 @@ export const WEBHOOKS_ENTRANTES: WebhookEntrante[] = [
       secreto:
         'Usa el MISMO secreto que el webhook de GHL (Integraciones → GoHighLevel → Webhook Secret), enviado en la cabecera x-ghl-secret.',
       prueba: 'Firma un contrato de prueba: debe pasar a «firmado» en la app con su PDF.',
-      secretoLoEligesTu: true,
+      secretoLoEligesTu: false,
     },
   },
   {

@@ -380,8 +380,12 @@ export function AppointmentDetail({
       if (!res.ok || data?.error) throw new Error(data?.error || 'No se pudo guardar')
       // Lo guardado es lo recortado: se refleja en los campos y en la lista del padre para que `dirty`
       // vuelva a false y la agenda reabierta enseñe las notas.
-      setNotes(notes.trim())
-      setRecordingUrl(recordingUrl.trim())
+      // Solo se reemplaza si el campo sigue igual que lo enviado: si el closer siguió escribiendo mientras
+      // viajaba la petición, no se le pisa lo nuevo con el texto viejo recortado.
+      const enviadoNotas = notes
+      const enviadoUrl = recordingUrl
+      setNotes((actual) => (actual === enviadoNotas ? enviadoNotas.trim() : actual))
+      setRecordingUrl((actual) => (actual === enviadoUrl ? enviadoUrl.trim() : actual))
       onFieldsSaved?.(appointment.id, {
         notes: notes.trim() || null,
         recording_url: recordingUrl.trim() || null,

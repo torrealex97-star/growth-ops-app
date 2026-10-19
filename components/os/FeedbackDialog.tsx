@@ -29,7 +29,7 @@ const STATUS_META: Record<SuggestionStatus, { label: string; color: string }> = 
   nueva: { label: 'Nueva', color: 'bg-blue-500/15 text-blue-300 border-blue-500/30' },
   en_revision: { label: 'En revisión', color: 'bg-amber-500/15 text-amber-300 border-amber-500/30' },
   planificada: { label: 'Planificada', color: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30' },
-  en_progreso: { label: 'En progreso', color: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30' },
+  en_progreso: { label: 'En progreso', color: 'bg-brand-500/15 text-brand-300 border-brand-500/30' },
   resuelta: { label: 'Resuelta', color: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' },
   descartada: { label: 'Descartada', color: 'bg-zinc-500/15 text-muted-foreground border-border/30' },
 }

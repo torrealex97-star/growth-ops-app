@@ -204,9 +204,9 @@ export function FinanceEvolution({
                 type="monotone"
                 dataKey="facturacion"
                 name="Facturación"
-                stroke="#34d399"
+                stroke="hsl(var(--brand-400))"
                 strokeWidth={2}
-                dot={{ r: 2.5, fill: '#34d399' }}
+                dot={{ r: 2.5, fill: 'hsl(var(--brand-400))' }}
                 isAnimationActive={false}
               />
             )}
@@ -333,7 +333,7 @@ export function FinanceDual({ title, data, showCacAxis }: { title: string; data:
             <Bar
               dataKey="facturacion"
               name="Facturación"
-              fill="#34d399"
+              fill="hsl(var(--brand-400))"
               radius={[8, 8, 0, 0]}
               maxBarSize={16}
               yAxisId="eur"
