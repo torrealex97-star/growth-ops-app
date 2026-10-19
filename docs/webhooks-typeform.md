@@ -9,9 +9,13 @@ Respuestas de formularios en tiempo real, para **cualificar leads antes de agend
 ## Alta (por formulario)
 
 1. Typeform → formulario → **Connect → Webhooks → Add a webhook**.
-2. Destination URL = la URL de arriba; **Secret** = una frase larga; activa el webhook.
-3. Pega el mismo secreto en Integraciones → Typeform.
+2. Destination URL = la URL de arriba; déjalo en **On**.
+3. Genera un secreto con el botón «Generar un secreto» de Integraciones → Typeform y pégalo en DOS sitios, idéntico: en Typeform → **Edit → Add a Secret**, y en el campo «Secret del webhook» de Integraciones → Typeform (guardar). Sin secreto Typeform no manda la firma y la app rechaza todo.
 4. El formulario debe pedir el **email** (campo de tipo Email) o el teléfono: sin ninguno no se puede encajar a nadie y la respuesta queda guardada en `raw_events` para enlazarla a mano.
+
+## Cómo comprobar que llega
+
+Envía el formulario **público** con tu email (la vista previa del editor no dispara el webhook). En Typeform → Webhooks → **View deliveries** debe salir 200; en Integraciones → Typeform, «Último evento» cambia. 401 = el secreto no coincide en los dos sitios; 404 = la dirección está mal; sin entregas = el webhook está apagado o no se envió el formulario.
 
 ## Cualificación de leads (por defecto)
 

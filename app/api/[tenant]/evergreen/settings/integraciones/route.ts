@@ -318,6 +318,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ ten
       eventos: webhook.eventos,
       aviso: webhook.aviso ?? null,
       doc: webhook.doc ?? null,
+      guia: webhook.guia,
       secret,
       ultimoEvento,
       ultimoRechazo,

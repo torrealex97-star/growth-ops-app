@@ -1,7 +1,8 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Radio, Copy, CheckCircle2, XCircle, KeyRound, ShieldAlert, ExternalLink } from 'lucide-react'
+import { Radio, Copy, CheckCircle2, XCircle, KeyRound, ShieldAlert, ExternalLink, Wand2 } from 'lucide-react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 import type { WebhookEntranteEstado, EstadoSecretInfo } from '@/lib/webhooks/entrantes'
 import { formatDateTime } from '@/lib/utils'
@@ -35,6 +36,91 @@ function haceCuanto(iso: string): string | null {
   const h = Math.round(min / 60)
   if (h < 24) return `hace ${h} h`
   return `hace ${Math.round(h / 24)} d`
+}
+
+/** Secreto aleatorio de 40 caracteres hexadecimales: sin símbolos que se corten al copiar. */
+function generarSecreto(): string {
+  const bytes = new Uint8Array(20)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+function copiar(texto: string, ok: string) {
+  navigator.clipboard
+    ?.writeText(texto)
+    .then(() => toast.success(ok))
+    .catch(() => toast.error('No se pudo copiar: selecciónalo y cópialo a mano'))
+}
+
+/**
+ * CÓMO CONECTARLO. Lo que más se pierde al conectar una herramienta no es la dirección, es el secreto:
+ * la gente no sabe en qué DOS sitios se pone ni que tiene que ser idéntico. Aquí se dice siempre, con
+ * la ruta de menús del proveedor, un generador cuando el secreto lo eliges tú y qué significa cada
+ * respuesta cuando algo no llega.
+ */
+function GuiaConexionWebhook({ w }: { w: WebhookEntranteEstado }) {
+  const [generado, setGenerado] = useState<string | null>(null)
+  const g = w.guia
+  return (
+    <div className="mt-3 space-y-2 rounded-md border border-cyan-500/20 bg-cyan-500/5 p-3 text-xs">
+      <p className="text-foreground font-medium">Cómo conectarlo</p>
+      <ol className="text-muted-foreground list-decimal space-y-1.5 pl-4">
+        <li>
+          <span className="text-foreground">Dónde se crea:</span> {g.donde}
+        </li>
+        <li>
+          <span className="text-foreground">El secreto (en dos sitios, idéntico):</span> {g.secreto}
+        </li>
+        <li>
+          <span className="text-foreground">Cómo probarlo:</span> {g.prueba}
+        </li>
+      </ol>
+      {g.secretoLoEligesTu ? (
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <Button type="button" variant="outline" size="sm" onClick={() => setGenerado(generarSecreto())}>
+            <Wand2 className="mr-1.5 h-3.5 w-3.5" />
+            Generar un secreto
+          </Button>
+          {generado ? (
+            <>
+              <code className="bg-background/60 border-border rounded border px-2 py-1 select-all">{generado}</code>
+              <Button type="button" variant="outline" size="sm" onClick={() => copiar(generado, 'Secreto copiado')}>
+                <Copy className="mr-1.5 h-3.5 w-3.5" />
+                Copiar
+              </Button>
+            </>
+          ) : null}
+        </div>
+      ) : null}
+      {generado ? (
+        <p className="text-amber-400">
+          Este valor solo se muestra aquí: pégalo ahora en el proveedor y en el campo del secreto de esta ficha, y
+          guarda. Si lo cierras sin guardarlo, genera otro.
+        </p>
+      ) : null}
+      <details className="pt-1">
+        <summary className="text-muted-foreground hover:text-foreground cursor-pointer">Si no llega nada</summary>
+        <ul className="text-muted-foreground mt-1.5 list-disc space-y-1 pl-4">
+          <li>
+            <span className="text-foreground">El proveedor dice «200»:</span> la app lo aceptó. Mira «Último evento»
+            aquí; si no cambia, avísanos con la hora exacta.
+          </li>
+          <li>
+            <span className="text-foreground">Dice «401» o aparece «Último rechazo de firma»:</span> el secreto no es
+            idéntico en los dos sitios (un espacio de más, o falta pegarlo aquí y guardar). Vuelve a pegarlo en ambos.
+          </li>
+          <li>
+            <span className="text-foreground">Dice «404» o error de conexión:</span> la dirección está mal. Usa el botón
+            Copiar de arriba en vez de escribirla.
+          </li>
+          <li>
+            <span className="text-foreground">El proveedor no muestra ninguna entrega:</span> el webhook está apagado o
+            no se ha provocado el evento (en muchos proveedores la vista previa no cuenta).
+          </li>
+        </ul>
+      </details>
+    </div>
+  )
 }
 
 function FilaWebhook({ w, tenant }: { w: WebhookEntranteEstado; tenant: string }) {
@@ -114,6 +200,7 @@ function FilaWebhook({ w, tenant }: { w: WebhookEntranteEstado; tenant: string }
         </p>
       ) : null}
       {w.secret.pista ? <p className="text-muted-foreground mt-2 text-xs">{w.secret.pista}</p> : null}
+      <GuiaConexionWebhook w={w} />
       {w.doc ? (
         <a
           href={w.doc}
