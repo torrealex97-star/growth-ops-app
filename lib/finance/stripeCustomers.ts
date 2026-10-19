@@ -3,6 +3,7 @@
 // (cancelado). Se vincula por email a `contacts` cuando hay coincidencia; si no hay contacto
 // interno, el cliente de Stripe queda igualmente cacheado (sin contact_id) — dato útil para
 // detectar altas de pago que no llegaron a registrarse en la app.
+import { emailsDeContacto } from '@/lib/sales/identidad-pago'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { stripeList } from '@/lib/stripe/client'
 
@@ -153,14 +154,33 @@ export async function syncStripeCustomers(
     // contacto" por un tope de la API, no porque falte el contacto.
     const { data: contacts, error } = await sb
       .from('contacts')
-      .select('id,email')
+      .select('id,email,custom_fields')
       .eq('tenant_id', tenantId)
       .not('email', 'is', null)
       .limit(10000)
     if (error) throw new Error(error.message)
-    for (const c of contacts ?? []) {
-      const email = (c as { email: string | null }).email?.trim().toLowerCase()
-      if (email && emails.has(email) && !contactByEmail.has(email)) contactByEmail.set(email, (c as { id: string }).id)
+    for (const c of (contacts ?? []) as { id: string; email: string | null; custom_fields?: unknown }[]) {
+      // Principal y alternativos: quien paga con un correo ya vinculado a su contacto encaja solo.
+      for (const email of emailsDeContacto(c)) {
+        if (emails.has(email) && !contactByEmail.has(email)) contactByEmail.set(email, c.id)
+      }
+    }
+  }
+
+  // VÍNCULOS HECHOS A MANO. Esta sincronización reescribe `contact_id` de cada cliente en cada pasada: si
+  // solo se mirara el correo, el enlace que alguien hizo a mano (porque el cliente paga con otro correo)
+  // se borraría en la siguiente sincronización y el cobro volvería a quedar sin contacto.
+  const vinculoManual = new Map<string, string>()
+  {
+    const { data: previos, error: errPrevios } = await sb
+      .from('stripe_customers')
+      .select('stripe_customer_id,contact_id')
+      .eq('tenant_id', tenantId)
+      .not('contact_id', 'is', null)
+      .limit(10000)
+    if (errPrevios) throw new Error(errPrevios.message)
+    for (const r of (previos ?? []) as { stripe_customer_id: string; contact_id: string }[]) {
+      vinculoManual.set(r.stripe_customer_id, r.contact_id)
     }
   }
 
@@ -171,7 +191,9 @@ export async function syncStripeCustomers(
     status: c.status,
     subscriptionId: c.subscriptionId,
     currentPeriodEnd: c.currentPeriodEnd,
-    contactId: (c.email && contactByEmail.get(c.email.trim().toLowerCase())) || null,
+    // El correo manda; si no encaja, se conserva el enlace que ya había (nunca se pisa con null).
+    contactId:
+      (c.email && contactByEmail.get(c.email.trim().toLowerCase())) || vinculoManual.get(stripeCustomerId) || null,
   }))
 
   if (rows.length > 0) {

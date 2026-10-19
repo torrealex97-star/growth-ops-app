@@ -5,6 +5,8 @@ import { getTenantConfigWithFallback } from '@/lib/config'
 import { readPaymentEvidence } from '@/lib/stripe/payment-evidence'
 import { suggestPayment, type PaymentEvidence } from '@/lib/sales/payment-recognition'
 import { readPaymentInbox } from '@/lib/sales/payment-inbox'
+import { sugerirContactos, type SugerenciaContacto } from '@/lib/sales/identidad-pago'
+import { fetchAllRows, type RangeQuery } from '@/lib/supabase/paginate'
 import { canViewPaymentInbox } from '@/lib/sales/payment-inbox-access'
 import { resolveByPriceId } from '@/lib/sales/priceRecognition'
 import { planCuotasDeVenta, type CobroPlanCuotas, type CuotaReal } from '@/lib/sales/plan-cuotas'
@@ -21,6 +23,28 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
   try {
     const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
     const paymentId = req.nextUrl.searchParams.get('payment')
+    const buscar = req.nextUrl.searchParams.get('buscar')?.trim()
+    // Búsqueda manual para vincular un cobro sin contacto: solo administración, y solo nombre/email.
+    if (buscar !== undefined && buscar !== null && req.nextUrl.searchParams.has('buscar')) {
+      if (!session.isSuperAdmin && !['admin', 'director'].includes(session.role ?? ''))
+        return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+      if (buscar.length < 3) return NextResponse.json({ resultados: [] })
+      // `%` y `_` son comodines de LIKE y se escapan para que «a_b» no encuentre «axb»; `,()"` romperían el
+      // filtro `or()` de PostgREST y se quitan.
+      const patron = `%${buscar
+        .replace(/[,()"]/g, ' ')
+        .trim()
+        .replace(/[\\%_]/g, '\\$&')}%`
+      const { data, error } = await sb
+        .from('contacts')
+        .select('id,full_name,email')
+        .eq('tenant_id', session.tenantId)
+        .is('merged_into', null)
+        .or(`full_name.ilike.${patron},email.ilike.${patron}`)
+        .limit(8)
+      if (error) throw new Error(error.message)
+      return NextResponse.json({ resultados: data ?? [] })
+    }
     // The shared list does not broaden the existing registration form's write scope.
     if (paymentId && session.role === 'setter' && !session.isSuperAdmin)
       return NextResponse.json(
@@ -164,7 +188,52 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
         payment.paid_at
       )
 
+      // Cobro sin contacto: se proponen candidatos (correo parecido, mismo nombre, llamada reciente). Solo
+      // para administración, que es quien puede vincular; el closer no ve cobros sin contacto.
+      let sugerencias: SugerenciaContacto[] = []
+      if (!payment.contactId && (session.isSuperAdmin || ['admin', 'director'].includes(session.role ?? ''))) {
+        const desde = new Date(Date.now() - 120 * 86_400_000).toISOString()
+        const [contactos, agendas] = await Promise.all([
+          fetchAllRows<{ id: string; email: string | null; full_name: string | null; custom_fields: unknown }>(
+            () =>
+              sb
+                .from('contacts')
+                .select('id,email,full_name,custom_fields')
+                .eq('tenant_id', session.tenantId)
+                .is('merged_into', null)
+                .order('id') as unknown as RangeQuery<{
+                id: string
+                email: string | null
+                full_name: string | null
+                custom_fields: unknown
+              }>
+          ),
+          fetchAllRows<{ contact_id: string | null; appointment_datetime: string | null; status: string | null }>(
+            () =>
+              sb
+                .from('appointments')
+                .select('contact_id,appointment_datetime,status')
+                .eq('tenant_id', session.tenantId)
+                .gte('appointment_datetime', desde)
+                .order('id') as unknown as RangeQuery<{
+                contact_id: string | null
+                appointment_datetime: string | null
+                status: string | null
+              }>
+          ),
+        ])
+        // Si la lectura falla o se trunca, NO se sugiere con datos a medias: el buscador manual sigue ahí.
+        if (!contactos.error && !contactos.truncated && !agendas.error && !agendas.truncated) {
+          sugerencias = sugerirContactos(
+            { email: payment.customer_email, nombre: payment.customerName, pagadoEn: payment.paid_at },
+            contactos.rows,
+            agendas.rows
+          )
+        }
+      }
+
       return NextResponse.json({
+        sugerencias,
         payment,
         products: products.data,
         plans: plans.data,
