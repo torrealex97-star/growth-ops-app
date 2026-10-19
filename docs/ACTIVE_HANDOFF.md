@@ -1,3 +1,20 @@
+# COMPLETADO — Ola 1 del plan «copiar de otras apps» (20 oct) · #563 y #564
+
+Al comprobar cada idea contra el código se descartó lo que ya existía o no aportaba:
+
+- **cmdk (paleta ⌘K): descartado.** `components/os/GlobalSearch.tsx` ya es una paleta ⌘K (pantallas, contactos y agendas).
+- **dnd-kit en el kanban de Seguimiento: descartado.** Cada tarjeta ya trae un selector «mover a etapa» que sirve en
+  táctil; no compensa tocar tanto código.
+- **Atomic CRM (línea de tiempo del contacto): ya existe** (`lib/contact-timeline.ts`).
+  Hecho:
+- **#563 búsquedas seguras:** `lib/search/like.ts` (`patronContiene`). «Gómez, Laura» rompía el `or()` de PostgREST y
+  `_`/`%` eran comodines; aplicado a ⌘K, cobros, Typeform, reservas, nueva venta, nuevo cobro, nueva agenda,
+  historial de emails y herramientas del agente de IA. Un test impide volver a montar el patrón a mano.
+- **#564 filtros en la URL:** `lib/hooks/useParamUrl.ts` (sin dependencia nueva) en Agendas y Registro de ventas.
+  El texto buscado NO va a la URL (nombres y emails).
+  Pendiente opcional (valor menor o esfuerzo alto): TanStack Query en pantallas pesadas, react-email para las
+  plantillas de email, ideas de enrutamiento y round-robin de Cal.diy.
+
 # COMPLETADO — plan «aprender de apps open source» (19 oct) · #553 y #559
 
 Licencias verificadas en los repos; se estudiaron los MIT (Umami, PostHog, Chatwoot, Mixpost, Ghost, Payload) y no se
