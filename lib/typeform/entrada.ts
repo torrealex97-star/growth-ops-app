@@ -5,6 +5,7 @@ import { leerToque, registrarToque, toqueTieneDatos } from '@/lib/contacts/atrib
 import { resolverColaboradorPorCodigo } from '@/lib/collaborators/scope'
 import { hechoDesdeSobre } from '@/lib/eventos/canonico'
 import { verificarFirmaTypeform } from '@/lib/webhooks/typeform'
+import { escaparLike } from '@/lib/search/like'
 import {
   fusionarCualificacion,
   listaFormulariosFeedback,
@@ -29,10 +30,6 @@ import {
 
 const CLAVE_SECRETO = 'TYPEFORM_WEBHOOK_SECRET'
 
-/** `ilike` trata `%` y `_` como comodines: un email con guion bajo casaría con otro distinto. Se escapan. */
-export function escaparLike(valor: string): string {
-  return valor.replace(/[\\%_]/g, '\\$&')
-}
 const NORMALIZADOR = 'typeform-1'
 
 function servicio() {

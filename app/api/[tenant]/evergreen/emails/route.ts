@@ -5,6 +5,7 @@ import { sendEmail } from '@/lib/email/service'
 import { getCompanyProfile } from '@/lib/contracts/company'
 import { TEMPLATE_SKELETONS } from '@/lib/email/templates'
 import type { EmailTemplateKey } from '@/lib/email/templates'
+import { patronContiene } from '@/lib/search/like'
 
 export const runtime = 'nodejs'
 
@@ -49,7 +50,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     .limit(limit)
   if (status) q = q.eq('status', status)
   if (templateKey) q = q.eq('template_key', templateKey)
-  if (to) q = q.ilike('to_email', `%${to}%`)
+  if (to) {
+    const patron = patronContiene(to)
+    if (patron) q = q.ilike('to_email', patron)
+  }
 
   const { data, error } = await q
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

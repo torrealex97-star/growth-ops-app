@@ -26,6 +26,7 @@ import { Label } from '@/components/ui/label'
 import { getPeriodRange, PERIOD_LABELS, PERIOD_PRESETS_STANDARD, type PeriodPreset } from '@/lib/filters/period'
 import { DateRangeCalendarPopover } from '@/components/ui/calendar-popover'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { patronContiene } from '@/lib/search/like'
 
 type ReservationRow = {
   id: string
@@ -252,11 +253,16 @@ export default function ReservasPage() {
       return
     }
     const timer = setTimeout(async () => {
+      const patron = patronContiene(query)
+      if (!patron) {
+        setContactResults([])
+        return
+      }
       const supabase = createClient()
       const { data } = await supabase
         .from('contacts')
         .select('id, full_name, email')
-        .or(`full_name.ilike.%${query}%,email.ilike.%${query}%`)
+        .or(`full_name.ilike.${patron},email.ilike.${patron}`)
         .eq('tenant_id', tenantId)
         .limit(8)
       setContactResults((data ?? []) as Pick<Contact, 'id' | 'full_name' | 'email'>[])

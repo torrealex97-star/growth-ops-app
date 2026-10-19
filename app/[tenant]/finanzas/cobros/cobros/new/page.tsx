@@ -15,6 +15,7 @@ import { differenceInDays } from 'date-fns'
 import { toast } from 'sonner'
 import type { SaleWithRelations, CommissionRule } from '@/lib/types/database'
 import { useTenant, useTenantId } from '@/lib/tenant-context'
+import { patronContiene } from '@/lib/search/like'
 
 const PAYMENT_METHODS = [
   { value: 'transferencia', label: 'Transferencia' },
@@ -136,6 +137,11 @@ export default function NewCollectionPage() {
         setSaleResults([])
         return
       }
+      const patron = patronContiene(query)
+      if (!patron) {
+        setSaleResults([])
+        return
+      }
       setSearchLoading(true)
       const supabase = createClient()
       const { data } = await supabase
@@ -143,7 +149,7 @@ export default function NewCollectionPage() {
         .select(
           `*, contacts(*), products(*), payment_plans(*), setter:setter_id(id, full_name), closer:closer_id(id, full_name), affiliate:affiliate_id(id, full_name)`
         )
-        .or(`contacts.full_name.ilike.%${query}%,contacts.email.ilike.%${query}%`)
+        .or(`contacts.full_name.ilike.${patron},contacts.email.ilike.${patron}`)
         .eq('tenant_id', tenantId)
         .limit(6)
 

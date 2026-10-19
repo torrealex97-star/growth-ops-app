@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { normalizeText } from '@/components/ui/search-box'
 import { makeNavFilter, navHrefForRole, visibleNavItems, type NavItem } from '@/lib/nav'
 import { formatDateTime } from '@/lib/utils'
+import { patronContiene } from '@/lib/search/like'
 import type { AppRole } from '@/lib/auth/permissions'
 import type { User } from '@/lib/types/database'
 import { useTenant, useTenantId } from '@/lib/tenant-context'
@@ -96,7 +97,17 @@ export function GlobalSearch({
     const timer = setTimeout(async () => {
       const sb = createClient()
       const digits = q.replace(/[^\d]/g, '')
-      const or = [`full_name.ilike.%${q}%`, `email.ilike.%${q}%`]
+      // Patrón escapado: «Gómez, Laura» ya no rompe el filtro y «a_b» no encuentra «axb».
+      const patron = patronContiene(q)
+      if (!patron) {
+        if (!cancelled) {
+          setContacts([])
+          setAppts([])
+          setSearching(false)
+        }
+        return
+      }
+      const or = [`full_name.ilike.${patron}`, `email.ilike.${patron}`]
       if (digits.length >= 3) or.push(`phone.ilike.%${digits}%`)
       const [cRes, aRes] = await Promise.all([
         sb
@@ -110,7 +121,7 @@ export function GlobalSearch({
           .from('appointments')
           .select('id, appointment_datetime, contacts!inner(full_name)')
           .eq('tenant_id', tenantId)
-          .ilike('contacts.full_name', `%${q}%`)
+          .ilike('contacts.full_name', patron)
           .order('appointment_datetime', { ascending: false })
           .limit(5),
       ])
