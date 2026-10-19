@@ -1,3 +1,34 @@
+# FIX — Calendly nunca entregó un webhook real: solo el cron diario (19-oct, Claude Code)
+
+Continuación del mismo reporte: Alex confirmó que más de uno de los leads de Typeform de hoy
+**ya había agendado**, pero ninguno aparecía en el CRM. Diagnóstico con datos reales: las 749 citas
+de los últimos 10 días se crean SIEMPRE en una ventana de segundos/minutos, una vez al día, que
+coincide exactamente con las ejecuciones de `.github/workflows/cron-calendly-ghl.yml` (`20 4 * * *`
+UTC, con el retraso habitual de GitHub Actions). **Cero citas se crearon fuera de esas ventanas en
+10 días** — el webhook en tiempo real de Calendly (`app/[tenant]/evergreen/webhooks/calendly/route.ts`,
+código listo, `CALENDLY_WEBHOOK_SECRET` guardado desde el 28-sep) nunca ha recibido una entrega real.
+
+Causa: no existe en el repo ninguna llamada a la API de Calendly para crear la suscripción del
+webhook (`POST /webhook_subscriptions`) — el secreto se guardó para verificar firmas, pero nadie
+creó nunca la suscripción del lado de Calendly. No es autoservicio desde su panel; se crea por API.
+
+**Fix:** `ensureWebhookSubscription()` en `lib/calendly.ts` — idempotente: si ya hay una suscripción
+activa con nuestra URL exacta, no hace nada; si existe pero Calendly la desactivó (lo hace tras
+fallos repetidos de entrega), la borra y crea una nueva. Si Calendly devuelve una `signing_key`
+distinta a la que ya teníamos guardada, la persiste automáticamente (si no, las firmas de las
+entregas reales nunca verificarían). Expuesto como botón «Activar tiempo real» en Configuración →
+Integraciones → Calendly (`provider: 'calendly-webhook'` en el history-sync existente, mismo patrón
+que el backfill de campos de GHL). Confirmado plan de pago de Calendly (Standard/Teams/Enterprise)
+con el usuario — los webhooks no existen en el plan gratuito.
+
+**Validado:** typecheck limpio, lint limpio, formato aplicado, 70/70 tests existentes de
+calendly/integraciones en verde. **No pude probar la llamada real a la API de Calendly desde este
+entorno** (el proxy de salida de este sandbox no permite llegar a `api.calendly.com`) — hay que
+pulsar el botón en producción una vez y confirmar que las citas de hoy entran sin esperar al cron
+de las 04:20 UTC. Si Calendly devuelve un error de validación inesperado (p.ej. rechaza el campo
+`signing_key` en la creación), saldrá tal cual en el toast de error — reportarlo para ajustar la
+llamada contra la respuesta real, no he podido verificarla contra la API en vivo.
+
 # FIX — «Todo el equipo» en Agendas sin citas de Claudia para una closer (19-oct, Claude Code)
 
 Reporte: una closer (Daniele) no veía sus agendas al elegir «Todo el equipo» en el calendario de

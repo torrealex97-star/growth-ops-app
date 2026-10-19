@@ -14,6 +14,8 @@ import { HISTORY_CAPABILITIES } from '@/lib/integrations/history'
 // tener DOS copias de estas funciones (una por el botón, otra por el webhook) es exactamente la
 // deriva que dejó la ingesta de agendas muerta durante días sin que nadie la viera.
 import { serviceClient, syncCalendly, syncGhl } from '@/lib/integrations/citas-sync'
+import { ensureWebhookSubscription } from '@/lib/calendly'
+import { encryptSecret, getConfigEncryptionKeyFingerprint, invalidateConfigCache } from '@/lib/config'
 import { backfillAtribucionLocal } from '@/lib/contacts/backfill-atribucion'
 import { backfillCampaignId } from '@/lib/contacts/backfill-campaign-id'
 import { runMetaAdsSync, runMetaDailySync, runMetaSync } from '@/lib/meta/sync'
@@ -203,6 +205,39 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
         })
       )
       return NextResponse.json(result)
+    }
+    if (body.provider === 'calendly-webhook') {
+      // Acción de una sola vez, no un sync de datos: crea (o recrea si Calendly la desactivó)
+      // la suscripción del webhook en tiempo real del lado de Calendly. Sin esto, las citas solo
+      // entraban por el cron diario de respaldo (calendly-citas) — nunca hubo suscripción real.
+      if (!cfg.CALENDLY_API_TOKEN) return NextResponse.json({ error: 'Falta CALENDLY_API_TOKEN' }, { status: 400 })
+      if (!cfg.CALENDLY_WEBHOOK_SECRET)
+        return NextResponse.json({ error: 'Falta CALENDLY_WEBHOOK_SECRET' }, { status: 400 })
+      const site = (process.env.NEXT_PUBLIC_SITE_URL || req.nextUrl.origin).replace(/\/$/, '')
+      const callbackUrl = `${site}/api/${tenant}/evergreen/webhooks/calendly`
+      const resultado = await ensureWebhookSubscription(
+        cfg.CALENDLY_API_TOKEN,
+        callbackUrl,
+        cfg.CALENDLY_WEBHOOK_SECRET
+      )
+      if (resultado.signingKeyNueva) {
+        // Calendly generó su propia signing_key en vez de aceptar la nuestra: hay que guardar ESA
+        // o verifySignature() del webhook rechazará todas las entregas reales por firma inválida.
+        const { error: errSecret } = await sb.from('integration_settings').upsert(
+          {
+            tenant_id: auth.tenantId,
+            key: 'CALENDLY_WEBHOOK_SECRET',
+            value: encryptSecret(resultado.signingKeyNueva),
+            is_secret: true,
+            key_fingerprint: getConfigEncryptionKeyFingerprint(),
+            updated_by: auth.userId,
+          },
+          { onConflict: 'tenant_id,key' }
+        )
+        if (errSecret) return NextResponse.json({ error: errSecret.message }, { status: 500 })
+        invalidateConfigCache(auth.tenantId)
+      }
+      return NextResponse.json({ provider: 'calendly-webhook', callbackUrl, ...resultado })
     }
     if (body.provider === 'fathom')
       return NextResponse.json(await syncFathom(sb, auth.tenantId, cfg, { dryRun: body.dryRun === true }))
