@@ -1255,8 +1255,8 @@ export default function NewSalePage() {
             )}
 
             {isCustom && (
-              <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-4 space-y-4">
-                <h3 className="text-sm font-medium text-cyan-300">Plan de pago personalizado</h3>
+              <div className="bg-brand-500/10 border border-brand-500/30 rounded-lg p-4 space-y-4">
+                <h3 className="text-sm font-medium text-brand-300">Plan de pago personalizado</h3>
                 <p className="text-xs text-muted-foreground -mt-2">
                   Ej: paga una parte ahora y el resto por Sequra/transferencia en varias cuotas.
                 </p>
@@ -1331,7 +1331,7 @@ export default function NewSalePage() {
                   />
                 </div>
                 {customTotalNumber > 0 && (
-                  <div className="text-xs text-muted-foreground border-t border-cyan-500/20 pt-3 space-y-0.5">
+                  <div className="text-xs text-muted-foreground border-t border-brand-500/20 pt-3 space-y-0.5">
                     <p>
                       Inicial ahora:{' '}
                       <span className="text-emerald-400 font-medium">{formatCurrency(downPaymentNumber)}</span> · Resto

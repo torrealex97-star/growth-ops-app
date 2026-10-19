@@ -36,3 +36,13 @@ test('la API de Integraciones entrega la guía al panel', () => {
   const r = readFileSync('app/api/[tenant]/evergreen/settings/integraciones/route.ts', 'utf8')
   assert.match(r, /guia: webhook\.guia/)
 })
+
+test('un webhook que reutiliza el secreto de GHL no ofrece generar uno nuevo (rompería los demás)', () => {
+  const porId = Object.fromEntries(WEBHOOKS_ENTRANTES.map((w) => [w.id, w]))
+  assert.equal(porId.contratos.guia.secretoLoEligesTu, false)
+  // Regla general: quien comparte clave con otro webhook no puede inventarse el secreto por su cuenta.
+  for (const w of WEBHOOKS_ENTRANTES) {
+    const compartida = WEBHOOKS_ENTRANTES.some((o) => o.id !== w.id && o.auth.configKey === w.auth.configKey)
+    if (compartida && w.id !== 'ghl-citas') assert.equal(w.guia.secretoLoEligesTu, false, w.id)
+  }
+})

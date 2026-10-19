@@ -62,7 +62,7 @@ function GuiaConexionWebhook({ w }: { w: WebhookEntranteEstado }) {
   const [generado, setGenerado] = useState<string | null>(null)
   const g = w.guia
   return (
-    <div className="mt-3 space-y-2 rounded-md border border-cyan-500/20 bg-cyan-500/5 p-3 text-xs">
+    <div className="mt-3 space-y-2 rounded-md border border-brand-500/20 bg-brand-500/5 p-3 text-xs">
       <p className="text-foreground font-medium">Cómo conectarlo</p>
       <ol className="text-muted-foreground list-decimal space-y-1.5 pl-4">
         <li>
@@ -206,7 +206,7 @@ function FilaWebhook({ w, tenant }: { w: WebhookEntranteEstado; tenant: string }
           href={w.doc}
           target="_blank"
           rel="noreferrer"
-          className="mt-2 inline-flex items-center gap-1 text-xs text-cyan-400 hover:underline"
+          className="mt-2 inline-flex items-center gap-1 text-xs text-brand-400 hover:underline"
         >
           Cómo configurarlo (limitaciones incluidas) <ExternalLink className="h-3 w-3" />
         </a>

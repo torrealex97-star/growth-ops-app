@@ -110,10 +110,18 @@ export function normalizarRespuestaTypeform(
       if (m) edad = parseInt(m[0], 10)
     }
     const titulo = q.toLowerCase()
-    if (!nombre && /^(nombre|name|first name|tu nombre|¿cómo te llamas)/.test(titulo) && !/apellid/.test(titulo)) {
+    const pideNombre = /\b(nombre|name|llamas)\b/.test(titulo)
+    const pideApellidos = /apellid|last name|surname/.test(titulo)
+    if (pideNombre && pideApellidos) {
+      // «Nombre y apellidos»: una sola respuesta con todo; se reparte por el primer espacio.
+      const [primero, ...resto] = a.trim().split(/\s+/)
+      if (!nombre) nombre = primero || null
+      if (!apellidos && resto.length) apellidos = resto.join(' ')
+    } else if (pideNombre && !nombre) {
       nombre = a
+    } else if (pideApellidos && !apellidos) {
+      apellidos = a
     }
-    if (!apellidos && /apellid|last name|surname/.test(titulo)) apellidos = a
   }
   cualificacion.respuestas = respuestas
   cualificacion.origen = 'typeform'

@@ -322,7 +322,7 @@ export default function TasksPage() {
           {isAdmin && (
             <button
               onClick={() => setShowAI(true)}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm bg-cyan-600/20 text-cyan-300 border border-cyan-600/40 hover:bg-cyan-600/30 whitespace-nowrap"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm bg-brand-600/20 text-brand-300 border border-brand-600/40 hover:bg-brand-600/30 whitespace-nowrap"
             >
               <Sparkles className="w-4 h-4" /> Generar con IA
             </button>
@@ -391,7 +391,7 @@ export default function TasksPage() {
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className={`text-3xs px-1.5 py-0.5 rounded border ${prio.badge}`}>{prio.label}</span>
                           {t.source === 'ai' && (
-                            <span className="text-3xs px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-400">IA</span>
+                            <span className="text-3xs px-1.5 py-0.5 rounded bg-brand-500/20 text-brand-400">IA</span>
                           )}
                         </div>
 
@@ -514,7 +514,7 @@ export default function TasksPage() {
           <DialogContent className="w-full max-w-2xl max-h-[90vh] gap-4 overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-cyan-400" /> Generar tareas desde transcripción
+                <Sparkles className="w-4 h-4 text-brand-400" /> Generar tareas desde transcripción
               </DialogTitle>
             </DialogHeader>
 
@@ -536,7 +536,7 @@ export default function TasksPage() {
                   <button
                     onClick={generateFromTranscript}
                     disabled={aiLoading}
-                    className="flex items-center gap-2 px-3 py-2 text-sm bg-cyan-600 text-foreground rounded-lg disabled:opacity-50"
+                    className="flex items-center gap-2 px-3 py-2 text-sm bg-brand-600 text-foreground rounded-lg disabled:opacity-50"
                   >
                     {aiLoading ? (
                       <>
@@ -560,7 +560,7 @@ export default function TasksPage() {
                   {proposals.map((p, i) => (
                     <div
                       key={i}
-                      className={`rounded-lg border p-3 space-y-2 ${p.selected ? 'border-cyan-600/40 bg-cyan-600/5' : 'border-border bg-card/50 opacity-60'}`}
+                      className={`rounded-lg border p-3 space-y-2 ${p.selected ? 'border-brand-600/40 bg-brand-600/5' : 'border-border bg-card/50 opacity-60'}`}
                     >
                       <div className="flex items-start gap-2">
                         <input
@@ -571,7 +571,7 @@ export default function TasksPage() {
                               prev.map((x, j) => (j === i ? { ...x, selected: e.target.checked } : x))
                             )
                           }
-                          className="mt-1 h-4 w-4 rounded border-border bg-card accent-cyan-500"
+                          className="mt-1 h-4 w-4 rounded border-border bg-card accent-brand-500"
                         />
                         <input
                           value={p.title}

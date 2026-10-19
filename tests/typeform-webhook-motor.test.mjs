@@ -33,7 +33,18 @@ class Q {
     return this
   }
   ilike(c, v) {
-    this.f.push((r) => String(r[c] ?? '').toLowerCase() === String(v).toLowerCase())
+    // Semántica de LIKE de Postgres: `%` y `_` son comodines salvo que vayan escapados con `\`.
+    let re = ''
+    const patron = String(v)
+    for (let i = 0; i < patron.length; i++) {
+      const ch = patron[i]
+      if (ch === '\\' && i + 1 < patron.length) re += patron[++i].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      else if (ch === '%') re += '.*'
+      else if (ch === '_') re += '.'
+      else re += ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    }
+    const regex = new RegExp(`^${re}$`, 'i')
+    this.f.push((r) => regex.test(String(r[c] ?? '')))
     return this
   }
   like(c, p) {
@@ -139,7 +150,7 @@ const firmar = (raw) => `sha256=${crypto.createHmac('sha256', SECRETO).update(ra
 
 function entorno(extra = {}) {
   const db = {
-    tenants: [{ id: TENANT, slug: 'wdc', status: 'active' }],
+    tenants: [{ id: TENANT, slug: 'demo', status: 'active' }],
     contacts: [],
     appointments: [],
     ...extra,
@@ -176,14 +187,14 @@ const cuerpo = (token, { hidden = {}, extra = [] } = {}) => ({
 async function enviar(env, payload, { secreto = SECRETO, config = { TYPEFORM_WEBHOOK_SECRET: SECRETO } } = {}) {
   const raw = JSON.stringify(payload)
   const firma = secreto === SECRETO ? firmar(raw) : 'sha256=mala'
-  const req = new Request('http://x/api/wdc/evergreen/webhooks/typeform', {
+  const req = new Request('http://x/api/demo/evergreen/webhooks/typeform', {
     method: 'POST',
     headers: { 'typeform-signature': firma },
     body: raw,
   })
   const res = await procesarEntradaTypeform({
     req,
-    params: Promise.resolve({ tenant: 'wdc' }),
+    params: Promise.resolve({ tenant: 'demo' }),
     pruebas: { cliente: env.cl, config },
   })
   return { status: res.status, cuerpo: await res.json() }
@@ -298,8 +309,10 @@ test('feedback por formulario listado en TYPEFORM_FEEDBACK_FORMS aunque no lleve
 })
 
 test('el código de colaboradora en el campo oculto ref atribuye el lead a su perfil', async () => {
-  const env = entorno({ collaborator_profiles: [{ id: 'cp1', tenant_id: TENANT, code: 'WDC-0472', status: 'active' }] })
-  await enviar(env, cuerpo('t8', { hidden: { ref: 'WDC-0472' } }))
+  const env = entorno({
+    collaborator_profiles: [{ id: 'cp1', tenant_id: TENANT, code: 'COLAB-0001', status: 'active' }],
+  })
+  await enviar(env, cuerpo('t8', { hidden: { ref: 'COLAB-0001' } }))
   assert.equal(env.db.contact_attributions[0].collaborator_id, 'cp1')
 })
 
@@ -312,4 +325,32 @@ test('sin email ni teléfono no se inventa a nadie: el sobre queda guardado', as
   assert.equal(r.cuerpo.contacto, false)
   assert.equal(env.db.contacts.length, 0)
   assert.equal(env.db.raw_events.length, 1)
+})
+
+test('feedback: un email con guion bajo no enlaza con otro contacto parecido (comodines de LIKE)', async () => {
+  const env = entorno()
+  env.db.contacts.push(
+    { id: 'otro', tenant_id: TENANT, email: 'laurazg@ejemplo.com', phone: null },
+    { id: 'bueno', tenant_id: TENANT, email: 'laura_g@ejemplo.com', phone: null }
+  )
+  const p = cuerpo('t10', { hidden: { purpose: 'feedback' } })
+  p.form_response.answers[1].email = 'Laura_G@Ejemplo.com'
+  const r = await enviar(env, p)
+  assert.equal(r.cuerpo.contactId, 'bueno')
+  assert.equal(env.db.csm_events.length, 1)
+  assert.equal(env.db.csm_events[0].contact_id, 'bueno')
+})
+
+test('nombre: «Nombre y apellidos» se reparte y «¿Cuál es tu nombre?» se reconoce', async () => {
+  const env = entorno()
+  const p = cuerpo('t11')
+  p.form_response.definition.fields[0].title = 'Nombre y apellidos'
+  p.form_response.answers[0].text = 'Laura Gómez Ruiz'
+  await enviar(env, p)
+  assert.equal(env.db.contacts[0].full_name, 'Laura Gómez Ruiz')
+  const env2 = entorno()
+  const p2 = cuerpo('t12')
+  p2.form_response.definition.fields[0].title = '¿Cuál es tu nombre?'
+  await enviar(env2, p2)
+  assert.equal(env2.db.contacts[0].full_name, 'Laura')
 })

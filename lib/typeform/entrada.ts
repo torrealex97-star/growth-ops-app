@@ -28,6 +28,11 @@ import {
 //     CSM con la nota y las respuestas; si no, el sobre queda guardado y se dice que el enlace es manual.
 
 const CLAVE_SECRETO = 'TYPEFORM_WEBHOOK_SECRET'
+
+/** `ilike` trata `%` y `_` como comodines: un email con guion bajo casaría con otro distinto. Se escapan. */
+export function escaparLike(valor: string): string {
+  return valor.replace(/[\\%_]/g, '\\$&')
+}
 const NORMALIZADOR = 'typeform-1'
 
 function servicio() {
@@ -269,18 +274,21 @@ async function copiarAAgendas(
     console.warn('[typeform-webhook] no se pudieron leer las agendas del contacto:', error.message)
     return
   }
-  for (const cita of (citas ?? []) as { id: string; status: string | null; qualification: unknown }[]) {
-    if (/cancel/i.test(cita.status ?? '')) continue
-    const propia = (cita.qualification as Record<string, unknown> | null) ?? null
-    const fusionada = propia ? fusionarCualificacion(cualificacionTypeform, propia) : cualificacionTypeform
-    if (JSON.stringify(fusionada) === JSON.stringify(propia)) continue
-    const { error: errUp } = await sb
-      .from('appointments')
-      .update({ qualification: fusionada })
-      .eq('id', cita.id)
-      .eq('tenant_id', tenantId)
-    if (errUp) console.warn(`[typeform-webhook] no se pudo copiar a la agenda ${cita.id}:`, errUp.message)
-  }
+  const pendientes = (citas ?? []) as { id: string; status: string | null; qualification: unknown }[]
+  await Promise.all(
+    pendientes.map(async (cita) => {
+      if (/cancel/i.test(cita.status ?? '')) return
+      const propia = (cita.qualification as Record<string, unknown> | null) ?? null
+      const fusionada = propia ? fusionarCualificacion(cualificacionTypeform, propia) : cualificacionTypeform
+      if (JSON.stringify(fusionada) === JSON.stringify(propia)) return
+      const { error: errUp } = await sb
+        .from('appointments')
+        .update({ qualification: fusionada })
+        .eq('id', cita.id)
+        .eq('tenant_id', tenantId)
+      if (errUp) console.warn(`[typeform-webhook] no se pudo copiar a la agenda ${cita.id}:`, errUp.message)
+    })
+  )
 }
 
 /** Feedback: solo se ENCUENTRA a la persona (email, luego teléfono); nunca se crea un contacto. */
@@ -290,7 +298,7 @@ async function buscarContacto(sb: Servicio, tenantId: string, r: RespuestaTypefo
       .from('contacts')
       .select('id')
       .eq('tenant_id', tenantId)
-      .ilike('email', r.email)
+      .ilike('email', escaparLike(r.email))
       .limit(1)
     if (error) return 'error'
     if (data?.[0]) return data[0].id as string
