@@ -1,3 +1,35 @@
+# FIX — «Todo el equipo» en Agendas sin citas de Claudia para una closer (19-oct, Claude Code)
+
+Reporte: una closer (Daniele) no veía sus agendas al elegir «Todo el equipo» en el calendario de
+`app/[tenant]/crm/agendas/page.tsx`. Diagnóstico con datos reales (no supuesto): el selector
+«Todo el equipo» existe para closer/setter con `data_scope='team'` desde antes del hallazgo F01 —
+pensado para coordinar el calendario del equipo completo y no pisarse citas, NO para ver ventas o
+cobros. La migración de seguridad del F01 (`20261003120000`, hace dos semanas) cerró el bypass de
+`data_scope='team'` a solo liderazgo (admin/director/manager) en seis tablas a la vez, appointments
+y contacts incluidas, sin distinguir que esas dos tenían un uso operativo legítimo para closer/
+setter distinto del financiero.
+
+**Verificado en producción antes del fix:** Daniele (closer, `data_scope='team'`) veía 22 citas
+(solo las suyas) en vez de las 748/749 del equipo; Claudia (admin) es closer_id/setter_id en 726 de
+esas 749 — es quien de hecho lleva el calendario. De sus 726, solo 3 resolvían el contacto embebido
+para Daniele (el resto habría aparecido con el nombre en blanco, igual de inútil que no verlas).
+
+**Migración `20261019200000`:** `is_team_scheduling_scope_allowed()` — mismo patrón que
+`is_team_scope_allowed()` pero con la lista de roles ampliada a admin/director/manager/closer/setter
+(afiliado sigue fuera). Aplicada SOLO a `appointments_select_scope` y `contacts_select_scope`; el
+resto de tablas del F01 (sales, collections, contact_attributions, activities, stripe_payments)
+sin cambios — ahí sí aplica el hallazgo original (afiliado viendo ventas/cobros ajenos).
+
+**Verificado tras el fix:** Daniele pasa a ver 748/749 citas con los 748 contactos resueltos. Control
+con un afiliado (mismo `data_scope='team'`, rol excluido a propósito): 0 filas ganadas, ni en
+appointments ni en contacts — el hallazgo F01 original sigue cerrado para afiliados.
+
+El segundo punto del reporte («no veo que traigan las preguntas de Typeform») resultó NO ser un bug:
+el webhook (PR #556, en producción desde esta misma mañana) escribe `contacts.qualification` y la
+copia a agendas existentes correctamente — verificado con los 7 envíos reales de hoy, cero huecos en
+los 749 appointments del histórico. Solo 1 de esos 7 leads ya tenía cita (Ingrid Quevedo) y su cita
+llevó las 10 respuestas sin problema. El resto simplemente no ha agendado todavía.
+
 # COMPLETADO — Ola 1 del plan «copiar de otras apps» (20 oct) · #563 y #564
 
 Al comprobar cada idea contra el código se descartó lo que ya existía o no aportaba:

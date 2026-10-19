@@ -1,3 +1,15 @@
+## Resuelto — «Todo el equipo» en Agendas sin citas de Claudia (19-oct, Claude Code)
+
+Migración `20261019200000`: el cierre de `data_scope='team'` del F01 (hace dos semanas) rompió sin
+querer la coordinación de calendario de closer/setter (no es lo mismo ver el calendario del equipo
+que ver sus ventas/cobros). Acotado a `appointments`+`contacts` con roles ampliados a admin/
+director/manager/closer/setter; afiliado sigue excluido. Verificado con un caso real (closer
+Daniele: 22→748/749 citas con contacto resuelto; afiliado de control sin ganar nada). Detalle en
+`docs/ACTIVE_HANDOFF.md` y `DASHBOARD_AUDIT.md` (fila F01).
+
+Typeform→agendas (PR #556) confirmado funcionando sin huecos — el reporte de que "no trae las
+preguntas" era solo falta de volumen (lleva horas en producción), no un bug.
+
 ## Actualización 10-oct — barrido del backlog (Buffy/Codebuff)
 
 - [x] CERRADO (ya resuelto en PR #379 del 6-oct): **P1 · Comisiones futuras API 500** por
