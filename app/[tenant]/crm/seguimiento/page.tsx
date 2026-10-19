@@ -333,6 +333,14 @@ export default function SeguimientoPage() {
     }
   }
 
+  // Notas, enlace y transcripción ya guardados: se reflejan en la lista y en la agenda abierta.
+  const handleFieldsSaved = (id: string, campos: Partial<AppointmentWithRelations>) => {
+    setAppointments((prev) => prev.map((a) => (a.id === id ? { ...a, ...campos } : a)))
+    if (selectedAppointment?.id === id) {
+      setSelectedAppointment((prev) => (prev ? { ...prev, ...campos } : prev))
+    }
+  }
+
   const handleStatusChange = (id: string, status: AppointmentStatus) => {
     setAppointments((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)))
     if (selectedAppointment?.id === id) {
@@ -821,6 +829,7 @@ export default function SeguimientoPage() {
                 closers={closers}
                 setters={setters}
                 onStatusChange={handleStatusChange}
+                onFieldsSaved={handleFieldsSaved}
                 onRescheduled={handleRescheduled}
                 onFollowUpChange={handleFollowUpChange}
                 onCloserChanged={handleCloserChanged}
