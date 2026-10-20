@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { authorizeForms } from '@/lib/forms/admin'
+import { authorizeForms, denyIfNotVisible } from '@/lib/forms/admin'
 import { toCsv } from '@/lib/forms/csv'
 import { formConfigSchema } from '@/lib/forms/schema'
 
@@ -29,6 +29,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
   if ('error' in g) return g.error
   const { auth, sb } = g
 
+  const denied = await denyIfNotVisible(sb, auth.tenantId, auth.role, id)
+  if (denied) return denied
   const parsed = query.safeParse(Object.fromEntries(req.nextUrl.searchParams))
   if (!parsed.success) return NextResponse.json({ error: 'Filtros no válidos' }, { status: 400 })
   const q = parsed.data

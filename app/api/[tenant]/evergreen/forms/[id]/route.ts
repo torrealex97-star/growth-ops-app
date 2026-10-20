@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { authorizeForms } from '@/lib/forms/admin'
+import { authorizeForms, denyIfNotVisible } from '@/lib/forms/admin'
 import { formConfigSchema } from '@/lib/forms/schema'
 import { FORM_AUDIENCES, FORM_CATEGORIES } from '@/lib/forms/types'
 
@@ -13,6 +13,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ ten
   const g = await authorizeForms(tenant, false)
   if ('error' in g) return g.error
   const { auth, sb } = g
+  const denied = await denyIfNotVisible(sb, auth.tenantId, auth.role, id)
+  if (denied) return denied
   const { data, error } = await sb
     .from('forms')
     .select('id, slug, name, category, audience, status, draft_config, published_version_id, settings, updated_at')

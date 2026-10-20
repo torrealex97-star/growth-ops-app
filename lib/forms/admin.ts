@@ -28,3 +28,19 @@ export function slugify(text: string): string {
     .slice(0, 60)
   return s.length >= 3 ? s : `formulario-${s || 'nuevo'}`.slice(0, 60)
 }
+
+/**
+ * El rol csm solo ve formularios de audiencia 'alumnos' (feedback): las candidaturas de empleados y
+ * las cualificaciones de clientes llevan PII ajena a su trabajo. Devuelve una respuesta de error si
+ * el formulario no es visible para ese rol, o null si puede continuar.
+ */
+export async function denyIfNotVisible(
+  sb: import('@supabase/supabase-js').SupabaseClient,
+  tenantId: string,
+  role: string | null,
+  formId: string
+): Promise<NextResponse | null> {
+  if (role !== 'csm') return null
+  const { data } = await sb.from('forms').select('audience').eq('tenant_id', tenantId).eq('id', formId).maybeSingle()
+  return data?.audience === 'alumnos' ? null : NextResponse.json({ error: 'Formulario no encontrado' }, { status: 404 })
+}

@@ -476,3 +476,49 @@ test('analítica: NPS = promotores - detractores', async () => {
   assert.equal(a.nps.score, 25)
   assert.deepEqual(a.questions[0].nps, { score: 25, promoters: 2, passives: 1, detractors: 1 })
 })
+
+test('feedback de alumnos: media, NPS, profesores con tendencia y comentarios de valoraciones bajas', async () => {
+  const { computeFeedback } = await import('../lib/forms/feedback.ts')
+  const now = Date.parse('2026-10-20T12:00:00Z')
+  const d = (days) => new Date(now - days * 86_400_000).toISOString()
+  const row = (o) => ({
+    form_id: 'f',
+    rating: null,
+    nps: null,
+    teacher: null,
+    module: null,
+    class_name: null,
+    created_at: d(1),
+    contact_id: null,
+    ...o,
+  })
+  const s = computeFeedback(
+    [
+      row({ rating: 5, teacher: 'Ana', created_at: d(2), contact_id: 'c1' }),
+      row({ rating: 5, teacher: 'Ana', created_at: d(3) }),
+      row({ rating: 2, teacher: 'Ana', created_at: d(40), comment: 'Poco ritmo' }),
+      row({ rating: 3, teacher: 'Beto', module: 'Módulo 1', created_at: d(5), comment: 'Falta práctica' }),
+      row({ nps: 10 }),
+      row({ nps: 9 }),
+      row({ nps: 3 }),
+      row({ nps: 8 }),
+    ],
+    now
+  )
+  assert.equal(s.responses, 8)
+  assert.equal(s.linked, 1)
+  assert.equal(s.rating.responses, 4)
+  assert.equal(s.rating.average, 3.75)
+  assert.deepEqual(s.nps, { score: 25, responses: 4, promoters: 2, passives: 1, detractors: 1 })
+  const ana = s.teachers.find((t) => t.label === 'Ana')
+  assert.equal(ana.responses, 3)
+  assert.equal(ana.low, 1)
+  assert.equal(ana.trend, 5 - 2)
+  assert.equal(s.teachers[0].label, 'Ana')
+  assert.equal(s.modules[0].label, 'Módulo 1')
+  assert.deepEqual(
+    s.lowComments.map((c) => c.comment),
+    ['Falta práctica', 'Poco ritmo']
+  )
+  assert.ok(s.weekly.length >= 1)
+})

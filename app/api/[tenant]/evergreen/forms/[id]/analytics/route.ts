@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { authorizeForms } from '@/lib/forms/admin'
+import { authorizeForms, denyIfNotVisible } from '@/lib/forms/admin'
 import { computeAnalytics, type ResponseRow, type SessionRow } from '@/lib/forms/analytics'
 import { formConfigSchema } from '@/lib/forms/schema'
 
@@ -22,6 +22,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
   const g = await authorizeForms(tenant, false)
   if ('error' in g) return g.error
   const { auth, sb } = g
+  const denied = await denyIfNotVisible(sb, auth.tenantId, auth.role, id)
+  if (denied) return denied
   const q = query.safeParse(Object.fromEntries(req.nextUrl.searchParams))
   if (!q.success) return NextResponse.json({ error: 'Filtros no válidos' }, { status: 400 })
   const since = new Date(Date.now() - q.data.days * 86_400_000).toISOString()

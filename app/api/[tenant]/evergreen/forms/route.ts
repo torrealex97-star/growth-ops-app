@@ -12,12 +12,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ ten
   if ('error' in g) return g.error
   const { auth, sb } = g
 
-  const { data: forms, error } = await sb
+  let listQuery = sb
     .from('forms')
     .select('id, slug, name, category, audience, status, published_version_id, updated_at, created_at')
     .eq('tenant_id', auth.tenantId)
     .order('updated_at', { ascending: false })
     .limit(200)
+  if (auth.role === 'csm') listQuery = listQuery.eq('audience', 'alumnos')
+  const { data: forms, error } = await listQuery
   if (error) return NextResponse.json({ error: 'No se pudieron cargar los formularios' }, { status: 500 })
 
   // Conteos por formulario (pocos formularios por subcuenta: una consulta head por cada uno).
