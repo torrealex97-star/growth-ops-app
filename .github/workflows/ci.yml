@@ -127,9 +127,13 @@ jobs:
     # paralelo se pisan (la limpieza/rotación de credenciales de la una invalida la sesión
     # del storageState de la otra a mitad de suite). Se serializan por grupo de concurrencia;
     # cancel-in-progress porque el run más nuevo ya valida el mismo árbol.
+    # Un solo E2E a la vez contra el tenant de pruebas, pero SIN cancelar el que ya está corriendo: con
+    # `cancel-in-progress: true`, cada push de cualquier rama (o de otra sesión) cancelaba el E2E de
+    # los demás PR y su Release gate salía en rojo sin que hubiera ningún fallo real. Ahora el que
+    # corre termina y el siguiente espera su turno.
     concurrency:
       group: e2e-tenant-qa
-      cancel-in-progress: true
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
