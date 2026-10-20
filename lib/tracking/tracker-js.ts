@@ -8,7 +8,15 @@
 // Eventos manuales (CTAs, formularios, ventas):
 //   window.gop('cta_click', { cta: 'reservar' })
 //   window.gop('lead', { email: '...@...' })  // solo lo que el form ya envía al negocio
-export const TRACKER_JS_VERSION = '1.2.0'
+//
+// Pixel de Meta (OPCIONAL, opt-in): con data-meta-pixel="<id numérico>" en la etiqueta, el script carga
+// fbevents.js y refleja page_view/lead/appointment_booked/purchase en el Pixel con el MISMO event_id
+// que se manda al servidor, para que la Conversions API deduplique en vez de contar doble. Sin ese
+// atributo no se carga nada de Meta. Quien lo active es responsable del consentimiento de cookies de
+// su web; si la página define window.gopNoMeta = true, el Pixel no se carga.
+//   <script defer src=".../tracker.js" data-site="gop_pk_xxx" data-meta-pixel="1234567890"></script>
+// _fbp/_fbc: se leen de las cookies de Meta (o se arma _fbc desde el fbclid) y viajan con cada evento.
+export const TRACKER_JS_VERSION = '1.3.0'
 
 export const TRACKER_JS = String.raw`
 (function () {
@@ -92,6 +100,65 @@ export const TRACKER_JS = String.raw`
     return out
   }
 
+  // ---- Cookies de Meta (_fbp / _fbc) para el emparejamiento de la Conversions API ----
+  function readCookie(name) {
+    try {
+      var m = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'))
+      return m ? decodeURIComponent(m[1]) : ''
+    } catch (e) {
+      return ''
+    }
+  }
+  function fbc(attrs) {
+    var existing = readCookie('_fbc')
+    if (existing) return existing
+    if (!attrs.fbclid) return ''
+    // Formato de Meta: fb.<subdominios>.<ms del clic>.<fbclid>. Se guarda 90 días, como hace Meta.
+    var value = 'fb.1.' + Date.now() + '.' + attrs.fbclid
+    try {
+      document.cookie = '_fbc=' + encodeURIComponent(value) + '; path=/; max-age=7776000; SameSite=Lax'
+    } catch (e) {
+      // Cookies bloqueadas: el valor viaja igualmente en este evento.
+    }
+    return value
+  }
+
+  // ---- Pixel de Meta opt-in (deduplicado por event_id con la Conversions API) ----
+  var PIXEL_ID = (script.getAttribute('data-meta-pixel') || '').trim()
+  var META_EVENTS = { page_view: 'PageView', lead: 'Lead', appointment_booked: 'Schedule', purchase: 'Purchase' }
+  var pixelReady = false
+  if (/^[0-9]{8,20}$/.test(PIXEL_ID) && !window.gopNoMeta) {
+    try {
+      if (!window.fbq) {
+        var n = (window.fbq = function () {
+          n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments)
+        })
+        if (!window._fbq) window._fbq = n
+        n.push = n
+        n.loaded = true
+        n.version = '2.0'
+        n.queue = []
+        var t = document.createElement('script')
+        t.async = true
+        t.src = 'https://connect.facebook.net/en_US/fbevents.js'
+        document.head.appendChild(t)
+      }
+      window.fbq('init', PIXEL_ID)
+      pixelReady = true
+    } catch (e) {
+      // Si el Pixel falla, el tracking propio sigue igual.
+    }
+  }
+  function mirrorToPixel(event, eventId) {
+    var name = META_EVENTS[event]
+    if (!pixelReady || !name) return
+    try {
+      window.fbq('track', name, {}, { eventID: eventId })
+    } catch (e) {
+      // Nunca interferir con la página anfitriona.
+    }
+  }
+
   // ---- Envío: sendBeacon si existe, fetch keepalive como fallback ----
   function send(event, props) {
     var attrs = currentAttrs()
@@ -107,6 +174,11 @@ export const TRACKER_JS = String.raw`
     ATTR_KEYS.forEach(function (k) {
       if (attrs[k]) payload[k] = attrs[k]
     })
+    var fbpValue = readCookie('_fbp')
+    var fbcValue = fbc(attrs)
+    if (fbpValue) payload.fbp = fbpValue.slice(0, 100)
+    if (fbcValue) payload.fbc = fbcValue.slice(0, 300)
+    mirrorToPixel(event, payload.event_id)
     var body = JSON.stringify(payload)
     // TEXT/PLAIN A PROPÓSITO: es un tipo «simple» de CORS, así que el envío entre dominios NO necesita
     // preflight. Con el tipo JSON el navegador tiene que preguntar antes (OPTIONS) y en iOS/WebKit
