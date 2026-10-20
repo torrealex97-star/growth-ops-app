@@ -130,7 +130,6 @@ export const INTEGRATION_GROUPS: IntegrationGroup[] = [
       },
       {
         key: 'META_PIXEL_ID',
-        advanced: true,
         label: 'ID del Pixel de Meta',
         type: 'text',
         secret: false,
@@ -139,7 +138,6 @@ export const INTEGRATION_GROUPS: IntegrationGroup[] = [
       },
       {
         key: 'META_CAPI_ENABLED',
-        advanced: true,
         label: 'Enviar conversiones a Meta (Conversions API)',
         type: 'boolean',
         secret: false,
