@@ -4,6 +4,7 @@
 import { isAttended, isCancelled, isNoShow } from '@/lib/appointments/status'
 import { esReservaAbierta } from '@/lib/metrics/agregados'
 import { inPeriod, type PeriodRange } from '@/lib/filters/period'
+import { resolveMetaAttribution, type MetaAttributionCatalog } from '@/lib/meta/ad-attribution'
 
 /**
  * FECHA REAL DE UN LEAD — para el filtro de periodo de cualquier métrica de leads.
@@ -463,6 +464,89 @@ export function aggregateFunnel(rows: FunnelRow[]): FunnelTotals {
     apptToSale: appointments ? (sales / appointments) * 100 : 0,
     leadToSale: leads ? (sales / leads) * 100 : 0,
   }
+}
+
+// --- Desglose por CAMPAÑA Y ANUNCIO exactos (no solo canal) ---
+//
+// funnelBySource agrupa por fuente genérica (Meta/Instagram/Orgánico) — suficiente para ver qué
+// CANAL funciona, pero no para decidir qué anuncio concreto escalar o cortar. Este desglose usa
+// el mismo resolvedor que ya traduce IDs de Meta a nombres reales en el detalle de cada cita
+// (lib/meta/ad-attribution.ts, con el respaldo de utm_content cuando no hay ad_id de un toque
+// real) para que el Dashboard sepa, no solo "vino de Meta", sino DE QUÉ anuncio exactamente.
+export type CampaignAdFunnelRow = {
+  campaignExternalId: string | null
+  campaignName: string | null
+  /** Campaña sin resolver contra el catálogo sincronizado: se enseña el crudo, nunca un nombre inventado. */
+  campaignResolved: boolean
+  adExternalId: string | null
+  adName: string | null
+  adResolved: boolean
+  leads: number
+  appointments: number
+  sales: number
+  gross: number
+  leadToSale: number
+}
+
+export function funnelByCampaignAndAd(
+  contactIds: string[],
+  attributions: AttributionRow[],
+  sales: SaleRow[],
+  appointments: AppointmentRow[],
+  catalog: MetaAttributionCatalog
+): CampaignAdFunnelRow[] {
+  // Mismo criterio que funnelBySource: el toque PRIMARIO manda (es el que decide qué trajo al
+  // lead), un contacto con varios toques registrados no se cuenta más de una vez.
+  const primaryFirst = [...attributions].sort((a, b) => Number(b.is_primary) - Number(a.is_primary))
+  const porContacto = new Map<string, ReturnType<typeof resolveMetaAttribution>>()
+  for (const a of primaryFirst) {
+    if (porContacto.has(a.contact_id)) continue
+    porContacto.set(a.contact_id, resolveMetaAttribution(a, catalog))
+  }
+
+  const SIN_CAMPANA = '__sin_campana__'
+  const claveDe = (r: ReturnType<typeof resolveMetaAttribution> | undefined) =>
+    r
+      ? `${r.campaign.externalId ?? r.campaign.name ?? SIN_CAMPANA}::${r.ad.externalId ?? r.ad.name ?? ''}`
+      : SIN_CAMPANA
+
+  const map = new Map<string, CampaignAdFunnelRow>()
+  const ensure = (r: ReturnType<typeof resolveMetaAttribution> | undefined) => {
+    const key = claveDe(r)
+    const existing = map.get(key)
+    if (existing) return existing
+    const row: CampaignAdFunnelRow = {
+      campaignExternalId: r?.campaign.externalId ?? null,
+      campaignName: r?.campaign.name ?? null,
+      campaignResolved: r?.campaign.resolved ?? false,
+      adExternalId: r?.ad.externalId ?? null,
+      adName: r?.ad.name ?? null,
+      adResolved: r?.ad.resolved ?? false,
+      leads: 0,
+      appointments: 0,
+      sales: 0,
+      gross: 0,
+      leadToSale: 0,
+    }
+    map.set(key, row)
+    return row
+  }
+
+  for (const cid of contactIds) ensure(porContacto.get(cid)).leads += 1
+  for (const a of appointments) {
+    if (!a.contact_id) continue
+    ensure(porContacto.get(a.contact_id)).appointments += 1
+  }
+  for (const s of sales) {
+    if (!cuentaComoVenta(s) || !s.contact_id) continue
+    const row = ensure(porContacto.get(s.contact_id))
+    row.sales += 1
+    row.gross += num(s.gross_amount)
+  }
+  map.forEach((r) => {
+    r.leadToSale = r.leads ? (r.sales / r.leads) * 100 : 0
+  })
+  return Array.from(map.values()).sort((a, b) => b.gross - a.gross || b.leads - a.leads)
 }
 
 // --- Progreso real de un objetivo ---
