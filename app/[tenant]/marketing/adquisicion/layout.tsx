@@ -8,6 +8,12 @@ const TABS: RouteTab[] = [
   { label: 'Campañas', href: '/marketing/adquisicion/campanas', match: '/marketing/adquisicion/campanas' },
   { label: 'Atribución', href: '/marketing/adquisicion/atribucion', match: '/marketing/adquisicion/atribucion' },
   { label: 'VSL', href: '/marketing/adquisicion/vsl', match: '/marketing/adquisicion/vsl' },
+  {
+    label: 'Funnel por eventos',
+    href: '/marketing/adquisicion/funnel-eventos',
+    match: '/marketing/adquisicion/funnel-eventos',
+  },
+  { label: 'Tráfico web', href: '/marketing/adquisicion/trafico-web', match: '/marketing/adquisicion/trafico-web' },
 ]
 
 export default function AdquisicionLayout({ children }: { children: React.ReactNode }) {

@@ -1,5 +1,6 @@
 import { leerToque, type ToqueAtribucion } from '@/lib/contacts/atribucion'
 import { resolverCampanaPorUtm } from '@/lib/contacts/resolver-campana'
+import { resolverAnuncioPorUtm } from '@/lib/contacts/resolver-anuncio'
 
 type JsonObject = Record<string, unknown>
 
@@ -24,6 +25,7 @@ export type MetaAttributionCatalog = {
 export type MetaAttributionInput = {
   utm_source?: string | null
   utm_campaign?: string | null
+  utm_content?: string | null
   raw_payload?: JsonObject | null
   attribution_first?: JsonObject | null
   attribution_second?: JsonObject | null
@@ -124,6 +126,21 @@ export function resolveMetaAttribution(
     }
   }
 
+  // Sin ad_id de un toque real (fbclid/parámetros ocultos), pero utm_content ya trae el nombre
+  // del anuncio tal cual Meta lo puso con {{ad.name}} — mismo papel que utm_campaign para la
+  // campaña arriba. Acotado a la campaña ya resuelta para no confundir anuncios homónimos de
+  // campañas distintas (comprobado en producción, ver resolver-anuncio.ts).
+  let adPorUtm: MetaAdReference | undefined
+  if (!ad && !found.adName && input.utm_content) {
+    const resultadoAnuncio = resolverAnuncioPorUtm(input.utm_content, catalog.ads, {
+      campaignExternalId: campaign?.external_id ?? found.campaignExternalId ?? null,
+    })
+    if (resultadoAnuncio.ok && resultadoAnuncio.kind === 'directa') {
+      adPorUtm = catalog.ads.find((item) => item.external_id === resultadoAnuncio.adExternalId)
+    }
+  }
+  const adResuelto = ad ?? adPorUtm
+
   return {
     campaign: {
       internalId: campaign?.id ?? internalCampaignId,
@@ -132,13 +149,13 @@ export function resolveMetaAttribution(
       resolved: Boolean(campaign),
     },
     ad: {
-      externalId: found.adId,
-      name: ad?.name ?? found.adName,
-      resolved: Boolean(ad || found.adName),
+      externalId: found.adId ?? adResuelto?.external_id ?? null,
+      name: adResuelto?.name ?? found.adName,
+      resolved: Boolean(adResuelto || found.adName),
     },
     adSet: {
       externalId: found.adSetId,
-      name: ad?.adset_name ?? null,
+      name: adResuelto?.adset_name ?? null,
     },
   }
 }
