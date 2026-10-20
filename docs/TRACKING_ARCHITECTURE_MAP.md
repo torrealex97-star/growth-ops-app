@@ -163,7 +163,7 @@ NORMALIZATION (versionada)                                      ← FALTA
        ↓
 canonical_events  ← EXISTE (vacía)
        ↓
-identity: contacts_get_or_create + identity_matches             ← motor EXISTE, falta el enlace
+identity: contacts_get_or_create + identity_matches             ← enlace anónimo→contacto en lib/tracking/identity*.ts (ingesta, eventos lead/form_submit/appointment_booked/purchase)
        ↓
 analytics_touchpoints → contact_attributions                    ← EXISTEN (vacías)
        ↓

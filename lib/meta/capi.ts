@@ -122,7 +122,7 @@ export type ResultadoEnvioCapi =
 export async function enviarEventosCapi(
   cfg: Pick<ConfigCapi, 'pixelId' | 'accessToken' | 'apiVersion'>,
   eventos: Record<string, unknown>[],
-  opciones: { testEventCode?: string } = {}
+  opciones: { testEventCode?: string; timeoutMs?: number } = {}
 ): Promise<ResultadoEnvioCapi> {
   try {
     const res = await fetch(graphUrl(cfg.apiVersion, `${cfg.pixelId}/events`), {
@@ -134,7 +134,7 @@ export async function enviarEventosCapi(
         access_token: cfg.accessToken,
         ...(opciones.testEventCode ? { test_event_code: opciones.testEventCode } : {}),
       }),
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(opciones.timeoutMs ?? 15_000),
     })
     const json = (await res.json().catch(() => ({}))) as {
       events_received?: number
