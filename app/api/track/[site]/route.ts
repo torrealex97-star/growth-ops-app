@@ -8,8 +8,12 @@ import {
   isValidEventName,
   originAllowed,
 } from '@/lib/tracking/ingest'
+import { aplicarVinculo } from '@/lib/tracking/identity-apply'
 
 export const runtime = 'nodejs'
+
+// Eventos en los que el visitante se identifica (correo/teléfono en properties).
+const IDENTITY_EVENTS = new Set(['lead', 'form_submit', 'appointment_booked', 'purchase'])
 
 // Rate limiter en memoria del proceso (best-effort; ver comentario en la clase).
 const limiter = new MinuteRateLimiter()
@@ -359,6 +363,35 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .eq('id', rawRow.id)
     if (flagErr) console.warn(`[track] no se pudo anotar el rechazo canónico en ${rawRow.id}:`, flagErr.message)
     return NextResponse.json({ error: 'No se pudo normalizar el evento' }, { status: 500 })
+  }
+
+  // 7) Stitching anónimo → contacto. Best-effort: nunca debe tumbar la ingesta (el evento ya está
+  // guardado y el replay puede rehacerlo, es idempotente).
+  if (IDENTITY_EVENTS.has(eventName)) {
+    const props = (body.properties ?? {}) as Record<string, unknown>
+    const email = typeof props.email === 'string' ? props.email : null
+    const phone = typeof props.phone === 'string' ? props.phone : null
+    if (email || phone) {
+      try {
+        const { data: canonicalRow } = await sb
+          .from('canonical_events')
+          .select('id')
+          .eq('tenant_id', tenantId)
+          .eq('source', 'pixel')
+          .eq('idempotency_key', eventId ?? `${anonymousId}:${eventName}:${receivedAt.toISOString()}`)
+          .maybeSingle()
+        await aplicarVinculo({
+          sb,
+          tenantId,
+          visitorId,
+          canonicalEventId: (canonicalRow as { id: string } | null)?.id ?? null,
+          email,
+          phone,
+        })
+      } catch (err) {
+        console.warn('[track] stitching de identidad falló:', err instanceof Error ? err.message : err)
+      }
+    }
   }
 
   const { error: normalizedErr } = await sb
