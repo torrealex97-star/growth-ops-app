@@ -247,6 +247,12 @@ export const NAV_SECTIONS: NavSection[] = [
             roles: [...LEAD, 'marketing', 'adscripcion'],
           },
           { label: 'VSL', href: '/marketing/adquisicion/vsl', icon: Video, roles: [...LEAD, 'marketing', 'editor'] },
+          {
+            label: 'Funnel por eventos',
+            href: '/marketing/adquisicion/funnel-eventos',
+            icon: Radio,
+            roles: [...LEAD, 'marketing'],
+          },
         ],
       },
       {
