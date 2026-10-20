@@ -65,6 +65,17 @@ export type AttributionRow = {
   // Último toque conocido (el primero vive en `source`/`utm_source`). Solo hace falta para el modelo
   // «último toque» de funnelBySource.
   last_utm_source?: string | null
+  // Campos del PRIMER y ÚLTIMO toque completos (campaign/content, no solo source) y sus marcas de
+  // tiempo — solo hacen falta para el reparto multi-touch de funnelMultiToque(). `contact_attributions`
+  // guarda exactamente dos toques por contacto (primero y último), nunca el historial completo
+  // intermedio: por eso el reparto es entre ESOS DOS, no un modelo lineal de N toques — sería
+  // fabricar puntos que no se registraron.
+  first_utm_campaign?: string | null
+  first_utm_content?: string | null
+  first_touch_at?: string | null
+  last_utm_campaign?: string | null
+  last_utm_content?: string | null
+  last_touch_at?: string | null
 }
 export type AppointmentRow = {
   appointment_datetime: string | null
@@ -547,6 +558,79 @@ export function funnelByCampaignAndAd(
     r.leadToSale = r.leads ? (r.sales / r.leads) * 100 : 0
   })
   return Array.from(map.values()).sort((a, b) => b.gross - a.gross || b.leads - a.leads)
+
+// --- Reparto MULTI-TOQUE entre primer y último toque (no un modelo lineal de N toques) ---
+//
+// `contact_attributions` guarda exactamente DOS toques por contacto (primero y último), nunca el
+// historial completo intermedio — por diseño (ver la cabecera de lib/contacts/atribucion.ts).
+// Un modelo "lineal" o "U-shaped" de verdad necesita saber CUÁNTOS toques hubo y cuándo cada uno;
+// con solo dos puntos, matemáticamente linear/posición/U-shaped COINCIDEN (reparten 50/50 entre
+// los dos extremos porque no hay "medio" que repartir). Por eso aquí solo hay dos modelos, los dos
+// honestos sobre qué datos usan:
+//
+//   'reparto': 50/50 fijo. Si el primer y el último toque son el mismo canal (o solo hay uno
+//     registrado), ese canal se lleva el 100% — no se inventa un segundo toque que no existe.
+//   'decaimiento': el peso depende del tiempo ENTRE los dos toques (semivida de 7 días, el valor
+//     por defecto que usan Google Ads y Meta Ads en su propio time-decay). Dos toques el mismo día
+//     convergen a 50/50 igual que 'reparto'; cuanto más viejo el primer toque frente al último, más
+//     credita al último — un lead que vio un anuncio hace 3 meses y reservó ayer por email no
+//     reparte igual que uno que vio el anuncio y reservó el mismo día.
+export type ModeloMultiToque = 'reparto' | 'decaimiento'
+export type CreditoFuente = { source: string; leads: number; sales: number; gross: number }
+
+const SEMIVIDA_DIAS = 7
+function pesosDelReparto(
+  modelo: ModeloMultiToque,
+  primerAt: string | null | undefined,
+  ultimoAt: string | null | undefined
+): { primero: number; ultimo: number } {
+  if (modelo === 'reparto' || !primerAt || !ultimoAt) return { primero: 0.5, ultimo: 0.5 }
+  const gapDias = Math.max(0, (new Date(ultimoAt).getTime() - new Date(primerAt).getTime()) / 86_400_000)
+  if (!Number.isFinite(gapDias)) return { primero: 0.5, ultimo: 0.5 }
+  // Peso relativo: el último toque es la referencia (1); el primero decae según se aleja de él.
+  const pesoPrimero = Math.pow(2, -gapDias / SEMIVIDA_DIAS)
+  const total = pesoPrimero + 1
+  return { primero: pesoPrimero / total, ultimo: 1 / total }
+}
+
+export function funnelMultiToque(
+  contactIds: string[],
+  attributions: AttributionRow[],
+  sales: SaleRow[],
+  modelo: ModeloMultiToque = 'reparto'
+): CreditoFuente[] {
+  const primaryFirst = [...attributions].sort((a, b) => Number(b.is_primary) - Number(a.is_primary))
+  const porContacto = new Map<string, AttributionRow>()
+  for (const a of primaryFirst) if (!porContacto.has(a.contact_id)) porContacto.set(a.contact_id, a)
+
+  const map = new Map<string, CreditoFuente>()
+  const ensure = (src: string) => map.get(src) ?? map.set(src, { source: src, leads: 0, sales: 0, gross: 0 }).get(src)!
+
+  const repartoDe = (contactId: string) => {
+    const a = porContacto.get(contactId)
+    if (!a) return [{ source: SOURCE_FALLBACK, peso: 1 }]
+    const fuentePrimero = labelSource({ source: a.source, utm_source: a.utm_source })
+    const fuenteUltimo = labelSource({ source: null, utm_source: a.last_utm_source ?? null })
+    if (fuenteUltimo === SOURCE_FALLBACK || fuenteUltimo === fuentePrimero) return [{ source: fuentePrimero, peso: 1 }]
+    const pesos = pesosDelReparto(modelo, a.first_touch_at, a.last_touch_at)
+    return [
+      { source: fuentePrimero, peso: pesos.primero },
+      { source: fuenteUltimo, peso: pesos.ultimo },
+    ]
+  }
+
+  for (const cid of contactIds) {
+    for (const { source, peso } of repartoDe(cid)) ensure(source).leads += peso
+  }
+  for (const s of sales) {
+    if (!cuentaComoVenta(s) || !s.contact_id) continue
+    for (const { source, peso } of repartoDe(s.contact_id)) {
+      const row = ensure(source)
+      row.sales += peso
+      row.gross += num(s.gross_amount) * peso
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => b.gross - a.gross)
 }
 
 // --- Progreso real de un objetivo ---
