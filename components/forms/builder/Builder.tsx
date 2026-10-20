@@ -644,7 +644,14 @@ export function Builder({ tenant, formId }: { tenant: string; formId: string }) 
           <fieldset disabled={!canWrite} className="min-w-0 border-0 p-0">
             {sel.kind === 'welcome' && <WelcomePanel cfg={cfg} onChange={(p) => commit({ ...cfg, ...p })} />}
             {sel.kind === 'question' && selectedQ && (
-              <QuestionPanel q={selectedQ} all={screens} onChange={(q) => patchQ(selectedQ.id, q)} />
+              <QuestionPanel
+                q={selectedQ}
+                all={screens}
+                onChange={(q) => patchQ(selectedQ.id, q)}
+                endings={cfg.endings}
+                logic={cfg.logic}
+                onLogicChange={(logic) => commit({ ...cfg, logic })}
+              />
             )}
             {sel.kind === 'ending' && selectedE && (
               <EndingPanel

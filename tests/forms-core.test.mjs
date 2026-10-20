@@ -604,3 +604,73 @@ test('tema: acento propio → variables de marca y texto legible; sin tema hered
     false
   )
 })
+
+// --- Lógica tipo Typeform: orden, "en cualquier otro caso" y puntuación numérica ---
+const logicCfg = (logic, extra = {}) => ({
+  schemaVersion: 1,
+  questions: [
+    {
+      id: 'q1',
+      type: 'singleChoice',
+      title: 'P1',
+      required: true,
+      options: [
+        { value: 'a', label: 'A' },
+        { value: 'b', label: 'B' },
+      ],
+    },
+    { id: 'q2', type: 'shortText', title: 'P2', required: false },
+    { id: 'q3', type: 'shortText', title: 'P3', required: false },
+    { id: 'q4', type: 'nps', title: 'P4', required: false },
+  ],
+  endings: [
+    { id: 'fin', title: 'Fin', isDefault: true },
+    { id: 'descarte', title: 'Descarte' },
+  ],
+  logic,
+  ...extra,
+})
+const cond = (v) => ({ match: 'all', conditions: [{ questionId: 'q1', op: 'equals', value: v }] })
+const sinCond = { match: 'all', conditions: [] }
+
+test('lógica: gana la primera regla que cumple y el orden importa', () => {
+  const rules = [
+    { id: 'r1', from: 'q1', when: cond('a'), then: { type: 'jump', target: 'q3' } },
+    { id: 'r2', from: 'q1', when: cond('a'), then: { type: 'end', endingId: 'descarte' } },
+  ]
+  assert.deepEqual(nextStep(logicCfg(rules), 'q1', { q1: 'a' }), { kind: 'question', id: 'q3' })
+  assert.deepEqual(nextStep(logicCfg([...rules].reverse()), 'q1', { q1: 'a' }), { kind: 'ending', id: 'descarte' })
+})
+
+test('lógica: "en cualquier otro caso" (regla sin condición, la última) solo aplica si nada más cumple', () => {
+  const rules = [
+    { id: 'r1', from: 'q1', when: cond('a'), then: { type: 'jump', target: 'q3' } },
+    { id: 'otro', from: 'q1', when: sinCond, then: { type: 'end', endingId: 'descarte' } },
+  ]
+  assert.deepEqual(nextStep(logicCfg(rules), 'q1', { q1: 'a' }), { kind: 'question', id: 'q3' })
+  assert.deepEqual(nextStep(logicCfg(rules), 'q1', { q1: 'b' }), { kind: 'ending', id: 'descarte' })
+})
+
+test('lógica: sin regla aplicable sigue a la siguiente pregunta y los saltos hacia atrás se ignoran', () => {
+  const rules = [{ id: 'r1', from: 'q3', when: sinCond, then: { type: 'jump', target: 'q1' } }]
+  assert.deepEqual(nextStep(logicCfg(rules), 'q3', {}), { kind: 'question', id: 'q4' })
+  assert.deepEqual(nextStep(logicCfg([]), 'q1', { q1: 'b' }), { kind: 'question', id: 'q2' })
+})
+
+test('scoring: los pesos numéricos (gte/lte) puntúan número, NPS o valoración', () => {
+  const scoring = {
+    enabled: true,
+    weights: [
+      { questionId: 'q4', gte: 9, points: 40 },
+      { questionId: 'q4', gte: 7, lte: 8, points: 20 },
+      { questionId: 'q4', lte: 6, points: 0 },
+    ],
+    thresholds: { caliente: 40, templado: 20 },
+  }
+  const c = logicCfg([], { scoring })
+  assert.equal(computeScore(c, { q4: 10 }).temperature, 'caliente')
+  assert.equal(computeScore(c, { q4: 7 }).temperature, 'templado')
+  assert.equal(computeScore(c, { q4: 3 }).temperature, 'frio')
+  assert.equal(computeScore(c, { q4: 'abc' }).score, 0)
+  assert.equal(formConfigSchema.safeParse(c).success, true)
+})

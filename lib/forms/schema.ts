@@ -102,6 +102,8 @@ export const formConfigSchema = z.object({
             questionId: id,
             value: text(120).optional(),
             in: z.array(text(120)).max(50).optional(),
+            gte: z.number().min(-1e9).max(1e9).optional(),
+            lte: z.number().min(-1e9).max(1e9).optional(),
             points: z.number().min(-100).max(100),
           })
         )

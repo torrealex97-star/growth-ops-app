@@ -10,8 +10,16 @@ export interface ScoreResult {
   tag: string | null
 }
 
-function matches(value: Answer | undefined, w: { value?: string; in?: string[] }): boolean {
+function matches(
+  value: Answer | undefined,
+  w: { value?: string; in?: string[]; gte?: number; lte?: number }
+): boolean {
   if (value === undefined || value === null) return false
+  if (w.gte !== undefined || w.lte !== undefined) {
+    const n = typeof value === 'number' ? value : typeof value === 'string' && value.trim() !== '' ? Number(value) : NaN
+    if (!Number.isFinite(n)) return false
+    return (w.gte === undefined || n >= w.gte) && (w.lte === undefined || n <= w.lte)
+  }
   const candidates = Array.isArray(value) ? value.map(String) : [String(value)]
   if (w.value !== undefined) return candidates.includes(w.value)
   if (w.in) return candidates.some((c) => w.in!.includes(c))

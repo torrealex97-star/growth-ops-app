@@ -135,6 +135,9 @@ export interface ScoringWeight {
   questionId: string
   value?: string
   in?: string[]
+  /** Respuestas numéricas (número, valoración, NPS, escala): suma si valor >= gte y/o <= lte. */
+  gte?: number
+  lte?: number
   points: number
 }
 

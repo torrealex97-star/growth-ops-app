@@ -16,6 +16,7 @@ import {
 } from '@/lib/forms/types'
 import { contrastRatio, HEX, textOn } from '@/lib/forms/theme'
 import { ConditionEditor } from './ConditionEditor'
+import { QuestionLogic } from './QuestionLogic'
 
 export const TYPE_LABELS: Record<FieldType, string> = {
   shortText: 'Texto corto',
@@ -84,7 +85,21 @@ export const slugOf = (s: string) =>
     .replace(/^-+|-+$/g, '')
     .slice(0, 30) || 'opcion'
 
-export function QuestionPanel({ q, all, onChange }: { q: Question; all: Question[]; onChange: (q: Question) => void }) {
+export function QuestionPanel({
+  q,
+  all,
+  onChange,
+  endings,
+  logic,
+  onLogicChange,
+}: {
+  q: Question
+  all: Question[]
+  onChange: (q: Question) => void
+  endings?: Ending[]
+  logic?: LogicRule[]
+  onLogicChange?: (logic: LogicRule[]) => void
+}) {
   const set = (patch: Partial<Question>) => onChange({ ...q, ...patch })
   const [imgOpen, setImgOpen] = useState<number[]>([])
   const hasOptions = ['singleChoice', 'multiChoice', 'dropdown'].includes(q.type)
@@ -406,6 +421,12 @@ export function QuestionPanel({ q, all, onChange }: { q: Question; all: Question
           />
         </div>
       )}
+      {q.type !== 'hidden' && q.type !== 'statement' && endings && logic && onLogicChange && (
+        <div>
+          <Lbl>Lógica de saltos</Lbl>
+          <QuestionLogic q={q} screens={all} endings={endings} logic={logic} onChange={onLogicChange} />
+        </div>
+      )}
     </div>
   )
 }
@@ -477,6 +498,36 @@ export function EndingPanel({ e, all, onChange }: { e: Ending; all: Question[]; 
   )
 }
 
+/** Mapa del flujo: cada pregunta con sus saltos de salida, para ver de un vistazo adónde lleva cada respuesta. */
+function FlowMap({ cfg }: { cfg: FormConfig }) {
+  const screens = cfg.questions.filter((q) => q.type !== 'hidden')
+  const label = (a: LogicRule['then']) =>
+    a.type === 'jump'
+      ? (screens.find((q) => q.id === a.target)?.title ?? a.target)
+      : `Final: ${cfg.endings.find((e) => e.id === a.endingId)?.title ?? a.endingId}`
+  if (!cfg.logic.length) return null
+  return (
+    <ol className="space-y-1 rounded-xl bg-muted/40 p-3 text-xs" aria-label="Mapa del flujo">
+      {screens.map((q, i) => {
+        const out = cfg.logic.filter((r) => r.from === q.id)
+        return (
+          <li key={q.id}>
+            <span className="font-medium">
+              {i + 1}. {q.title || q.id}
+            </span>
+            {out.map((r) => (
+              <div key={r.id} className="ml-4 text-muted-foreground">
+                {r.when.conditions.length ? `Si cumple ${r.when.conditions.length} condición(es)` : 'En otro caso'} →{' '}
+                {label(r.then)}
+              </div>
+            ))}
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
 export function LogicPanel({ cfg, onChange }: { cfg: FormConfig; onChange: (logic: LogicRule[]) => void }) {
   const screens = cfg.questions.filter((q) => q.type !== 'hidden')
   const rules = cfg.logic
@@ -500,6 +551,7 @@ export function LogicPanel({ cfg, onChange }: { cfg: FormConfig; onChange: (logi
         Al salir de una pregunta, si se cumple la condición, salta a otra pregunta o termina en un final concreto. Solo
         hacia delante.
       </p>
+      <FlowMap cfg={cfg} />
       {rules.map((r, i) => (
         <div key={r.id} className="space-y-2 rounded-xl border border-border p-3">
           <div className="flex items-center gap-2 text-sm">
@@ -572,7 +624,12 @@ export function LogicPanel({ cfg, onChange }: { cfg: FormConfig; onChange: (logi
 export function ScoringPanel({ cfg, onChange }: { cfg: FormConfig; onChange: (s: FormConfig['scoring']) => void }) {
   const s = cfg.scoring ?? { enabled: false, weights: [], thresholds: { caliente: 70, templado: 40 } }
   const set = (patch: Partial<typeof s>) => onChange({ ...s, ...patch })
-  const choiceQs = cfg.questions.filter((q) => ['singleChoice', 'multiChoice', 'dropdown', 'yesNo'].includes(q.type))
+  const NUMERIC = ['number', 'rating', 'nps', 'scale']
+  const choiceQs = cfg.questions.filter((q) =>
+    ['singleChoice', 'multiChoice', 'dropdown', 'yesNo', ...NUMERIC].includes(q.type)
+  )
+  const isNumeric = (id: string) => NUMERIC.includes(cfg.questions.find((x) => x.id === id)?.type ?? '')
+  const numOrUndef = (v: string) => (v.trim() === '' || !Number.isFinite(Number(v)) ? undefined : Number(v))
   const optsOf = (id: string) => {
     const q = cfg.questions.find((x) => x.id === id)
     return q?.type === 'yesNo'
@@ -631,7 +688,14 @@ export function ScoringPanel({ cfg, onChange }: { cfg: FormConfig; onChange: (s:
                 <select
                   className={cn(field, 'w-44')}
                   value={w.questionId}
-                  onChange={(e) => setW(i, { questionId: e.target.value, points: w.points })}
+                  onChange={(e) =>
+                    setW(
+                      i,
+                      isNumeric(e.target.value)
+                        ? { questionId: e.target.value, gte: 1, points: w.points }
+                        : { questionId: e.target.value, value: optsOf(e.target.value)[0]?.value, points: w.points }
+                    )
+                  }
                 >
                   {choiceQs.map((q) => (
                     <option key={q.id} value={q.id}>
@@ -639,18 +703,39 @@ export function ScoringPanel({ cfg, onChange }: { cfg: FormConfig; onChange: (s:
                     </option>
                   ))}
                 </select>
-                <select
-                  className={cn(field, 'w-40')}
-                  value={w.value ?? ''}
-                  onChange={(e) => setW(i, { ...w, value: e.target.value, in: undefined })}
-                >
-                  <option value="">—</option>
-                  {optsOf(w.questionId).map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
+                {isNumeric(w.questionId) ? (
+                  <>
+                    <input
+                      type="number"
+                      className={cn(field, 'w-20')}
+                      placeholder="desde"
+                      value={w.gte ?? ''}
+                      onChange={(e) => setW(i, { ...w, gte: numOrUndef(e.target.value) })}
+                      aria-label="Valor mínimo"
+                    />
+                    <input
+                      type="number"
+                      className={cn(field, 'w-20')}
+                      placeholder="hasta"
+                      value={w.lte ?? ''}
+                      onChange={(e) => setW(i, { ...w, lte: numOrUndef(e.target.value) })}
+                      aria-label="Valor máximo"
+                    />
+                  </>
+                ) : (
+                  <select
+                    className={cn(field, 'w-40')}
+                    value={w.value ?? ''}
+                    onChange={(e) => setW(i, { ...w, value: e.target.value, in: undefined })}
+                  >
+                    <option value="">—</option>
+                    {optsOf(w.questionId).map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <input
                   type="number"
                   className={cn(field, 'w-20')}
@@ -675,7 +760,9 @@ export function ScoringPanel({ cfg, onChange }: { cfg: FormConfig; onChange: (s:
                 set({
                   weights: [
                     ...s.weights,
-                    { questionId: choiceQs[0].id, value: optsOf(choiceQs[0].id)[0]?.value, points: 10 },
+                    isNumeric(choiceQs[0].id)
+                      ? { questionId: choiceQs[0].id, gte: 1, points: 10 }
+                      : { questionId: choiceQs[0].id, value: optsOf(choiceQs[0].id)[0]?.value, points: 10 },
                   ],
                 })
               }
