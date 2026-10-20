@@ -10,10 +10,7 @@ export interface ScoreResult {
   tag: string | null
 }
 
-function matches(
-  value: Answer | undefined,
-  w: { value?: string; in?: string[]; gte?: number; lte?: number }
-): boolean {
+function matches(value: Answer | undefined, w: { value?: string; in?: string[]; gte?: number; lte?: number }): boolean {
   if (value === undefined || value === null) return false
   if (w.gte !== undefined || w.lte !== undefined) {
     const n = typeof value === 'number' ? value : typeof value === 'string' && value.trim() !== '' ? Number(value) : NaN
