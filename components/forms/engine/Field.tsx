@@ -336,8 +336,13 @@ function PhoneField({
   error?: string
   inputRef: React.Ref<HTMLInputElement>
 }) {
-  const [prefix, setPrefix] = useState('+34')
-  const [national, setNational] = useState(() => (value ? value.replace(/^\+\d{1,3}/, '') : ''))
+  // Prefijo por coincidencia más larga con la lista real (un +34600… no se parte como +346).
+  const split = (v: string) => {
+    const hit = [...DIAL_CODES].sort((a, b) => b.code.length - a.code.length).find((d) => v.startsWith(d.code))
+    return hit ? { prefix: hit.code, national: v.slice(hit.code.length) } : { prefix: '+34', national: v }
+  }
+  const [prefix, setPrefix] = useState(() => (value ? split(value).prefix : '+34'))
+  const [national, setNational] = useState(() => (value ? split(value).national : ''))
   const update = (p: string, n: string) => {
     setPrefix(p)
     setNational(n)

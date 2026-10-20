@@ -141,3 +141,19 @@ test('las 5 pestañas del detalle tienen página real', () => {
   const l = leer('app/[tenant]/marketing/formularios/[id]/layout.tsx')
   for (const t of ['Constructor', 'Respuestas', 'Analítica', 'Compartir', 'Ajustes']) assert.ok(l.includes(`'${t}'`), t)
 })
+
+test('webhooks: IPs privadas, loopback, ULA y IPv4 mapeada se rechazan', async () => {
+  const { isPrivateIp } = await import('../lib/forms/webhooks.ts')
+  for (const ip of [
+    '127.0.0.1',
+    '10.1.2.3',
+    '192.168.0.9',
+    '172.20.0.1',
+    '169.254.169.254',
+    '::1',
+    'fd00::1',
+    '::ffff:10.0.0.1',
+  ])
+    assert.equal(isPrivateIp(ip), true, ip)
+  for (const ip of ['8.8.8.8', '1.1.1.1', '2606:4700::1111']) assert.equal(isPrivateIp(ip), false, ip)
+})

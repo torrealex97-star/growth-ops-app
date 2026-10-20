@@ -126,8 +126,9 @@ export function ConditionEditor({ group, questions, onChange, allowServerVars, e
                 </select>
               ) : (
                 <input
+                  key={`${i}-${c.op}`}
                   className={`${sel} w-32`}
-                  value={Array.isArray(c.value) ? c.value.join(',') : String(c.value ?? '')}
+                  defaultValue={Array.isArray(c.value) ? c.value.join(',') : String(c.value ?? '')}
                   placeholder={c.op === 'in' ? 'a,b,c' : 'valor'}
                   onChange={(e) => {
                     const raw = e.target.value

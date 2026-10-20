@@ -4,6 +4,8 @@
 // crons: límite de Vercel Hobby) o a mano desde Ajustes.
 
 import { createHmac, randomBytes } from 'node:crypto'
+import { lookup } from 'node:dns/promises'
+import { isIP } from 'node:net'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { decryptSecret } from '@/lib/config'
 import { formConfigSchema } from './schema'
@@ -54,6 +56,48 @@ export function isSafeWebhookUrl(raw: string): boolean {
       return false
   }
   return true
+}
+
+/** IP no enrutable públicamente (privada, loopback, link-local, ULA, mapeada IPv4). */
+export function isPrivateIp(ip: string): boolean {
+  const mapped = ip.toLowerCase().match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/)
+  if (mapped) ip = mapped[1]
+  if (isIP(ip) === 4) {
+    const [a, b] = ip.split('.').map(Number)
+    return (
+      a === 0 ||
+      a === 10 ||
+      a === 127 ||
+      a >= 224 ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      (a === 100 && b >= 64 && b <= 127)
+    )
+  }
+  const l = ip.toLowerCase()
+  return (
+    l === '::' ||
+    l === '::1' ||
+    l.startsWith('fc') ||
+    l.startsWith('fd') ||
+    l.startsWith('fe8') ||
+    l.startsWith('fe9') ||
+    l.startsWith('fea') ||
+    l.startsWith('feb')
+  )
+}
+
+/** `isSafeWebhookUrl` es léxica: un dominio que resuelve a una IP interna (p. ej. *.nip.io) la burlaría. */
+export async function resolvesToPublicIp(raw: string): Promise<boolean> {
+  try {
+    const host = new URL(raw).hostname.replace(/^\[|\]$/g, '')
+    if (isIP(host)) return !isPrivateIp(host)
+    const addrs = await lookup(host, { all: true })
+    return addrs.length > 0 && addrs.every((a) => !isPrivateIp(a.address))
+  } catch {
+    return false
+  }
 }
 
 export interface ResponseForPayload {
@@ -116,6 +160,7 @@ async function post(
   body: string
 ): Promise<{ ok: boolean; status: number | null; error: string | null }> {
   try {
+    if (!(await resolvesToPublicIp(url))) return { ok: false, status: null, error: 'Destino no permitido' }
     const secret = decryptSecret(secretEnc)
     const res = await fetch(url, {
       method: 'POST',
