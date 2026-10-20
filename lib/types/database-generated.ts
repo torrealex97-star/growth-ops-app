@@ -2897,6 +2897,300 @@ export type EsquemaPublico = {
         tenant_id: string | undefined
       }
     }
+    FormResponses: {
+      Row: {
+        id: string
+        tenant_id: string
+        form_id: string
+        version_id: string
+        submission_id: string
+        status: string
+        answers: Json
+        hidden: Json
+        score: number | null
+        temperature: string | null
+        tags: string[]
+        rating: number | null
+        nps: number | null
+        teacher: string | null
+        module: string | null
+        class_name: string | null
+        outcome: string | null
+        variant: string | null
+        contact_id: string | null
+        review_status: string
+        review_notes: string | null
+        device: string | null
+        duration_ms: number | null
+        ip_hash: string | null
+        created_at: string
+        completed_at: string | null
+        updated_at: string
+      }
+      Insert: {
+        id: string | undefined
+        tenant_id: string
+        form_id: string
+        version_id: string
+        submission_id: string
+        status: string | undefined
+        answers: Json | undefined
+        hidden: Json | undefined
+        score: number | null | undefined
+        temperature: string | null | undefined
+        tags: string[] | undefined
+        rating: number | null | undefined
+        nps: number | null | undefined
+        teacher: string | null | undefined
+        module: string | null | undefined
+        class_name: string | null | undefined
+        outcome: string | null | undefined
+        variant: string | null | undefined
+        contact_id: string | null | undefined
+        review_status: string | undefined
+        review_notes: string | null | undefined
+        device: string | null | undefined
+        duration_ms: number | null | undefined
+        ip_hash: string | null | undefined
+        created_at: string | undefined
+        completed_at: string | null | undefined
+        updated_at: string | undefined
+      }
+      Update: {
+        id: string | undefined
+        tenant_id: string | undefined
+        form_id: string | undefined
+        version_id: string | undefined
+        submission_id: string | undefined
+        status: string | undefined
+        answers: Json | undefined
+        hidden: Json | undefined
+        score: number | undefined
+        temperature: string | undefined
+        tags: string[] | undefined
+        rating: number | undefined
+        nps: number | undefined
+        teacher: string | undefined
+        module: string | undefined
+        class_name: string | undefined
+        outcome: string | undefined
+        variant: string | undefined
+        contact_id: string | undefined
+        review_status: string | undefined
+        review_notes: string | undefined
+        device: string | undefined
+        duration_ms: number | undefined
+        ip_hash: string | undefined
+        created_at: string | undefined
+        completed_at: string | undefined
+        updated_at: string | undefined
+      }
+    }
+    FormSessions: {
+      Row: {
+        id: string
+        tenant_id: string
+        form_id: string
+        version_id: string | null
+        session_id: string
+        status: string
+        device: string | null
+        variant: string | null
+        utm: Json
+        referrer_host: string | null
+        last_question: string | null
+        max_question_index: number
+        question_times: Json
+        started_at: string | null
+        completed_at: string | null
+        created_at: string
+        last_active_at: string
+      }
+      Insert: {
+        id: string | undefined
+        tenant_id: string
+        form_id: string
+        version_id: string | null | undefined
+        session_id: string
+        status: string | undefined
+        device: string | null | undefined
+        variant: string | null | undefined
+        utm: Json | undefined
+        referrer_host: string | null | undefined
+        last_question: string | null | undefined
+        max_question_index: number | undefined
+        question_times: Json | undefined
+        started_at: string | null | undefined
+        completed_at: string | null | undefined
+        created_at: string | undefined
+        last_active_at: string | undefined
+      }
+      Update: {
+        id: string | undefined
+        tenant_id: string | undefined
+        form_id: string | undefined
+        version_id: string | undefined
+        session_id: string | undefined
+        status: string | undefined
+        device: string | undefined
+        variant: string | undefined
+        utm: Json | undefined
+        referrer_host: string | undefined
+        last_question: string | undefined
+        max_question_index: number | undefined
+        question_times: Json | undefined
+        started_at: string | undefined
+        completed_at: string | undefined
+        created_at: string | undefined
+        last_active_at: string | undefined
+      }
+    }
+    FormVersions: {
+      Row: {
+        id: string
+        tenant_id: string
+        form_id: string
+        version: number
+        config: Json
+        published_by: string | null
+        published_at: string
+      }
+      Insert: {
+        id: string | undefined
+        tenant_id: string
+        form_id: string
+        version: number
+        config: Json
+        published_by: string | null | undefined
+        published_at: string | undefined
+      }
+      Update: {
+        id: string | undefined
+        tenant_id: string | undefined
+        form_id: string | undefined
+        version: number | undefined
+        config: Json | undefined
+        published_by: string | undefined
+        published_at: string | undefined
+      }
+    }
+    FormWebhookDeliveries: {
+      Row: {
+        id: string
+        tenant_id: string
+        webhook_id: string
+        response_id: string
+        status: string
+        attempts: number
+        last_status_code: number | null
+        last_error: string | null
+        next_attempt_at: string | null
+        created_at: string
+        delivered_at: string | null
+      }
+      Insert: {
+        id: string | undefined
+        tenant_id: string
+        webhook_id: string
+        response_id: string
+        status: string | undefined
+        attempts: number | undefined
+        last_status_code: number | null | undefined
+        last_error: string | null | undefined
+        next_attempt_at: string | null | undefined
+        created_at: string | undefined
+        delivered_at: string | null | undefined
+      }
+      Update: {
+        id: string | undefined
+        tenant_id: string | undefined
+        webhook_id: string | undefined
+        response_id: string | undefined
+        status: string | undefined
+        attempts: number | undefined
+        last_status_code: number | undefined
+        last_error: string | undefined
+        next_attempt_at: string | undefined
+        created_at: string | undefined
+        delivered_at: string | undefined
+      }
+    }
+    FormWebhooks: {
+      Row: {
+        id: string
+        tenant_id: string
+        form_id: string
+        url: string
+        secret_enc: string
+        active: boolean
+        created_at: string
+      }
+      Insert: {
+        id: string | undefined
+        tenant_id: string
+        form_id: string
+        url: string
+        secret_enc: string
+        active: boolean | undefined
+        created_at: string | undefined
+      }
+      Update: {
+        id: string | undefined
+        tenant_id: string | undefined
+        form_id: string | undefined
+        url: string | undefined
+        secret_enc: string | undefined
+        active: boolean | undefined
+        created_at: string | undefined
+      }
+    }
+    Forms: {
+      Row: {
+        id: string
+        tenant_id: string
+        slug: string
+        name: string
+        category: string
+        audience: string
+        status: string
+        draft_config: Json
+        published_version_id: string | null
+        settings: Json
+        created_by: string | null
+        created_at: string
+        updated_at: string
+      }
+      Insert: {
+        id: string | undefined
+        tenant_id: string
+        slug: string
+        name: string
+        category: string | undefined
+        audience: string | undefined
+        status: string | undefined
+        draft_config: Json
+        published_version_id: string | null | undefined
+        settings: Json | undefined
+        created_by: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+      }
+      Update: {
+        id: string | undefined
+        tenant_id: string | undefined
+        slug: string | undefined
+        name: string | undefined
+        category: string | undefined
+        audience: string | undefined
+        status: string | undefined
+        draft_config: Json | undefined
+        published_version_id: string | undefined
+        settings: Json | undefined
+        created_by: string | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+      }
+    }
     Ga4Daily: {
       Row: {
         id: string | null
