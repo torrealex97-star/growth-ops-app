@@ -272,6 +272,26 @@ export const NAV_SECTIONS: NavSection[] = [
       },
       { label: 'Contenido', href: '/marketing/contenido', icon: Clapperboard, roles: [...LEAD, 'marketing', 'editor'] },
       {
+        label: 'Formularios',
+        href: '/marketing/formularios',
+        icon: ClipboardList,
+        roles: [...LEAD, 'marketing'],
+        children: [
+          {
+            label: 'Mis formularios',
+            href: '/marketing/formularios',
+            icon: ClipboardList,
+            roles: [...LEAD, 'marketing'],
+          },
+          {
+            label: 'Plantillas',
+            href: '/marketing/formularios/plantillas',
+            icon: FileText,
+            roles: [...LEAD, 'marketing'],
+          },
+        ],
+      },
+      {
         label: 'Colaboradores',
         href: '/marketing/afiliados/afiliados',
         icon: TrendingUp,

@@ -313,3 +313,73 @@ test('evaluateSubmission: el final puede depender de la temperatura calculada en
   assert.equal(evaluateSubmission(c, { answers: { listo: 'yes' } }).endingId, 'vip')
   assert.equal(evaluateSubmission(c, { answers: { listo: 'no' } }).endingId, 'resto')
 })
+
+test('todas las plantillas son válidas, publicables y con lógica coherente', async () => {
+  const { FORM_TEMPLATES, blankConfig } = await import('../lib/forms/templates/index.ts')
+  assert.equal(FORM_TEMPLATES.length, 7)
+  const keys = new Set()
+  for (const t of [...FORM_TEMPLATES, { key: 'blank', name: 'b', config: blankConfig() }]) {
+    assert.ok(!keys.has(t.key), `clave repetida ${t.key}`)
+    keys.add(t.key)
+    assert.equal(formConfigSchema.safeParse(t.config).success, true, `${t.key}: no pasa el esquema`)
+    assert.deepEqual(validateConfig(t.config), [], `${t.key}: no es publicable`)
+    assert.doesNotMatch(JSON.stringify(t.config), /\p{Extended_Pictographic}/u, `${t.key}: emojis`)
+  }
+})
+
+test('plantillas de feedback: estrellas >= 4 → Trustpilot y < 4 → mejora; NPS >= 9 → Trustpilot', async () => {
+  const { FORM_TEMPLATES } = await import('../lib/forms/templates/index.ts')
+  const { evaluateSubmission } = await import('../lib/forms/submission.ts')
+  const vars = { trustpilot_url: 'https://es.trustpilot.com/review/ejemplo.test' }
+  for (const key of ['feedback-clase-directo', 'feedback-modulo']) {
+    const t = FORM_TEMPLATES.find((x) => x.key === key)
+    const base = key === 'feedback-modulo' ? { modulo: 'modulo-1' } : { profesor: 'profesor-1' }
+    const alta = evaluateSubmission(t.config, { answers: { ...base, estrellas: 5 }, vars })
+    assert.equal(alta.ok, true, key)
+    assert.equal(alta.redirectUrl, vars.trustpilot_url)
+    assert.equal(
+      evaluateSubmission(t.config, { answers: { ...base, estrellas: 3 }, vars }).ok,
+      false,
+      'sin mejora no vale'
+    )
+    const baja = evaluateSubmission(t.config, { answers: { ...base, estrellas: 3, mejora: 'más ejemplos' }, vars })
+    assert.equal(baja.ok, true)
+    assert.equal(baja.redirectUrl, null)
+    assert.equal(baja.endingId, 'gracias')
+  }
+  const nps = FORM_TEMPLATES.find((x) => x.key === 'nps-cliente')
+  assert.equal(evaluateSubmission(nps.config, { answers: { nps: 10 }, vars }).redirectUrl, vars.trustpilot_url)
+  assert.equal(evaluateSubmission(nps.config, { answers: { nps: 6 }, vars }).redirectUrl, null)
+})
+
+test('plantilla de cualificación: temperatura caliente dispara el final prioritario', async () => {
+  const { FORM_TEMPLATES } = await import('../lib/forms/templates/index.ts')
+  const { evaluateSubmission } = await import('../lib/forms/submission.ts')
+  const t = FORM_TEMPLATES.find((x) => x.key === 'cualificacion-cliente')
+  const cal = evaluateSubmission(t.config, {
+    answers: {
+      nombre: 'Ana',
+      email: 'a@b.co',
+      telefono: '+34600123456',
+      situacion: 'autonomo',
+      facturacion: '3000+',
+      listo: 'yes',
+    },
+  })
+  assert.equal(cal.ok, true)
+  assert.equal(cal.score.temperature, 'caliente')
+  assert.equal(cal.endingId, 'prioritario')
+  const frio = evaluateSubmission(t.config, {
+    answers: {
+      nombre: 'Ana',
+      email: 'a@b.co',
+      telefono: '+34600123456',
+      situacion: 'otro',
+      facturacion: '0-500',
+      listo: 'no',
+      objecion: 'precio',
+    },
+  })
+  assert.equal(frio.score.temperature, 'frio')
+  assert.equal(frio.endingId, 'gracias')
+})

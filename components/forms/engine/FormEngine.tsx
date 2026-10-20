@@ -378,11 +378,15 @@ export function FormEngine({ config, name, tenant, slug, mode = 'live', hidden =
 
   return (
     <div
-      className={cn('relative min-h-screen bg-background text-foreground', config.theme?.mode === 'dark' && 'dark')}
+      className={cn(
+        'relative bg-background text-foreground',
+        live ? 'min-h-screen' : 'min-h-[620px] overflow-hidden',
+        config.theme?.mode === 'dark' && 'dark'
+      )}
       data-form-engine
     >
       <div
-        className="fixed left-0 top-0 z-10 h-1.5 w-full bg-muted"
+        className={cn(live ? 'fixed' : 'absolute', 'left-0 top-0 z-10 h-1.5 w-full bg-muted')}
         role="progressbar"
         aria-valuenow={progress}
         aria-valuemin={0}
@@ -399,7 +403,10 @@ export function FormEngine({ config, name, tenant, slug, mode = 'live', hidden =
       )}
 
       <div
-        className="mx-auto flex min-h-screen max-w-2xl flex-col justify-center px-5 py-16"
+        className={cn(
+          'mx-auto flex max-w-2xl flex-col justify-center px-5 py-16',
+          live ? 'min-h-screen' : 'min-h-[620px]'
+        )}
         style={{ paddingBottom: 'max(4rem, env(safe-area-inset-bottom))' }}
       >
         {/* Honeypot: invisible para personas. */}
