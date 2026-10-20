@@ -1,11 +1,14 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { deriveChannel } from '@/lib/tracking/ingest'
 import { aplicarVinculo } from '@/lib/tracking/identity-apply'
+import { sanitizarFbc, sanitizarFbp } from '@/lib/tracking/meta-click'
 
 // Eventos en los que el visitante se identifica (correo/teléfono en properties).
 const IDENTITY_EVENTS = new Set(['lead', 'form_submit', 'appointment_booked', 'purchase'])
 
 export type TrackBody = {
+  fbc?: string
+  fbp?: string
   event?: string
   event_id?: string
   url?: string
@@ -138,6 +141,8 @@ export async function normalizarEventoRaw(
             gbraid: body.gbraid ?? null,
             wbraid: body.wbraid ?? null,
             msclkid: body.msclkid ?? null,
+            fbc: sanitizarFbc(body.fbc),
+            fbp: sanitizarFbp(body.fbp),
           },
         })
         .select('id')
@@ -226,6 +231,8 @@ export async function normalizarEventoRaw(
       properties: {
         url: body.url ?? null,
         referrer: body.referrer ?? null,
+        fbc: sanitizarFbc(body.fbc),
+        fbp: sanitizarFbp(body.fbp),
         ...(body.properties ?? {}),
       },
     },

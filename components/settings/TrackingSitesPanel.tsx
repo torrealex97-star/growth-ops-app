@@ -27,6 +27,7 @@ export function TrackingSitesPanel() {
   const [sites, setSites] = useState<Site[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
+  const [pixelId, setPixelId] = useState('')
   const [newName, setNewName] = useState('')
   const [newSlug, setNewSlug] = useState('')
   const [newOrigins, setNewOrigins] = useState('')
@@ -49,8 +50,9 @@ export function TrackingSitesPanel() {
     void load()
   }, [load])
 
+  const pixelValido = /^\d{8,20}$/.test(pixelId.trim())
   const snippetFor = (site: Site) =>
-    `<script defer src="${typeof window !== 'undefined' ? window.location.origin : ''}/tracker.js" data-site="${site.public_key}"></script>`
+    `<script defer src="${typeof window !== 'undefined' ? window.location.origin : ''}/tracker.js" data-site="${site.public_key}"${pixelValido ? ` data-meta-pixel="${pixelId.trim()}"` : ''}></script>`
 
   const copySnippet = async (site: Site) => {
     try {
@@ -125,6 +127,24 @@ export function TrackingSitesPanel() {
             Eventos de tus webs y landings: páginas vistas, CTAs, formularios, leads y ventas.
           </p>
         </div>
+      </div>
+
+      <div className="space-y-1.5 rounded-lg border border-border bg-muted/30 p-4">
+        <label htmlFor="meta-pixel-id" className="text-xs font-medium text-foreground">
+          ID del Pixel de Meta (opcional)
+        </label>
+        <input
+          id="meta-pixel-id"
+          value={pixelId}
+          onChange={(e) => setPixelId(e.target.value)}
+          inputMode="numeric"
+          placeholder="Solo dígitos"
+          className="h-9 w-full max-w-xs rounded-lg border border-border bg-muted px-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-brand-500 focus:outline-none"
+        />
+        <p className="text-xs text-muted-foreground">
+          Si lo rellenas, el snippet carga también el Pixel de Meta y comparte el mismo identificador de evento con la
+          Conversions API para no contar dos veces. Tu web debe pedir el consentimiento de cookies antes de cargarlo.
+        </p>
       </div>
 
       {/* Guía rápida: la confusión típica es creer que se necesita un pixel por página o que el
