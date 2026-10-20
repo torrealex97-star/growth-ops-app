@@ -52,6 +52,7 @@ import {
   Filter,
   FileAudio,
   Handshake,
+  Globe,
 } from 'lucide-react'
 import { allowedPrefixesFor, type AppRole, type Department } from '@/lib/auth/permissions'
 
@@ -247,6 +248,12 @@ export const NAV_SECTIONS: NavSection[] = [
             roles: [...LEAD, 'marketing', 'adscripcion'],
           },
           { label: 'VSL', href: '/marketing/adquisicion/vsl', icon: Video, roles: [...LEAD, 'marketing', 'editor'] },
+          {
+            label: 'Tráfico web',
+            href: '/marketing/adquisicion/trafico-web',
+            icon: Globe,
+            roles: [...LEAD, 'marketing'],
+          },
         ],
       },
       {
