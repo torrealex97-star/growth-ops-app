@@ -13,6 +13,7 @@
 // rompe si la tabla no existe todavía (los envíos pasan directo al default).
 
 import type { CompanyProfile } from '@/lib/contracts/company'
+import { PLANTILLAS_HTML } from './plantillas.generated'
 
 export type EmailTemplateKey =
   | 'invite'
@@ -108,266 +109,61 @@ export const TEMPLATE_VARIABLES: Record<EmailTemplateKey, { var: string; desc: s
   ],
 }
 
-// ── BUILDERS HTML (defaults; trasplantados de resend.ts sin cambios visuales) ─
+// ── DEFAULTS: salen de los componentes de /emails (React Email) ───────────────
+//
+// El diseño y los textos viven en /emails y se generan a HTML con {{variables}} (npm run emails:build →
+// plantillas.generated.ts). Aquí solo se ELIGE la variante (con o sin lo opcional) y se rellenan las
+// variables ESCAPADAS: es el único sitio que convierte los datos de un envío en HTML del correo.
 
-function layout(inner: string, footer?: string): string {
-  return `<!doctype html>
-<html><body style="margin:0;background:#f4f4f5;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#18181b">
-  <div style="max-width:560px;margin:0 auto;padding:32px 16px">
-    <div style="background:#fff;border:1px solid #e4e4e7;border-radius:14px;padding:32px">
-${inner}
-    </div>
-    ${footer ? `<p style="text-align:center;font-size:11px;color:#a1a1aa;margin-top:16px">${footer}</p>` : ''}
-  </div>
-</body></html>`
-}
-
+/** Botón de las plantillas guardadas antiguas con directivas {{boton:…}} (ver expandSkeletonDirectives). */
 const btn = (url: string, label: string, color = '#18181b') =>
   `<div style="text-align:center;margin:28px 0">
         <a href="${esc(url)}" style="display:inline-block;background:${color};color:#fff;text-decoration:none;padding:13px 28px;border-radius:10px;font-size:15px;font-weight:600">${esc(label)}</a>
       </div>`
 
-const fallbackLink = (url: string, color = '#3b82f6') =>
-  `<p style="font-size:12px;color:#71717a;line-height:1.6">Si el botón no funciona, copia y pega este enlace en tu navegador:<br><span style="color:${color};word-break:break-all">${esc(url)}</span></p>`
+function claveDeVariante(key: EmailTemplateKey, v: EmailVars): string {
+  if ((key === 'contract_signed' || key === 'student_contract_signed') && !v.url) return `${key}:sin_enlace`
+  if (key === 'task_assigned') {
+    const sinDescripcion = !v.taskDescription
+    const sinMeta = !v.priority && !v.dueDate
+    if (sinDescripcion && sinMeta) return 'task_assigned:sin_descripcion_ni_meta'
+    if (sinDescripcion) return 'task_assigned:sin_descripcion'
+    if (sinMeta) return 'task_assigned:sin_meta'
+  }
+  return key
+}
 
 export function defaultBody(key: EmailTemplateKey, v: EmailVars): string {
-  const company = v.company.name
-  const firma = esc(v.company.email_signature || `Un saludo,\n${company}`)
-  switch (key) {
-    case 'invite':
-      return layout(
-        [
-          `<h1 style="margin:0 0 4px;font-size:20px;color:#09090b">${esc(company)}</h1>`,
-          `<p style="margin:0 0 24px;font-size:12px;color:#a1a1aa">Acceso al panel del equipo</p>`,
-          `<p style="font-size:15px;line-height:1.6">Hola ${esc(v.memberName ?? '')},</p>`,
-          `<p style="font-size:15px;line-height:1.6">Te damos acceso al panel de ${esc(company)}. Para entrar, primero <b>crea tu contraseña</b> pulsando el botón:</p>`,
-          btn(v.url ?? '', 'Crear mi contraseña', '#7c3aed'),
-          fallbackLink(v.url ?? '', '#7c3aed'),
-          `<hr style="border:none;border-top:1px solid #e4e4e7;margin:24px 0">`,
-          `<p style="font-size:13px;color:#52525b;line-height:1.6;white-space:pre-line">${firma}</p>`,
-        ].join('\n      '),
-        'Este enlace es personal y caduca. Si no esperabas este correo, ignóralo.'
-      )
-    case 'recovery':
-      return layout(
-        [
-          `<h1 style="margin:0 0 4px;font-size:20px;color:#09090b">${esc(company)}</h1>`,
-          `<p style="margin:0 0 24px;font-size:12px;color:#a1a1aa">Restablecer contraseña</p>`,
-          `<p style="font-size:15px;line-height:1.6">Has solicitado restablecer tu contraseña. Pulsa el botón para crear una nueva:</p>`,
-          btn(v.url ?? '', 'Crear nueva contraseña', '#7c3aed'),
-          `<p style="font-size:12px;color:#71717a;line-height:1.6">Si no funciona el botón, copia este enlace:<br><span style="color:#7c3aed;word-break:break-all">${esc(v.url ?? '')}</span></p>`,
-          `<p style="font-size:12px;color:#a1a1aa;line-height:1.6;margin-top:16px">Si no fuiste tú, ignora este correo; tu contraseña no cambiará.</p>`,
-        ].join('\n      ')
-      )
-    case 'contract':
-      return layout(
-        [
-          `<h1 style="margin:0 0 4px;font-size:20px;color:#09090b">${esc(company)}</h1>`,
-          `<p style="margin:0 0 24px;font-size:12px;color:#a1a1aa">Contrato para firmar</p>`,
-          `<p style="font-size:15px;line-height:1.6">Hola ${esc(v.memberName ?? '')},</p>`,
-          `<p style="font-size:15px;line-height:1.6">Tienes un contrato listo para revisar y firmar. Podrás completar tus datos (DNI, dirección…) directamente en la página de firma.</p>`,
-          btn(v.url ?? '', 'Revisar y firmar contrato'),
-          fallbackLink(v.url ?? ''),
-          `<hr style="border:none;border-top:1px solid #e4e4e7;margin:24px 0">`,
-          `<p style="font-size:13px;color:#52525b;line-height:1.6;white-space:pre-line">${firma}</p>`,
-        ].join('\n      '),
-        'Firma electrónica simple (eIDAS). Este enlace es personal, no lo compartas.'
-      )
-    case 'contract_signed':
-    case 'student_contract_signed':
-      return layout(
-        [
-          `<h1 style="margin:0 0 4px;font-size:20px;color:#09090b">${esc(company)}</h1>`,
-          `<p style="margin:0 0 24px;font-size:12px;color:#a1a1aa">Contrato firmado — copia</p>`,
-          `<p style="font-size:15px;line-height:1.6">Hola ${esc(v.memberName ?? '')},</p>`,
-          `<p style="font-size:15px;line-height:1.6">Tu contrato ha quedado <b>firmado correctamente</b>. Adjuntamos una copia en PDF para tus registros.</p>`,
-          v.url ? btn(v.url, 'Descargar contrato firmado') : '',
-          `<hr style="border:none;border-top:1px solid #e4e4e7;margin:24px 0">`,
-          `<p style="font-size:13px;color:#52525b;line-height:1.6;white-space:pre-line">${firma}</p>`,
-        ]
-          .filter(Boolean)
-          .join('\n      '),
-        'Firma electrónica simple (eIDAS). Conserva esta copia.'
-      )
-    case 'student_contract':
-      return layout(
-        [
-          `<h1 style="margin:0 0 4px;font-size:20px;color:#09090b">${esc(company)}</h1>`,
-          `<p style="margin:0 0 20px;font-size:12px;color:#a1a1aa">Bienvenido a la Academia</p>`,
-          `<p style="font-size:16px;line-height:1.6;font-weight:600;color:#7c3aed">${esc(v.welcome ?? '')}</p>`,
-          `<p style="font-size:15px;line-height:1.6">Hola ${esc(v.memberName ?? '')}, pulsa el botón para revisar y aceptar las condiciones. En cuanto aceptes, recibirás tus accesos.</p>`,
-          btn(v.url ?? '', 'Aceptar condiciones y entrar', '#7c3aed'),
-          fallbackLink(v.url ?? '', '#7c3aed'),
-        ].join('\n      '),
-        'Firma electrónica simple (eIDAS). Este enlace es personal, no lo compartas.'
-      )
-    case 'student_onboarding':
-      return layout(
-        [
-          `<h1 style="margin:0 0 4px;font-size:20px;color:#09090b">${esc(company)}</h1>`,
-          `<p style="margin:0 0 20px;font-size:12px;color:#a1a1aa">Tus accesos están listos 🚀</p>`,
-          `<p style="font-size:16px;line-height:1.6;font-weight:600;color:#7c3aed">¡Ya eres un Winner, ${esc(v.memberName ?? '')}!</p>`,
-          `<p style="font-size:15px;line-height:1.6">Hemos activado tus accesos a la Academia. Sigue el paso a paso de onboarding para empezar hoy mismo: ahí encontrarás cómo entrar a la plataforma, el vídeo de inicio y todo lo que necesitas.</p>`,
-          btn(v.landingUrl ?? v.url ?? '', 'Ver mis accesos y empezar', '#7c3aed'),
-          fallbackLink(v.landingUrl ?? v.url ?? '', '#7c3aed'),
-          `<hr style="border:none;border-top:1px solid #e4e4e7;margin:24px 0">`,
-          `<p style="font-size:13px;color:#52525b;line-height:1.6;white-space:pre-line">${firma}</p>`,
-        ].join('\n      ')
-      )
-    case 'task_assigned': {
-      const meta = [v.priority ? `Prioridad: ${esc(v.priority)}` : '', v.dueDate ? `Vence: ${esc(v.dueDate)}` : '']
-        .filter(Boolean)
-        .join(' · ')
-      return layout(
-        [
-          `<h1 style="margin:0 0 4px;font-size:20px;color:#09090b">${esc(company)}</h1>`,
-          `<p style="margin:0 0 20px;font-size:12px;color:#a1a1aa">Nueva tarea asignada</p>`,
-          `<p style="font-size:15px;line-height:1.6">Hola ${esc(v.memberName ?? '')}, tienes una tarea nueva por realizar:</p>`,
-          `<div style="background:#f9fafb;border:1px solid #e4e4e7;border-radius:10px;padding:16px;margin:16px 0">`,
-          `<p style="font-size:15px;font-weight:600;margin:0 0 6px">${esc(v.taskTitle ?? '')}</p>`,
-          v.taskDescription
-            ? `<p style="font-size:13px;color:#52525b;line-height:1.5;margin:0 0 6px;white-space:pre-line">${esc(v.taskDescription)}</p>`
-            : '',
-          meta ? `<p style="font-size:12px;color:#a1a1aa;margin:0">${meta}</p>` : '',
-          `</div>`,
-          `<div style="text-align:center;margin:24px 0">`,
-          `<a href="${esc(v.url ?? '')}" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:12px 26px;border-radius:10px;font-size:14px;font-weight:600">Ver mis tareas</a>`,
-          `</div>`,
-        ]
-          .filter(Boolean)
-          .join('\n      ')
-      )
-    }
-  }
+  const vars = templateVars(key, v)
+  // El onboarding de alumnos lleva al enlace de la landing si existe.
+  if (key === 'student_onboarding' && v.landingUrl) vars.enlace = v.landingUrl
+  const escapadas = Object.fromEntries(Object.entries(vars).map(([k, valor]) => [k, esc(valor)]))
+  return renderTemplate(PLANTILLAS_HTML[claveDeVariante(key, v)] ?? PLANTILLAS_HTML[key], escapadas)
 }
 
 // ── ESQUELETOS EDITABLES ─────────────────────────────────────────────────────
-// Punto de partida del editor: la misma gramática visual que el default pero con
-// {{variables}}. NO se usan en envíos — solo para pre-rellenar el formulario cuando
-// la subcuenta aún no ha guardado nada.
+// Punto de partida del editor: el MISMO HTML que se envía por defecto (variante completa), con sus
+// {{variables}} sin sustituir. Antes eran una segunda copia escrita a mano que ya había divergido de lo
+// que realmente se enviaba. NO se usan en envíos — solo para pre-rellenar el formulario cuando la
+// subcuenta aún no ha guardado nada.
 export const TEMPLATE_SKELETONS: Record<EmailTemplateKey, { subject: string; body: string }> = {
-  invite: {
-    subject: '{{empresa}} · Crea tu contraseña para acceder',
-    body: layout(
-      [
-        `<h1 style="margin:0 0 4px;font-size:20px;color:#09090b">{{empresa}}</h1>`,
-        `<p style="margin:0 0 24px;font-size:12px;color:#a1a1aa">Acceso al panel del equipo</p>`,
-        `<p style="font-size:15px;line-height:1.6">Hola {{nombre}},</p>`,
-        `<p style="font-size:15px;line-height:1.6">Te damos acceso al panel de {{empresa}}. Para entrar, primero <b>crea tu contraseña</b> pulsando el botón:</p>`,
-        `{{boton:#7c3aed:Crear mi contraseña}}`,
-        `{{enlace_fallback}}`,
-        `<hr style="border:none;border-top:1px solid #e4e4e7;margin:24px 0">`,
-        `<p style="font-size:13px;color:#52525b;line-height:1.6;white-space:pre-line">{{firma}}</p>`,
-      ].join('\n      '),
-      'Este enlace es personal y caduca. Si no esperabas este correo, ignóralo.'
-    ),
-  },
-  recovery: {
-    subject: '{{empresa}} · Restablecer contraseña',
-    body: layout(
-      [
-        `<h1 style="margin:0 0 4px;font-size:20px;color:#09090b">{{empresa}}</h1>`,
-        `<p style="margin:0 0 24px;font-size:12px;color:#a1a1aa">Restablecer contraseña</p>`,
-        `<p style="font-size:15px;line-height:1.6">Has solicitado restablecer tu contraseña. Pulsa el botón para crear una nueva:</p>`,
-        `{{boton:#7c3aed:Crear nueva contraseña}}`,
-        `<p style="font-size:12px;color:#71717a;line-height:1.6">Si no funciona el botón, copia este enlace:<br><span style="color:#7c3aed;word-break:break-all">{{enlace}}</span></p>`,
-        `<p style="font-size:12px;color:#a1a1aa;line-height:1.6;margin-top:16px">Si no fuiste tú, ignora este correo; tu contraseña no cambiará.</p>`,
-      ].join('\n      ')
-    ),
-  },
-  contract: {
-    subject: '{{empresa}} · Contrato para firmar',
-    body: layout(
-      [
-        `<h1 style="margin:0 0 4px;font-size:20px;color:#09090b">{{empresa}}</h1>`,
-        `<p style="margin:0 0 24px;font-size:12px;color:#a1a1aa">Contrato para firmar</p>`,
-        `<p style="font-size:15px;line-height:1.6">Hola {{nombre}},</p>`,
-        `<p style="font-size:15px;line-height:1.6">Tienes un contrato listo para revisar y firmar.</p>`,
-        `{{boton:#18181b:Revisar y firmar contrato}}`,
-        `{{enlace_fallback}}`,
-        `<hr style="border:none;border-top:1px solid #e4e4e7;margin:24px 0">`,
-        `<p style="font-size:13px;color:#52525b;line-height:1.6;white-space:pre-line">{{firma}}</p>`,
-      ].join('\n      '),
-      'Firma electrónica simple (eIDAS). Este enlace es personal, no lo compartas.'
-    ),
-  },
-  contract_signed: {
-    subject: '{{empresa}} · Copia de tu contrato firmado',
-    body: layout(
-      [
-        `<h1 style="margin:0 0 4px;font-size:20px;color:#09090b">{{empresa}}</h1>`,
-        `<p style="margin:0 0 24px;font-size:12px;color:#a1a1aa">Contrato firmado — copia</p>`,
-        `<p style="font-size:15px;line-height:1.6">Hola {{nombre}},</p>`,
-        `<p style="font-size:15px;line-height:1.6">Tu contrato ha quedado <b>firmado correctamente</b>. Adjuntamos una copia en PDF para tus registros.</p>`,
-        `{{boton_pdf}}`,
-        `<hr style="border:none;border-top:1px solid #e4e4e7;margin:24px 0">`,
-        `<p style="font-size:13px;color:#52525b;line-height:1.6;white-space:pre-line">{{firma}}</p>`,
-      ].join('\n      '),
-      'Firma electrónica simple (eIDAS). Conserva esta copia.'
-    ),
-  },
+  invite: { subject: '{{empresa}} · Crea tu contraseña para acceder', body: PLANTILLAS_HTML.invite },
+  recovery: { subject: '{{empresa}} · Restablecer contraseña', body: PLANTILLAS_HTML.recovery },
+  contract: { subject: '{{empresa}} · Contrato para firmar', body: PLANTILLAS_HTML.contract },
+  contract_signed: { subject: '{{empresa}} · Copia de tu contrato firmado', body: PLANTILLAS_HTML.contract_signed },
   student_contract: {
     subject: '{{empresa}} · ¡Bienvenida! Acepta tus condiciones',
-    body: layout(
-      [
-        `<h1 style="margin:0 0 4px;font-size:20px;color:#09090b">{{empresa}}</h1>`,
-        `<p style="margin:0 0 20px;font-size:12px;color:#a1a1aa">Bienvenido a la Academia</p>`,
-        `<p style="font-size:16px;line-height:1.6;font-weight:600;color:#7c3aed">{{bienvenida}}</p>`,
-        `<p style="font-size:15px;line-height:1.6">Hola {{nombre}}, pulsa el botón para revisar y aceptar las condiciones. En cuanto aceptes, recibirás tus accesos.</p>`,
-        `{{boton:#7c3aed:Aceptar condiciones y entrar}}`,
-        `{{enlace_fallback}}`,
-      ].join('\n      '),
-      'Firma electrónica simple (eIDAS). Este enlace es personal, no lo compartas.'
-    ),
+    body: PLANTILLAS_HTML.student_contract,
   },
   student_onboarding: {
     subject: '{{empresa}} · Tus accesos están listos — empieza aquí',
-    body: layout(
-      [
-        `<h1 style="margin:0 0 4px;font-size:20px;color:#09090b">{{empresa}}</h1>`,
-        `<p style="margin:0 0 20px;font-size:12px;color:#a1a1aa">Tus accesos están listos 🚀</p>`,
-        `<p style="font-size:16px;line-height:1.6;font-weight:600;color:#7c3aed">¡Ya eres parte de {{empresa}}, {{nombre}}!</p>`,
-        `<p style="font-size:15px;line-height:1.6">Hemos activado tus accesos. Sigue el paso a paso de onboarding para empezar hoy mismo.</p>`,
-        `{{boton:#7c3aed:Ver mis accesos y empezar}}`,
-        `{{enlace_fallback}}`,
-        `<hr style="border:none;border-top:1px solid #e4e4e7;margin:24px 0">`,
-        `<p style="font-size:13px;color:#52525b;line-height:1.6;white-space:pre-line">{{firma}}</p>`,
-      ].join('\n      ')
-    ),
+    body: PLANTILLAS_HTML.student_onboarding,
   },
   student_contract_signed: {
     subject: '{{empresa}} · Copia de tu contrato firmado',
-    body: layout(
-      [
-        `<h1 style="margin:0 0 4px;font-size:20px;color:#09090b">{{empresa}}</h1>`,
-        `<p style="margin:0 0 24px;font-size:12px;color:#a1a1aa">Contrato firmado — copia</p>`,
-        `<p style="font-size:15px;line-height:1.6">Hola {{nombre}},</p>`,
-        `<p style="font-size:15px;line-height:1.6">Tu contrato ha quedado <b>firmado correctamente</b>. Adjuntamos una copia en PDF para tus registros.</p>`,
-        `{{boton_pdf}}`,
-        `<hr style="border:none;border-top:1px solid #e4e4e7;margin:24px 0">`,
-        `<p style="font-size:13px;color:#52525b;line-height:1.6;white-space:pre-line">{{firma}}</p>`,
-      ].join('\n      '),
-      'Firma electrónica simple (eIDAS). Conserva esta copia.'
-    ),
+    body: PLANTILLAS_HTML.student_contract_signed,
   },
-  task_assigned: {
-    subject: '{{empresa}} · Nueva tarea: {{tarea}}',
-    body: layout(
-      [
-        `<h1 style="margin:0 0 4px;font-size:20px;color:#09090b">{{empresa}}</h1>`,
-        `<p style="margin:0 0 20px;font-size:12px;color:#a1a1aa">Nueva tarea asignada</p>`,
-        `<p style="font-size:15px;line-height:1.6">Hola {{nombre}}, tienes una tarea nueva por realizar:</p>`,
-        `<div style="background:#f9fafb;border:1px solid #e4e4e7;border-radius:10px;padding:16px;margin:16px 0">`,
-        `<p style="font-size:15px;font-weight:600;margin:0 0 6px">{{tarea}}</p>`,
-        `<p style="font-size:13px;color:#52525b;line-height:1.5;margin:0 0 6px;white-space:pre-line">{{descripcion}}</p>`,
-        `<p style="font-size:12px;color:#a1a1aa;margin:0">{{meta}}</p>`,
-        `</div>`,
-        `<div style="text-align:center;margin:24px 0">`,
-        `<a href="{{enlace}}" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:12px 26px;border-radius:10px;font-size:14px;font-weight:600">Ver mis tareas</a>`,
-        `</div>`,
-      ].join('\n      ')
-    ),
-  },
+  task_assigned: { subject: '{{empresa}} · Nueva tarea: {{tarea}}', body: PLANTILLAS_HTML.task_assigned },
 }
 
 // Directivas {{boton:…}}, {{boton_pdf}} y {{enlace_fallback}} de los esqueletos:

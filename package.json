@@ -24,7 +24,9 @@
     "context:build": "npx -y repomix --config repomix.config.json",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
-    "test:rls:live": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/rls-multitenant.mjs"
+    "test:rls:live": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/rls-multitenant.mjs",
+    "emails:build": "tsx scripts/build-emails.tsx",
+    "emails:check": "tsx scripts/build-emails.tsx --check"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",
@@ -74,6 +76,8 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.64.0",
+    "@react-email/components": "1.0.12",
+    "@react-email/render": "2.1.1",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.6.5",
     "@types/react": "^18",
@@ -86,6 +90,7 @@
     "postcss": "^8",
     "prettier": "^3.9.6",
     "tailwindcss": "^4.3.3",
+    "tsx": "4.23.15",
     "typescript": "^5"
   }
 }
