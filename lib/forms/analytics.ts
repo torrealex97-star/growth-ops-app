@@ -75,8 +75,22 @@ export interface Analytics {
     avgCompletionMs: number | null
     medianCompletionMs: number | null
   }
-  funnel: { id: string; title: string; reached: number }[]
-  biggestDrop: { id: string; title: string; lost: number } | null
+  /** Visitas → empiezan (abandono antes de la primera pregunta). */
+  entry: { views: number; starts: number; dropped: number; dropRate: number | null }
+  /**
+   * Embudo por paso, por ID de pregunta (correcto con saltos y ramas):
+   * `reached` = sesiones que llegaron a esa pregunta; `dropped` = las que se fueron SIN terminar estando
+   * en ella; `dropRate` = dropped / reached (tasa de abandono del paso); `pctOfStarts` = reached / empiezan.
+   */
+  funnel: {
+    id: string
+    title: string
+    reached: number
+    dropped: number
+    dropRate: number | null
+    pctOfStarts: number | null
+  }[]
+  biggestDrop: { id: string; title: string; dropped: number; dropRate: number } | null
   timePerQuestion: { id: string; title: string; avgMs: number }[]
   devices: Record<string, number>
   sources: { label: string; count: number }[]
@@ -103,17 +117,37 @@ export function computeAnalytics(config: FormConfig, sessions: SessionRow[], res
   const screens = config.questions.filter((q) => q.type !== 'hidden')
   const titleOf = (id: string) => screens.find((q) => q.id === id)?.title || id
 
-  // Embudo por ID: cuántas sesiones llegaron a cada pregunta (índice máximo alcanzado dentro de su camino).
-  const funnel = screens.map((q, i) => ({
-    id: q.id,
-    title: titleOf(q.id),
-    reached: Math.max(sessions.filter((s) => s.status !== 'viewed' && s.max_question_index >= i).length, 0),
-  }))
+  // Embudo por ID de pregunta. Una sesión "llegó" a una pregunta si la visitó (tiene tiempo registrado
+  // en ella o es la última en la que estuvo). Abandona en un paso si NO completó y su última pregunta
+  // es ese paso. Con saltos y ramas la posición en el camino no coincide con el orden de la config, así
+  // que el índice (como hacía el MVP) daría un embudo falso.
+  const startedSessions = sessions.filter((s) => s.status !== 'viewed')
+  const visited = (s: SessionRow) =>
+    new Set([...Object.keys(s.question_times ?? {}), ...(s.last_question ? [s.last_question] : [])])
+  const visitedBy = startedSessions.map((s) => ({ s, v: visited(s) }))
+  const funnel = screens
+    .filter((q) => q.type !== 'statement')
+    .map((q) => {
+      const reachedList = visitedBy.filter((x) => x.v.has(q.id))
+      const reached = reachedList.length
+      const dropped = reachedList.filter((x) => x.s.status !== 'completed' && x.s.last_question === q.id).length
+      return {
+        id: q.id,
+        title: titleOf(q.id),
+        reached,
+        dropped,
+        dropRate: reached ? dropped / reached : null,
+        pctOfStarts: starts ? reached / starts : null,
+      }
+    })
   let biggest: Analytics['biggestDrop'] = null
-  for (let i = 1; i < funnel.length; i++) {
-    const lost = funnel[i - 1].reached - funnel[i].reached
-    if (lost > (biggest?.lost ?? 0)) biggest = { id: funnel[i].id, title: funnel[i].title, lost }
+  for (const f of funnel) {
+    if (f.dropRate !== null && f.dropped > 0 && f.dropped > (biggest?.dropped ?? 0)) {
+      biggest = { id: f.id, title: f.title, dropped: f.dropped, dropRate: f.dropRate }
+    }
   }
+  const entryDropped = Math.max(views - starts, 0)
+  const entry = { views, starts, dropped: entryDropped, dropRate: views ? entryDropped / views : null }
 
   const times: Record<string, number[]> = {}
   for (const s of sessions) for (const [id, ms] of Object.entries(s.question_times ?? {})) (times[id] ??= []).push(ms)
@@ -217,6 +251,7 @@ export function computeAnalytics(config: FormConfig, sessions: SessionRow[], res
       avgCompletionMs: avg(durations) === null ? null : Math.round(avg(durations)!),
       medianCompletionMs: median(durations),
     },
+    entry,
     funnel,
     biggestDrop: biggest,
     timePerQuestion,

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Loader2 } from 'lucide-react'
 import { useTenant } from '@/lib/tenant-context'
 import { formatNumber, formatPercent } from '@/lib/utils'
@@ -28,7 +28,7 @@ function Kpi({ label, value, hint }: { label: string; value: string; hint?: stri
   )
 }
 const Card = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <section className="rounded-xl border border-border bg-card p-5">
+  <section className="min-w-0 rounded-xl border border-border bg-card p-5">
     <h3 className="mb-4 text-sm font-semibold text-foreground">{title}</h3>
     {children}
   </section>
@@ -54,6 +54,82 @@ function HBars({ data }: { data: { label: string; count: number }[] }) {
         </li>
       ))}
     </ul>
+  )
+}
+
+const rate = (v: number | null) => (v === null ? '—' : formatPercent(v * 100, 0))
+
+function FunnelTable({ a }: { a: Analytics }) {
+  const rows = a.funnel
+  const base = Math.max(a.entry.views, 1)
+  if (a.entry.views === 0) return <Empty />
+  const heat = (r: number | null) =>
+    r === null ? 'text-muted-foreground' : r >= 0.4 ? 'text-red-400' : r >= 0.2 ? 'text-amber-400' : 'text-emerald-400'
+  return (
+    <div className="space-y-3">
+      {a.biggestDrop && (
+        <p className="text-sm text-muted-foreground">
+          Mayor abandono: <span className="font-medium text-foreground">«{a.biggestDrop.title}»</span> — se van{' '}
+          {formatNumber(a.biggestDrop.dropped)} personas ({rate(a.biggestDrop.dropRate)} de las que llegan a ese paso).
+        </p>
+      )}
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[560px] text-sm">
+          <thead>
+            <tr className="border-b border-border text-left text-xs text-muted-foreground">
+              <th className="py-2 pr-3 font-medium">Paso</th>
+              <th className="py-2 pr-3 font-medium">Embudo</th>
+              <th className="py-2 pr-3 text-right font-medium">Llegan</th>
+              <th className="py-2 pr-3 text-right font-medium">Abandonan aquí</th>
+              <th className="py-2 text-right font-medium">Tasa de abandono</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-b border-border/60">
+              <td className="py-2.5 pr-3 text-foreground">Visitas → empiezan</td>
+              <td className="py-2.5 pr-3">
+                <div className="h-2.5 w-full min-w-[120px] overflow-hidden rounded-full bg-muted">
+                  <div className="h-full rounded-full" style={{ width: '100%', background: BRAND_SOFT }} />
+                </div>
+              </td>
+              <td className="py-2.5 pr-3 text-right tabular-nums">{formatNumber(a.entry.views)}</td>
+              <td className="py-2.5 pr-3 text-right tabular-nums">{formatNumber(a.entry.dropped)}</td>
+              <td className={`py-2.5 text-right font-medium tabular-nums ${heat(a.entry.dropRate)}`}>
+                {rate(a.entry.dropRate)}
+              </td>
+            </tr>
+            {rows.map((f, i) => (
+              <tr key={f.id} className="border-b border-border/60 last:border-0">
+                <td className="max-w-[220px] py-2.5 pr-3">
+                  <span className="mr-2 text-xs text-muted-foreground">{i + 1}</span>
+                  <span className="text-foreground">{f.title}</span>
+                </td>
+                <td className="py-2.5 pr-3">
+                  <div className="h-2.5 w-full min-w-[120px] overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full"
+                      style={{ width: `${Math.min(100, (f.reached / base) * 100)}%`, background: BRAND }}
+                    />
+                  </div>
+                </td>
+                <td className="py-2.5 pr-3 text-right tabular-nums">
+                  {formatNumber(f.reached)}
+                  <span className="ml-1 text-2xs text-muted-foreground">
+                    {f.pctOfStarts === null ? '' : `${formatPercent(f.pctOfStarts * 100, 0)}`}
+                  </span>
+                </td>
+                <td className="py-2.5 pr-3 text-right tabular-nums">{formatNumber(f.dropped)}</td>
+                <td className={`py-2.5 text-right font-medium tabular-nums ${heat(f.dropRate)}`}>{rate(f.dropRate)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-2xs text-muted-foreground">
+        «Llegan» cuenta a quien ve esa pregunta (con saltos, solo quien pasa por ella). La tasa de abandono es abandonan
+        ÷ llegan en ese paso; el % pequeño es sobre quienes empiezan.
+      </p>
+    </div>
   )
 }
 
@@ -163,36 +239,11 @@ export default function AnaliticaPage() {
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <Card title="Embudo por pregunta">
-              {a.funnel.length === 0 || a.funnel[0].reached === 0 ? (
-                <Empty />
-              ) : (
-                <>
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={a.funnel.map((f, i) => ({ name: `${i + 1}`, title: f.title, reached: f.reached }))}
-                        margin={{ left: -10 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                        <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                        <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                        <Tooltip
-                          formatter={(v) => [formatNumber(Number(v ?? 0)), 'Llegan']}
-                          labelFormatter={(_l, p) => p?.[0]?.payload?.title ?? ''}
-                        />
-                        <Bar dataKey="reached" fill={BRAND} radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                  {a.biggestDrop && (
-                    <p className="mt-3 text-sm text-muted-foreground">
-                      Mayor caída: antes de «{a.biggestDrop.title}» (−{formatNumber(a.biggestDrop.lost)}).
-                    </p>
-                  )}
-                </>
-              )}
-            </Card>
+            <div className="min-w-0 lg:col-span-2">
+              <Card title="Embudo y abandono por paso">
+                <FunnelTable a={a} />
+              </Card>
+            </div>
             <Card title="Visitas y respuestas por día">
               {a.daily.length === 0 ? (
                 <Empty />

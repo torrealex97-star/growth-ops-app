@@ -384,29 +384,30 @@ test('plantilla de cualificación: temperatura caliente dispara el final priorit
   assert.equal(frio.endingId, 'gracias')
 })
 
-test('analítica: cuenta visitas aunque no empiecen, embudo por id y NPS/estrellas', async () => {
+test('analítica: visitas aunque no empiecen, embudo por id con abandono por paso, y estrellas', async () => {
   const { computeAnalytics } = await import('../lib/forms/analytics.ts')
   const c = feedback()
-  const ses = (status, idx, extra = {}) => ({
+  const ses = (status, last, times, extra = {}) => ({
     status,
     device: 'mobile',
     variant: null,
     utm: { source: 'ig', campaign: 'lanza' },
     referrer_host: null,
-    last_question: null,
-    max_question_index: idx,
-    question_times: { profe: 1000, estrellas: 3000 },
+    last_question: last,
+    max_question_index: 0,
+    question_times: times,
     created_at: '2026-10-01T10:00:00Z',
     started_at: null,
     completed_at: null,
     ...extra,
   })
   const sessions = [
-    ses('viewed', 0),
-    ses('viewed', 0),
-    ses('started', 1),
-    ses('abandoned', 2),
-    ses('completed', 3, { variant: 'A' }),
+    ses('viewed', null, {}),
+    ses('viewed', null, {}),
+    ses('abandoned', 'profe', {}),
+    ses('abandoned', 'estrellas', { profe: 1000 }),
+    ses('abandoned', 'mejora', { profe: 1000, estrellas: 2000 }),
+    ses('completed', 'mejora', { profe: 1000, estrellas: 3000 }, { variant: 'A' }),
   ]
   const resp = (answers, extra = {}) => ({
     status: 'completed',
@@ -424,30 +425,68 @@ test('analítica: cuenta visitas aunque no empiecen, embudo por id y NPS/estrell
     ...extra,
   })
   const a = computeAnalytics(c, sessions, [
-    resp({ profe: 'a', estrellas: 5 }, { rating: 5, outcome: 'trustpilot' }),
+    resp({ profe: 'a', estrellas: 5 }, { rating: 5, outcome: 'resena' }),
     resp({ profe: 'b', estrellas: 2, mejora: 'más práctica' }, { rating: 2, outcome: 'gracias' }),
   ])
-  assert.equal(a.kpis.views, 5)
-  assert.equal(a.kpis.starts, 3)
+  assert.equal(a.kpis.views, 6)
+  assert.equal(a.kpis.starts, 4)
   assert.equal(a.kpis.completions, 2)
-  assert.equal(a.kpis.startRate, 3 / 5)
-  assert.equal(a.kpis.abandonments, 1)
-  assert.equal(a.kpis.avgCompletionMs, 20000)
+  assert.equal(a.kpis.abandonments, 3)
+  assert.deepEqual(a.entry, { views: 6, starts: 4, dropped: 2, dropRate: 2 / 6 })
   assert.deepEqual(
     a.funnel.map((f) => f.id),
     ['profe', 'estrellas', 'mejora', 'email']
   )
-  assert.equal(a.funnel[0].reached, 3)
-  assert.equal(a.biggestDrop.id, 'mejora')
+  const f = Object.fromEntries(a.funnel.map((x) => [x.id, x]))
+  assert.deepEqual([f.profe.reached, f.profe.dropped, f.profe.dropRate], [4, 1, 0.25])
+  assert.deepEqual([f.estrellas.reached, f.estrellas.dropped], [3, 1])
+  assert.equal(f.estrellas.dropRate, 1 / 3)
+  assert.deepEqual([f.mejora.reached, f.mejora.dropped], [2, 1])
+  assert.equal(f.mejora.dropRate, 0.5)
+  assert.equal(f.email.reached, 0)
+  assert.equal(f.email.dropRate, null)
+  assert.equal(f.profe.pctOfStarts, 1)
+  assert.equal(a.biggestDrop.id, 'profe')
   assert.equal(a.rating.average, 3.5)
-  assert.deepEqual(a.sources, [{ label: 'ig', count: 5 }])
+  assert.deepEqual(a.sources, [{ label: 'ig', count: 6 }])
   assert.equal(a.questions.find((q) => q.id === 'profe').choices.length, 2)
-  assert.equal(a.questions.find((q) => q.id === 'estrellas').rating.average, 3.5)
   assert.deepEqual(a.questions.find((q) => q.id === 'mejora').texts, ['más práctica'])
   assert.equal(a.variants[0].variant, 'A')
-  assert.deepEqual(a.outcomes.map((o) => o.id).sort(), ['gracias', 'trustpilot'])
+  assert.deepEqual(a.outcomes.map((o) => o.id).sort(), ['gracias', 'resena'])
   // Un envío completado cuenta aunque su sesión no se registrase.
   assert.equal(computeAnalytics(c, [], [resp({ profe: 'a', estrellas: 5 })]).kpis.completions, 1)
+})
+
+test('analítica: con saltos, el embudo cuenta solo las preguntas del camino de cada sesión', async () => {
+  const { computeAnalytics } = await import('../lib/forms/analytics.ts')
+  const c = feedback() // 5★ salta de "estrellas" al final, sin pasar por "mejora"
+  const s = (status, last, times) => ({
+    status,
+    device: 'desktop',
+    variant: null,
+    utm: null,
+    referrer_host: null,
+    last_question: last,
+    max_question_index: 0,
+    question_times: times,
+    created_at: '2026-10-01T10:00:00Z',
+    started_at: null,
+    completed_at: null,
+  })
+  const a = computeAnalytics(
+    c,
+    [
+      s('completed', 'estrellas', { profe: 500 }),
+      s('completed', 'estrellas', { profe: 500 }),
+      s('abandoned', 'mejora', { profe: 500, estrellas: 500 }),
+    ],
+    []
+  )
+  const f = Object.fromEntries(a.funnel.map((x) => [x.id, x]))
+  assert.equal(f.estrellas.reached, 3)
+  assert.equal(f.mejora.reached, 1, 'solo la sesión que sacó <4 estrellas llegó a "mejora"')
+  assert.equal(f.mejora.dropRate, 1)
+  assert.equal(f.estrellas.dropped, 0, 'completaron tras estrellas: no abandonan ahí')
 })
 
 test('analítica: NPS = promotores - detractores', async () => {
