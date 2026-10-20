@@ -4,6 +4,7 @@
 import { isAttended, isCancelled, isNoShow } from '@/lib/appointments/status'
 import { esReservaAbierta } from '@/lib/metrics/agregados'
 import { inPeriod, type PeriodRange } from '@/lib/filters/period'
+import { resolveMetaAttribution, type MetaAttributionCatalog } from '@/lib/meta/ad-attribution'
 
 /**
  * FECHA REAL DE UN LEAD — para el filtro de periodo de cualquier métrica de leads.
@@ -64,6 +65,17 @@ export type AttributionRow = {
   // Último toque conocido (el primero vive en `source`/`utm_source`). Solo hace falta para el modelo
   // «último toque» de funnelBySource.
   last_utm_source?: string | null
+  // Campos del PRIMER y ÚLTIMO toque completos (campaign/content, no solo source) y sus marcas de
+  // tiempo — solo hacen falta para el reparto multi-touch de funnelMultiToque(). `contact_attributions`
+  // guarda exactamente dos toques por contacto (primero y último), nunca el historial completo
+  // intermedio: por eso el reparto es entre ESOS DOS, no un modelo lineal de N toques — sería
+  // fabricar puntos que no se registraron.
+  first_utm_campaign?: string | null
+  first_utm_content?: string | null
+  first_touch_at?: string | null
+  last_utm_campaign?: string | null
+  last_utm_content?: string | null
+  last_touch_at?: string | null
 }
 export type AppointmentRow = {
   appointment_datetime: string | null
@@ -463,6 +475,163 @@ export function aggregateFunnel(rows: FunnelRow[]): FunnelTotals {
     apptToSale: appointments ? (sales / appointments) * 100 : 0,
     leadToSale: leads ? (sales / leads) * 100 : 0,
   }
+}
+
+// --- Desglose por CAMPAÑA Y ANUNCIO exactos (no solo canal) ---
+//
+// funnelBySource agrupa por fuente genérica (Meta/Instagram/Orgánico) — suficiente para ver qué
+// CANAL funciona, pero no para decidir qué anuncio concreto escalar o cortar. Este desglose usa
+// el mismo resolvedor que ya traduce IDs de Meta a nombres reales en el detalle de cada cita
+// (lib/meta/ad-attribution.ts, con el respaldo de utm_content cuando no hay ad_id de un toque
+// real) para que el Dashboard sepa, no solo "vino de Meta", sino DE QUÉ anuncio exactamente.
+export type CampaignAdFunnelRow = {
+  campaignExternalId: string | null
+  campaignName: string | null
+  /** Campaña sin resolver contra el catálogo sincronizado: se enseña el crudo, nunca un nombre inventado. */
+  campaignResolved: boolean
+  adExternalId: string | null
+  adName: string | null
+  adResolved: boolean
+  leads: number
+  appointments: number
+  sales: number
+  gross: number
+  leadToSale: number
+}
+
+export function funnelByCampaignAndAd(
+  contactIds: string[],
+  attributions: AttributionRow[],
+  sales: SaleRow[],
+  appointments: AppointmentRow[],
+  catalog: MetaAttributionCatalog
+): CampaignAdFunnelRow[] {
+  // Mismo criterio que funnelBySource: el toque PRIMARIO manda (es el que decide qué trajo al
+  // lead), un contacto con varios toques registrados no se cuenta más de una vez.
+  const primaryFirst = [...attributions].sort((a, b) => Number(b.is_primary) - Number(a.is_primary))
+  const porContacto = new Map<string, ReturnType<typeof resolveMetaAttribution>>()
+  for (const a of primaryFirst) {
+    if (porContacto.has(a.contact_id)) continue
+    porContacto.set(a.contact_id, resolveMetaAttribution(a, catalog))
+  }
+
+  const SIN_CAMPANA = '__sin_campana__'
+  const claveDe = (r: ReturnType<typeof resolveMetaAttribution> | undefined) =>
+    r
+      ? `${r.campaign.externalId ?? r.campaign.name ?? SIN_CAMPANA}::${r.ad.externalId ?? r.ad.name ?? ''}`
+      : SIN_CAMPANA
+
+  const map = new Map<string, CampaignAdFunnelRow>()
+  const ensure = (r: ReturnType<typeof resolveMetaAttribution> | undefined) => {
+    const key = claveDe(r)
+    const existing = map.get(key)
+    if (existing) return existing
+    const row: CampaignAdFunnelRow = {
+      campaignExternalId: r?.campaign.externalId ?? null,
+      campaignName: r?.campaign.name ?? null,
+      campaignResolved: r?.campaign.resolved ?? false,
+      adExternalId: r?.ad.externalId ?? null,
+      adName: r?.ad.name ?? null,
+      adResolved: r?.ad.resolved ?? false,
+      leads: 0,
+      appointments: 0,
+      sales: 0,
+      gross: 0,
+      leadToSale: 0,
+    }
+    map.set(key, row)
+    return row
+  }
+
+  for (const cid of contactIds) ensure(porContacto.get(cid)).leads += 1
+  for (const a of appointments) {
+    if (!a.contact_id) continue
+    ensure(porContacto.get(a.contact_id)).appointments += 1
+  }
+  for (const s of sales) {
+    if (!cuentaComoVenta(s) || !s.contact_id) continue
+    const row = ensure(porContacto.get(s.contact_id))
+    row.sales += 1
+    row.gross += num(s.gross_amount)
+  }
+  map.forEach((r) => {
+    r.leadToSale = r.leads ? (r.sales / r.leads) * 100 : 0
+  })
+  return Array.from(map.values()).sort((a, b) => b.gross - a.gross || b.leads - a.leads)
+}
+
+// --- Reparto MULTI-TOQUE entre primer y último toque (no un modelo lineal de N toques) ---
+//
+// `contact_attributions` guarda exactamente DOS toques por contacto (primero y último), nunca el
+// historial completo intermedio — por diseño (ver la cabecera de lib/contacts/atribucion.ts).
+// Un modelo "lineal" o "U-shaped" de verdad necesita saber CUÁNTOS toques hubo y cuándo cada uno;
+// con solo dos puntos, matemáticamente linear/posición/U-shaped COINCIDEN (reparten 50/50 entre
+// los dos extremos porque no hay "medio" que repartir). Por eso aquí solo hay dos modelos, los dos
+// honestos sobre qué datos usan:
+//
+//   'reparto': 50/50 fijo. Si el primer y el último toque son el mismo canal (o solo hay uno
+//     registrado), ese canal se lleva el 100% — no se inventa un segundo toque que no existe.
+//   'decaimiento': el peso depende del tiempo ENTRE los dos toques (semivida de 7 días, el valor
+//     por defecto que usan Google Ads y Meta Ads en su propio time-decay). Dos toques el mismo día
+//     convergen a 50/50 igual que 'reparto'; cuanto más viejo el primer toque frente al último, más
+//     credita al último — un lead que vio un anuncio hace 3 meses y reservó ayer por email no
+//     reparte igual que uno que vio el anuncio y reservó el mismo día.
+export type ModeloMultiToque = 'reparto' | 'decaimiento'
+export type CreditoFuente = { source: string; leads: number; sales: number; gross: number }
+
+const SEMIVIDA_DIAS = 7
+function pesosDelReparto(
+  modelo: ModeloMultiToque,
+  primerAt: string | null | undefined,
+  ultimoAt: string | null | undefined
+): { primero: number; ultimo: number } {
+  if (modelo === 'reparto' || !primerAt || !ultimoAt) return { primero: 0.5, ultimo: 0.5 }
+  const gapDias = Math.max(0, (new Date(ultimoAt).getTime() - new Date(primerAt).getTime()) / 86_400_000)
+  if (!Number.isFinite(gapDias)) return { primero: 0.5, ultimo: 0.5 }
+  // Peso relativo: el último toque es la referencia (1); el primero decae según se aleja de él.
+  const pesoPrimero = Math.pow(2, -gapDias / SEMIVIDA_DIAS)
+  const total = pesoPrimero + 1
+  return { primero: pesoPrimero / total, ultimo: 1 / total }
+}
+
+export function funnelMultiToque(
+  contactIds: string[],
+  attributions: AttributionRow[],
+  sales: SaleRow[],
+  modelo: ModeloMultiToque = 'reparto'
+): CreditoFuente[] {
+  const primaryFirst = [...attributions].sort((a, b) => Number(b.is_primary) - Number(a.is_primary))
+  const porContacto = new Map<string, AttributionRow>()
+  for (const a of primaryFirst) if (!porContacto.has(a.contact_id)) porContacto.set(a.contact_id, a)
+
+  const map = new Map<string, CreditoFuente>()
+  const ensure = (src: string) => map.get(src) ?? map.set(src, { source: src, leads: 0, sales: 0, gross: 0 }).get(src)!
+
+  const repartoDe = (contactId: string) => {
+    const a = porContacto.get(contactId)
+    if (!a) return [{ source: SOURCE_FALLBACK, peso: 1 }]
+    const fuentePrimero = labelSource({ source: a.source, utm_source: a.utm_source })
+    const fuenteUltimo = labelSource({ source: null, utm_source: a.last_utm_source ?? null })
+    if (fuenteUltimo === SOURCE_FALLBACK || fuenteUltimo === fuentePrimero) return [{ source: fuentePrimero, peso: 1 }]
+    const pesos = pesosDelReparto(modelo, a.first_touch_at, a.last_touch_at)
+    return [
+      { source: fuentePrimero, peso: pesos.primero },
+      { source: fuenteUltimo, peso: pesos.ultimo },
+    ]
+  }
+
+  for (const cid of contactIds) {
+    for (const { source, peso } of repartoDe(cid)) ensure(source).leads += peso
+  }
+  for (const s of sales) {
+    if (!cuentaComoVenta(s) || !s.contact_id) continue
+    for (const { source, peso } of repartoDe(s.contact_id)) {
+      const row = ensure(source)
+      row.sales += peso
+      row.gross += num(s.gross_amount) * peso
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => b.gross - a.gross)
 }
 
 // --- Progreso real de un objetivo ---
