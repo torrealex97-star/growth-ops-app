@@ -383,3 +383,96 @@ test('plantilla de cualificación: temperatura caliente dispara el final priorit
   assert.equal(frio.score.temperature, 'frio')
   assert.equal(frio.endingId, 'gracias')
 })
+
+test('analítica: cuenta visitas aunque no empiecen, embudo por id y NPS/estrellas', async () => {
+  const { computeAnalytics } = await import('../lib/forms/analytics.ts')
+  const c = feedback()
+  const ses = (status, idx, extra = {}) => ({
+    status,
+    device: 'mobile',
+    variant: null,
+    utm: { source: 'ig', campaign: 'lanza' },
+    referrer_host: null,
+    last_question: null,
+    max_question_index: idx,
+    question_times: { profe: 1000, estrellas: 3000 },
+    created_at: '2026-10-01T10:00:00Z',
+    started_at: null,
+    completed_at: null,
+    ...extra,
+  })
+  const sessions = [
+    ses('viewed', 0),
+    ses('viewed', 0),
+    ses('started', 1),
+    ses('abandoned', 2),
+    ses('completed', 3, { variant: 'A' }),
+  ]
+  const resp = (answers, extra = {}) => ({
+    status: 'completed',
+    answers,
+    rating: null,
+    nps: null,
+    score: null,
+    temperature: null,
+    outcome: null,
+    variant: 'A',
+    device: 'mobile',
+    duration_ms: 20000,
+    created_at: '2026-10-01T10:05:00Z',
+    completed_at: '2026-10-01T10:05:00Z',
+    ...extra,
+  })
+  const a = computeAnalytics(c, sessions, [
+    resp({ profe: 'a', estrellas: 5 }, { rating: 5, outcome: 'trustpilot' }),
+    resp({ profe: 'b', estrellas: 2, mejora: 'más práctica' }, { rating: 2, outcome: 'gracias' }),
+  ])
+  assert.equal(a.kpis.views, 5)
+  assert.equal(a.kpis.starts, 3)
+  assert.equal(a.kpis.completions, 2)
+  assert.equal(a.kpis.startRate, 3 / 5)
+  assert.equal(a.kpis.abandonments, 1)
+  assert.equal(a.kpis.avgCompletionMs, 20000)
+  assert.deepEqual(
+    a.funnel.map((f) => f.id),
+    ['profe', 'estrellas', 'mejora', 'email']
+  )
+  assert.equal(a.funnel[0].reached, 3)
+  assert.equal(a.biggestDrop.id, 'mejora')
+  assert.equal(a.rating.average, 3.5)
+  assert.deepEqual(a.sources, [{ label: 'ig', count: 5 }])
+  assert.equal(a.questions.find((q) => q.id === 'profe').choices.length, 2)
+  assert.equal(a.questions.find((q) => q.id === 'estrellas').rating.average, 3.5)
+  assert.deepEqual(a.questions.find((q) => q.id === 'mejora').texts, ['más práctica'])
+  assert.equal(a.variants[0].variant, 'A')
+  assert.deepEqual(a.outcomes.map((o) => o.id).sort(), ['gracias', 'trustpilot'])
+  // Un envío completado cuenta aunque su sesión no se registrase.
+  assert.equal(computeAnalytics(c, [], [resp({ profe: 'a', estrellas: 5 })]).kpis.completions, 1)
+})
+
+test('analítica: NPS = promotores - detractores', async () => {
+  const { computeAnalytics } = await import('../lib/forms/analytics.ts')
+  const c = {
+    schemaVersion: 1,
+    questions: [{ id: 'n', type: 'nps', title: 'NPS', semantic: 'nps' }],
+    logic: [],
+    endings: [{ id: 'f', title: 'f', isDefault: true }],
+  }
+  const r = (n) => ({
+    status: 'completed',
+    answers: { n },
+    rating: null,
+    nps: n,
+    score: null,
+    temperature: null,
+    outcome: 'f',
+    variant: null,
+    device: null,
+    duration_ms: null,
+    created_at: '2026-10-01T00:00:00Z',
+    completed_at: '2026-10-01T00:00:00Z',
+  })
+  const a = computeAnalytics(c, [], [r(10), r(9), r(8), r(3)])
+  assert.equal(a.nps.score, 25)
+  assert.deepEqual(a.questions[0].nps, { score: 25, promoters: 2, passives: 1, detractors: 1 })
+})

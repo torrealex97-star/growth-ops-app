@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getTenantConfigWithFallback } from '@/lib/config'
 import { businessToday } from '@/lib/dates/business'
 import { crearPresupuestoCron } from '@/lib/perf/presupuesto-cron'
+import { sweepPendingDeliveries } from '@/lib/forms/webhooks'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -177,10 +178,19 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Reintentos de webhooks de formularios (global, no por subcuenta): reutiliza este cron diario
+    // para no añadir otro (límite de Vercel Hobby). Un fallo aquí no tumba el resto del barrido.
+    let formWebhooks = 0
+    try {
+      formWebhooks = await sweepPendingDeliveries(sb, Date.now() + 12_000)
+    } catch (e) {
+      console.error('[cron/reminders] reintento de webhooks de formularios:', e)
+    }
+
     // 500 aunque el barrido haya terminado: el run de Vercel Cron en rojo es el único aviso que
     // alguien va a ver, y repetir el cron es seguro (los tres pasos son idempotentes).
     if (huboFallos) return NextResponse.json({ ok: false, tenants: perTenant }, { status: 500 })
-    return NextResponse.json({ ok: true, tenants: perTenant })
+    return NextResponse.json({ ok: true, tenants: perTenant, formWebhooks })
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 })
   }

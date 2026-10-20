@@ -14,7 +14,10 @@ export default function FormularioDetalleLayout({ children }: { children: React.
   const base = `/marketing/formularios/${id}`
   const tabs: RouteTab[] = [
     { label: 'Constructor', href: `/${tenant}${base}/constructor`, match: `${base}/constructor` },
+    { label: 'Respuestas', href: `/${tenant}${base}/respuestas`, match: `${base}/respuestas` },
+    { label: 'Analítica', href: `/${tenant}${base}/analitica`, match: `${base}/analitica` },
     { label: 'Compartir', href: `/${tenant}${base}/compartir`, match: `${base}/compartir` },
+    { label: 'Ajustes', href: `/${tenant}${base}/ajustes`, match: `${base}/ajustes` },
   ]
   return (
     <div className="space-y-4">

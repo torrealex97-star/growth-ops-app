@@ -1,11 +1,12 @@
 import { createHash } from 'node:crypto'
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getConfigValue } from '@/lib/forms/config-vars'
 import { getOrCreateContact } from '@/lib/contacts/resolve'
 import { buscarContactoPorEmail } from '@/lib/contacts/buscar'
 import { evaluateSubmission } from '@/lib/forms/submission'
 import { loadPublishedForm, serviceClient } from '@/lib/forms/server'
+import { enqueueAndDeliver } from '@/lib/forms/webhooks'
 import { ipDe, limitar } from '@/lib/security/rate-limit'
 
 export const dynamic = 'force-dynamic'
@@ -110,7 +111,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   }
 
   const now = new Date().toISOString()
-  const { error } = await sb.from('form_responses').upsert(
+  const { data: saved, error } = await sb.from('form_responses').upsert(
     {
       tenant_id: form.tenantId,
       form_id: form.formId,
@@ -136,10 +137,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       completed_at: b.partial ? null : now,
     },
     { onConflict: 'tenant_id,submission_id' }
-  )
+  ).select('id').single()
   if (error) {
     console.error('[forms/submit] no se pudo guardar:', error.message)
     return NextResponse.json({ error: 'No se pudo guardar tu respuesta. Inténtalo de nuevo.' }, { status: 500 })
+  }
+
+  // Webhooks salientes: primer intento en segundo plano, sin retrasar la respuesta al visitante.
+  if (!b.partial && saved?.id) {
+    const responseId = saved.id as string
+    after(() => enqueueAndDeliver(sb, form.tenantId, form.formId, responseId).catch((e) => console.error('[forms/webhook]', e)))
   }
 
   return NextResponse.json(outcome)
