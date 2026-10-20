@@ -13,6 +13,7 @@ const TABS: RouteTab[] = [
     href: '/marketing/adquisicion/funnel-eventos',
     match: '/marketing/adquisicion/funnel-eventos',
   },
+  { label: 'Tráfico web', href: '/marketing/adquisicion/trafico-web', match: '/marketing/adquisicion/trafico-web' },
 ]
 
 export default function AdquisicionLayout({ children }: { children: React.ReactNode }) {

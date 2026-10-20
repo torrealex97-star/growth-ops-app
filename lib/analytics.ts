@@ -558,6 +558,7 @@ export function funnelByCampaignAndAd(
     r.leadToSale = r.leads ? (r.sales / r.leads) * 100 : 0
   })
   return Array.from(map.values()).sort((a, b) => b.gross - a.gross || b.leads - a.leads)
+}
 
 // --- Reparto MULTI-TOQUE entre primer y último toque (no un modelo lineal de N toques) ---
 //
