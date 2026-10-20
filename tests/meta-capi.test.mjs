@@ -111,7 +111,7 @@ test('la ruta de prueba exige admin y código TEST, y nada llama a la CAPI sola'
   assert.match(r, /testEventCode: code/)
 })
 
-test('enviarEventosCapi solo se usa en la ruta de prueba (no hay disparo automático)', async () => {
+test('enviarEventosCapi solo lo usan la ruta de prueba y el despacho de la ingesta', async () => {
   const { execSync } = await import('node:child_process')
   const usos = execSync("grep -rln 'enviarEventosCapi' app lib --include=*.ts --include=*.tsx || true")
     .toString()
@@ -120,6 +120,7 @@ test('enviarEventosCapi solo se usa en la ruta de prueba (no hay disparo automá
     .sort()
   assert.deepEqual(usos, [
     'app/api/[tenant]/evergreen/settings/integraciones/meta-capi-test/route.ts',
+    'lib/meta/capi-dispatch.ts',
     'lib/meta/capi.ts',
   ])
 })

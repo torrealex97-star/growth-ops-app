@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { deriveChannel } from '@/lib/tracking/ingest'
 import { aplicarVinculo } from '@/lib/tracking/identity-apply'
 import { sanitizarFbc, sanitizarFbp } from '@/lib/tracking/meta-click'
+import { EVENTOS_CAPI, despacharCapi } from '@/lib/meta/capi-dispatch'
 
 // Eventos en los que el visitante se identifica (correo/teléfono en properties).
 const IDENTITY_EVENTS = new Set(['lead', 'form_submit', 'appointment_booked', 'purchase'])
@@ -52,6 +53,11 @@ export async function normalizarEventoRaw(
     eventName: string
     eventId: string | null
     receivedAt: Date
+    /**
+     * Solo la ingesta en vivo lo pasa (con IP y user-agent del navegador). El reproceso NO: reenviar a Meta
+     * eventos viejos no aporta y duplicaría trabajo.
+     */
+    capi?: { clientIp: string | null; userAgent: string | null }
   }
 ): Promise<ResultadoNormalizacion> {
   const { tenantId, body, eventName, eventId, receivedAt } = args
@@ -273,6 +279,32 @@ export async function normalizarEventoRaw(
       } catch (err) {
         console.warn('[track] stitching de identidad falló:', err instanceof Error ? err.message : err)
       }
+    }
+  }
+
+  // 8) Conversions API (Lead/Schedule). Inerte salvo configuración explícita de la subcuenta.
+  if (args.capi && EVENTOS_CAPI[eventName]) {
+    try {
+      const { data: canonicalRow } = await sb
+        .from('canonical_events')
+        .select('id')
+        .eq('tenant_id', tenantId)
+        .eq('source', 'pixel')
+        .eq('idempotency_key', eventId ?? `${anonymousId}:${eventName}:${receivedAt.toISOString()}`)
+        .maybeSingle()
+      await despacharCapi({
+        sb,
+        tenantId,
+        canonicalEventId: (canonicalRow as { id: string } | null)?.id ?? null,
+        eventName,
+        eventId,
+        receivedAt,
+        body,
+        clientIp: args.capi.clientIp,
+        userAgent: args.capi.userAgent,
+      })
+    } catch (err) {
+      console.warn('[track] envío a la CAPI falló:', err instanceof Error ? err.message : err)
     }
   }
 
