@@ -21,14 +21,16 @@ type Props = {
   campaigns: Campaign[]
   accounts: { id: string; name: string }[]
   version: number // se incrementa tras sincronizar anuncios → refetch
+  /** Selección de cuentas de Meta de Integraciones: los anuncios de otras cuentas no se muestran. */
+  incluyeCuenta: (accountId: string | null | undefined) => boolean
 }
 
 // Vista a nivel de ANUNCIO: drill-down de las campañas de Meta. Permite filtrar por
 // cuenta, por campaña y buscar por nombre. Muestra gasto, leads, seguidores y coste
 // por seguidor de cada anuncio.
-export function AdsTable({ campaigns, accounts, version }: Props) {
+export function AdsTable({ campaigns, accounts, version, incluyeCuenta }: Props) {
   const tenantId = useTenantId()
-  const [ads, setAds] = useState<CampaignAd[]>([])
+  const [allAds, setAllAds] = useState<CampaignAd[]>([])
   const [loading, setLoading] = useState(true)
   const [accountFilter, setAccountFilter] = useState('all')
   const [campaignFilter, setCampaignFilter] = useState('all')
@@ -52,7 +54,7 @@ export function AdsTable({ campaigns, accounts, version }: Props) {
       .order('spend', { ascending: false })
       .then(({ data }) => {
         if (!cancel) {
-          setAds((data as CampaignAd[]) || [])
+          setAllAds((data as CampaignAd[]) || [])
           setLoading(false)
         }
       })
@@ -60,6 +62,9 @@ export function AdsTable({ campaigns, accounts, version }: Props) {
       cancel = true
     }
   }, [version])
+
+  // La tabla guarda restos de cuentas que ya no están seleccionadas: se ocultan aquí.
+  const ads = useMemo(() => allAds.filter((a) => incluyeCuenta(a.account_id)), [allAds, incluyeCuenta])
 
   // Campañas presentes en los anuncios (para el desplegable de filtro por campaña).
   const campaignOptions = useMemo(() => {

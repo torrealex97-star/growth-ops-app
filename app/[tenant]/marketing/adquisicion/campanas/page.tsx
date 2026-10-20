@@ -816,7 +816,7 @@ export default function CampaignsPage() {
         />
       )}
 
-      {view === 'ads' && <AdsTable campaigns={items} accounts={accounts} version={adsVersion} />}
+      {view === 'ads' && <AdsTable campaigns={itemsFiltrados} accounts={accounts} version={adsVersion} incluyeCuenta={cuentas.incluye} />}
 
       {view === 'campaigns' &&
         (loading ? (
