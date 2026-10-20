@@ -23,7 +23,7 @@ export function CampaignAdAttributionTable({ rows }: { rows: CampaignAdFunnelRow
         </span>
       </div>
       {withData.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">Sin leads atribuidos a Meta todavía.</p>
+        <p className="text-sm text-muted-foreground py-8 text-center">Sin leads con atribución en el periodo.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

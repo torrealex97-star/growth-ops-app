@@ -77,6 +77,9 @@ export function decidirVinculo(e: EntradaVinculo): DecisionVinculo {
     metodo = 'email_exacto'
     confianza = 0.95
   } else if (porTelefono.length === 1) {
+    // Con un email presente que NO existe en el CRM, el teléfono coincidente puede ser compartido (pareja,
+    // familia): no se adivina.
+    if (email) return { accion: 'revision', motivo: 'telefono_con_email_desconocido', candidatos: porTelefono }
     contactId = porTelefono[0]
     metodo = 'telefono_exacto'
     confianza = 0.85

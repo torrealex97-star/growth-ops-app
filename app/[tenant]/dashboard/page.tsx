@@ -62,7 +62,7 @@ import {
   type UserRow,
   type AppointmentRow,
 } from '@/lib/analytics'
-import { collectMetaAttributionSignals, type MetaAttributionCatalog } from '@/lib/meta/ad-attribution'
+import { collectMetaAttributionSignals, trocearSenales, type MetaAttributionCatalog } from '@/lib/meta/ad-attribution'
 import { agendasPorPersona, ventasPorColaborador } from '@/lib/analytics-agendas'
 import { AgendasPorPersona, type PersonaTab } from '@/components/os/AgendasPorPersona'
 import { CampaignAdAttributionTable } from '@/components/os/CampaignAdAttributionTable'
@@ -402,15 +402,27 @@ function DashboardEquipo() {
         if (!signals.campaignExternalIds.length && !signals.campaignInternalIds.length && !signals.adExternalIds.length)
           return
         try {
-          const r = await fetch(`/api/${tenant}/evergreen/appointments/attribution-catalog`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(signals),
-            signal: cancelar.signal,
-          })
-          const data = (await r.json().catch(() => ({}))) as Partial<MetaAttributionCatalog>
-          if (!mounted || !r.ok) return
-          setMetaCatalog({ campaigns: data.campaigns ?? [], ads: data.ads ?? [] })
+          // La ruta admite como mucho 300 IDs por tipo: un histórico largo se pide en bloques.
+          const respuestas = await Promise.all(
+            trocearSenales(signals).map(async (bloque) => {
+              const r = await fetch(`/api/${tenant}/evergreen/appointments/attribution-catalog`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(bloque),
+                signal: cancelar.signal,
+              })
+              if (!r.ok) return null
+              return (await r.json().catch(() => ({}))) as Partial<MetaAttributionCatalog>
+            })
+          )
+          if (!mounted) return
+          const campanas = new Map<string, MetaAttributionCatalog['campaigns'][number]>()
+          const anuncios = new Map<string, MetaAttributionCatalog['ads'][number]>()
+          for (const data of respuestas) {
+            for (const c of data?.campaigns ?? []) campanas.set(c.id, c)
+            for (const ad of data?.ads ?? []) anuncios.set(ad.external_id, ad)
+          }
+          setMetaCatalog({ campaigns: [...campanas.values()], ads: [...anuncios.values()] })
         } catch {
           /* sin catálogo resuelto: la tabla sigue mostrando leads/ventas con el aviso de "no identificado" */
         }

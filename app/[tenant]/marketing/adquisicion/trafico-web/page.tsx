@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Users, Activity, FileText, Target } from 'lucide-react'
 import { useTenant } from '@/lib/tenant-context'
+import { addDaysYmd, businessToday } from '@/lib/dates/business'
 import { KPICard } from '@/components/os/DashboardKPICard'
 import { PeriodFilterBar } from '@/components/os/PeriodFilterBar'
 import { DEFAULT_PERIOD, getPeriodRange, toDateInputValue, type PeriodPreset } from '@/lib/filters/period'
@@ -70,8 +71,12 @@ export default function TraficoWebPage() {
   const [error, setError] = useState<string | null>(null)
 
   const range = useMemo(() => getPeriodRange(preset, customFrom, customTo), [preset, customFrom, customTo])
-  const desde = range.from ? toDateInputValue(range.from) : ''
-  const hasta = range.to ? toDateInputValue(range.to) : ''
+  // «Todo el periodo» no tiene fechas: las APIs aceptan como máximo 12 meses, así que se pide ese rango
+  // explícito y se avisa en pantalla (antes caía en silencio a los últimos 30 días del servidor).
+  const hoy = businessToday()
+  const todoElPeriodo = preset === 'all'
+  const desde = todoElPeriodo ? addDaysYmd(hoy, -364) : range.from ? toDateInputValue(range.from) : ''
+  const hasta = todoElPeriodo ? hoy : range.to ? toDateInputValue(range.to) : ''
 
   useEffect(() => {
     const controller = new AbortController()
@@ -125,6 +130,12 @@ export default function TraficoWebPage() {
         }}
         hasActiveFilters={preset !== DEFAULT_PERIOD}
       />
+
+      {todoElPeriodo && (
+        <p className="text-xs text-muted-foreground">
+          «Todo el periodo» muestra los últimos 12 meses ({desde} – {hasta}).
+        </p>
+      )}
 
       {error && (
         <div role="alert" className="rounded-lg border border-border bg-muted p-4 text-sm text-foreground">

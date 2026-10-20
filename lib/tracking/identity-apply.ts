@@ -60,7 +60,8 @@ export async function aplicarVinculo({
   }
   const [porEmail, porTelefono] = await Promise.all([
     buscar('email_normalized', emailN),
-    buscar('phone_normalized', phoneN),
+    // contacts.phone_normalized guarda solo dígitos (columna generada): se busca igual, sin el «+».
+    buscar('phone_normalized', phoneN ? phoneN.replace(/\D/g, '') : null),
   ])
 
   const decision = decidirVinculo({
@@ -82,15 +83,20 @@ export async function aplicarVinculo({
     if (error) throw error
     const vinculado = (filas?.length ?? 0) > 0
 
-    // Los toques anteriores del visitante pasan a ser del contacto: rellena huecos, no pisa.
-    const { data: toques, error: toquesErr } = await sb
-      .from('analytics_touchpoints')
-      .update({ contact_id: decision.contactId })
-      .eq('tenant_id', tenantId)
-      .eq('visitor_id', visitorId)
-      .is('contact_id', null)
-      .select('id')
-    if (toquesErr) throw toquesErr
+    // Los toques anteriores pasan a ser del contacto SOLO si esta petición fue la que enlazó al visitante:
+    // si otra petición se adelantó y lo enlazó a otro contacto, asignarlos aquí mezclaría historiales.
+    let toques = 0
+    if (vinculado) {
+      const { data, error: toquesErr } = await sb
+        .from('analytics_touchpoints')
+        .update({ contact_id: decision.contactId })
+        .eq('tenant_id', tenantId)
+        .eq('visitor_id', visitorId)
+        .is('contact_id', null)
+        .select('id')
+      if (toquesErr) throw toquesErr
+      toques = data?.length ?? 0
+    }
 
     if (vinculado) {
       const { error: auditErr } = await sb.from('identity_matches').insert({
@@ -105,7 +111,7 @@ export async function aplicarVinculo({
       })
       if (auditErr) console.warn('[identity] no se pudo auditar el vínculo:', auditErr.message)
     }
-    return { ...decision, hechos: { visitante: vinculado, toques: toques?.length ?? 0 } }
+    return { ...decision, hechos: { visitante: vinculado, toques } }
   }
 
   if (decision.accion === 'revision') {

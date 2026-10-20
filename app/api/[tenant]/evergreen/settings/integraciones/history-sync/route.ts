@@ -237,7 +237,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
         if (errSecret) return NextResponse.json({ error: errSecret.message }, { status: 500 })
         invalidateConfigCache(auth.tenantId)
       }
-      return NextResponse.json({ provider: 'calendly-webhook', callbackUrl, ...resultado })
+      // La signing key recién creada NO se devuelve: ya queda guardada cifrada y no debe viajar por red.
+      return NextResponse.json({
+        provider: 'calendly-webhook',
+        callbackUrl,
+        accion: resultado.accion,
+        uri: resultado.uri,
+        signingKeyActualizada: resultado.signingKeyNueva !== null,
+      })
     }
     if (body.provider === 'fathom')
       return NextResponse.json(await syncFathom(sb, auth.tenantId, cfg, { dryRun: body.dryRun === true }))

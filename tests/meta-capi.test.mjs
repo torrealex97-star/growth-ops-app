@@ -65,6 +65,9 @@ test('CAPI está apagada salvo Pixel numérico + token + activación explícita'
   assert.equal(capiConfig({ META_ACCESS_TOKEN: 't', META_CAPI_ENABLED: 'true' }), null)
   assert.equal(capiConfig({ ...base, META_PIXEL_ID: 'abc', META_CAPI_ENABLED: 'true' }), null)
   assert.equal(capiConfig({ ...base, META_CAPI_ENABLED: 'true' })?.pixelId, '123456789012345')
+  // El checkbox de Integraciones guarda '1'/'0': tiene que activarla.
+  assert.equal(capiConfig({ ...base, META_CAPI_ENABLED: '1' })?.pixelId, '123456789012345')
+  assert.equal(capiConfig({ ...base, META_CAPI_ENABLED: '0' }), null)
 })
 
 test('el envío pone el token en el cuerpo (no en la URL) y manda test_event_code', async () => {
