@@ -53,6 +53,7 @@ import {
   targetCurrentValue,
   cuentaComoVenta,
   funnelBySource,
+  funnelByCampaignAndAd,
   aggregateFunnel,
   leadDate,
   type SaleRow,
@@ -61,8 +62,10 @@ import {
   type UserRow,
   type AppointmentRow,
 } from '@/lib/analytics'
+import { collectMetaAttributionSignals, type MetaAttributionCatalog } from '@/lib/meta/ad-attribution'
 import { agendasPorPersona, ventasPorColaborador } from '@/lib/analytics-agendas'
 import { AgendasPorPersona, type PersonaTab } from '@/components/os/AgendasPorPersona'
+import { CampaignAdAttributionTable } from '@/components/os/CampaignAdAttributionTable'
 import { canonicalizeAppointments, canonicalizeLeads } from '@/lib/canonical/dedup'
 import { formatCurrency } from '@/lib/utils'
 import { FINANCE_QUERY_ROW_CAP } from '@/lib/finance/pnl'
@@ -186,6 +189,7 @@ function DashboardEquipo() {
     }[]
   >([])
   const [attributions, setAttributions] = useState<AttributionRow[]>([])
+  const [metaCatalog, setMetaCatalog] = useState<MetaAttributionCatalog>({ campaigns: [], ads: [] })
   const [appointments, setAppointments] = useState<(AppointmentRow & { id: string })[]>([])
   const [targets, setTargets] = useState<TargetRow[]>([])
   // Perfiles de colaborador activos de la subcuenta (para el tab Colaboradores de agendas/ventas).
@@ -390,6 +394,27 @@ function DashboardEquipo() {
         }[]) || []
       )
       setAttributions(attrRes.data || [])
+      // Nombres reales de campaña/anuncio para CampaignAdAttributionTable: no bloquea el resto del
+      // panel (mismo criterio que el gasto de Meta, más abajo) — si falla, la tabla queda con los
+      // leads/ventas igual pero sin nombre resuelto, nunca inventa uno.
+      void (async () => {
+        const signals = collectMetaAttributionSignals(attrRes.data || [])
+        if (!signals.campaignExternalIds.length && !signals.campaignInternalIds.length && !signals.adExternalIds.length)
+          return
+        try {
+          const r = await fetch(`/api/${tenant}/evergreen/appointments/attribution-catalog`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(signals),
+            signal: cancelar.signal,
+          })
+          const data = (await r.json().catch(() => ({}))) as Partial<MetaAttributionCatalog>
+          if (!mounted || !r.ok) return
+          setMetaCatalog({ campaigns: data.campaigns ?? [], ads: data.ads ?? [] })
+        } catch {
+          /* sin catálogo resuelto: la tabla sigue mostrando leads/ventas con el aviso de "no identificado" */
+        }
+      })()
       const appointmentRows = apptRes.data || []
       const appointmentsById = new Map(appointmentRows.map((a) => [a.id, a]))
       setAppointments(
@@ -658,6 +683,20 @@ function DashboardEquipo() {
       filteredSales.map((s) => ({ ...s, contact_id: aliases.get(s.contact_id ?? '') ?? s.contact_id }))
     )
   }, [canonicalLeads, filteredContactIds, attributions, filteredSales])
+
+  // Mismo dato que la tabla de arriba, un nivel más abajo: no solo el canal, la campaña y el
+  // anuncio EXACTOS (resueltos contra el catálogo real sincronizado de Meta, con el mismo
+  // resolvedor que ya usa el detalle de cada cita en Agendas).
+  const campaignAdRows = useMemo(() => {
+    const aliases = new Map(canonicalLeads.flatMap((c) => c.members.map((m) => [m.id, c.leadId] as const)))
+    return funnelByCampaignAndAd(
+      filteredContactIds,
+      attributions.map((a) => ({ ...a, contact_id: aliases.get(a.contact_id) ?? a.contact_id })),
+      filteredSales.map((s) => ({ ...s, contact_id: aliases.get(s.contact_id ?? '') ?? s.contact_id })),
+      filteredAppointments,
+      metaCatalog
+    )
+  }, [canonicalLeads, filteredContactIds, attributions, filteredSales, filteredAppointments, metaCatalog])
 
   const funnelTotals = useMemo(
     () => aggregateFunnel(funnelBySource(filteredContactIds, attributions, filteredSales, filteredAppointments)),
@@ -1256,6 +1295,7 @@ function DashboardEquipo() {
 
       {/* Atribución */}
       <AttributionTable rows={attribution} />
+      <CampaignAdAttributionTable rows={campaignAdRows} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <DailyQuoteWidget />

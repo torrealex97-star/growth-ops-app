@@ -737,7 +737,7 @@ export default function CampaignsPage() {
         </button>
       </div>
 
-      {(view === 'revenue' || view === 'meta' || view === 'campaigns') && (
+      {(view === 'revenue' || view === 'meta' || view === 'campaigns' || view === 'ads') && (
         <PeriodFilterBar
           preset={periodPreset}
           onPresetChange={setPeriodPreset}
@@ -816,7 +816,19 @@ export default function CampaignsPage() {
         />
       )}
 
-      {view === 'ads' && <AdsTable campaigns={items} accounts={accounts} version={adsVersion} />}
+      {view === 'ads' && (
+        <AdsTable
+          tenant={tenant}
+          campaigns={itemsFiltrados}
+          accounts={accounts}
+          version={adsVersion}
+          incluyeCuenta={cuentas.incluye}
+          rangeFrom={rangeFrom}
+          rangeTo={rangeTo}
+          accountFilter={accountFilter}
+          selectedCampaignIds={selectedCampaignIds}
+        />
+      )}
 
       {view === 'campaigns' &&
         (loading ? (
