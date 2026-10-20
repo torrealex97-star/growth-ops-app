@@ -45,7 +45,7 @@ function HBars({ data }: { data: { label: string; count: number }[] }) {
           <div className="mb-1 flex justify-between gap-3">
             <span className="truncate text-foreground">{d.label}</span>
             <span className="shrink-0 tabular-nums text-muted-foreground">
-              {formatNumber(d.count)} · {formatPercent(d.count / total, 0)}
+              {formatNumber(d.count)} · {formatPercent((d.count / total) * 100, 0)}
             </span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-muted">
@@ -123,13 +123,15 @@ export default function AnaliticaPage() {
             <Kpi
               label="Han empezado"
               value={formatNumber(a.kpis.starts)}
-              hint={a.kpis.startRate === null ? undefined : formatPercent(a.kpis.startRate, 0)}
+              hint={a.kpis.startRate === null ? undefined : formatPercent(a.kpis.startRate * 100, 0)}
             />
             <Kpi
               label="Completadas"
               value={formatNumber(a.kpis.completions)}
               hint={
-                a.kpis.completionRate === null ? undefined : `${formatPercent(a.kpis.completionRate, 0)} de visitas`
+                a.kpis.completionRate === null
+                  ? undefined
+                  : `${formatPercent(a.kpis.completionRate * 100, 0)} de visitas`
               }
             />
             <Kpi label="Abandonos" value={formatNumber(a.kpis.abandonments)} />
@@ -153,7 +155,9 @@ export default function AnaliticaPage() {
             ) : (
               <Kpi
                 label="Completan tras empezar"
-                value={a.kpis.completionRateOfStarts === null ? '—' : formatPercent(a.kpis.completionRateOfStarts, 0)}
+                value={
+                  a.kpis.completionRateOfStarts === null ? '—' : formatPercent(a.kpis.completionRateOfStarts * 100, 0)
+                }
               />
             )}
           </div>
@@ -266,7 +270,7 @@ export default function AnaliticaPage() {
                         <td className="py-2 text-right tabular-nums">{formatNumber(v.views)}</td>
                         <td className="py-2 text-right tabular-nums">{formatNumber(v.completions)}</td>
                         <td className="py-2 text-right tabular-nums">
-                          {v.rate === null ? '—' : formatPercent(v.rate, 1)}
+                          {v.rate === null ? '—' : formatPercent(v.rate * 100, 1)}
                         </td>
                       </tr>
                     ))}

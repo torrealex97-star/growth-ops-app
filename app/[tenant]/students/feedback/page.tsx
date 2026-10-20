@@ -72,9 +72,11 @@ export default function FeedbackResumenPage() {
               value={
                 s.rating.responses
                   ? formatPercent(
-                      Object.entries(s.rating.distribution)
+                      (Object.entries(s.rating.distribution)
                         .filter(([k]) => Number(k) < 4)
-                        .reduce((a, [, v]) => a + v, 0) / s.rating.responses,
+                        .reduce((a, [, v]) => a + v, 0) /
+                        s.rating.responses) *
+                        100,
                       0
                     )
                   : '—'

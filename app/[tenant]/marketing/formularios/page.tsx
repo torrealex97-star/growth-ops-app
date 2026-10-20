@@ -195,7 +195,7 @@ export default function FormulariosPage() {
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums">{formatNumber(f.responses)}</td>
                   <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
-                    {f.sessions > 0 ? formatPercent(f.responses / f.sessions, 0) : '—'}
+                    {f.sessions > 0 ? formatPercent((f.responses / f.sessions) * 100, 0) : '—'}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-1">
