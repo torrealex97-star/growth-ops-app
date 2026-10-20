@@ -269,3 +269,47 @@ test('el esquema zod acepta una config válida y rechaza ids raros y excesos', (
   rol.questions[1].semantic = 'admin.todo'
   assert.equal(formConfigSchema.safeParse(rol).success, false)
 })
+
+test('evaluateSubmission: 5 estrellas redirige a Trustpilot (variable del servidor) y guarda semántica', async () => {
+  const { evaluateSubmission } = await import('../lib/forms/submission.ts')
+  const c = feedback()
+  const ok = evaluateSubmission(c, {
+    answers: { profe: 'a', estrellas: 5 },
+    hidden: { utm_source: 'ig', otro: 'ignorado' },
+    vars: { trustpilot_url: 'https://es.trustpilot.com/review/ejemplo.test' },
+  })
+  assert.equal(ok.ok, true)
+  assert.equal(ok.endingId, 'trustpilot')
+  assert.equal(ok.redirectUrl, 'https://es.trustpilot.com/review/ejemplo.test')
+  assert.equal(ok.semantic.teacher, 'Ana')
+  assert.deepEqual(ok.hidden, { utm_source: 'ig' })
+
+  const bajo = evaluateSubmission(c, { answers: { profe: 'a', estrellas: 2, mejora: 'más práctica' } })
+  assert.equal(bajo.ok, true)
+  assert.equal(bajo.endingId, 'gracias')
+  assert.equal(bajo.redirectUrl, null)
+
+  // Sin la URL configurada el redirect queda en null (nunca "undefined" ni una URL rota).
+  assert.equal(evaluateSubmission(c, { answers: { profe: 'a', estrellas: 5 } }).redirectUrl, null)
+  assert.equal(evaluateSubmission(c, { answers: { profe: 'a', estrellas: 2 } }).ok, false)
+})
+
+test('evaluateSubmission: el final puede depender de la temperatura calculada en el servidor', async () => {
+  const { evaluateSubmission } = await import('../lib/forms/submission.ts')
+  const c = {
+    schemaVersion: 1,
+    questions: [{ id: 'listo', type: 'yesNo', title: '¿Listo?', required: true }],
+    logic: [],
+    endings: [
+      { id: 'vip', title: 'Agenda ya', when: all({ questionId: '$temperature', op: 'equals', value: 'caliente' }) },
+      { id: 'resto', title: 'Gracias', isDefault: true },
+    ],
+    scoring: {
+      enabled: true,
+      thresholds: { caliente: 50, templado: 20 },
+      weights: [{ questionId: 'listo', value: 'yes', points: 60 }],
+    },
+  }
+  assert.equal(evaluateSubmission(c, { answers: { listo: 'yes' } }).endingId, 'vip')
+  assert.equal(evaluateSubmission(c, { answers: { listo: 'no' } }).endingId, 'resto')
+})
