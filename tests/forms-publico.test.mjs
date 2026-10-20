@@ -59,3 +59,10 @@ test('el motor público no usa emojis ni localStorage fuera de try/catch', () =>
     assert.doesNotMatch(leer(f), /\p{Extended_Pictographic}/u, `${f}: emojis`)
   }
 })
+
+test('los formularios públicos se pueden incrustar (el resto de la app sigue sin poder)', () => {
+  const cfg = leer('next.config.js')
+  assert.match(cfg, /source: '\/\(\(\?!embed\|tracker\\\\\.js\|\[\^\/\]\+\/f\/\)\.\*\)'/)
+  // Y la regla anti-framing sigue ahí para todo lo demás.
+  assert.match(cfg, /X-Frame-Options', value: 'SAMEORIGIN'/)
+})
