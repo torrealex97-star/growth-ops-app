@@ -128,7 +128,7 @@ test('aplicarVinculo no escribe nada cuando no hay identificador', async () => {
 })
 
 test('la ingesta llama al stitching solo en eventos de identificación y sin romper la respuesta', () => {
-  const r = readFileSync('app/api/track/[site]/route.ts', 'utf8')
+  const r = readFileSync('lib/tracking/normalizar.ts', 'utf8')
   assert.match(r, /IDENTITY_EVENTS = new Set\(\['lead', 'form_submit', 'appointment_booked', 'purchase'\]\)/)
   assert.match(r, /try \{[\s\S]*aplicarVinculo[\s\S]*\} catch/)
 })
