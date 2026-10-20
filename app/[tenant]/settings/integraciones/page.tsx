@@ -481,6 +481,33 @@ function GuiaIntegracion({ grupo }: { grupo: Group }) {
 export default function IntegracionesPage() {
   const router = useRouter()
   const tenant = useTenant()
+
+  // Envío de PRUEBA a la Conversions API: exige el código TEST del Administrador de eventos, así que
+  // Meta no lo cuenta en producción. Usa el Pixel y el token YA GUARDADOS (guarda antes de probar).
+  async function probarCapi() {
+    setCapiTesting(true)
+    setCapiResult(null)
+    try {
+      const res = await fetch(`/api/${tenant}/evergreen/settings/integraciones/meta-capi-test`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ testEventCode: capiTestCode.trim() }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (res.ok && json.ok) {
+        setCapiResult({
+          ok: true,
+          mensaje: `Meta recibió ${json.eventosRecibidos} evento de prueba. Míralo en Administrador de eventos › Probar eventos.`,
+        })
+      } else {
+        setCapiResult({ ok: false, mensaje: json.error ?? 'Meta rechazó el envío de prueba.' })
+      }
+    } catch {
+      setCapiResult({ ok: false, mensaje: 'No se pudo contactar con el servidor.' })
+    } finally {
+      setCapiTesting(false)
+    }
+  }
   const [groups, setGroups] = useState<Group[]>([])
   const [state, setState] = useState<Record<string, StateEntry>>({})
   const [encReady, setEncReady] = useState(true)
@@ -494,6 +521,9 @@ export default function IntegracionesPage() {
   const [savingId, setSavingId] = useState<string | null>(null)
   const [testingId, setTestingId] = useState<string | null>(null)
   const [syncingId, setSyncingId] = useState<string | null>(null)
+  const [capiTestCode, setCapiTestCode] = useState('')
+  const [capiTesting, setCapiTesting] = useState(false)
+  const [capiResult, setCapiResult] = useState<{ ok: boolean; mensaje: string } | null>(null)
   const [stripeReview, setStripeReview] = useState<StripeReview | null>(null)
   const [reviewingStripe, setReviewingStripe] = useState(false)
   const [stripeCustomers, setStripeCustomers] = useState<StripeCustomerRow[] | null>(null)
@@ -991,6 +1021,31 @@ export default function IntegracionesPage() {
       })
     } catch (error) {
       toast.error('No se pudieron importar los campos', {
+        description: error instanceof Error ? error.message : String(error),
+      })
+    } finally {
+      setSyncingId(null)
+    }
+  }
+
+  async function ensureCalendlyWebhook() {
+    setSyncingId('calendly-webhook')
+    try {
+      const r = await fetch(`/api/${tenant}/evergreen/settings/integraciones/history-sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: 'calendly-webhook' }),
+      })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(j.error || 'No se pudo crear la suscripción')
+      const etiqueta = { ya_activa: 'ya estaba activa', creada: 'creada', recreada: 'recreada' }[
+        j.accion as 'ya_activa' | 'creada' | 'recreada'
+      ]
+      toast.success(`Webhook de Calendly ${etiqueta}`, {
+        description: 'Las citas nuevas entran ya al instante, no solo con el cron diario.',
+      })
+    } catch (error) {
+      toast.error('No se pudo crear la suscripción del webhook', {
         description: error instanceof Error ? error.message : String(error),
       })
     } finally {
@@ -1551,6 +1606,31 @@ export default function IntegracionesPage() {
                           </section>
                         ) : null}
 
+                        {g.id === 'calendly' ? (
+                          <section className="mb-5 space-y-2 rounded-lg border border-border p-3 text-sm">
+                            <p className="font-medium">Citas en tiempo real</p>
+                            <p className="text-muted-foreground text-xs">
+                              Sin esto, las citas nuevas solo entran una vez al día (cron de respaldo): alguien que
+                              agenda hoy no aparece en el CRM hasta la próxima pasada. Crea la suscripción de webhook
+                              del lado de Calendly para que entren al instante. Puedes pulsarlo varias veces: si ya está
+                              activa, no duplica nada.
+                            </p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => ensureCalendlyWebhook()}
+                              disabled={syncingId === 'calendly-webhook' || !canSyncHistory('calendly')}
+                            >
+                              {syncingId === 'calendly-webhook' ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              ) : (
+                                <RefreshCw className="mr-2 h-4 w-4" />
+                              )}
+                              {syncingId === 'calendly-webhook' ? 'Creando…' : 'Activar tiempo real'}
+                            </Button>
+                          </section>
+                        ) : null}
+
                         {g.id === 'ghl' ? (
                           <section className="mb-5 space-y-2 rounded-lg border border-border p-3 text-sm">
                             <p className="font-medium">Importar campos personalizados</p>
@@ -1772,6 +1852,42 @@ export default function IntegracionesPage() {
                               )
                             })}
                         </div>
+
+                        {g.id === 'meta' ? (
+                          <section className="mt-4 space-y-3 rounded-lg border p-4">
+                            <div>
+                              <h4 className="text-sm font-semibold">Probar la Conversions API</h4>
+                              <p className="text-muted-foreground text-xs">
+                                1) Guarda arriba el ID del Pixel. 2) En Administrador de eventos › Probar eventos copia
+                                el código que empieza por TEST. 3) Pégalo aquí y pulsa Probar. El evento de prueba no
+                                cuenta en tus métricas.
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <input
+                                value={capiTestCode}
+                                onChange={(e) => setCapiTestCode(e.target.value)}
+                                placeholder="TEST12345"
+                                aria-label="Código de prueba de Meta"
+                                className="h-9 w-48 rounded-lg border bg-transparent px-3 text-sm"
+                              />
+                              <button
+                                type="button"
+                                disabled={capiTesting || !/^TEST[A-Za-z0-9]{1,30}$/.test(capiTestCode.trim())}
+                                onClick={() => void probarCapi()}
+                                className="h-9 rounded-lg border px-3 text-sm disabled:opacity-50"
+                              >
+                                {capiTesting ? 'Enviando…' : 'Probar'}
+                              </button>
+                            </div>
+                            {capiResult ? (
+                              <p role="status" className="text-xs">
+                                <span className="font-medium">{capiResult.ok ? 'Correcto · ' : 'Error · '}</span>
+                                {capiResult.mensaje}
+                              </p>
+                            ) : null}
+                          </section>
+                        ) : null}
 
                         {/* Lo que NO hace falta para conectar va plegado. Un formulario con nueve
                             campos cuando solo dos son obligatorios hace que la gente rellene lo que

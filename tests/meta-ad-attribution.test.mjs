@@ -68,6 +68,35 @@ test('acepta el nombre declarado por el proveedor pero no lo marca como fila de 
   assert.equal(result.ad.resolved, true)
 })
 
+test('sin ad_id de un toque real, utm_content resuelve el anuncio por nombre (acotado a su campaña)', () => {
+  const result = resolveMetaAttribution({ utm_source: '120252786405750750', utm_content: 'Vídeo principal' }, catalog)
+  assert.equal(result.campaign.name, 'Campaña captación')
+  assert.equal(result.ad.externalId, '120299999999999999')
+  assert.equal(result.ad.name, 'Vídeo principal')
+  assert.equal(result.ad.resolved, true)
+  assert.equal(result.adSet.name, 'Lookalike compradores', 'resuelto por catálogo, también trae el adset')
+})
+
+test('un ad_id real SIEMPRE gana sobre utm_content: no se sustituye evidencia fuerte por una más débil', () => {
+  const result = resolveMetaAttribution(
+    {
+      utm_content: 'Nombre que no es el real',
+      attribution_booking: { campaignId: '120252786405750750', adId: '120299999999999999' },
+    },
+    catalog
+  )
+  assert.equal(result.ad.name, 'Vídeo principal', 'el nombre viene del catálogo por ID, no del utm_content ajeno')
+})
+
+test('utm_content sin match en el catálogo no inventa un anuncio', () => {
+  const result = resolveMetaAttribution(
+    { utm_source: '120252786405750750', utm_content: 'Un anuncio que no existe' },
+    catalog
+  )
+  assert.equal(result.ad.resolved, false)
+  assert.equal(result.ad.name, null)
+})
+
 test('recoge solo ids válidos para el endpoint mínimo y deduplica', () => {
   const result = collectMetaAttributionSignals([
     {

@@ -786,6 +786,21 @@ export type CampaignAd = {
   created_at: string
 }
 
+// Métricas de un anuncio para un periodo concreto, leídas de Meta (GET meta/ads-range).
+export type AdRangeRow = {
+  external_id: string
+  name: string
+  adset_name: string
+  campaign_external_id: string
+  account_id: string
+  account_name: string | null
+  spend: number
+  impressions: number
+  clicks: number
+  leads: number
+  followers: number
+}
+
 // ==================== EXPENSES (Finanzas) ====================
 type Expense = {
   id: string

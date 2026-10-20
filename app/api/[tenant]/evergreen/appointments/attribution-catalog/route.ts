@@ -63,7 +63,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ ten
     const byInternal = campaignInternalIds.length
       ? sb.from('campaigns').select('id,external_id,name').eq('tenant_id', auth.tenantId).in('id', campaignInternalIds)
       : emptyCampaigns
-    const ads = adExternalIds.length
+    const adsByExternalId = adExternalIds.length
       ? sb
           .from('campaign_ads')
           .select('external_id,campaign_external_id,name,adset_name')
@@ -71,15 +71,36 @@ export async function POST(request: Request, { params }: { params: Promise<{ ten
           .in('external_id', adExternalIds)
       : Promise.resolve({ data: [], error: null })
 
-    const [externalResult, internalResult, adsResult] = await Promise.all([byExternal, byInternal, ads])
-    const queryError = externalResult.error ?? internalResult.error ?? adsResult.error
+    const [externalResult, internalResult, adsByIdResult] = await Promise.all([byExternal, byInternal, adsByExternalId])
+    const queryError = externalResult.error ?? internalResult.error ?? adsByIdResult.error
     if (queryError) throw queryError
 
     const campaigns = new Map<string, { id: string; external_id: string | null; name: string }>()
     for (const row of [...(externalResult.data ?? []), ...(internalResult.data ?? [])]) campaigns.set(row.id, row)
 
+    // Sin ad_id de un toque real, el único rastro es utm_content con el NOMBRE del anuncio — y
+    // para que ese nombre pueda casar con algo (resolverAnuncioPorUtm, lib/contacts/resolver-anuncio.ts)
+    // hace falta el catálogo de anuncios de la campaña ya resuelta, no solo los que ya conocíamos por ID.
+    const campaignExternalIdsResueltas = [...campaigns.values()]
+      .map((c) => c.external_id)
+      .filter((v): v is string => Boolean(v))
+    const ads = new Map<
+      string,
+      { external_id: string; campaign_external_id: string | null; name: string; adset_name: string | null }
+    >()
+    for (const row of adsByIdResult.data ?? []) ads.set(row.external_id, row)
+    if (campaignExternalIdsResueltas.length) {
+      const { data: adsByCampaign, error: errAdsByCampaign } = await sb
+        .from('campaign_ads')
+        .select('external_id,campaign_external_id,name,adset_name')
+        .eq('tenant_id', auth.tenantId)
+        .in('campaign_external_id', campaignExternalIdsResueltas)
+      if (errAdsByCampaign) throw errAdsByCampaign
+      for (const row of adsByCampaign ?? []) ads.set(row.external_id, row)
+    }
+
     return NextResponse.json(
-      { campaigns: [...campaigns.values()], ads: adsResult.data ?? [] },
+      { campaigns: [...campaigns.values()], ads: [...ads.values()] },
       { headers: { 'Cache-Control': 'private, max-age=60, stale-while-revalidate=300' } }
     )
   } catch {

@@ -1,4 +1,4 @@
-// GENERADO — no editar a mano. Fuente: OpenAPI de PostgREST (2026-10-12T13:10:11.707Z).
+// GENERADO — no editar a mano. Fuente: OpenAPI de PostgREST (2026-10-20T16:25:27.132Z).
 // Regenerar con: npm run tipos:bd  (y commitear). El test tests/esquema-tenant-invariante.test.mjs
 // comprueba que este artefacto sigue fresco respecto al esquema vivo.
 // Espejo exacto del esquema public de Supabase; los tipos de APP siguen en lib/types/database.ts.
@@ -2899,17 +2899,17 @@ export type EsquemaPublico = {
     }
     FormResponses: {
       Row: {
-        id: string
-        tenant_id: string
-        form_id: string
-        version_id: string
-        submission_id: string
-        status: string
-        answers: Json
-        hidden: Json
+        id: string | null
+        tenant_id: string | null
+        form_id: string | null
+        version_id: string | null
+        submission_id: string | null
+        status: string | null
+        answers: Json | null
+        hidden: Json | null
         score: number | null
         temperature: string | null
-        tags: string[]
+        tags: string | null
         rating: number | null
         nps: number | null
         teacher: string | null
@@ -2918,27 +2918,27 @@ export type EsquemaPublico = {
         outcome: string | null
         variant: string | null
         contact_id: string | null
-        review_status: string
+        review_status: string | null
         review_notes: string | null
         device: string | null
         duration_ms: number | null
         ip_hash: string | null
-        created_at: string
+        created_at: string | null
         completed_at: string | null
-        updated_at: string
+        updated_at: string | null
       }
       Insert: {
-        id: string | undefined
-        tenant_id: string
-        form_id: string
-        version_id: string
-        submission_id: string
-        status: string | undefined
-        answers: Json | undefined
-        hidden: Json | undefined
+        id: string | null | undefined
+        tenant_id: string | null | undefined
+        form_id: string | null | undefined
+        version_id: string | null | undefined
+        submission_id: string | null | undefined
+        status: string | null | undefined
+        answers: Json | null | undefined
+        hidden: Json | null | undefined
         score: number | null | undefined
         temperature: string | null | undefined
-        tags: string[] | undefined
+        tags: string | null | undefined
         rating: number | null | undefined
         nps: number | null | undefined
         teacher: string | null | undefined
@@ -2947,14 +2947,14 @@ export type EsquemaPublico = {
         outcome: string | null | undefined
         variant: string | null | undefined
         contact_id: string | null | undefined
-        review_status: string | undefined
+        review_status: string | null | undefined
         review_notes: string | null | undefined
         device: string | null | undefined
         duration_ms: number | null | undefined
         ip_hash: string | null | undefined
-        created_at: string | undefined
+        created_at: string | null | undefined
         completed_at: string | null | undefined
-        updated_at: string | undefined
+        updated_at: string | null | undefined
       }
       Update: {
         id: string | undefined
@@ -2967,7 +2967,7 @@ export type EsquemaPublico = {
         hidden: Json | undefined
         score: number | undefined
         temperature: string | undefined
-        tags: string[] | undefined
+        tags: string | undefined
         rating: number | undefined
         nps: number | undefined
         teacher: string | undefined
@@ -2988,42 +2988,42 @@ export type EsquemaPublico = {
     }
     FormSessions: {
       Row: {
-        id: string
-        tenant_id: string
-        form_id: string
+        id: string | null
+        tenant_id: string | null
+        form_id: string | null
         version_id: string | null
-        session_id: string
-        status: string
+        session_id: string | null
+        status: string | null
         device: string | null
         variant: string | null
-        utm: Json
+        utm: Json | null
         referrer_host: string | null
         last_question: string | null
-        max_question_index: number
-        question_times: Json
+        max_question_index: number | null
+        question_times: Json | null
         started_at: string | null
         completed_at: string | null
-        created_at: string
-        last_active_at: string
+        created_at: string | null
+        last_active_at: string | null
       }
       Insert: {
-        id: string | undefined
-        tenant_id: string
-        form_id: string
+        id: string | null | undefined
+        tenant_id: string | null | undefined
+        form_id: string | null | undefined
         version_id: string | null | undefined
-        session_id: string
-        status: string | undefined
+        session_id: string | null | undefined
+        status: string | null | undefined
         device: string | null | undefined
         variant: string | null | undefined
-        utm: Json | undefined
+        utm: Json | null | undefined
         referrer_host: string | null | undefined
         last_question: string | null | undefined
-        max_question_index: number | undefined
-        question_times: Json | undefined
+        max_question_index: number | null | undefined
+        question_times: Json | null | undefined
         started_at: string | null | undefined
         completed_at: string | null | undefined
-        created_at: string | undefined
-        last_active_at: string | undefined
+        created_at: string | null | undefined
+        last_active_at: string | null | undefined
       }
       Update: {
         id: string | undefined
@@ -3047,22 +3047,22 @@ export type EsquemaPublico = {
     }
     FormVersions: {
       Row: {
-        id: string
-        tenant_id: string
-        form_id: string
-        version: number
-        config: Json
+        id: string | null
+        tenant_id: string | null
+        form_id: string | null
+        version: number | null
+        config: Json | null
         published_by: string | null
-        published_at: string
+        published_at: string | null
       }
       Insert: {
-        id: string | undefined
-        tenant_id: string
-        form_id: string
-        version: number
-        config: Json
+        id: string | null | undefined
+        tenant_id: string | null | undefined
+        form_id: string | null | undefined
+        version: number | null | undefined
+        config: Json | null | undefined
         published_by: string | null | undefined
-        published_at: string | undefined
+        published_at: string | null | undefined
       }
       Update: {
         id: string | undefined
@@ -3076,29 +3076,29 @@ export type EsquemaPublico = {
     }
     FormWebhookDeliveries: {
       Row: {
-        id: string
-        tenant_id: string
-        webhook_id: string
-        response_id: string
-        status: string
-        attempts: number
+        id: string | null
+        tenant_id: string | null
+        webhook_id: string | null
+        response_id: string | null
+        status: string | null
+        attempts: number | null
         last_status_code: number | null
         last_error: string | null
         next_attempt_at: string | null
-        created_at: string
+        created_at: string | null
         delivered_at: string | null
       }
       Insert: {
-        id: string | undefined
-        tenant_id: string
-        webhook_id: string
-        response_id: string
-        status: string | undefined
-        attempts: number | undefined
+        id: string | null | undefined
+        tenant_id: string | null | undefined
+        webhook_id: string | null | undefined
+        response_id: string | null | undefined
+        status: string | null | undefined
+        attempts: number | null | undefined
         last_status_code: number | null | undefined
         last_error: string | null | undefined
         next_attempt_at: string | null | undefined
-        created_at: string | undefined
+        created_at: string | null | undefined
         delivered_at: string | null | undefined
       }
       Update: {
@@ -3117,22 +3117,22 @@ export type EsquemaPublico = {
     }
     FormWebhooks: {
       Row: {
-        id: string
-        tenant_id: string
-        form_id: string
-        url: string
-        secret_enc: string
-        active: boolean
-        created_at: string
+        id: string | null
+        tenant_id: string | null
+        form_id: string | null
+        url: string | null
+        secret_enc: string | null
+        active: boolean | null
+        created_at: string | null
       }
       Insert: {
-        id: string | undefined
-        tenant_id: string
-        form_id: string
-        url: string
-        secret_enc: string
-        active: boolean | undefined
-        created_at: string | undefined
+        id: string | null | undefined
+        tenant_id: string | null | undefined
+        form_id: string | null | undefined
+        url: string | null | undefined
+        secret_enc: string | null | undefined
+        active: boolean | null | undefined
+        created_at: string | null | undefined
       }
       Update: {
         id: string | undefined
@@ -3146,34 +3146,34 @@ export type EsquemaPublico = {
     }
     Forms: {
       Row: {
-        id: string
-        tenant_id: string
-        slug: string
-        name: string
-        category: string
-        audience: string
-        status: string
-        draft_config: Json
+        id: string | null
+        tenant_id: string | null
+        slug: string | null
+        name: string | null
+        category: string | null
+        audience: string | null
+        status: string | null
+        draft_config: Json | null
         published_version_id: string | null
-        settings: Json
+        settings: Json | null
         created_by: string | null
-        created_at: string
-        updated_at: string
+        created_at: string | null
+        updated_at: string | null
       }
       Insert: {
-        id: string | undefined
-        tenant_id: string
-        slug: string
-        name: string
-        category: string | undefined
-        audience: string | undefined
-        status: string | undefined
-        draft_config: Json
+        id: string | null | undefined
+        tenant_id: string | null | undefined
+        slug: string | null | undefined
+        name: string | null | undefined
+        category: string | null | undefined
+        audience: string | null | undefined
+        status: string | null | undefined
+        draft_config: Json | null | undefined
         published_version_id: string | null | undefined
-        settings: Json | undefined
+        settings: Json | null | undefined
         created_by: string | null | undefined
-        created_at: string | undefined
-        updated_at: string | undefined
+        created_at: string | null | undefined
+        updated_at: string | null | undefined
       }
       Update: {
         id: string | undefined
@@ -3396,10 +3396,6 @@ export type EsquemaPublico = {
         provider: string | null
         google_email: string | null
         refresh_token: string | null
-        access_token: string | null
-        access_token_expires_at: string | null
-        last_refresh_at: string | null
-        reauth_required_at: string | null
         scopes: string | null
         ga4_property_id: string | null
         status: string | null
@@ -3409,6 +3405,10 @@ export type EsquemaPublico = {
         created_at: string | null
         updated_at: string | null
         owner_user_id: string | null
+        access_token: string | null
+        access_token_expires_at: string | null
+        last_refresh_at: string | null
+        reauth_required_at: string | null
       }
       Insert: {
         id: string | null | undefined
@@ -3416,10 +3416,6 @@ export type EsquemaPublico = {
         provider: string | null | undefined
         google_email: string | null | undefined
         refresh_token: string | null | undefined
-        access_token: string | null | undefined
-        access_token_expires_at: string | null | undefined
-        last_refresh_at: string | null | undefined
-        reauth_required_at: string | null | undefined
         scopes: string | null | undefined
         ga4_property_id: string | null | undefined
         status: string | null | undefined
@@ -3429,6 +3425,10 @@ export type EsquemaPublico = {
         created_at: string | null | undefined
         updated_at: string | null | undefined
         owner_user_id: string | null | undefined
+        access_token: string | null | undefined
+        access_token_expires_at: string | null | undefined
+        last_refresh_at: string | null | undefined
+        reauth_required_at: string | null | undefined
       }
       Update: {
         id: string | undefined
@@ -3436,10 +3436,6 @@ export type EsquemaPublico = {
         provider: string | undefined
         google_email: string | undefined
         refresh_token: string | undefined
-        access_token: string | undefined
-        access_token_expires_at: string | undefined
-        last_refresh_at: string | undefined
-        reauth_required_at: string | undefined
         scopes: string | undefined
         ga4_property_id: string | undefined
         status: string | undefined
@@ -3449,6 +3445,10 @@ export type EsquemaPublico = {
         created_at: string | undefined
         updated_at: string | undefined
         owner_user_id: string | undefined
+        access_token: string | undefined
+        access_token_expires_at: string | undefined
+        last_refresh_at: string | undefined
+        reauth_required_at: string | undefined
       }
     }
     GrowthContext: {
@@ -3892,6 +3892,7 @@ export type EsquemaPublico = {
         updated_at: string | null
         updated_by: string | null
         tenant_id: string | null
+        key_fingerprint: string | null
       }
       Insert: {
         key: string | null | undefined
@@ -3901,6 +3902,7 @@ export type EsquemaPublico = {
         updated_at: string | null | undefined
         updated_by: string | null | undefined
         tenant_id: string | null | undefined
+        key_fingerprint: string | null | undefined
       }
       Update: {
         key: string | undefined
@@ -3910,6 +3912,7 @@ export type EsquemaPublico = {
         updated_at: string | undefined
         updated_by: string | undefined
         tenant_id: string | undefined
+        key_fingerprint: string | undefined
       }
     }
     IntegrationSyncRuns: {

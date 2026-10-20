@@ -137,6 +137,8 @@ export const NAV_PAGES: { href: string; label: string; dept: Department }[] = [
   { href: '/marketing/adquisicion/campanas', label: 'Adquisición · Campañas', dept: 'marketing' },
   { href: '/marketing/adquisicion/atribucion', label: 'Adquisición · Atribución', dept: 'marketing' },
   { href: '/marketing/adquisicion/vsl', label: 'Adquisición · VSL', dept: 'marketing' },
+  { href: '/marketing/adquisicion/funnel-eventos', label: 'Adquisición · Funnel por eventos', dept: 'marketing' },
+  { href: '/marketing/adquisicion/trafico-web', label: 'Adquisición · Tráfico web', dept: 'marketing' },
   { href: '/instagram', label: 'Instagram · Rendimiento', dept: 'marketing' },
   { href: '/instagram/radar', label: 'Instagram · Radar de contenido', dept: 'marketing' },
   { href: '/instagram/carruseles', label: 'Instagram · Carruseles y Flyers', dept: 'marketing' },
