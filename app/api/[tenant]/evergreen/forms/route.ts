@@ -52,6 +52,7 @@ const createBody = z.object({
   name: z.string().trim().min(1).max(160).optional(),
   category: z.enum(FORM_CATEGORIES).optional(),
   audience: z.enum(FORM_AUDIENCES).optional(),
+  cloneFrom: z.string().uuid().optional(),
 })
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
@@ -66,7 +67,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   const tpl = b.templateKey ? templateByKey(b.templateKey) : undefined
   if (b.templateKey && !tpl) return NextResponse.json({ error: 'Plantilla no encontrada' }, { status: 404 })
 
-  const name = b.name ?? tpl?.name ?? 'Nuevo formulario'
+  // Duplicar: copia el BORRADOR de otro formulario de esta subcuenta (nunca lo publicado ni sus respuestas).
+  let source: { name: string; category: string; audience: string; draft_config: unknown } | null = null
+  if (b.cloneFrom) {
+    const { data: src } = await sb
+      .from('forms')
+      .select('name, category, audience, draft_config')
+      .eq('tenant_id', auth.tenantId)
+      .eq('id', b.cloneFrom)
+      .maybeSingle()
+    if (!src) return NextResponse.json({ error: 'Formulario no encontrado' }, { status: 404 })
+    source = src
+  }
+
+  const name = b.name ?? (source ? `${source.name} (copia)`.slice(0, 160) : (tpl?.name ?? 'Nuevo formulario'))
   const baseSlug = slugify(tpl?.slug ?? name)
   const { data: taken } = await sb
     .from('forms')
@@ -84,9 +98,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       tenant_id: auth.tenantId,
       slug,
       name,
-      category: b.category ?? tpl?.category ?? 'otro',
-      audience: b.audience ?? tpl?.audience ?? 'captacion',
-      draft_config: tpl?.config ?? blankConfig(),
+      category: b.category ?? source?.category ?? tpl?.category ?? 'otro',
+      audience: b.audience ?? source?.audience ?? tpl?.audience ?? 'captacion',
+      draft_config: source?.draft_config ?? tpl?.config ?? blankConfig(),
       created_by: auth.userId,
     })
     .select('id, slug')

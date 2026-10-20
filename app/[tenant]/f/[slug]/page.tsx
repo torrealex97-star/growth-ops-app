@@ -4,12 +4,15 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { FormEngine } from '@/components/forms/engine/FormEngine'
+import { useTenantBranding } from '@/lib/tenant-context'
+import { DEFAULT_BRAND_NAME } from '@/lib/tenant-branding'
 import type { FormConfig } from '@/lib/forms/types'
 
 // Formulario PÚBLICO: se rellena sin sesión en /<subcuenta>/f/<slug>. Los parámetros de la URL
 // (utm_*, profesor, email…) alimentan los campos ocultos. `?embed=1` avisa a la página anfitriona
 // de su altura para que el iframe se ajuste solo.
 export default function PublicFormPage() {
+  const branding = useTenantBranding()
   const { tenant, slug } = useParams<{ tenant: string; slug: string }>()
   const [data, setData] = useState<{ name: string; config: FormConfig } | null>(null)
   const [error, setError] = useState('')
@@ -55,5 +58,7 @@ export default function PublicFormPage() {
       </div>
     )
   }
-  return <FormEngine config={data.config} name={data.name} tenant={tenant} slug={slug} hidden={hidden} />
+  // Sin logo ni nombre de marca configurados NO se enseña el nombre por defecto de la plataforma.
+  const brand = { name: branding.name === DEFAULT_BRAND_NAME ? '' : branding.name, logoUrl: branding.logoUrl }
+  return <FormEngine config={data.config} name={data.name} tenant={tenant} slug={slug} hidden={hidden} brand={brand} />
 }

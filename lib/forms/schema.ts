@@ -27,8 +27,16 @@ const question = z.object({
   required: z.boolean().optional(),
   placeholder: text(200).optional(),
   icon: text(40).optional(),
+  imageUrl: z.string().url().max(2000).startsWith('https://').optional(),
   options: z
-    .array(z.object({ value: text(120), label: text(200), icon: text(40).optional() }))
+    .array(
+      z.object({
+        value: text(120),
+        label: text(200),
+        icon: text(40).optional(),
+        imageUrl: z.string().url().max(2000).startsWith('https://').optional(),
+      })
+    )
     .max(MAX_OPTIONS)
     .optional(),
   allowOther: z.boolean().optional(),
@@ -109,8 +117,20 @@ export const formConfigSchema = z.object({
   theme: z
     .object({
       mode: z.enum(['light', 'dark', 'auto']),
-      logoUrl: z.string().url().max(2000).optional(),
-      coverUrl: z.string().url().max(2000).optional(),
+      logoUrl: z.string().url().max(2000).startsWith('https://').optional(),
+      hideLogo: z.boolean().optional(),
+      coverUrl: z.string().url().max(2000).startsWith('https://').optional(),
+      accent: z
+        .string()
+        .regex(/^#[0-9a-fA-F]{6}$/)
+        .optional(),
+      background: z
+        .string()
+        .regex(/^#[0-9a-fA-F]{6}$/)
+        .optional(),
+      backgroundImageUrl: z.string().url().max(2000).startsWith('https://').optional(),
+      font: z.enum(['sans', 'display', 'serif', 'mono']).optional(),
+      radius: z.enum(['sm', 'md', 'lg', 'full']).optional(),
     })
     .optional(),
 })

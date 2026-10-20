@@ -18,8 +18,15 @@ import {
   Trash2,
   Undo2,
   Flag,
+  Palette,
+  Download,
+  Upload,
+  ExternalLink,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useTenantBranding } from '@/lib/tenant-context'
+import { DEFAULT_BRAND_NAME } from '@/lib/tenant-branding'
+import { formConfigSchema } from '@/lib/forms/schema'
 import { cn } from '@/lib/utils'
 import { validateConfig } from '@/lib/forms/validation'
 import {
@@ -32,7 +39,16 @@ import {
   type Question,
 } from '@/lib/forms/types'
 import { FormEngine } from '../engine/FormEngine'
-import { EndingPanel, LogicPanel, QuestionPanel, ScoringPanel, TYPE_LABELS, WelcomePanel, field } from './Panels'
+import {
+  EndingPanel,
+  LogicPanel,
+  QuestionPanel,
+  ScoringPanel,
+  ThemePanel,
+  TYPE_LABELS,
+  WelcomePanel,
+  field,
+} from './Panels'
 
 type Sel =
   | { kind: 'welcome' }
@@ -41,6 +57,7 @@ type Sel =
   | { kind: 'logic' }
   | { kind: 'scoring' }
   | { kind: 'settings' }
+  | { kind: 'design' }
 
 interface FormMeta {
   id: string
@@ -88,6 +105,13 @@ export function Builder({ tenant, formId }: { tenant: string; formId: string }) 
   const [publishing, setPublishing] = useState(false)
   const [problems, setProblems] = useState<string[]>([])
   const [device, setDevice] = useState<'mobile' | 'desktop'>('desktop')
+  const branding = useTenantBranding()
+  const [mobileTab, setMobileTab] = useState<'esquema' | 'preview' | 'props'>('esquema')
+  const [publishedAt, setPublishedAt] = useState<string | null>(null)
+  const pick = (s: Sel) => {
+    setSel(s)
+    setMobileTab('props')
+  }
   const [previewKey, setPreviewKey] = useState(0)
   const [error, setError] = useState('')
   const past = useRef<FormConfig[]>([])
@@ -194,9 +218,33 @@ export function Builder({ tenant, formId }: { tenant: string; formId: string }) 
       }
       setPublishedVersion(j.version)
       setMeta((m) => (m ? { ...m, status: 'published' } : m))
+      setPublishedAt(new Date().toISOString())
       toast.success(`Publicado (versión ${j.version})`)
     } finally {
       setPublishing(false)
+    }
+  }
+
+  const exportJson = () => {
+    if (!cfg || !meta) return
+    const blob = new Blob([JSON.stringify(cfg, null, 2)], { type: 'application/json' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `${meta.slug}.json`
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
+  const importJson = async (file: File | undefined) => {
+    if (!file) return
+    try {
+      const parsed = formConfigSchema.safeParse(JSON.parse(await file.text()))
+      if (!parsed.success)
+        return toast.error('El archivo no es un formulario válido', { description: parsed.error.issues[0]?.message })
+      commit(parsed.data as unknown as FormConfig)
+      pick({ kind: 'welcome' })
+      toast.success('Importado: revisa y publica cuando quieras')
+    } catch {
+      toast.error('No se pudo leer el archivo')
     }
   }
 
@@ -240,13 +288,13 @@ export function Builder({ tenant, formId }: { tenant: string; formId: string }) 
     if (type === 'rating') q.scaleMax = 5
     if (type === 'hidden') q.hiddenKey = 'parametro'
     commit({ ...cfg, questions: [...cfg.questions, q] })
-    setSel({ kind: 'question', id: q.id })
+    pick({ kind: 'question', id: q.id })
   }
   const dup = (q: Question) => {
     const c: Question = { ...q, id: newId('pregunta', ids) }
     const i = cfg.questions.findIndex((x) => x.id === q.id)
     commit({ ...cfg, questions: [...cfg.questions.slice(0, i + 1), c, ...cfg.questions.slice(i + 1)] })
-    setSel({ kind: 'question', id: c.id })
+    pick({ kind: 'question', id: c.id })
   }
   const removeQ = (id: string) => {
     commit({
@@ -254,12 +302,12 @@ export function Builder({ tenant, formId }: { tenant: string; formId: string }) 
       questions: cfg.questions.filter((q) => q.id !== id),
       logic: cfg.logic.filter((r) => r.from !== id && !(r.then.type === 'jump' && r.then.target === id)),
     })
-    setSel({ kind: 'welcome' })
+    pick({ kind: 'welcome' })
   }
   const addEnding = () => {
     const e: Ending = { id: newId('final', ids), title: 'Gracias', message: '' }
     commit({ ...cfg, endings: [...cfg.endings, e] })
-    setSel({ kind: 'ending', id: e.id })
+    pick({ kind: 'ending', id: e.id })
   }
   const removeEnding = (id: string) => {
     if (cfg.endings.length <= 1) return toast.error('Debe quedar al menos un final')
@@ -270,7 +318,7 @@ export function Builder({ tenant, formId }: { tenant: string; formId: string }) 
         (r) => !(r.then.type === 'end' && r.then.endingId === id) && !(r.then.type === 'jump' && r.then.target === id)
       ),
     })
-    setSel({ kind: 'welcome' })
+    pick({ kind: 'welcome' })
   }
 
   const selectedQ = sel.kind === 'question' ? cfg.questions.find((q) => q.id === sel.id) : undefined
@@ -366,10 +414,53 @@ export function Builder({ tenant, formId }: { tenant: string; formId: string }) 
         </ul>
       )}
 
+      {publishedAt && meta.status === 'published' && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-3 text-sm text-emerald-400">
+          <span>Publicado. Ya puedes compartirlo:</span>
+          <code className="truncate rounded bg-muted px-2 py-0.5 text-foreground">{`/${tenant}/f/${meta.slug}`}</code>
+          <a
+            href={`/${tenant}/f/${meta.slug}`}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 underline"
+          >
+            Abrir <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        </div>
+      )}
+
+      <div
+        className="flex rounded-lg border border-border p-1 text-sm lg:hidden"
+        role="tablist"
+        aria-label="Secciones del constructor"
+      >
+        {(
+          [
+            ['esquema', 'Esquema'],
+            ['preview', 'Vista previa'],
+            ['props', 'Propiedades'],
+          ] as const
+        ).map(([k, label]) => (
+          <button
+            key={k}
+            type="button"
+            role="tab"
+            aria-selected={mobileTab === k}
+            onClick={() => setMobileTab(k)}
+            className={cn(
+              'flex-1 rounded-md px-3 py-2',
+              mobileTab === k ? 'bg-brand-500/15 text-foreground' : 'text-muted-foreground'
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)_340px]">
         {/* Esquema */}
-        <div className="space-y-2">
-          <button type="button" className={item(sel.kind === 'welcome')} onClick={() => setSel({ kind: 'welcome' })}>
+        <div className={cn('space-y-2', mobileTab === 'esquema' ? 'block' : 'hidden', 'lg:block')}>
+          <button type="button" className={item(sel.kind === 'welcome')} onClick={() => pick({ kind: 'welcome' })}>
             <Sparkles className="h-4 w-4 text-brand-400" /> Bienvenida
           </button>
           <div className="space-y-1.5">
@@ -377,10 +468,10 @@ export function Builder({ tenant, formId }: { tenant: string; formId: string }) 
               <div
                 key={q.id}
                 className={item(sel.kind === 'question' && sel.id === q.id)}
-                onClick={() => setSel({ kind: 'question', id: q.id })}
+                onClick={() => pick({ kind: 'question', id: q.id })}
                 role="button"
                 tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && setSel({ kind: 'question', id: q.id })}
+                onKeyDown={(e) => e.key === 'Enter' && pick({ kind: 'question', id: q.id })}
               >
                 <span className="w-5 shrink-0 text-xs text-muted-foreground">{i + 1}</span>
                 <span className="min-w-0 flex-1 truncate">
@@ -446,10 +537,10 @@ export function Builder({ tenant, formId }: { tenant: string; formId: string }) 
               <div
                 key={e.id}
                 className={item(sel.kind === 'ending' && sel.id === e.id)}
-                onClick={() => setSel({ kind: 'ending', id: e.id })}
+                onClick={() => pick({ kind: 'ending', id: e.id })}
                 role="button"
                 tabIndex={0}
-                onKeyDown={(ev) => ev.key === 'Enter' && setSel({ kind: 'ending', id: e.id })}
+                onKeyDown={(ev) => ev.key === 'Enter' && pick({ kind: 'ending', id: e.id })}
               >
                 <Flag className="h-4 w-4 shrink-0 text-brand-400" />
                 <span className="min-w-0 flex-1 truncate">
@@ -485,26 +576,25 @@ export function Builder({ tenant, formId }: { tenant: string; formId: string }) 
             )}
           </div>
           <div className="space-y-1.5 border-t border-border pt-3">
-            <button type="button" className={item(sel.kind === 'logic')} onClick={() => setSel({ kind: 'logic' })}>
+            <button type="button" className={item(sel.kind === 'logic')} onClick={() => pick({ kind: 'logic' })}>
               <GitBranch className="h-4 w-4 text-brand-400" /> Lógica y saltos{' '}
               <span className="ml-auto text-xs text-muted-foreground">{cfg.logic.length}</span>
             </button>
-            <button type="button" className={item(sel.kind === 'scoring')} onClick={() => setSel({ kind: 'scoring' })}>
+            <button type="button" className={item(sel.kind === 'scoring')} onClick={() => pick({ kind: 'scoring' })}>
               <Target className="h-4 w-4 text-brand-400" /> Puntuación{' '}
               <span className="ml-auto text-xs text-muted-foreground">{cfg.scoring?.enabled ? 'activa' : 'off'}</span>
             </button>
-            <button
-              type="button"
-              className={item(sel.kind === 'settings')}
-              onClick={() => setSel({ kind: 'settings' })}
-            >
+            <button type="button" className={item(sel.kind === 'design')} onClick={() => pick({ kind: 'design' })}>
+              <Palette className="h-4 w-4 text-brand-400" /> Diseño y marca
+            </button>
+            <button type="button" className={item(sel.kind === 'settings')} onClick={() => pick({ kind: 'settings' })}>
               <Settings2 className="h-4 w-4 text-brand-400" /> Ajustes
             </button>
           </div>
         </div>
 
         {/* Vista previa */}
-        <div className="min-w-0">
+        <div className={cn('min-w-0', mobileTab === 'preview' ? 'block' : 'hidden', 'lg:block')}>
           <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1">
               <Eye className="h-3.5 w-3.5" /> Vista previa (no envía nada)
@@ -529,7 +619,10 @@ export function Builder({ tenant, formId }: { tenant: string; formId: string }) 
             )}
           >
             <FormEngine
-              key={previewKey}
+              key={`${previewKey}-${sel.kind === 'question' || sel.kind === 'ending' ? sel.id : sel.kind}`}
+              brand={{ name: branding.name === DEFAULT_BRAND_NAME ? '' : branding.name, logoUrl: branding.logoUrl }}
+              focusId={sel.kind === 'question' ? sel.id : undefined}
+              focusEndingId={sel.kind === 'ending' ? sel.id : undefined}
               config={cfg}
               name={meta.name}
               tenant={tenant}
@@ -541,7 +634,11 @@ export function Builder({ tenant, formId }: { tenant: string; formId: string }) 
 
         {/* Propiedades */}
         <aside
-          className="rounded-xl border border-border bg-card p-4 lg:max-h-[80vh] lg:overflow-y-auto"
+          className={cn(
+            'rounded-xl border border-border bg-card p-4 lg:max-h-[80vh] lg:overflow-y-auto',
+            mobileTab === 'props' ? 'block' : 'hidden',
+            'lg:block'
+          )}
           aria-label="Propiedades"
         >
           <fieldset disabled={!canWrite} className="min-w-0 border-0 p-0">
@@ -557,6 +654,7 @@ export function Builder({ tenant, formId }: { tenant: string; formId: string }) 
               />
             )}
             {sel.kind === 'logic' && <LogicPanel cfg={cfg} onChange={(logic) => commit({ ...cfg, logic })} />}
+            {sel.kind === 'design' && <ThemePanel cfg={cfg} onChange={(theme) => commit({ ...cfg, theme })} />}
             {sel.kind === 'scoring' && <ScoringPanel cfg={cfg} onChange={(scoring) => commit({ ...cfg, scoring })} />}
             {sel.kind === 'settings' && (
               <div className="space-y-4">
@@ -636,6 +734,32 @@ export function Builder({ tenant, formId }: { tenant: string; formId: string }) 
                       setDirty(true)
                     }}
                   />
+                </div>
+                <div className="space-y-2 border-t border-border pt-4">
+                  <label className="block text-xs font-medium text-muted-foreground">Copia de seguridad</label>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={exportJson}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm hover:border-brand-500"
+                    >
+                      <Download className="h-4 w-4" /> Exportar JSON
+                    </button>
+                    {canWrite && (
+                      <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm hover:border-brand-500">
+                        <Upload className="h-4 w-4" /> Importar JSON
+                        <input
+                          type="file"
+                          accept="application/json,.json"
+                          className="hidden"
+                          onChange={(e) => void importJson(e.target.files?.[0])}
+                        />
+                      </label>
+                    )}
+                  </div>
+                  <p className="text-2xs text-muted-foreground">
+                    Importar sustituye el borrador actual (no toca lo ya publicado).
+                  </p>
                 </div>
               </div>
             )}

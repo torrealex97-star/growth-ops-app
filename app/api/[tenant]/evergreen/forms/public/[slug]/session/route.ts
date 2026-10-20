@@ -5,16 +5,29 @@ import { ipDe, limitar } from '@/lib/security/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
+// Todo lo que llega de la sesión es dato de un navegador ajeno: se sanea y se recorta, nunca se rechaza
+// (una URL con un parámetro raro no debe dejar sin analítica a esa visita).
+const UTM_KEYS = ['source', 'medium', 'campaign']
+const cleanUtm = (raw: Record<string, unknown> | undefined) =>
+  Object.fromEntries(UTM_KEYS.flatMap((k) => (typeof raw?.[k] === 'string' && (raw[k] as string).trim() ? [[k, (raw[k] as string).trim().slice(0, 120)]] : [])))
+const cleanTimes = (raw: Record<string, number> | undefined) =>
+  Object.fromEntries(
+    Object.entries(raw ?? {})
+      .filter(([k, v]) => /^[a-zA-Z0-9_-]{1,40}$/.test(k) && Number.isFinite(v))
+      .slice(0, 150)
+      .map(([k, v]) => [k, Math.min(3_600_000, Math.max(0, Math.round(v)))])
+  )
+
 const body = z.object({
   sessionId: z.string().uuid(),
   status: z.enum(['viewed', 'started', 'completed', 'abandoned']),
-  lastQuestion: z.string().max(40).optional(),
+  lastQuestion: z.string().optional(),
   maxIndex: z.number().int().min(0).max(500).optional(),
-  questionTimes: z.record(z.string().max(40), z.number().int().min(0).max(3_600_000)).optional(),
+  questionTimes: z.record(z.string(), z.number()).optional(),
   variant: z.enum(['A', 'B']).optional(),
   device: z.enum(['mobile', 'desktop']).optional(),
-  utm: z.record(z.string().max(40), z.string().max(200)).optional(),
-  referrerHost: z.string().max(200).optional(),
+  utm: z.record(z.string(), z.unknown()).optional(),
+  referrerHost: z.string().optional(),
 })
 
 // Analítica por sesión: el navegador manda una FOTO del estado de su sesión (una fila por sesión,
@@ -50,11 +63,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       status: s.status,
       device: s.device ?? null,
       variant: s.variant ?? null,
-      utm: s.utm ?? {},
-      referrer_host: s.referrerHost ?? null,
-      last_question: s.lastQuestion ?? null,
+      utm: cleanUtm(s.utm),
+      referrer_host: s.referrerHost ? s.referrerHost.slice(0, 200) : null,
+      last_question: s.lastQuestion ? s.lastQuestion.slice(0, 40) : null,
       max_question_index: Math.max(existing?.max_question_index ?? 0, s.maxIndex ?? 0),
-      question_times: s.questionTimes ?? {},
+      question_times: cleanTimes(s.questionTimes),
       started_at: existing?.started_at ?? (s.status === 'viewed' ? null : now),
       completed_at: s.status === 'completed' ? now : null,
       last_active_at: now,

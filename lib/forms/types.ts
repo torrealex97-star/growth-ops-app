@@ -51,6 +51,8 @@ export interface QuestionOption {
   label: string
   /** Nombre de icono de lucide-react (nunca emoji: las páginas públicas no los admiten). */
   icon?: string
+  /** Imagen de la opción (elección con imágenes). */
+  imageUrl?: string
 }
 
 export type ConditionOperator =
@@ -80,6 +82,8 @@ export interface Question {
   placeholder?: string
   /** Nombre de icono lucide para la cabecera de la pregunta. */
   icon?: string
+  /** Imagen bajo el título de la pregunta (https). */
+  imageUrl?: string
   options?: QuestionOption[]
   /** Añade una opción "Otro" con texto libre (opción única/múltiple). */
   allowOther?: boolean
@@ -159,8 +163,18 @@ export interface AbTest {
 
 export interface FormTheme {
   mode: 'light' | 'dark' | 'auto'
+  /** Logo propio. Sin él se usa el logo de la subcuenta (si `hideLogo` no lo oculta). */
   logoUrl?: string
+  hideLogo?: boolean
+  /** Imagen de la pantalla de bienvenida. */
   coverUrl?: string
+  /** Color de acento (#rrggbb). Sin él se hereda el de la subcuenta. */
+  accent?: string
+  /** Color de fondo (#rrggbb) o imagen (https) con velo para que el texto siga leyéndose. */
+  background?: string
+  backgroundImageUrl?: string
+  font?: 'sans' | 'display' | 'serif' | 'mono'
+  radius?: 'sm' | 'md' | 'lg' | 'full'
 }
 
 export interface FormConfig {

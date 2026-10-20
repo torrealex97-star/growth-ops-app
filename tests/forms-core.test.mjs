@@ -522,3 +522,46 @@ test('feedback de alumnos: media, NPS, profesores con tendencia y comentarios de
   )
   assert.ok(s.weekly.length >= 1)
 })
+
+test('tema: acento propio → variables de marca y texto legible; sin tema hereda la subcuenta', async () => {
+  const { themeVars, formVars, textOn, contrastRatio, hexToHslTriplet, isDarkTheme, HEX } =
+    await import('../lib/forms/theme.ts')
+  assert.deepEqual(hexToHslTriplet('#ff0000'), { h: 0, s: 100, l: 50 })
+  assert.equal(hexToHslTriplet('rojo'), null)
+  assert.equal(HEX.test('#12abEF'), true)
+  assert.equal(HEX.test('#12abE'), false)
+  assert.equal(textOn('#ffffff'), '#0a0a0b')
+  assert.equal(textOn('#111827'), '#ffffff')
+  assert.ok(contrastRatio('#000000', '#ffffff') > 20)
+  // Sin tema no se toca la rampa de la subcuenta.
+  assert.equal(themeVars(undefined)['--brand-500'], undefined)
+  assert.equal(themeVars({ mode: 'auto' })['--brand-500'], undefined)
+  const v = themeVars({ mode: 'light', accent: '#7c3aed', radius: 'full', font: 'serif' })
+  assert.match(v['--brand-500'], /^\d+ \d+% \d+%$/)
+  assert.equal(v['--form-on-accent'], '#ffffff')
+  assert.equal(v['--form-button-radius'], '9999px')
+  assert.match(v['--form-font'], /Georgia/)
+  // Acentos claros reciben texto oscuro (los botones deben leerse).
+  assert.equal(themeVars({ mode: 'light', accent: '#facc15' })['--form-on-accent'], '#0a0a0b')
+  // Claro explícito aunque el ancestro sea oscuro; fondo oscuro propio fuerza paleta oscura.
+  assert.equal(formVars({ mode: 'light' }, true)['--background'], '210 40% 99%')
+  assert.equal(formVars({ mode: 'auto' }, true)['--background'], '240 5% 4%')
+  assert.equal(isDarkTheme({ mode: 'light', background: '#101010' }, false), true)
+  assert.equal(isDarkTheme({ mode: 'dark', background: '#fafafa' }, true), false)
+  assert.equal(
+    formConfigSchema.safeParse({
+      ...feedback(),
+      theme: { mode: 'light', accent: '#7c3aed', font: 'serif', radius: 'lg', coverUrl: 'https://a.test/x.jpg' },
+    }).success,
+    true
+  )
+  assert.equal(formConfigSchema.safeParse({ ...feedback(), theme: { mode: 'light', accent: 'rojo' } }).success, false)
+  assert.equal(
+    formConfigSchema.safeParse({ ...feedback(), theme: { mode: 'light', logoUrl: 'javascript:alert(1)' } }).success,
+    false
+  )
+  assert.equal(
+    formConfigSchema.safeParse({ ...feedback(), theme: { mode: 'light', coverUrl: 'http://a.test/x.jpg' } }).success,
+    false
+  )
+})

@@ -98,3 +98,18 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ tena
   if (error || !data) return NextResponse.json({ error: 'No se pudo guardar' }, { status: 500 })
   return NextResponse.json({ ok: true, updated_at: data.updated_at })
 }
+
+// Eliminar un formulario BORRA también sus versiones, respuestas y analítica (cascada): solo admin y
+// director. Para quitarlo de la vista sin perder datos, archivarlo (PUT status: 'archived').
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ tenant: string; id: string }> }) {
+  const { tenant, id } = await params
+  if (!uuid.safeParse(id).success) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+  const g = await authorizeForms(tenant, true)
+  if ('error' in g) return g.error
+  const { auth, sb } = g
+  if (!['admin', 'director'].includes(auth.role ?? ''))
+    return NextResponse.json({ error: 'Solo administración puede eliminar formularios' }, { status: 403 })
+  const { error } = await sb.from('forms').delete().eq('tenant_id', auth.tenantId).eq('id', id)
+  if (error) return NextResponse.json({ error: 'No se pudo eliminar' }, { status: 500 })
+  return NextResponse.json({ ok: true })
+}

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Archive, ClipboardList, Copy, ExternalLink, Loader2, Plus } from 'lucide-react'
+import { Archive, ClipboardList, Copy, CopyPlus, ExternalLink, Loader2, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTenant } from '@/lib/tenant-context'
 import { formatNumber, formatPercent } from '@/lib/utils'
@@ -38,6 +38,7 @@ export default function FormulariosPage() {
   const api = `/api/${tenant}/evergreen/forms`
   const [rows, setRows] = useState<Row[] | null>(null)
   const [canWrite, setCanWrite] = useState(false)
+  const [canDelete, setCanDelete] = useState(false)
   const [error, setError] = useState('')
   const [creating, setCreating] = useState(false)
 
@@ -49,6 +50,7 @@ export default function FormulariosPage() {
         if (!r.ok) throw new Error(j.error || 'No se pudieron cargar los formularios')
         setRows(j.forms)
         setCanWrite(!!j.canWrite)
+        setCanDelete(!!j.canDelete)
       } catch (e) {
         if ((e as Error).name !== 'AbortError') setError((e as Error).message)
       }
@@ -80,6 +82,29 @@ export default function FormulariosPage() {
       body: JSON.stringify({ status }),
     })
     if (!r.ok) return toast.error('No se pudo actualizar')
+    void load()
+  }
+  const duplicate = async (id: string) => {
+    const r = await fetch(api, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cloneFrom: id }),
+    })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok) return toast.error(j.error || 'No se pudo duplicar')
+    toast.success('Duplicado como borrador')
+    router.push(`/${tenant}/marketing/formularios/${j.id}/constructor`)
+  }
+  const remove = async (f: Row) => {
+    if (
+      !window.confirm(
+        `¿Eliminar «${f.name}» y TODAS sus respuestas? Esta acción no se puede deshacer. Si solo quieres ocultarlo, archívalo.`
+      )
+    )
+      return
+    const r = await fetch(`${api}/${f.id}`, { method: 'DELETE' })
+    if (!r.ok) return toast.error('No se pudo eliminar')
+    toast.success('Formulario eliminado')
     void load()
   }
   const copyLink = async (slug: string) => {
@@ -194,6 +219,28 @@ export default function FormulariosPage() {
                             <ExternalLink className="h-4 w-4" />
                           </a>
                         </>
+                      )}
+                      {canWrite && (
+                        <button
+                          type="button"
+                          onClick={() => void duplicate(f.id)}
+                          className="rounded p-1.5 text-muted-foreground hover:text-foreground"
+                          aria-label="Duplicar"
+                          title="Duplicar"
+                        >
+                          <CopyPlus className="h-4 w-4" />
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button
+                          type="button"
+                          onClick={() => void remove(f)}
+                          className="rounded p-1.5 text-muted-foreground hover:text-red-500"
+                          aria-label="Eliminar"
+                          title="Eliminar"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       )}
                       {canWrite && (
                         <button

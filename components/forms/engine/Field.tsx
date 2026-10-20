@@ -10,7 +10,7 @@ import type { Answer, Question } from '@/lib/forms/types'
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
 const inputCls =
-  'w-full rounded-xl border-2 border-border bg-card px-4 py-3 text-lg text-foreground placeholder:text-muted-foreground focus:border-brand-500 focus:outline-none'
+  'w-full rounded-[var(--form-radius,0.75rem)] border-2 border-border bg-card px-4 py-3 text-lg text-foreground placeholder:text-muted-foreground focus:border-brand-500 focus:outline-none'
 
 interface FieldProps {
   q: Question
@@ -29,12 +29,14 @@ function ChoiceButton({
   selected,
   onClick,
   multi,
+  imageUrl,
 }: {
   letter: string
   label: string
   selected: boolean
   onClick: () => void
   multi?: boolean
+  imageUrl?: string
 }) {
   return (
     <button
@@ -43,21 +45,30 @@ function ChoiceButton({
       aria-checked={selected}
       onClick={onClick}
       className={cn(
-        'flex w-full min-h-[48px] items-center gap-3 rounded-xl border-2 px-4 py-3 text-left text-base transition-colors',
+        'w-full min-h-[48px] rounded-[var(--form-radius,0.75rem)] border-2 text-left text-base transition-colors',
+        imageUrl ? 'flex flex-col overflow-hidden' : 'flex items-center gap-3 px-4 py-3',
         selected
           ? 'border-brand-500 bg-brand-500/10 text-foreground'
           : 'border-border bg-card text-foreground hover:border-brand-500/60'
       )}
     >
-      <span
-        className={cn(
-          'flex h-7 w-7 shrink-0 items-center justify-center rounded-md border text-xs font-semibold',
-          selected ? 'border-brand-500 bg-brand-500 text-white' : 'border-border text-muted-foreground'
-        )}
-      >
-        {letter}
+      {imageUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={imageUrl} alt="" loading="lazy" className="aspect-[4/3] w-full object-cover" />
+      )}
+      <span className={cn('flex items-center gap-3', imageUrl && 'px-3 py-2.5')}>
+        <span
+          className={cn(
+            'flex h-7 w-7 shrink-0 items-center justify-center rounded-md border text-xs font-semibold',
+            selected
+              ? 'border-brand-500 bg-brand-500 text-[color:var(--form-on-accent,#fff)]'
+              : 'border-border text-muted-foreground'
+          )}
+        >
+          {letter}
+        </span>
+        <span>{label}</span>
       </span>
-      <span>{label}</span>
     </button>
   )
 }
@@ -132,12 +143,17 @@ export function Field({ q, value, onChange, onPick, error, name, email }: FieldP
           : opts
       const isOther = str.startsWith(OTHER_VALUE_PREFIX)
       return (
-        <div role="radiogroup" aria-label={q.title} className="space-y-2">
+        <div
+          role="radiogroup"
+          aria-label={q.title}
+          className={opts.some((o) => o.imageUrl) ? 'grid grid-cols-2 gap-3 sm:grid-cols-3' : 'space-y-2'}
+        >
           {list.map((o, i) => (
             <ChoiceButton
               key={o.value}
               letter={LETTERS[i] ?? ''}
               label={o.label}
+              imageUrl={o.imageUrl}
               selected={str === o.value}
               onClick={() => onPick(o.value)}
             />
@@ -170,13 +186,18 @@ export function Field({ q, value, onChange, onPick, error, name, email }: FieldP
       const toggle = (v: string) => onChange(arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v])
       const otherVal = arr.find((x) => x.startsWith(OTHER_VALUE_PREFIX))
       return (
-        <div role="group" aria-label={q.title} className="space-y-2">
+        <div
+          role="group"
+          aria-label={q.title}
+          className={opts.some((o) => o.imageUrl) ? 'grid grid-cols-2 gap-3 sm:grid-cols-3' : 'space-y-2'}
+        >
           {opts.map((o, i) => (
             <ChoiceButton
               key={o.value}
               multi
               letter={LETTERS[i] ?? ''}
               label={o.label}
+              imageUrl={o.imageUrl}
               selected={arr.includes(o.value)}
               onClick={() => toggle(o.value)}
             />
@@ -264,9 +285,9 @@ export function Field({ q, value, onChange, onPick, error, name, email }: FieldP
                 aria-checked={n === i}
                 onClick={() => onPick(i)}
                 className={cn(
-                  'h-12 w-12 rounded-xl border-2 text-base font-semibold transition-colors',
+                  'h-12 w-12 rounded-[var(--form-radius,0.75rem)] border-2 text-base font-semibold transition-colors',
                   n === i
-                    ? 'border-brand-500 bg-brand-500 text-white'
+                    ? 'border-brand-500 bg-brand-500 text-[color:var(--form-on-accent,#fff)]'
                     : 'border-border bg-card text-foreground hover:border-brand-500/60'
                 )}
               >
@@ -285,7 +306,7 @@ export function Field({ q, value, onChange, onPick, error, name, email }: FieldP
     }
     case 'consent':
       return (
-        <label className="flex cursor-pointer items-start gap-3 rounded-xl border-2 border-border bg-card p-4 text-base">
+        <label className="flex cursor-pointer items-start gap-3 rounded-[var(--form-radius,0.75rem)] border-2 border-border bg-card p-4 text-base">
           <input
             type="checkbox"
             className="mt-1 h-5 w-5 accent-[hsl(var(--brand-500))]"
@@ -326,7 +347,7 @@ function PhoneField({
     <div className="flex gap-2">
       <select
         aria-label="Prefijo"
-        className="rounded-xl border-2 border-border bg-card px-2 py-3 text-base"
+        className="rounded-[var(--form-radius,0.75rem)] border-2 border-border bg-card px-2 py-3 text-base"
         value={prefix}
         onChange={(e) => update(e.target.value, national)}
       >
@@ -344,7 +365,7 @@ function PhoneField({
         placeholder={q.placeholder || '600 000 000'}
         value={national}
         onChange={(e) => update(prefix, e.target.value)}
-        className="min-w-0 flex-1 rounded-xl border-2 border-border bg-card px-4 py-3 text-lg text-foreground placeholder:text-muted-foreground focus:border-brand-500 focus:outline-none"
+        className="min-w-0 flex-1 rounded-[var(--form-radius,0.75rem)] border-2 border-border bg-card px-4 py-3 text-lg text-foreground placeholder:text-muted-foreground focus:border-brand-500 focus:outline-none"
       />
     </div>
   )
@@ -374,7 +395,7 @@ function BookingField({
   const url = q.defaultValue
   if (!url || !/^https:\/\/calendly\.com\//i.test(url)) {
     return (
-      <p className="rounded-xl border-2 border-dashed border-border p-4 text-sm text-muted-foreground">
+      <p className="rounded-[var(--form-radius,0.75rem)] border-2 border-dashed border-border p-4 text-sm text-muted-foreground">
         El calendario aún no está configurado.
       </p>
     )
@@ -391,7 +412,7 @@ function BookingField({
       <iframe
         title="Reserva tu llamada"
         src={`${url}${url.includes('?') ? '&' : '?'}${qs}`}
-        className="h-[640px] w-full rounded-xl border-2 border-border"
+        className="h-[640px] w-full rounded-[var(--form-radius,0.75rem)] border-2 border-border"
         loading="lazy"
       />
       {value === 'confirmed' && <p className="mt-2 text-sm text-brand-400">Reserva confirmada.</p>}

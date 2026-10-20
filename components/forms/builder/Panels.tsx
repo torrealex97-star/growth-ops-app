@@ -1,6 +1,8 @@
 'use client'
 
-import { Plus, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+
+import { Image as ImageIcon, Plus, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   FIELD_TYPES,
@@ -12,6 +14,7 @@ import {
   type ScoringWeight,
   type SemanticRole,
 } from '@/lib/forms/types'
+import { contrastRatio, HEX, textOn } from '@/lib/forms/theme'
 import { ConditionEditor } from './ConditionEditor'
 
 export const TYPE_LABELS: Record<FieldType, string> = {
@@ -83,6 +86,7 @@ export const slugOf = (s: string) =>
 
 export function QuestionPanel({ q, all, onChange }: { q: Question; all: Question[]; onChange: (q: Question) => void }) {
   const set = (patch: Partial<Question>) => onChange({ ...q, ...patch })
+  const [imgOpen, setImgOpen] = useState<number[]>([])
   const hasOptions = ['singleChoice', 'multiChoice', 'dropdown'].includes(q.type)
   const opts = q.options ?? []
   const before = all.slice(
@@ -150,6 +154,17 @@ export function QuestionPanel({ q, all, onChange }: { q: Question; all: Question
           </div>
         </>
       )}
+      {q.type !== 'hidden' && (
+        <div>
+          <Lbl>Imagen bajo la pregunta (https, opcional)</Lbl>
+          <input
+            className={field}
+            placeholder="https://…/imagen.jpg"
+            value={q.imageUrl ?? ''}
+            onChange={(e) => set({ imageUrl: e.target.value.trim() || undefined })}
+          />
+        </div>
+      )}
       {q.type !== 'statement' && q.type !== 'hidden' && (
         <Toggle checked={!!q.required} onChange={(v) => set({ required: v })}>
           Obligatoria
@@ -160,22 +175,51 @@ export function QuestionPanel({ q, all, onChange }: { q: Question; all: Question
         <div className="space-y-2">
           <Lbl>Opciones</Lbl>
           {opts.map((o, i) => (
-            <div key={i} className="flex gap-2">
-              <input
-                className={field}
-                value={o.label}
-                onChange={(e) => renameOption(i, e.target.value)}
-                aria-label={`Opción ${i + 1}`}
-              />
-              <button
-                type="button"
-                disabled={opts.length <= 2}
-                onClick={() => set({ options: opts.filter((_, j) => j !== i) })}
-                className="text-muted-foreground hover:text-red-500 disabled:opacity-30"
-                aria-label="Quitar opción"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+            <div key={i} className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <input
+                  className={field}
+                  value={o.label}
+                  onChange={(e) => renameOption(i, e.target.value)}
+                  aria-label={`Opción ${i + 1}`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setImgOpen((cur) => (cur.includes(i) ? cur.filter((x) => x !== i) : [...cur, i]))}
+                  className={cn(
+                    'shrink-0 rounded p-1.5 hover:text-foreground',
+                    o.imageUrl ? 'text-brand-400' : 'text-muted-foreground'
+                  )}
+                  aria-label={`Imagen de la opción ${i + 1}`}
+                  title="Imagen de la opción"
+                >
+                  <ImageIcon className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  disabled={opts.length <= 2}
+                  onClick={() => set({ options: opts.filter((_, j) => j !== i) })}
+                  className="shrink-0 text-muted-foreground hover:text-red-500 disabled:opacity-30"
+                  aria-label="Quitar opción"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+              {(o.imageUrl || imgOpen.includes(i)) && (
+                <input
+                  className={field}
+                  placeholder="https://…/imagen.jpg (elección con imágenes)"
+                  value={o.imageUrl ?? ''}
+                  onChange={(e) =>
+                    set({
+                      options: opts.map((x, j) =>
+                        j === i ? { ...x, imageUrl: e.target.value.trim() || undefined } : x
+                      ),
+                    })
+                  }
+                  aria-label={`URL de la imagen de la opción ${i + 1}`}
+                />
+              )}
             </div>
           ))}
           <button
@@ -741,6 +785,166 @@ export function WelcomePanel({ cfg, onChange }: { cfg: FormConfig; onChange: (c:
           </div>
         </>
       )}
+    </div>
+  )
+}
+
+const PRESETS = ['#2563eb', '#7c3aed', '#db2777', '#dc2626', '#ea580c', '#16a34a', '#0d9488', '#111827']
+
+export function ThemePanel({ cfg, onChange }: { cfg: FormConfig; onChange: (t: FormConfig['theme']) => void }) {
+  const t = cfg.theme ?? { mode: 'auto' as const }
+  const set = (patch: Partial<NonNullable<FormConfig['theme']>>) => {
+    const next = { ...t, ...patch } as Record<string, unknown>
+    for (const k of Object.keys(next)) if (next[k] === undefined || next[k] === '') delete next[k]
+    onChange(next as unknown as FormConfig['theme'])
+  }
+  const accentOk = !t.accent || contrastRatio(t.accent, textOn(t.accent)) >= 4.5
+  const logoMode = t.hideLogo ? 'hide' : t.logoUrl ? 'custom' : 'tenant'
+  return (
+    <div className="space-y-5">
+      <p className="text-sm text-muted-foreground">
+        Por defecto el formulario usa el color y el logo de tu subcuenta. Aquí puedes personalizarlo solo para este
+        formulario.
+      </p>
+      <div>
+        <Lbl>Color de acento</Lbl>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => set({ accent: undefined })}
+            className={cn(
+              'rounded-md border px-2.5 py-1.5 text-xs',
+              !t.accent ? 'border-brand-500 bg-brand-500/10' : 'border-border'
+            )}
+          >
+            Color de la subcuenta
+          </button>
+          {PRESETS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              aria-label={`Acento ${c}`}
+              onClick={() => set({ accent: c })}
+              className={cn(
+                'h-7 w-7 rounded-full border-2',
+                t.accent === c ? 'border-foreground' : 'border-transparent'
+              )}
+              style={{ background: c }}
+            />
+          ))}
+          <input
+            type="color"
+            aria-label="Elegir color"
+            value={t.accent && HEX.test(t.accent) ? t.accent : '#2563eb'}
+            onChange={(e) => set({ accent: e.target.value })}
+            className="h-8 w-10 cursor-pointer rounded border border-border bg-card p-0.5"
+          />
+        </div>
+        {!accentOk && (
+          <p className="mt-1 text-2xs text-amber-400">
+            Poco contraste con el texto del botón: prueba un tono más oscuro o más claro.
+          </p>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <Lbl>Modo</Lbl>
+          <select
+            className={field}
+            value={t.mode}
+            onChange={(e) => set({ mode: e.target.value as 'light' | 'dark' | 'auto' })}
+          >
+            <option value="auto">Automático (según el dispositivo)</option>
+            <option value="light">Claro</option>
+            <option value="dark">Oscuro</option>
+          </select>
+        </div>
+        <div>
+          <Lbl>Tipografía</Lbl>
+          <select
+            className={field}
+            value={t.font ?? 'display'}
+            onChange={(e) => set({ font: e.target.value as NonNullable<FormConfig['theme']>['font'] })}
+          >
+            <option value="display">Moderna (titulares)</option>
+            <option value="sans">Neutra</option>
+            <option value="serif">Con serifa</option>
+            <option value="mono">Monoespaciada</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <Lbl>Esquinas</Lbl>
+        <select
+          className={field}
+          value={t.radius ?? 'md'}
+          onChange={(e) => set({ radius: e.target.value as NonNullable<FormConfig['theme']>['radius'] })}
+        >
+          <option value="sm">Rectas</option>
+          <option value="md">Suaves</option>
+          <option value="lg">Redondeadas</option>
+          <option value="full">Botones en píldora</option>
+        </select>
+      </div>
+      <div className="space-y-2">
+        <Lbl>Fondo</Lbl>
+        <div className="flex items-center gap-2">
+          <input
+            type="color"
+            aria-label="Color de fondo"
+            value={t.background && HEX.test(t.background) ? t.background : '#ffffff'}
+            onChange={(e) => set({ background: e.target.value })}
+            className="h-8 w-10 cursor-pointer rounded border border-border bg-card p-0.5"
+          />
+          <button
+            type="button"
+            onClick={() => set({ background: undefined })}
+            className="text-xs text-brand-400 hover:underline"
+          >
+            Quitar color
+          </button>
+        </div>
+        <input
+          className={field}
+          placeholder="Imagen de fondo (https, opcional)"
+          value={t.backgroundImageUrl ?? ''}
+          onChange={(e) => set({ backgroundImageUrl: e.target.value.trim() || undefined })}
+        />
+      </div>
+      <div className="space-y-2">
+        <Lbl>Logo</Lbl>
+        <select
+          className={field}
+          value={logoMode}
+          onChange={(e) =>
+            set({
+              hideLogo: e.target.value === 'hide' ? true : undefined,
+              logoUrl: e.target.value === 'custom' ? (t.logoUrl ?? 'https://') : undefined,
+            })
+          }
+        >
+          <option value="tenant">Logo de la subcuenta</option>
+          <option value="custom">Logo propio de este formulario</option>
+          <option value="hide">Sin logo</option>
+        </select>
+        {logoMode === 'custom' && (
+          <input
+            className={field}
+            placeholder="https://…/logo.png"
+            value={t.logoUrl ?? ''}
+            onChange={(e) => set({ logoUrl: e.target.value.trim() || undefined })}
+          />
+        )}
+      </div>
+      <div>
+        <Lbl>Imagen de la pantalla de bienvenida (https, opcional)</Lbl>
+        <input
+          className={field}
+          placeholder="https://…/portada.jpg"
+          value={t.coverUrl ?? ''}
+          onChange={(e) => set({ coverUrl: e.target.value.trim() || undefined })}
+        />
+      </div>
     </div>
   )
 }

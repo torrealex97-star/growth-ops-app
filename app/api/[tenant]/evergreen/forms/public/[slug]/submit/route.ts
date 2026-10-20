@@ -11,13 +11,23 @@ import { ipDe, limitar } from '@/lib/security/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
+const HIDDEN_KEY = /^[a-zA-Z0-9_]{1,40}$/
+function sanitizeHidden(raw: Record<string, unknown> | undefined): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const [k, v] of Object.entries(raw ?? {}).slice(0, 60)) {
+    if (HIDDEN_KEY.test(k) && typeof v === 'string' && v.trim()) out[k] = v.trim().slice(0, 500)
+  }
+  return out
+}
+
 const MAX_BODY_BYTES = 100_000
 const MIN_COMPLETE_MS = 800
 
 const body = z.object({
   submissionId: z.string().uuid(),
-  answers: z.record(z.string().max(40), z.union([z.string().max(5000), z.number(), z.boolean(), z.array(z.string().max(300)).max(60)])),
-  hidden: z.record(z.string().max(40), z.string().max(500)).optional(),
+  answers: z.record(z.string(), z.union([z.string().max(5000), z.number(), z.boolean(), z.array(z.string().max(300)).max(60)])),
+  // Parámetros de la URL: son de terceros (fbclid, gclid…), así que se SANEAN en lugar de rechazar el envío.
+  hidden: z.record(z.string(), z.unknown()).optional(),
   partial: z.boolean().optional(),
   variant: z.enum(['A', 'B']).optional(),
   device: z.enum(['mobile', 'desktop']).optional(),
@@ -47,6 +57,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   const parsed = body.safeParse(json)
   if (!parsed.success) return NextResponse.json({ error: 'Petición no válida' }, { status: 400 })
   const b = parsed.data
+  const hiddenClean = sanitizeHidden(b.hidden)
 
   if (b.company && b.company.trim() !== '') return NextResponse.json({ ok: true, completed: !b.partial })
   if (!b.partial && b.durationMs !== undefined && b.durationMs < MIN_COMPLETE_MS) {
@@ -70,7 +81,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     vars.trustpilot_url = await getConfigValue(form.tenantId, 'TRUSTPILOT_REVIEW_URL')
   }
 
-  const ev = evaluateSubmission(form.config, { answers: b.answers, hidden: b.hidden, partial: b.partial, vars })
+  const ev = evaluateSubmission(form.config, { answers: b.answers, hidden: hiddenClean, partial: b.partial, vars })
   if (!ev.ok) return NextResponse.json({ error: 'Revisa las respuestas', errors: ev.errors }, { status: 422 })
 
   const ending = ev.ending && {

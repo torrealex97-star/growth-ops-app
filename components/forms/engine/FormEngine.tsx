@@ -7,6 +7,7 @@ import { getPathAnswers, nextStep, pipe, resolveEnding, screenQuestions, walkPat
 import { validateAnswer } from '@/lib/forms/validation'
 import { OTHER_VALUE_PREFIX } from '@/lib/forms/validation'
 import type { Answer, Answers, FormConfig, Question } from '@/lib/forms/types'
+import { formVars, isDarkTheme } from '@/lib/forms/theme'
 import { Field } from './Field'
 
 interface EndingView {
@@ -24,6 +25,11 @@ interface Props {
   /** `preview`: el constructor lo usa sin enviar nada ni registrar analítica. */
   mode?: 'live' | 'preview'
   hidden?: Record<string, string>
+  /** Marca de la subcuenta (logo y nombre) para la cabecera; el tema del formulario puede sobrescribir el logo. */
+  brand?: { name: string; logoUrl: string | null }
+  /** Solo vista previa: salta directamente a esta pregunta / este final. */
+  focusId?: string
+  focusEndingId?: string
 }
 
 type Stage = 'welcome' | 'question' | 'submitting' | 'ending'
@@ -34,7 +40,17 @@ const uuid = () =>
     ? crypto.randomUUID()
     : '00000000-0000-4000-8000-' + Math.random().toString(16).slice(2, 14).padEnd(12, '0')
 
-export function FormEngine({ config, name, tenant, slug, mode = 'live', hidden = {} }: Props) {
+export function FormEngine({
+  config,
+  name,
+  tenant,
+  slug,
+  mode = 'live',
+  hidden = {},
+  brand,
+  focusId,
+  focusEndingId,
+}: Props) {
   const live = mode === 'live'
   const storeKey = `forms:${tenant}:${slug}`
   const [stage, setStage] = useState<Stage>(config.welcome ? 'welcome' : 'question')
@@ -326,6 +342,36 @@ export function FormEngine({ config, name, tenant, slug, mode = 'live', hidden =
     if (AUTO_ADVANCE_TYPES.includes(q.type)) setTimeout(() => advanceFrom(q.id, next), 220)
   }
 
+  // Vista previa del constructor: ir directo a lo que se está editando.
+  const [prefersDark, setPrefersDark] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia?.('(prefers-color-scheme: dark)')
+    if (!mq) return
+    setPrefersDark(mq.matches)
+    const on = (e: MediaQueryListEvent) => setPrefersDark(e.matches)
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  useEffect(() => {
+    if (live) return
+    if (focusEndingId) {
+      const e = config.endings.find((x) => x.id === focusEndingId)
+      if (e) {
+        setEnding({
+          title: e.title,
+          message: e.message ?? null,
+          ctaLabel: e.ctaLabel ?? null,
+          ctaUrl: e.ctaUrl ?? null,
+        })
+        setStage('ending')
+      }
+    } else if (focusId && byId.has(focusId) && byId.get(focusId)!.type !== 'hidden') {
+      setHistory([focusId])
+      setStage('question')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [live, focusId, focusEndingId])
+
   // Sin bienvenida: se entra directo a la primera pregunta.
   useEffect(() => {
     if (stage === 'question' && history.length === 0) advanceFrom(null, answers)
@@ -376,13 +422,32 @@ export function FormEngine({ config, name, tenant, slug, mode = 'live', hidden =
   const needsButton = current && !AUTO_ADVANCE_TYPES.includes(current.type)
   const title = current ? pipe(current.title, config, answers) : ''
 
+  const theme = config.theme
+  const dark = isDarkTheme(theme, prefersDark)
+  const vars = formVars(theme, prefersDark)
+  const logo = theme?.hideLogo ? null : (theme?.logoUrl ?? brand?.logoUrl ?? null)
+  const btn =
+    'inline-flex min-h-[48px] items-center gap-2 bg-brand-600 px-7 text-base font-semibold shadow-lg shadow-brand-500/25 transition hover:bg-brand-500 active:scale-95'
+  const btnStyle = { borderRadius: 'var(--form-button-radius, 9999px)', color: 'var(--form-on-accent, #fff)' }
+
   return (
     <div
       className={cn(
         'relative bg-background text-foreground',
-        live ? 'min-h-screen' : 'min-h-[620px] overflow-hidden',
-        config.theme?.mode === 'dark' && 'dark'
+        live ? 'min-h-[100dvh]' : 'min-h-[620px] overflow-hidden',
+        dark && 'dark'
       )}
+      style={{
+        ...(vars as React.CSSProperties),
+        fontFamily: 'var(--form-font, inherit)',
+        ...(theme?.backgroundImageUrl
+          ? {
+              backgroundImage: `linear-gradient(hsl(var(--background) / 0.82), hsl(var(--background) / 0.82)), url(${JSON.stringify(theme.backgroundImageUrl)})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }
+          : {}),
+      }}
       data-form-engine
     >
       <div
@@ -397,15 +462,21 @@ export function FormEngine({ config, name, tenant, slug, mode = 'live', hidden =
           style={{ width: `${progress}%` }}
         />
       </div>
-      {config.theme?.logoUrl && stage !== 'ending' && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={config.theme.logoUrl} alt={name} className="absolute right-4 top-6 h-8 w-auto" />
+      {(logo || brand?.name) && !theme?.hideLogo && (
+        <div className="absolute left-5 top-6 z-[1] flex items-center gap-2">
+          {logo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logo} alt={brand?.name ?? name} className="h-8 w-auto max-w-[160px] object-contain" />
+          ) : (
+            <span className="text-sm font-semibold text-muted-foreground">{brand?.name}</span>
+          )}
+        </div>
       )}
 
       <div
         className={cn(
           'mx-auto flex max-w-2xl flex-col justify-center px-5 py-16',
-          live ? 'min-h-screen' : 'min-h-[620px]'
+          live ? 'min-h-[100dvh]' : 'min-h-[620px]'
         )}
         style={{ paddingBottom: 'max(4rem, env(safe-area-inset-bottom))' }}
       >
@@ -422,6 +493,14 @@ export function FormEngine({ config, name, tenant, slug, mode = 'live', hidden =
 
         {stage === 'welcome' && welcome && (
           <div key="welcome" className={anim}>
+            {theme?.coverUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={theme.coverUrl}
+                alt=""
+                className="mb-6 max-h-56 w-full rounded-[var(--form-radius,0.75rem)] object-cover"
+              />
+            )}
             {welcome.kicker && (
               <span className="mb-4 inline-block rounded-full bg-brand-500/10 px-3 py-1 text-xs font-medium text-brand-400">
                 {welcome.kicker}
@@ -431,11 +510,7 @@ export function FormEngine({ config, name, tenant, slug, mode = 'live', hidden =
               {welcome.title}
             </h1>
             {welcome.subtitle && <p className="mt-4 text-lg text-muted-foreground">{welcome.subtitle}</p>}
-            <button
-              type="button"
-              onClick={start}
-              className="mt-8 inline-flex min-h-[48px] items-center gap-2 rounded-full bg-brand-600 px-8 text-base font-semibold text-white shadow-lg shadow-brand-500/25 transition hover:bg-brand-500 active:scale-95"
-            >
+            <button type="button" onClick={start} className={cn(btn, 'mt-8 px-8')} style={btnStyle}>
               {welcome.cta} <ArrowRight className="h-4 w-4" />
             </button>
             {welcome.estimatedTime && <p className="mt-3 text-sm text-muted-foreground">{welcome.estimatedTime}</p>}
@@ -466,6 +541,15 @@ export function FormEngine({ config, name, tenant, slug, mode = 'live', hidden =
               )}
             </h2>
             {current.help && <p className="mt-2 text-muted-foreground">{pipe(current.help, config, answers)}</p>}
+            {current.imageUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={current.imageUrl}
+                alt=""
+                loading="lazy"
+                className="mt-4 max-h-64 w-full rounded-[var(--form-radius,0.75rem)] object-cover"
+              />
+            )}
             <div className="mt-6">
               {current.type === 'statement' ? null : (
                 <Field
@@ -486,11 +570,7 @@ export function FormEngine({ config, name, tenant, slug, mode = 'live', hidden =
             </div>
             {(needsButton || current.type === 'statement') && (
               <div className="mt-8 flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => advanceFrom(current.id, answers)}
-                  className="inline-flex min-h-[48px] items-center gap-2 rounded-full bg-brand-600 px-7 text-base font-semibold text-white shadow-lg shadow-brand-500/25 transition hover:bg-brand-500 active:scale-95"
-                >
+                <button type="button" onClick={() => advanceFrom(current.id, answers)} className={btn} style={btnStyle}>
                   {isLast ? 'Enviar' : 'Continuar'} <ArrowRight className="h-4 w-4" />
                 </button>
                 {current.type !== 'longText' && (
@@ -514,10 +594,7 @@ export function FormEngine({ config, name, tenant, slug, mode = 'live', hidden =
             <h2 className="mt-5 font-display text-3xl font-bold">{ending?.title || '¡Gracias!'}</h2>
             {ending?.message && <p className="mt-3 text-lg text-muted-foreground">{ending.message}</p>}
             {(redirect?.url || (ending?.ctaUrl && ending.ctaLabel)) && (
-              <a
-                href={redirect?.url ?? ending!.ctaUrl!}
-                className="mt-6 inline-flex min-h-[48px] items-center gap-2 rounded-full bg-brand-600 px-7 font-semibold text-white hover:bg-brand-500"
-              >
+              <a href={redirect?.url ?? ending!.ctaUrl!} className={cn(btn, 'mt-6')} style={btnStyle}>
                 {ending?.ctaLabel || 'Continuar'} <ArrowRight className="h-4 w-4" />
               </a>
             )}
