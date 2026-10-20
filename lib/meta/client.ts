@@ -55,6 +55,8 @@ export type MetaInsight = {
 // pero indexado por ad_id (y su campaña).
 export type MetaAdInsight = {
   ad_id: string
+  ad_name: string
+  adset_name: string
   campaign_id: string
   spend: number
   impressions: number
@@ -468,18 +470,23 @@ export async function fetchMetaAds(cfg: MetaConfig): Promise<MetaAd[]> {
 }
 
 // Insights a nivel de ANUNCIO. Una sola llamada paginada por cuenta con level=ad.
+// `periodo` es un preset de Meta o un rango YYYY-MM-DD (ambos extremos incluidos).
 export async function fetchMetaAdInsights(
   cfg: MetaConfig,
-  datePreset: MetaDatePreset = 'maximum'
+  periodo: MetaDatePreset | { since: string; until: string } = 'maximum'
 ): Promise<MetaAdInsight[]> {
-  const fields = 'ad_id,campaign_id,spend,impressions,clicks,inline_link_clicks,reach,actions'
+  const fields = 'ad_id,ad_name,adset_name,campaign_id,spend,impressions,clicks,inline_link_clicks,reach,actions'
+  const ventana =
+    typeof periodo === 'string' ? `date_preset=${periodo}` : `time_range=${encodeURIComponent(JSON.stringify(periodo))}`
   const url =
     `${GRAPH}/${cfg.version}/${cfg.accountId}/insights` +
-    `?level=ad&fields=${fields}&date_preset=${datePreset}&limit=500` +
+    `?level=ad&fields=${fields}&${ventana}&limit=500` +
     `&access_token=${encodeURIComponent(cfg.token)}${proofParam(cfg)}`
   const { rows } = await graphGetAll(url)
   return rows.map((r) => ({
     ad_id: String(r.ad_id),
+    ad_name: String(r.ad_name || ''),
+    adset_name: String(r.adset_name || ''),
     campaign_id: String(r.campaign_id || ''),
     spend: Number(r.spend) || 0,
     impressions: Number(r.impressions) || 0,
