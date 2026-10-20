@@ -1,3 +1,19 @@
+# COMPLETADO — barrido de errores: drift del artefacto de tipos BD (20-oct, Buffy) · `fix/platform-settings-invariante` (PR #586, squash `509c0405`)
+
+`npm run quality` en rojo por dos tests del invariante de esquema. Aclaración de alcance del squash: el commit
+trae SOLO la regeneración de `lib/types/database-generated.ts` (`npm run tipos:bd`; faltaban 8 tablas del catálogo
+vivo: `Forms`, `FormResponses`, `FormSessions`, `FormVersions`, `FormWebhookDeliveries`, `FormWebhooks`,
+`PlatformSettings`, `UserFathomConnections`). La excepción cerrada `platform_settings` en
+`EXCEPCIONES_SIN_TENANT` y los espejos del invariante (`tests/invariante-tenant-negativo.test.mjs`, fixture
+`esquema-produccion-20260923.json`) ya habían entrado en `main` por otra rama durante el rebase, así que el
+commit fusionado quedó reducido al drift — el mensaje del squash menciona lo completo de la unidad anterior.
+La fila del tablero se retiró al rebasear (resuelta, no es deuda). Deducción: las tablas `forms*`/`user_fathom_connections`
+SÍ tienen uso en `main` actual (#525/#556), no eran legacy como parecía contra el `main` viejo.
+Validación: `npm run quality` local PASS tras el rebase, Release gate de CI SUCCESS (el primer intento de E2E
+fue colisión del grupo `e2e-tenant-qa` contra el PR `feat/forms-fase7-calidad` — resuelto con rerun del job,
+según la regla del 14-oct). Pendiente declarado: el fixture del esquema sigue siendo la instantánea del 23-sep;
+sin ruta IPv6 ni pooler desde esta red de desarrollo, la recaptura completa queda para cuando haya conectividad.
+
 # FIX — Calendly nunca entregó un webhook real: solo el cron diario (19-oct, Claude Code)
 
 Continuación del mismo reporte: Alex confirmó que más de uno de los leads de Typeform de hoy
