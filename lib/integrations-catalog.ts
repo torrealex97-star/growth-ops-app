@@ -76,6 +76,11 @@ export const INTEGRATION_GROUPS: IntegrationGroup[] = [
           'En business.facebook.com › Configuración del negocio › Usuarios del sistema: crea uno (rol Administrador), asígnale la cuenta publicitaria, la Página y la cuenta de Instagram, y pulsa «Generar token» eligiendo tu app y los permisos que necesites (como mínimo ads_read para el gasto; para Instagram, instagram_basic, instagram_manage_insights, pages_show_list y pages_read_engagement). Ese token NO caduca ni se invalida al cambiar una contraseña. El token del Explorador de la API Graph sirve para probar, pero muere en horas y la sincronización se detiene.',
       },
       {
+        titulo: 'Opcional: enviar conversiones a Meta (Conversions API)',
+        detalle:
+          'En business.facebook.com › Administrador de eventos copia el ID de tu Pixel y pégalo en «ID del Pixel». Asigna el Pixel a tu System User (Configuración del negocio › Orígenes de datos › Píxeles) con permiso de gestión. Para probarlo, en Administrador de eventos › Probar eventos copia el código TEST… y úsalo desde Integraciones antes de activar el envío real.',
+      },
+      {
         titulo: 'Prueba la conexión',
         detalle:
           'Si da error de permisos, casi siempre falta ads_read o el token es de una cuenta sin acceso a esa cuenta publicitaria. El gasto tarda unas horas en aparecer: Meta no lo publica al instante.',
@@ -122,6 +127,23 @@ export const INTEGRATION_GROUPS: IntegrationGroup[] = [
         type: 'text',
         secret: false,
         help: 'Opcional. Con él y el App Secret, la comprobación pregunta a Meta cuándo caduca el token y qué permisos tiene realmente.',
+      },
+      {
+        key: 'META_PIXEL_ID',
+        advanced: true,
+        label: 'ID del Pixel de Meta',
+        type: 'text',
+        secret: false,
+        placeholder: '15-16 dígitos',
+        help: 'En business.facebook.com › Administrador de eventos › tu Pixel › Configuración: el «ID del conjunto de datos». Necesario para enviar conversiones a Meta (Conversions API).',
+      },
+      {
+        key: 'META_CAPI_ENABLED',
+        advanced: true,
+        label: 'Enviar conversiones a Meta (Conversions API)',
+        type: 'boolean',
+        secret: false,
+        help: 'Apagado por defecto. Antes de activarlo, prueba con un código de prueba del Administrador de eventos (pestaña «Probar eventos»). El token necesita el permiso ads_management o un System User con el Pixel asignado; con solo ads_read Meta rechazará los envíos.',
       },
       {
         key: 'META_AD_ACCOUNTS_ALL',
