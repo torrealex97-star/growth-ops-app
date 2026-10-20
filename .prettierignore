@@ -6,3 +6,4 @@ coverage
 supabase/migrations
 public
 *.sql
+lib/email/plantillas.generated.ts
