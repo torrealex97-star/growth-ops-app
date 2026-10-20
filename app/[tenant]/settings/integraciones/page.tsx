@@ -998,6 +998,31 @@ export default function IntegracionesPage() {
     }
   }
 
+  async function ensureCalendlyWebhook() {
+    setSyncingId('calendly-webhook')
+    try {
+      const r = await fetch(`/api/${tenant}/evergreen/settings/integraciones/history-sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: 'calendly-webhook' }),
+      })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(j.error || 'No se pudo crear la suscripción')
+      const etiqueta = { ya_activa: 'ya estaba activa', creada: 'creada', recreada: 'recreada' }[
+        j.accion as 'ya_activa' | 'creada' | 'recreada'
+      ]
+      toast.success(`Webhook de Calendly ${etiqueta}`, {
+        description: 'Las citas nuevas entran ya al instante, no solo con el cron diario.',
+      })
+    } catch (error) {
+      toast.error('No se pudo crear la suscripción del webhook', {
+        description: error instanceof Error ? error.message : String(error),
+      })
+    } finally {
+      setSyncingId(null)
+    }
+  }
+
   async function syncHistory(g: Group) {
     setSyncingId(g.id)
     setAskHistory(null)
@@ -1548,6 +1573,31 @@ export default function IntegracionesPage() {
                                 </Button>
                               ) : null}
                             </div>
+                          </section>
+                        ) : null}
+
+                        {g.id === 'calendly' ? (
+                          <section className="mb-5 space-y-2 rounded-lg border border-border p-3 text-sm">
+                            <p className="font-medium">Citas en tiempo real</p>
+                            <p className="text-muted-foreground text-xs">
+                              Sin esto, las citas nuevas solo entran una vez al día (cron de respaldo): alguien que
+                              agenda hoy no aparece en el CRM hasta la próxima pasada. Crea la suscripción de webhook
+                              del lado de Calendly para que entren al instante. Puedes pulsarlo varias veces: si ya está
+                              activa, no duplica nada.
+                            </p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => ensureCalendlyWebhook()}
+                              disabled={syncingId === 'calendly-webhook' || !canSyncHistory('calendly')}
+                            >
+                              {syncingId === 'calendly-webhook' ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              ) : (
+                                <RefreshCw className="mr-2 h-4 w-4" />
+                              )}
+                              {syncingId === 'calendly-webhook' ? 'Creando…' : 'Activar tiempo real'}
+                            </Button>
                           </section>
                         ) : null}
 
