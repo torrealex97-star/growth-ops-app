@@ -20,6 +20,7 @@ function Ranking({ title, rows }: { title: string; rows: Group[] }) {
             <th className="px-5 py-2 font-medium">Nombre</th>
             <th className="px-5 py-2 text-right font-medium">Respuestas</th>
             <th className="px-5 py-2 text-right font-medium">Media</th>
+            <th className="px-5 py-2 text-right font-medium">NPS</th>
             <th className="px-5 py-2 text-right font-medium">Bajas (&lt;4)</th>
             <th className="px-5 py-2 text-right font-medium">Tendencia</th>
           </tr>
@@ -36,6 +37,12 @@ function Ranking({ title, rows }: { title: string; rows: Group[] }) {
                 )}
               >
                 {g.average === null ? '—' : g.average.toFixed(2)}
+              </td>
+              <td
+                className="px-5 py-2.5 text-right tabular-nums"
+                title={`${formatNumber(g.npsResponses)} respuestas de NPS`}
+              >
+                {g.npsScore === null ? '—' : g.npsScore}
               </td>
               <td className="px-5 py-2.5 text-right tabular-nums text-muted-foreground">{g.low}</td>
               <td className="px-5 py-2.5 text-right tabular-nums">

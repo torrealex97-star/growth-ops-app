@@ -20,6 +20,17 @@ export interface Group {
   low: number
   /** Media de las 4 últimas semanas completas vs. las 4 anteriores (null si no hay datos). */
   trend: number | null
+  /** NPS (-100..100) SOLO de las respuestas de este profesor/módulo/clase; null si no hay respuestas NPS. */
+  npsScore: number | null
+  npsResponses: number
+}
+
+/** NPS clásico: (promotores − detractores) / respuestas × 100. */
+export function npsScoreOf(values: number[]): number | null {
+  if (!values.length) return null
+  const promoters = values.filter((n) => n >= 9).length
+  const detractors = values.filter((n) => n <= 6).length
+  return Math.round(((promoters - detractors) / values.length) * 100)
 }
 
 const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null)
@@ -32,14 +43,18 @@ function group(rows: FeedbackRow[], key: (r: FeedbackRow) => string | null, now:
   const by = new Map<string, FeedbackRow[]>()
   for (const r of rows) {
     const k = key(r)
-    if (!k || r.rating === null) continue
+    // Cada grupo (profesor/módulo/clase) agrupa las estrellas Y el NPS de SUS respuestas: el dato no se
+    // mezcla con el de otras clases ni se guarda en la ficha del alumno.
+    if (!k || (r.rating === null && r.nps === null)) continue
     by.set(k, [...(by.get(k) ?? []), r])
   }
   return [...by.entries()]
     .map(([label, rs]) => {
-      const ratings = rs.map((r) => r.rating as number)
-      const recent = rs.filter((r) => now - Date.parse(r.created_at) < 4 * WEEK).map((r) => r.rating as number)
-      const prev = rs
+      const rated = rs.filter((r) => r.rating !== null)
+      const ratings = rated.map((r) => r.rating as number)
+      const npsValues = rs.map((r) => r.nps).filter((x): x is number => x !== null)
+      const recent = rated.filter((r) => now - Date.parse(r.created_at) < 4 * WEEK).map((r) => r.rating as number)
+      const prev = rated
         .filter((r) => {
           const age = now - Date.parse(r.created_at)
           return age >= 4 * WEEK && age < 8 * WEEK
@@ -49,10 +64,12 @@ function group(rows: FeedbackRow[], key: (r: FeedbackRow) => string | null, now:
         b = avg(prev)
       return {
         label,
-        responses: rs.length,
+        responses: ratings.length,
         average: avg(ratings),
         low: ratings.filter((n) => n < LOW_RATING).length,
         trend: a !== null && b !== null ? a - b : null,
+        npsScore: npsScoreOf(npsValues),
+        npsResponses: npsValues.length,
       }
     })
     .sort((x, y) => y.responses - x.responses)
@@ -99,7 +116,7 @@ export function computeFeedback(rows: FeedbackRow[], now = Date.now()): Feedback
     linked: rows.filter((r) => r.contact_id).length,
     rating: { average: avg(ratings), responses: ratings.length, distribution: dist },
     nps: {
-      score: npsVals.length ? Math.round(((promoters - detractors) / npsVals.length) * 100) : null,
+      score: npsScoreOf(npsVals),
       responses: npsVals.length,
       promoters,
       passives: npsVals.length - promoters - detractors,

@@ -45,7 +45,10 @@ tenant por slug.
 4. **Redirecciones solo http(s)** (`safeRedirectUrl`); `{{trustpilot_url}}` sale de
    Configuración › Integraciones › Trustpilot, por subcuenta.
 5. **Contactos según audiencia.** `captacion`/`cualificacion` crean o encuentran contacto;
-   `alumnos` solo empareja por email (y actualiza `contacts.nps`); `empleados` **no** crea contacto
+   `alumnos` solo empareja por email y **nunca escribe en `contacts`** (el envío es anónimo: pisar
+   `contacts.nps` corrompería un valor editable a mano). El NPS y las estrellas quedan en
+   `form_responses` junto a formulario, módulo, clase y profesor, y se ven segmentados en Alumnos ›
+   Feedback; `empleados` **no** crea contacto
    (las candidaturas no deben contaminar el CRM de ventas).
 6. **PII.** Las respuestas se leen por rol (admin, director, manager, marketing; csm solo
    `alumnos`). Borrar: admin y director. Webhooks: solo admin y director; el secreto se guarda
