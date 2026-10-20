@@ -2,7 +2,13 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { fetchAllRows } from '@/lib/supabase/paginate'
-import { funnelBySource, leadDate, type ModeloAtribucion } from '@/lib/analytics'
+import {
+  funnelBySource,
+  funnelMultiToque,
+  leadDate,
+  type ModeloAtribucion,
+  type ModeloMultiToque,
+} from '@/lib/analytics'
 import { metodoDePlan } from '@/lib/metrics/agregados'
 import { canonicalizeAppointments, canonicalizeLeads } from '@/lib/canonical/dedup'
 import { createClient } from '@/lib/supabase/client'
@@ -18,7 +24,7 @@ import {
   ClipboardList,
   Globe,
 } from 'lucide-react'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency, formatDate, formatNumber } from '@/lib/utils'
 import { KPICard } from '@/components/os/DashboardKPICard'
 import { PeriodFilterBar } from '@/components/os/PeriodFilterBar'
 import { DEFAULT_PERIOD, getPeriodRange, inPeriod, type PeriodPreset } from '@/lib/filters/period'
@@ -29,7 +35,8 @@ import { countryISOForPhone, countryNameForISO } from '@/lib/phone'
 import { useTenant, useTenantId } from '@/lib/tenant-context'
 import { normalizeText } from '@/components/ui/search-box'
 
-type FunnelRow = { source: string; leads: number; appointments: number; sales: number; gross: number }
+type FunnelRow = { source: string; leads: number; appointments: number | null; sales: number; gross: number }
+type ModeloEmbudo = ModeloAtribucion | ModeloMultiToque
 
 type UtmTouchRow = {
   contact_id: string
@@ -152,12 +159,19 @@ export default function AttributionPage() {
   // Entradas del embudo por fuente: se guardan para poder recalcularlo al cambiar el modelo sin volver a
   // pedir nada al servidor.
   const [funnelInputs, setFunnelInputs] = useState<Parameters<typeof funnelBySource> | null>(null)
-  const [modelo, setModelo] = useState<ModeloAtribucion>('primer')
-  const rows = useMemo<FunnelRow[]>(
-    () =>
-      funnelInputs ? funnelBySource(funnelInputs[0], funnelInputs[1], funnelInputs[2], funnelInputs[3], modelo) : [],
-    [funnelInputs, modelo]
-  )
+  const [modelo, setModelo] = useState<ModeloEmbudo>('primer')
+  const rows = useMemo<FunnelRow[]>(() => {
+    if (!funnelInputs) return []
+    const [contactIds, attributions, sales, appointments] = funnelInputs
+    // 'primer'/'ultimo' reparten el 100% del lead a un único canal (ver funnelBySource); 'reparto' y
+    // 'decaimiento' son créditos fraccionados entre primer y último toque (funnelMultiToque, que no
+    // conoce agendas: el crédito solo tiene sentido para leads y ventas). La columna Agendas se
+    // muestra como "—" en esos dos modelos en vez de inventar un reparto que la función no calcula.
+    if (modelo === 'reparto' || modelo === 'decaimiento') {
+      return funnelMultiToque(contactIds, attributions, sales, modelo).map((r) => ({ ...r, appointments: null }))
+    }
+    return funnelBySource(contactIds, attributions, sales, appointments, modelo)
+  }, [funnelInputs, modelo])
   const [loadingTouch, setLoadingTouch] = useState(true)
   const [touchRows, setTouchRows] = useState<UtmTouchRow[]>([])
   const [apptError, setApptError] = useState(false)
@@ -411,7 +425,7 @@ export default function AttributionPage() {
       rows.reduce(
         (a, r) => ({
           leads: a.leads + r.leads,
-          appts: a.appts + r.appointments,
+          appts: a.appts + (r.appointments ?? 0),
           sales: a.sales + r.sales,
           gross: a.gross + r.gross,
         }),
@@ -566,16 +580,21 @@ export default function AttributionPage() {
         </p>
       )}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard title="Leads" value={loading || globalError ? '—' : totals.leads} icon={Users} loading={loading} />
+        <KPICard
+          title="Leads"
+          value={loading || globalError ? '—' : formatNumber(totals.leads, { maximumFractionDigits: 1 })}
+          icon={Users}
+          loading={loading}
+        />
         <KPICard
           title="Agendas"
-          value={loading || globalError ? '—' : totals.appts}
+          value={loading || globalError || modelo === 'reparto' || modelo === 'decaimiento' ? '—' : totals.appts}
           icon={Calendar}
           loading={loading}
         />
         <KPICard
           title="Ventas"
-          value={loading || globalError ? '—' : totals.sales}
+          value={loading || globalError ? '—' : formatNumber(totals.sales, { maximumFractionDigits: 1 })}
           icon={ShoppingCart}
           loading={loading}
         />
@@ -650,6 +669,8 @@ export default function AttributionPage() {
               [
                 ['primer', 'Primer toque'],
                 ['ultimo', 'Último toque'],
+                ['reparto', 'Reparto 50/50'],
+                ['decaimiento', 'Decaimiento'],
               ] as const
             ).map(([valor, etiqueta]) => (
               <button
@@ -665,9 +686,14 @@ export default function AttributionPage() {
           </div>
         </div>
         <p className="text-muted-foreground mb-3 text-xs">
-          {modelo === 'primer'
-            ? 'Cada lead cuenta para el canal que lo trajo: quién capta.'
-            : 'Cada lead cuenta para el último canal con el que tocó: quién remata. Si no hay último toque registrado se usa el primero.'}
+          {modelo === 'primer' &&
+            'Cada lead cuenta para el canal que lo trajo (100%): quién capta. Un solo toque, un solo canal.'}
+          {modelo === 'ultimo' &&
+            'Cada lead cuenta para el último canal con el que tocó (100%): quién remata. Si no hay último toque registrado se usa el primero.'}
+          {modelo === 'reparto' &&
+            'El crédito se reparte 50/50 entre el primer y el último toque (si son el mismo canal, se lleva el 100%). No aplica a Agendas.'}
+          {modelo === 'decaimiento' &&
+            'El crédito pondera según el tiempo entre el primer y el último toque (semivida de 7 días, igual que el time-decay de Meta/Google Ads): cuanto más lejano el primer toque, más se lleva el último. No aplica a Agendas.'}
         </p>
         {loading ? (
           <div className="h-40 animate-pulse bg-muted rounded" />
@@ -691,9 +717,15 @@ export default function AttributionPage() {
                   return (
                     <tr key={r.source} className="border-b border-border/50 last:border-0">
                       <td className="py-2.5 text-foreground max-w-[240px] truncate">{r.source}</td>
-                      <td className="py-2.5 text-right text-foreground">{r.leads}</td>
-                      <td className="py-2.5 text-right text-foreground">{r.appointments}</td>
-                      <td className="py-2.5 text-right text-foreground">{r.sales}</td>
+                      <td className="py-2.5 text-right text-foreground">
+                        {formatNumber(r.leads, { maximumFractionDigits: 1 })}
+                      </td>
+                      <td className="py-2.5 text-right text-foreground">
+                        {r.appointments === null ? '—' : r.appointments}
+                      </td>
+                      <td className="py-2.5 text-right text-foreground">
+                        {formatNumber(r.sales, { maximumFractionDigits: 1 })}
+                      </td>
                       <td className="py-2.5 text-right">
                         <span title="Requiere una cohorte de leads vinculada a sus ventas, con maduración comparable">
                           —
