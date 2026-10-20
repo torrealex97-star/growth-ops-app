@@ -35,6 +35,13 @@ export type TrackBody = {
   properties?: Record<string, unknown>
 }
 
+function sinIdentificadores(props: Record<string, unknown> | undefined): Record<string, unknown> {
+  const { email: _email, phone: _phone, ...resto } = props ?? {}
+  void _email
+  void _phone
+  return resto
+}
+
 export type ResultadoNormalizacion = { status: number; json: Record<string, unknown> }
 
 /**
@@ -57,7 +64,7 @@ export async function normalizarEventoRaw(
      * Solo la ingesta en vivo lo pasa (con IP y user-agent del navegador). El reproceso NO: reenviar a Meta
      * eventos viejos no aporta y duplicaría trabajo.
      */
-    capi?: { clientIp: string | null; userAgent: string | null }
+    capi?: { clientIp: string | null; userAgent: string | null; bot: boolean }
   }
 ): Promise<ResultadoNormalizacion> {
   const { tenantId, body, eventName, eventId, receivedAt } = args
@@ -234,12 +241,15 @@ export async function normalizarEventoRaw(
       session_id: sessionId,
       touchpoint_id: touchpointId,
       processing_status: 'received',
+      // Los campos del servidor van DESPUÉS: el cliente no puede pisar url/referrer/fbc/fbp con basura.
+      // email y teléfono solo se usan para el enlace de identidad y la CAPI (se leen de `body`): no se
+      // guardan en claro en el evento canónico.
       properties: {
+        ...sinIdentificadores(body.properties),
         url: body.url ?? null,
         referrer: body.referrer ?? null,
         fbc: sanitizarFbc(body.fbc),
         fbp: sanitizarFbp(body.fbp),
-        ...(body.properties ?? {}),
       },
     },
     { onConflict: 'tenant_id,source,source_event_id', ignoreDuplicates: true }
@@ -283,7 +293,8 @@ export async function normalizarEventoRaw(
   }
 
   // 8) Conversions API (Lead/Schedule). Inerte salvo configuración explícita de la subcuenta.
-  if (args.capi && EVENTOS_CAPI[eventName]) {
+  // Un bot (o quien falsifique el Origin con la clave pública) no debe fabricar Leads en Meta.
+  if (args.capi && !args.capi.bot && EVENTOS_CAPI[eventName]) {
     try {
       const { data: canonicalRow } = await sb
         .from('canonical_events')

@@ -16,7 +16,7 @@
 // su web; si la página define window.gopNoMeta = true, el Pixel no se carga.
 //   <script defer src=".../tracker.js" data-site="gop_pk_xxx" data-meta-pixel="1234567890"></script>
 // _fbp/_fbc: se leen de las cookies de Meta (o se arma _fbc desde el fbclid) y viajan con cada evento.
-export const TRACKER_JS_VERSION = '1.3.0'
+export const TRACKER_JS_VERSION = '1.3.1'
 
 export const TRACKER_JS = String.raw`
 (function () {
@@ -109,18 +109,24 @@ export const TRACKER_JS = String.raw`
       return ''
     }
   }
+  var memFbc = ''
   function fbc(attrs) {
     var existing = readCookie('_fbc')
     if (existing) return existing
     if (!attrs.fbclid) return ''
-    // Formato de Meta: fb.<subdominios>.<ms del clic>.<fbclid>. Se guarda 90 días, como hace Meta.
-    var value = 'fb.1.' + Date.now() + '.' + attrs.fbclid
-    try {
-      document.cookie = '_fbc=' + encodeURIComponent(value) + '; path=/; max-age=7776000; SameSite=Lax'
-    } catch (e) {
-      // Cookies bloqueadas: el valor viaja igualmente en este evento.
+    // Formato de Meta: fb.<subdominios>.<ms del clic>.<fbclid>. El valor se calcula UNA vez por carga
+    // para que no cambie entre eventos.
+    if (!memFbc) memFbc = 'fb.1.' + Date.now() + '.' + attrs.fbclid
+    // La cookie es de marketing: solo se escribe si el dueño de la web activó el Pixel (y por tanto
+    // asume el consentimiento). Sin Pixel, el valor viaja con el evento pero no se guarda en el navegador.
+    if (pixelReady) {
+      try {
+        document.cookie = '_fbc=' + encodeURIComponent(memFbc) + '; path=/; max-age=7776000; SameSite=Lax'
+      } catch (e) {
+        // Cookies bloqueadas: el valor viaja igualmente en este evento.
+      }
     }
-    return value
+    return memFbc
   }
 
   // ---- Pixel de Meta opt-in (deduplicado por event_id con la Conversions API) ----

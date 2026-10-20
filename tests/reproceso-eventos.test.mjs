@@ -7,7 +7,7 @@ const ingesta = readFileSync('app/api/track/[site]/route.ts', 'utf8')
 const normalizar = readFileSync('lib/tracking/normalizar.ts', 'utf8')
 
 test('el reproceso exige permiso de pantalla, filtra por tenant y acota el lote', () => {
-  assert.match(ruta, /requirePantalla\(tenant, PANTALLA\)/)
+  assert.match(ruta, /\['admin', 'director'\]/)
   assert.match(ruta, /\.eq\('tenant_id', session\.tenantId\)/)
   assert.match(ruta, /\.eq\('processing_status', 'received'\)/)
   assert.match(ruta, /LIMITE_MAXIMO = 200/)

@@ -111,14 +111,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       })
       if (r.ok) contactId = r.contact.id
     } else if (form.audience === 'alumnos' && sem.email) {
+      // Solo se EMPAREJA la respuesta con el alumno. El NPS NO se escribe en `contacts`: el envío es
+      // anónimo (basta conocer un email) y `contacts.nps` es un único valor editable a mano; pisarlo
+      // desde aquí corrompería las métricas. La opinión queda en form_responses (formulario, módulo,
+      // clase, profesor, nps, rating) y se explota segmentada en Alumnos › Feedback.
       contactId = await buscarContactoPorEmail(sb, form.tenantId, sem.email)
-      if (contactId && sem.nps !== null) {
-        await sb
-          .from('contacts')
-          .update({ nps: sem.nps, nps_date: new Date().toISOString().slice(0, 10) })
-          .eq('tenant_id', form.tenantId)
-          .eq('id', contactId)
-      }
     }
   }
 

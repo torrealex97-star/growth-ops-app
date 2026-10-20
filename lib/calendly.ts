@@ -140,9 +140,20 @@ export async function ensureWebhookSubscription(
   signingKeyActual: string
 ): Promise<EnsureWebhookResult> {
   const org = (await me(token)).current_organization
-  const q = `/webhook_subscriptions?organization=${encodeURIComponent(org)}&scope=organization&count=100`
-  const existentes = await cf<{ collection: CalendlyWebhookSubscription[] }>(token, q)
-  const existente = existentes.collection?.find((s) => s.callback_url === callbackUrl)
+  // Se recorren todas las páginas: con más de 100 suscripciones, mirar solo la primera podía no ver la
+  // existente y crear una duplicada. Tope de 20 páginas por si Calendly devolviera un token en bucle.
+  let existente: CalendlyWebhookSubscription | undefined
+  let pageToken: string | null = null
+  for (let pagina = 0; pagina < 20 && !existente; pagina++) {
+    const q: string =
+      `/webhook_subscriptions?organization=${encodeURIComponent(org)}&scope=organization&count=100` +
+      (pageToken ? `&page_token=${encodeURIComponent(pageToken)}` : '')
+    const res: { collection: CalendlyWebhookSubscription[]; pagination?: { next_page_token?: string | null } } =
+      await cf(token, q)
+    existente = res.collection?.find((s) => s.callback_url === callbackUrl)
+    pageToken = res.pagination?.next_page_token ?? null
+    if (!pageToken) break
+  }
   if (existente?.state === 'active') return { accion: 'ya_activa', uri: existente.uri, signingKeyNueva: null }
   if (existente) await cf(token, existente.uri, { method: 'DELETE' })
 

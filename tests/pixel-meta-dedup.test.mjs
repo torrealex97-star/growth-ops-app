@@ -6,7 +6,7 @@ import { sanitizarFbc, sanitizarFbp } from '../lib/tracking/meta-click.ts'
 
 test('el tracker es JavaScript válido y sube de versión', () => {
   assert.doesNotThrow(() => new Function(TRACKER_JS))
-  assert.equal(TRACKER_JS_VERSION, '1.3.0')
+  assert.equal(TRACKER_JS_VERSION, '1.3.1')
 })
 
 test('el Pixel de Meta es opt-in: solo con data-meta-pixel numérico y sin gopNoMeta', () => {
@@ -51,4 +51,9 @@ test('el panel solo añade data-meta-pixel con un ID numérico', () => {
   const p = readFileSync('components/settings/TrackingSitesPanel.tsx', 'utf8')
   assert.match(p, /\^\\d\{8,20\}\$/)
   assert.match(p, /data-meta-pixel=/)
+})
+
+test('la cookie _fbc solo se escribe con el Pixel activo y el valor es estable entre eventos', () => {
+  assert.match(TRACKER_JS, /if \(pixelReady\) \{\s+try \{\s+document\.cookie = '_fbc='/)
+  assert.match(TRACKER_JS, /if \(!memFbc\) memFbc = /)
 })

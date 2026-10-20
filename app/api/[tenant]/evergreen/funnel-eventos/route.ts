@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { requirePantalla } from '@/lib/auth/requirePantalla'
+import { businessEndOfDay, businessStartOfDay, businessToday } from '@/lib/dates/business'
 import { fetchAllRows } from '@/lib/supabase/paginate'
 import {
   PASOS_POR_DEFECTO,
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
   if ('error' in session) return session.error
 
   const url = new URL(req.url)
-  const to = url.searchParams.get('to') || new Date().toISOString().slice(0, 10)
+  const to = url.searchParams.get('to') || businessToday()
   const fromDefault = new Date(`${to}T00:00:00Z`)
   fromDefault.setUTCDate(fromDefault.getUTCDate() - 29)
   const from = url.searchParams.get('from') || fromDefault.toISOString().slice(0, 10)
@@ -45,6 +46,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
   const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
     auth: { autoRefreshToken: false, persistSession: false },
   })
+  const inicio = businessStartOfDay(from)
+  const fin = businessEndOfDay(to)
+  if (!inicio || !fin) return NextResponse.json({ error: 'Fechas inválidas' }, { status: 400 })
   const nombres = [...new Set(PASOS_POR_DEFECTO.flatMap((p) => p.eventos))]
 
   // Usa el índice (tenant_id, event_name, occurred_at). Solo 4 columnas: nada de properties.
@@ -54,8 +58,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       .select('visitor_id,contact_id,event_name,occurred_at')
       .eq('tenant_id', session.tenantId)
       .in('event_name', nombres)
-      .gte('occurred_at', `${from}T00:00:00Z`)
-      .lte('occurred_at', `${to}T23:59:59.999Z`)
+      // Los días son los del negocio (Europe/Madrid), igual que los filtros de periodo de las pantallas.
+      .gte('occurred_at', inicio.toISOString())
+      .lte('occurred_at', fin.toISOString())
       .order('id')
   )
   if (error) {
