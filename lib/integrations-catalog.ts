@@ -368,6 +368,39 @@ export const INTEGRATION_GROUPS: IntegrationGroup[] = [
     ],
   },
   {
+    id: 'trustpilot',
+    title: 'Trustpilot (reseñas)',
+    description:
+      'Enlace de reseñas al que llevan tus formularios de feedback a quien valora con 4 o más estrellas (o con un NPS de 9-10).',
+    category: 'marketing',
+    pasos: [
+      {
+        titulo: 'Copia tu enlace de reseñas en Trustpilot',
+        detalle:
+          'En Trustpilot Business, entra en Reunir reseñas → Enlace de invitación (o abre tu página pública en trustpilot.com y copia el botón «Escribir una reseña»). Tiene la forma https://es.trustpilot.com/evaluate/tu-dominio.',
+      },
+      {
+        titulo: 'Pégalo aquí y guarda',
+        detalle:
+          'Los formularios de feedback usan este enlace automáticamente en su final de 4 o más estrellas. Si lo dejas vacío, esos formularios solo dan las gracias, sin redirigir.',
+      },
+      {
+        titulo: 'Compruébalo con un formulario de prueba',
+        detalle:
+          'Publica una plantilla de feedback, ábrela desde su enlace, responde con 5 estrellas y verifica que te lleva a tu página de reseñas.',
+      },
+    ],
+    fields: [
+      {
+        key: 'TRUSTPILOT_REVIEW_URL',
+        label: 'Enlace de reseñas de Trustpilot',
+        type: 'text',
+        secret: false,
+        placeholder: 'https://es.trustpilot.com/evaluate/tu-dominio',
+      },
+    ],
+  },
+  {
     id: 'fathom',
     title: 'Fathom',
     description:

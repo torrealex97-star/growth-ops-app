@@ -28,7 +28,7 @@ type UserWithRole = User & { roles: { key: string; name: string } }
 
 const AUTH_ROUTES = ['/login', '/recover']
 // Rutas públicas que se renderizan sin shell ni sesión (además de las de auth), relativas al tenant.
-const PUBLIC_PREFIXES = ['/afiliados/registro']
+const PUBLIC_PREFIXES = ['/afiliados/registro', '/f/']
 
 // Roles que NO pueden acceder al panel sin tener el contrato firmado.
 const CONTRACT_GATED_ROLES: AppRole[] = ['closer', 'setter', 'affiliate']
