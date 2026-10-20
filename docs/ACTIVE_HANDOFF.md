@@ -1,3 +1,82 @@
+# COMPLETADO — barrido de errores: drift del artefacto de tipos BD (20-oct, Buffy) · `fix/platform-settings-invariante` (PR #586, squash `509c0405`)
+
+`npm run quality` en rojo por dos tests del invariante de esquema. Aclaración de alcance del squash: el commit
+trae SOLO la regeneración de `lib/types/database-generated.ts` (`npm run tipos:bd`; faltaban 8 tablas del catálogo
+vivo: `Forms`, `FormResponses`, `FormSessions`, `FormVersions`, `FormWebhookDeliveries`, `FormWebhooks`,
+`PlatformSettings`, `UserFathomConnections`). La excepción cerrada `platform_settings` en
+`EXCEPCIONES_SIN_TENANT` y los espejos del invariante (`tests/invariante-tenant-negativo.test.mjs`, fixture
+`esquema-produccion-20260923.json`) ya habían entrado en `main` por otra rama durante el rebase, así que el
+commit fusionado quedó reducido al drift — el mensaje del squash menciona lo completo de la unidad anterior.
+La fila del tablero se retiró al rebasear (resuelta, no es deuda). Deducción: las tablas `forms*`/`user_fathom_connections`
+SÍ tienen uso en `main` actual (#525/#556), no eran legacy como parecía contra el `main` viejo.
+Validación: `npm run quality` local PASS tras el rebase, Release gate de CI SUCCESS (el primer intento de E2E
+fue colisión del grupo `e2e-tenant-qa` contra el PR `feat/forms-fase7-calidad` — resuelto con rerun del job,
+según la regla del 14-oct). Pendiente declarado: el fixture del esquema sigue siendo la instantánea del 23-sep;
+sin ruta IPv6 ni pooler desde esta red de desarrollo, la recaptura completa queda para cuando haya conectividad.
+
+# FIX — Calendly nunca entregó un webhook real: solo el cron diario (19-oct, Claude Code)
+
+Continuación del mismo reporte: Alex confirmó que más de uno de los leads de Typeform de hoy
+**ya había agendado**, pero ninguno aparecía en el CRM. Diagnóstico con datos reales: las 749 citas
+de los últimos 10 días se crean SIEMPRE en una ventana de segundos/minutos, una vez al día, que
+coincide exactamente con las ejecuciones de `.github/workflows/cron-calendly-ghl.yml` (`20 4 * * *`
+UTC, con el retraso habitual de GitHub Actions). **Cero citas se crearon fuera de esas ventanas en
+10 días** — el webhook en tiempo real de Calendly (`app/[tenant]/evergreen/webhooks/calendly/route.ts`,
+código listo, `CALENDLY_WEBHOOK_SECRET` guardado desde el 28-sep) nunca ha recibido una entrega real.
+
+Causa: no existe en el repo ninguna llamada a la API de Calendly para crear la suscripción del
+webhook (`POST /webhook_subscriptions`) — el secreto se guardó para verificar firmas, pero nadie
+creó nunca la suscripción del lado de Calendly. No es autoservicio desde su panel; se crea por API.
+
+**Fix:** `ensureWebhookSubscription()` en `lib/calendly.ts` — idempotente: si ya hay una suscripción
+activa con nuestra URL exacta, no hace nada; si existe pero Calendly la desactivó (lo hace tras
+fallos repetidos de entrega), la borra y crea una nueva. Si Calendly devuelve una `signing_key`
+distinta a la que ya teníamos guardada, la persiste automáticamente (si no, las firmas de las
+entregas reales nunca verificarían). Expuesto como botón «Activar tiempo real» en Configuración →
+Integraciones → Calendly (`provider: 'calendly-webhook'` en el history-sync existente, mismo patrón
+que el backfill de campos de GHL). Confirmado plan de pago de Calendly (Standard/Teams/Enterprise)
+con el usuario — los webhooks no existen en el plan gratuito.
+
+**Validado:** typecheck limpio, lint limpio, formato aplicado, 70/70 tests existentes de
+calendly/integraciones en verde. **No pude probar la llamada real a la API de Calendly desde este
+entorno** (el proxy de salida de este sandbox no permite llegar a `api.calendly.com`) — hay que
+pulsar el botón en producción una vez y confirmar que las citas de hoy entran sin esperar al cron
+de las 04:20 UTC. Si Calendly devuelve un error de validación inesperado (p.ej. rechaza el campo
+`signing_key` en la creación), saldrá tal cual en el toast de error — reportarlo para ajustar la
+llamada contra la respuesta real, no he podido verificarla contra la API en vivo.
+
+# FIX — «Todo el equipo» en Agendas sin citas de Claudia para una closer (19-oct, Claude Code)
+
+Reporte: una closer (Daniele) no veía sus agendas al elegir «Todo el equipo» en el calendario de
+`app/[tenant]/crm/agendas/page.tsx`. Diagnóstico con datos reales (no supuesto): el selector
+«Todo el equipo» existe para closer/setter con `data_scope='team'` desde antes del hallazgo F01 —
+pensado para coordinar el calendario del equipo completo y no pisarse citas, NO para ver ventas o
+cobros. La migración de seguridad del F01 (`20261003120000`, hace dos semanas) cerró el bypass de
+`data_scope='team'` a solo liderazgo (admin/director/manager) en seis tablas a la vez, appointments
+y contacts incluidas, sin distinguir que esas dos tenían un uso operativo legítimo para closer/
+setter distinto del financiero.
+
+**Verificado en producción antes del fix:** Daniele (closer, `data_scope='team'`) veía 22 citas
+(solo las suyas) en vez de las 748/749 del equipo; Claudia (admin) es closer_id/setter_id en 726 de
+esas 749 — es quien de hecho lleva el calendario. De sus 726, solo 3 resolvían el contacto embebido
+para Daniele (el resto habría aparecido con el nombre en blanco, igual de inútil que no verlas).
+
+**Migración `20261019200000`:** `is_team_scheduling_scope_allowed()` — mismo patrón que
+`is_team_scope_allowed()` pero con la lista de roles ampliada a admin/director/manager/closer/setter
+(afiliado sigue fuera). Aplicada SOLO a `appointments_select_scope` y `contacts_select_scope`; el
+resto de tablas del F01 (sales, collections, contact_attributions, activities, stripe_payments)
+sin cambios — ahí sí aplica el hallazgo original (afiliado viendo ventas/cobros ajenos).
+
+**Verificado tras el fix:** Daniele pasa a ver 748/749 citas con los 748 contactos resueltos. Control
+con un afiliado (mismo `data_scope='team'`, rol excluido a propósito): 0 filas ganadas, ni en
+appointments ni en contacts — el hallazgo F01 original sigue cerrado para afiliados.
+
+El segundo punto del reporte («no veo que traigan las preguntas de Typeform») resultó NO ser un bug:
+el webhook (PR #556, en producción desde esta misma mañana) escribe `contacts.qualification` y la
+copia a agendas existentes correctamente — verificado con los 7 envíos reales de hoy, cero huecos en
+los 749 appointments del histórico. Solo 1 de esos 7 leads ya tenía cita (Ingrid Quevedo) y su cita
+llevó las 10 respuestas sin problema. El resto simplemente no ha agendado todavía.
+
 # COMPLETADO — Ola 1 del plan «copiar de otras apps» (20 oct) · #563 y #564
 
 Al comprobar cada idea contra el código se descartó lo que ya existía o no aportaba:

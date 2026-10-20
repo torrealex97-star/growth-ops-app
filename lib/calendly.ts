@@ -102,6 +102,19 @@ export type CalendlyEventType = {
 
 export type CalendlySlot = { start_time: string; status: string; scheduling_url?: string }
 
+type CalendlyWebhookSubscription = {
+  uri: string
+  callback_url: string
+  state: 'active' | 'disabled'
+}
+
+export type EnsureWebhookResult = {
+  accion: 'ya_activa' | 'creada' | 'recreada'
+  uri: string
+  /** Solo si Calendly devolvió una signing_key distinta a la ya guardada: hay que persistirla. */
+  signingKeyNueva: string | null
+}
+
 // Caché POR TOKEN. Antes era un único `cachedMe` de módulo: con dos subcuentas y dos cuentas de
 // Calendly distintas, la segunda recibía el "yo" de la primera y buscaba a sus closers en la
 // organización equivocada.
@@ -112,6 +125,49 @@ async function me(token: string): Promise<Me['resource']> {
   const d = await cf<Me>(token, '/users/me')
   cachedMeByToken.set(token, d.resource)
   return d.resource
+}
+
+// Las citas nunca llegaban por webhook en tiempo real (solo por el cron diario de respaldo,
+// calendly-citas) porque nadie había creado NUNCA la suscripción del lado de Calendly: el secreto
+// (CALENDLY_WEBHOOK_SECRET) estaba guardado desde antes, listo para verificar firmas, pero sin
+// ninguna suscripción real apuntando a nuestra URL. Calendly no tiene un botón de autoservicio en
+// su panel para esto — se crea por API. Idempotente: si ya hay una activa con nuestra URL exacta,
+// no crea otra; si existe pero está 'disabled' (Calendly la apaga tras fallos repetidos de entrega),
+// la borra y crea una nueva en vez de dejarla muerta.
+export async function ensureWebhookSubscription(
+  token: string,
+  callbackUrl: string,
+  signingKeyActual: string
+): Promise<EnsureWebhookResult> {
+  const org = (await me(token)).current_organization
+  const q = `/webhook_subscriptions?organization=${encodeURIComponent(org)}&scope=organization&count=100`
+  const existentes = await cf<{ collection: CalendlyWebhookSubscription[] }>(token, q)
+  const existente = existentes.collection?.find((s) => s.callback_url === callbackUrl)
+  if (existente?.state === 'active') return { accion: 'ya_activa', uri: existente.uri, signingKeyNueva: null }
+  if (existente) await cf(token, existente.uri, { method: 'DELETE' })
+
+  const creada = await cf<{ resource: CalendlyWebhookSubscription & { signing_key?: string } }>(
+    token,
+    '/webhook_subscriptions',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        url: callbackUrl,
+        events: ['invitee.created', 'invitee.canceled'],
+        organization: org,
+        scope: 'organization',
+        signing_key: signingKeyActual,
+      }),
+    }
+  )
+  const signingKeyDevuelta = creada.resource.signing_key ?? null
+  return {
+    accion: existente ? 'recreada' : 'creada',
+    uri: creada.resource.uri,
+    // Si Calendly ignoró nuestro signing_key y generó el suyo, hay que guardar ESE para que
+    // verifySignature() del webhook pueda validar las entregas reales.
+    signingKeyNueva: signingKeyDevuelta && signingKeyDevuelta !== signingKeyActual ? signingKeyDevuelta : null,
+  }
 }
 
 // Resuelve el URI del usuario de Calendly del closer a partir de su email,
