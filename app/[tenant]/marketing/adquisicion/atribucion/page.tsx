@@ -30,6 +30,7 @@ import { PeriodFilterBar } from '@/components/os/PeriodFilterBar'
 import { DEFAULT_PERIOD, getPeriodRange, inPeriod, type PeriodPreset } from '@/lib/filters/period'
 import { isPaidSource } from '@/lib/ads/funnel'
 import { AttributionCoverage } from '@/components/os/AttributionCoverage'
+import { UtmBuilder } from '@/components/os/UtmBuilder'
 import { QUALIFICATION_KEYS, labelFor, type QualificationAnswer } from '@/lib/qualification'
 import { countryISOForPhone, countryNameForISO } from '@/lib/phone'
 import { useTenant, useTenantId } from '@/lib/tenant-context'
@@ -609,6 +610,8 @@ export default function AttributionPage() {
       {/* Cobertura de atribución (§21): movida aquí desde Métricas y KPIs — pertenece al panel
           donde se diagnostica la atribución, no al resumen del negocio. */}
       <AttributionCoverage coverage={globalError ? { leads: null, sales: null, revenue: null } : coverage} />
+
+      <UtmBuilder />
 
       {/* Top campañas First / Last touch */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
