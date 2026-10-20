@@ -65,3 +65,10 @@ test('publicar crea una versión nueva inmutable y valida antes', () => {
 test('guardar el borrador nunca publica por la puerta de atrás', () => {
   assert.match(leer(`${API}/[id]/route.ts`), /b\.status === 'published'[\s\S]*Usa Publicar/)
 })
+
+test('la documentación del módulo existe y recoge las reglas críticas', () => {
+  const d = leer('docs/FORMULARIOS.md')
+  for (const k of ['Solo el camino real', 'El servidor decide', 'Idempotencia', 'Sin crons nuevos', 'form_versions'])
+    assert.ok(d.includes(k), k)
+  assert.match(leer('PROJECT_CONTEXT.md'), /## 15\. Módulo de Formularios/)
+})
