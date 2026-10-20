@@ -124,3 +124,20 @@ test('enviarEventosCapi solo lo usan la ruta de prueba y el despacho de la inges
     'lib/meta/capi.ts',
   ])
 })
+
+test('el Pixel ID y la activación se ven en el formulario principal, no plegados en avanzadas', async () => {
+  const { INTEGRATION_GROUPS } = await import('../lib/integrations-catalog.ts')
+  const meta = INTEGRATION_GROUPS.find((g) => g.id === 'meta')
+  for (const key of ['META_PIXEL_ID', 'META_CAPI_ENABLED']) {
+    const f = meta.fields.find((x) => x.key === key)
+    assert.ok(f, `${key} no está en el catálogo`)
+    assert.ok(!f.advanced && !f.hidden, `${key} no debe estar oculto ni en avanzadas`)
+  }
+})
+
+test('la pantalla de Integraciones tiene el botón de prueba de la CAPI y llama a la ruta correcta', () => {
+  const p = readFileSync('app/[tenant]/settings/integraciones/page.tsx', 'utf8')
+  assert.match(p, /integraciones\/meta-capi-test/)
+  assert.match(p, /Probar la Conversions API/)
+  assert.match(p, /\^TEST\[A-Za-z0-9\]\{1,30\}\$/)
+})
