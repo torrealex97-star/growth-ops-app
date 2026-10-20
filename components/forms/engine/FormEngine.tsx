@@ -3,7 +3,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight, CheckCircle2, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { getPathAnswers, nextStep, pipe, resolveEnding, screenQuestions, walkPath } from '@/lib/forms/logic'
+import {
+  getPathAnswers,
+  nextStep,
+  pipe,
+  resolveEnding,
+  safeRedirectUrl,
+  screenQuestions,
+  walkPath,
+} from '@/lib/forms/logic'
 import { validateAnswer } from '@/lib/forms/validation'
 import { OTHER_VALUE_PREFIX } from '@/lib/forms/validation'
 import type { Answer, Answers, FormConfig, Question } from '@/lib/forms/types'
@@ -70,14 +78,26 @@ export function FormEngine({
   const maxIdx = useRef(0)
   const done = useRef(false)
   const partialTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const startedRef = useRef(false)
+  const historyRef = useRef<string[]>([])
+  const advancing = useRef(false)
 
   const variant = useMemo<'A' | 'B' | undefined>(() => {
     if (!live || !config.abTest || typeof window === 'undefined') return undefined
     const k = `forms:variant:${slug}`
-    let v = sessionStorage.getItem(k) as 'A' | 'B' | null
+    let v: 'A' | 'B' | null = null
+    try {
+      v = sessionStorage.getItem(k) as 'A' | 'B' | null
+    } catch {
+      /* almacenamiento bloqueado (iframe de terceros): variante efímera */
+    }
     if (v !== 'A' && v !== 'B') {
       v = Math.random() < 0.5 ? 'A' : 'B'
-      sessionStorage.setItem(k, v)
+      try {
+        sessionStorage.setItem(k, v)
+      } catch {
+        /* idem */
+      }
     }
     return v
   }, [live, config.abTest, slug])
@@ -114,6 +134,11 @@ export function FormEngine({
     }
   }, [live, storeKey, answers, history, stage])
 
+  useEffect(() => {
+    historyRef.current = history
+    if (history.length > 1) startedRef.current = true
+  }, [history])
+
   // Analítica por sesión: foto de estado (una fila por sesión en el servidor).
   const sendSession = useCallback(
     (status: 'viewed' | 'started' | 'completed' | 'abandoned', beacon = false) => {
@@ -129,7 +154,7 @@ export function FormEngine({
       const payload = JSON.stringify({
         sessionId: sessionId.current,
         status,
-        lastQuestion: history[history.length - 1],
+        lastQuestion: historyRef.current[historyRef.current.length - 1],
         maxIndex: maxIdx.current,
         questionTimes: times.current,
         variant,
@@ -147,13 +172,13 @@ export function FormEngine({
           keepalive: true,
         }).catch(() => {})
     },
-    [live, tenant, slug, history, variant, device, hidden]
+    [live, tenant, slug, variant, device, hidden]
   )
   useEffect(() => {
     if (!live) return
     sendSession('viewed')
     const onHide = () => {
-      if (!done.current) sendSession('abandoned', true)
+      if (!done.current && startedRef.current) sendSession('abandoned', true)
     }
     window.addEventListener('pagehide', onHide)
     return () => window.removeEventListener('pagehide', onHide)
@@ -218,6 +243,9 @@ export function FormEngine({
 
   const finish = useCallback(
     async (finalAnswers: Answers) => {
+      // Un parcial pendiente no puede llegar después y pisar el envío completo.
+      if (partialTimer.current) clearTimeout(partialTimer.current)
+      done.current = true
       setStage('submitting')
       setServerError('')
       const clean = getPathAnswers(config, finalAnswers)
@@ -259,6 +287,7 @@ export function FormEngine({
             const first = history.find((id) => data.errors![id])
             if (first) setHistory((h) => h.slice(0, h.indexOf(first) + 1))
           }
+          done.current = false
           setServerError(data.error || 'No se pudo enviar. Inténtalo de nuevo.')
           setStage('question')
           return
@@ -274,6 +303,7 @@ export function FormEngine({
         if (data.redirectUrl) setRedirect({ url: data.redirectUrl, delay: data.redirectDelayMs ?? 1500 })
         setStage('ending')
       } catch {
+        done.current = false
         setServerError('Sin conexión. Tu respuesta sigue aquí: inténtalo de nuevo.')
         setStage('question')
       }
@@ -318,6 +348,7 @@ export function FormEngine({
 
   const start = () => {
     startedAt.current = Date.now()
+    startedRef.current = true
     sendSession('started')
     advanceFrom(null, answers)
   }
@@ -339,7 +370,14 @@ export function FormEngine({
     const next = { ...answers, [q.id]: v }
     setAnswers(next)
     setErrors({})
-    if (AUTO_ADVANCE_TYPES.includes(q.type)) setTimeout(() => advanceFrom(q.id, next), 220)
+    if (AUTO_ADVANCE_TYPES.includes(q.type)) {
+      if (advancing.current) return
+      advancing.current = true
+      setTimeout(() => {
+        advancing.current = false
+        advanceFrom(q.id, next)
+      }, 220)
+    }
   }
 
   // Vista previa del constructor: ir directo a lo que se está editando.
@@ -389,7 +427,7 @@ export function FormEngine({
         e.key === 'Enter' &&
         t.tagName !== 'TEXTAREA' &&
         t.tagName !== 'SELECT' &&
-        !AUTO_ADVANCE_TYPES.includes(current.type)
+        (!AUTO_ADVANCE_TYPES.includes(current.type) || (current.type === 'singleChoice' && t.tagName === 'INPUT'))
       ) {
         e.preventDefault()
         advanceFrom(current.id, answers)
@@ -397,6 +435,9 @@ export function FormEngine({
         advanceFrom(current.id, answers)
       } else if (
         !typing &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
         /^[a-hA-H]$/.test(e.key) &&
         ['singleChoice', 'multiChoice', 'yesNo'].includes(current.type)
       ) {
@@ -483,9 +524,9 @@ export function FormEngine({
         {/* Honeypot: invisible para personas. */}
         <input
           tabIndex={-1}
-          autoComplete="off"
+          autoComplete="new-password"
           aria-hidden="true"
-          name="company"
+          name="website_url_hp"
           value={company}
           onChange={(e) => setCompany(e.target.value)}
           className="absolute left-[-9999px] h-0 w-0 opacity-0"
@@ -594,7 +635,11 @@ export function FormEngine({
             <h2 className="mt-5 font-display text-3xl font-bold">{ending?.title || '¡Gracias!'}</h2>
             {ending?.message && <p className="mt-3 text-lg text-muted-foreground">{ending.message}</p>}
             {(redirect?.url || (ending?.ctaUrl && ending.ctaLabel)) && (
-              <a href={redirect?.url ?? ending!.ctaUrl!} className={cn(btn, 'mt-6')} style={btnStyle}>
+              <a
+                href={safeRedirectUrl(redirect?.url ?? ending!.ctaUrl ?? undefined) ?? '#'}
+                className={cn(btn, 'mt-6')}
+                style={btnStyle}
+              >
                 {ending?.ctaLabel || 'Continuar'} <ArrowRight className="h-4 w-4" />
               </a>
             )}

@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { getConfigValue } from '@/lib/forms/config-vars'
 import { getOrCreateContact } from '@/lib/contacts/resolve'
 import { buscarContactoPorEmail } from '@/lib/contacts/buscar'
+import { safeRedirectUrl } from '@/lib/forms/logic'
 import { evaluateSubmission } from '@/lib/forms/submission'
 import { loadPublishedForm, serviceClient } from '@/lib/forms/server'
 import { enqueueAndDeliver } from '@/lib/forms/webhooks'
@@ -77,7 +78,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     .maybeSingle()
 
   const vars: Record<string, string | undefined> = {}
-  if (JSON.stringify(form.config).includes('{{trustpilot_url}}')) {
+  if (JSON.stringify(form.config).match(/\{\{\s*trustpilot_url\s*\}\}/)) {
     vars.trustpilot_url = await getConfigValue(form.tenantId, 'TRUSTPILOT_REVIEW_URL')
   }
 
@@ -89,7 +90,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     title: ev.endingTitle,
     message: ev.endingMessage,
     ctaLabel: ev.ending.ctaLabel ?? null,
-    ctaUrl: ev.ending.ctaUrl ?? null,
+    ctaUrl: safeRedirectUrl(ev.ending.ctaUrl),
   }
   const outcome = { ok: true, completed: !b.partial, ending: b.partial ? null : ending, redirectUrl: b.partial ? null : ev.redirectUrl, redirectDelayMs: ev.ending?.redirectDelayMs ?? 1500 }
 
@@ -122,8 +123,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   }
 
   const now = new Date().toISOString()
-  const { data: saved, error } = await sb.from('form_responses').upsert(
-    {
+  const row = {
       tenant_id: form.tenantId,
       form_id: form.formId,
       version_id: form.versionId,
@@ -146,9 +146,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       duration_ms: b.durationMs ?? null,
       ip_hash: createHash('sha256').update(`${form.tenantId}:${ip}`).digest('hex').slice(0, 32),
       completed_at: b.partial ? null : now,
-    },
-    { onConflict: 'tenant_id,submission_id' }
-  ).select('id').single()
+    }
+  // Un parcial nunca degrada una respuesta ya completada (carrera entre el parcial y el envío final).
+  const { data: saved, error } = b.partial
+    ? existing
+      ? await sb
+          .from('form_responses')
+          .update(row)
+          .eq('tenant_id', form.tenantId)
+          .eq('submission_id', b.submissionId)
+          .neq('status', 'completed')
+          .select('id')
+          .maybeSingle()
+      : await sb
+          .from('form_responses')
+          .upsert(row, { onConflict: 'tenant_id,submission_id', ignoreDuplicates: true })
+          .select('id')
+          .maybeSingle()
+    : await sb.from('form_responses').upsert(row, { onConflict: 'tenant_id,submission_id' }).select('id').single()
   if (error) {
     console.error('[forms/submit] no se pudo guardar:', error.message)
     return NextResponse.json({ error: 'No se pudo guardar tu respuesta. Inténtalo de nuevo.' }, { status: 500 })

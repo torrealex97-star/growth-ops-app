@@ -674,3 +674,15 @@ test('scoring: los pesos numéricos (gte/lte) puntúan número, NPS o valoració
   assert.equal(computeScore(c, { q4: 'abc' }).score, 0)
   assert.equal(formConfigSchema.safeParse(c).success, true)
 })
+
+test('semántica: rating/nps fuera de rango no llegan a la BD (no tumban el envío)', () => {
+  const c = {
+    questions: [
+      { id: 'a', type: 'number', semantic: 'rating' },
+      { id: 'b', type: 'number', semantic: 'nps' },
+    ],
+  }
+  assert.equal(extractSemantic(c, { a: 0, b: 11 }).rating, null)
+  assert.equal(extractSemantic(c, { a: 3.4, b: 0 }).rating, 3)
+  assert.equal(extractSemantic(c, { a: 3, b: 0 }).nps, 0)
+})

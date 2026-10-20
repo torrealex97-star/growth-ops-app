@@ -24,8 +24,8 @@ export function slugify(text: string): string {
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
     .slice(0, 60)
+    .replace(/^-+|-+$/g, '')
   return s.length >= 3 ? s : `formulario-${s || 'nuevo'}`.slice(0, 60)
 }
 

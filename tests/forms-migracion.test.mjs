@@ -68,3 +68,13 @@ test('idempotencia y FKs: submission_id único por tenant y FKs compuestas con t
     /foreign key \(tenant_id, version_id\) references public\.form_versions \(tenant_id, id\) on delete restrict/
   )
 })
+
+test('endurecimiento: borrar formularios solo admin/director y las respuestas no se reescriben por PostgREST', () => {
+  const h = readFileSync(join(raiz, 'supabase/migrations/20261020130000_forms_hardening.sql'), 'utf8')
+  assert.match(h, /"forms_delete_roles" on public\.forms for delete[\s\S]*in \('admin', 'director'\)/)
+  assert.doesNotMatch(h, /forms_[a-z]+_roles" on public\.forms for all/)
+  assert.match(h, /grant update \(review_status, review_notes\) on public\.form_responses/)
+  for (const p of h.split('create policy').slice(1)) {
+    assert.doesNotMatch(p.replace(/\(select public\.get_my_role\(\)\)/g, ''), /public\.get_my_role\(\)/)
+  }
+})

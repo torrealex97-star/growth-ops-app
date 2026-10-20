@@ -29,6 +29,13 @@ const asNum = (v: Answer | undefined): number | null => {
   return Number.isFinite(n) ? n : null
 }
 
+/** Las columnas rating/nps tienen CHECK: un valor fuera de rango no puede tumbar el envío (500). */
+function clampInt(n: number | null, min: number, max: number): number | null {
+  if (n === null || !Number.isFinite(n)) return null
+  const r = Math.round(n)
+  return r < min || r > max ? null : r
+}
+
 export function extractSemantic(config: FormConfig, pathAnswers: Answers): SemanticValues {
   const out: SemanticValues = {
     name: null,
@@ -57,10 +64,10 @@ export function extractSemantic(config: FormConfig, pathAnswers: Answers): Seman
         out.phone = asText(v)
         break
       case 'rating':
-        out.rating = asNum(v)
+        out.rating = clampInt(asNum(v), 1, 10)
         break
       case 'nps':
-        out.nps = asNum(v)
+        out.nps = clampInt(asNum(v), 0, 10)
         break
       case 'teacher':
         out.teacher = asText(v, label)

@@ -72,8 +72,12 @@ const ending = z.object({
   title: text(300),
   message: text(2000).optional(),
   ctaLabel: text(80).optional(),
-  ctaUrl: text(2000).optional(),
-  redirectUrl: text(2000).optional(),
+  ctaUrl: text(2000)
+    .refine((v) => v === '' || /^(https?:\/\/|\{\{)/i.test(v), 'La URL debe empezar por http(s)://')
+    .optional(),
+  redirectUrl: text(2000)
+    .refine((v) => v === '' || /^(https?:\/\/|\{\{)/i.test(v), 'La URL debe empezar por http(s)://')
+    .optional(),
   redirectDelayMs: z.number().int().min(0).max(30000).optional(),
   when: group.optional(),
   isDefault: z.boolean().optional(),
