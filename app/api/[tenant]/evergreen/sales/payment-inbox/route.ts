@@ -182,7 +182,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
         enrichedSales,
         plans.data ?? [],
         Number(payment.amount),
-        payment.paid_at
+        payment.paid_at,
+        // totalSales: TODAS las ventas activas del contacto, también las de otros closers que este usuario
+        // no ve; así «sin ventas previas» no se afirma por un filtro de visibilidad.
+        { known: !!payment.contactId, totalSales: (sales.data ?? []).length }
       )
 
       // Cobro sin contacto: se proponen candidatos (correo parecido, mismo nombre, llamada reciente). Solo

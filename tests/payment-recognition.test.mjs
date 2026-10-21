@@ -283,3 +283,45 @@ test('multiple invoice lines are not silently reduced to one product', async (t)
     }
   )
 })
+
+// REGLA DEL NEGOCIO — cobro sin Price ID mapeado: si el cliente existe es un PAGO de su venta; si no, venta NUEVA.
+const sinPrecio = (sales, contacto, amount = 400) =>
+  suggestPayment(base, null, sales, plans, amount, '2026-02-01', contacto)
+const conocido = (totalSales) => ({ known: true, totalSales })
+
+test('regla: cliente con una venta con saldo → pago de esa venta (sugerencia)', () => {
+  const r = sinPrecio([sale], conocido(1))
+  assert.equal(r.mode, 'existing')
+  assert.equal(r.saleId, 'sale')
+  assert.match(r.reason, /Confirma antes de registrar/)
+})
+
+test('regla: cliente sin ninguna venta → venta nueva (producto y plan los elige quien registra)', () => {
+  const r = sinPrecio([], conocido(0))
+  assert.equal(r.mode, 'new')
+  assert.equal(r.productId, null)
+  assert.equal(r.planId, null)
+})
+
+test('regla: un closer que no ve las ventas de otros NO ve «sin ventas» (hay ventas que no puede ver)', () => {
+  // totalSales cuenta también las que el closer no ve: no se afirma venta nueva.
+  const r = sinPrecio([], conocido(2))
+  assert.equal(r.mode, '')
+})
+
+test('regla: varias ventas con saldo o ventas ya saldadas no se resuelven solas (upsell/renovación o ambigüedad)', () => {
+  assert.equal(sinPrecio([sale, { ...sale, id: 'otra' }], conocido(2)).mode, '')
+  assert.equal(sinPrecio([{ ...sale, collected: 1200 }], conocido(1)).mode, '')
+})
+
+test('regla: contacto sin identificar o reservas no activan la regla', () => {
+  assert.equal(sinPrecio([], { known: false, totalSales: 0 }).mode, '')
+  assert.equal(sinPrecio([{ ...sale, method: 'reserva', collected: 50, gross_amount: 50 }], conocido(1)).mode, '')
+})
+
+test('regla: la evidencia fuerte (Price ID) sigue mandando sobre la regla general', () => {
+  // Con Price ID mapeado y el contacto sin ventas, la sugerencia sigue siendo la del plan reconocido.
+  const r = suggestPayment(base, mapped, [], plans, 400, '2026-02-01', conocido(0))
+  assert.equal(r.mode, 'new')
+  assert.equal(r.planId, 'plan')
+})

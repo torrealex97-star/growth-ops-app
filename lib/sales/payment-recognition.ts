@@ -36,21 +36,78 @@ export type RecognitionPlan = {
   number_of_payments: number
   method: string | null
 }
+type Sugerencia = {
+  mode: '' | 'new' | 'existing' | 'reservation'
+  saleId: string | null
+  productId: string | null
+  planId: string | null
+  remainingCount: number | null
+  installment: RecognitionInstallment | null
+  nextPaymentDate: string | null
+  subscriptionStatus: string | null
+  cancelAtPeriodEnd: boolean
+  reason: string
+}
+
+/**
+ * Regla del negocio para un cobro SIN evidencia de producto: si el cliente ya existe (tiene una venta con
+ * saldo pendiente) el cobro es un PAGO de esa venta; si no tiene ninguna venta, es una venta NUEVA.
+ * Siempre es una sugerencia que se confirma antes de registrar, y se queda en blanco cuando no es inequívoca:
+ *  - varias ventas con saldo → decide quien registra (no se elige una al azar);
+ *  - ventas ya saldadas → puede ser un upsell o una renovación, que son ventas nuevas de verdad;
+ *  - contacto sin identificar o ventas que quien mira no puede ver → no se afirma «sin ventas».
+ */
+function reglaClienteExiste(
+  result: Sugerencia,
+  sales: RecognitionSale[],
+  contacto: { known: boolean; totalSales: number }
+) {
+  if (!contacto.known) return result
+  const conSaldo = sales.filter((s) => s.method !== 'reserva' && s.gross_amount - s.collected > 0.01)
+  if (conSaldo.length === 1) {
+    const [venta] = conSaldo
+    result.mode = 'existing'
+    result.saleId = venta.id
+    result.installment = venta.nextInstallment ?? null
+    result.reason =
+      'El contacto ya es cliente y tiene una venta con saldo pendiente: se propone como pago de esa venta. Confirma antes de registrar.'
+    return result
+  }
+  if (conSaldo.length > 1) {
+    result.reason = 'El contacto tiene varias ventas con saldo pendiente. Elige a cuál corresponde este pago.'
+    return result
+  }
+  if (contacto.totalSales === 0) {
+    result.mode = 'new'
+    result.reason =
+      'El contacto no tiene ventas previas: se propone venta nueva. Elige producto y plan antes de registrar.'
+    return result
+  }
+  result.reason =
+    'El contacto ya tiene ventas pero sin saldo pendiente: puede ser una venta nueva (upsell o renovación). Decide al registrar.'
+  return result
+}
+
 export function suggestPayment(
   evidence: PaymentEvidence,
   mapped: { productId: string; paymentPlanId: string } | null,
   sales: RecognitionSale[],
   plans: RecognitionPlan[],
   amount: number,
-  paidAt: string | null
+  paidAt: string | null,
+  /**
+   * Lo que se sabe del contacto del cobro. `totalSales` cuenta TODAS sus ventas activas, también las
+   * que quien mira no puede ver (un closer solo ve las suyas): «no tiene ventas» solo es verdad si es 0.
+   */
+  contacto: { known: boolean; totalSales: number } = { known: false, totalSales: 0 }
 ) {
-  const result = {
-    mode: '' as '' | 'new' | 'existing' | 'reservation',
-    saleId: null as string | null,
-    productId: null as string | null,
-    planId: null as string | null,
-    remainingCount: null as number | null,
-    installment: null as RecognitionInstallment | null,
+  const result: Sugerencia = {
+    mode: '',
+    saleId: null,
+    productId: null,
+    planId: null,
+    remainingCount: null,
+    installment: null,
     nextPaymentDate: evidence.nextPaymentDate,
     subscriptionStatus: evidence.subscriptionStatus,
     cancelAtPeriodEnd: evidence.cancelAtPeriodEnd,
@@ -105,9 +162,10 @@ export function suggestPayment(
         result.planId = reservas[0].id
         result.reason =
           'El importe coincide exactamente con un plan de reserva activo. Se sugiere registrarlo como reserva: confirma producto y plan.'
+        return result
       }
     }
-    return result
+    return reglaClienteExiste(result, sales, contacto)
   }
   const plan = plans.find((p) => p.id === mapped.paymentPlanId && p.product_id === mapped.productId)
   if (!plan) return result
