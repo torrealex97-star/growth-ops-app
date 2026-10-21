@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+import { anexarMotivoDescualificacion } from '@/lib/agenda/notas'
 import { requireTenant } from '@/lib/auth/requireTenant'
 
 export const runtime = 'nodejs'
@@ -57,7 +58,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ te
     // Motivo de descualificación (lead sin teléfono real, datos falsos, etc): se guarda en las
     // notas de la agenda, que ya son visibles en la columna "Notas" del pipeline de seguimiento.
     if (stage === 'descualificado' && typeof reason === 'string' && reason.trim()) {
-      update.notes = reason.trim()
+      // Se AÑADE a las notas existentes: sustituirlas borraba lo que el closer ya había guardado.
+      update.notes = anexarMotivoDescualificacion(appt.notes, reason)
     }
 
     let updateQuery = sb.from('appointments').update(update).eq('id', appointmentId).eq('tenant_id', t.tenantId)

@@ -1,5 +1,6 @@
 'use client'
 
+import { anexarMotivoDescualificacion } from '@/lib/agenda/notas'
 import { Skeleton } from '@/components/ui/skeleton'
 
 import { useEffect, useMemo, useState } from 'react'
@@ -275,7 +276,7 @@ export default function SeguimientoPage() {
               ...a,
               followup_stage: followupStage,
               last_contacted_at: new Date().toISOString(),
-              ...(reason ? { notes: reason } : {}),
+              ...(reason ? { notes: anexarMotivoDescualificacion(prevNotes, reason) } : {}),
             }
           : a
       )
@@ -288,6 +289,11 @@ export default function SeguimientoPage() {
       })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json?.error || 'No se pudo actualizar la etapa')
+      // Las notas finales son las que calculó el servidor (con el motivo añadido), no la estimación local.
+      if (typeof json?.notes === 'string') {
+        setAppointments((cur) => cur.map((a) => (a.id === appointmentId ? { ...a, notes: json.notes } : a)))
+        limpiarBorrador(appointmentId)
+      }
       toast.success('Etapa de seguimiento actualizada')
     } catch (err) {
       setAppointments((cur) =>
@@ -311,6 +317,17 @@ export default function SeguimientoPage() {
     void handleFollowupStageChange(appointmentId, nextStage)
   }
 
+  // El borrador de la caja de notas solo vale mientras se escribe. Si se queda después de guardar (o de que
+  // la nota cambie desde otro sitio), la caja sigue enseñando el texto viejo y al salir del campo lo vuelve
+  // a guardar ENCIMA de lo nuevo: la nota «desaparece».
+  const limpiarBorrador = (appointmentId: string) =>
+    setNotesDraft((d) => {
+      if (!(appointmentId in d)) return d
+      const { [appointmentId]: _descartado, ...resto } = d
+      void _descartado
+      return resto
+    })
+
   const handleSaveNotes = async (appointmentId: string) => {
     const draft = notesDraft[appointmentId]
     const current = appointments.find((a) => a.id === appointmentId)
@@ -325,6 +342,7 @@ export default function SeguimientoPage() {
       const json = await res.json().catch(() => ({}))
       if (!res.ok || json?.error) throw new Error(json?.error || 'No se pudo guardar la nota')
       setAppointments((cur) => cur.map((a) => (a.id === appointmentId ? { ...a, notes: draft.trim() } : a)))
+      limpiarBorrador(appointmentId)
       toast.success('Nota guardada')
     } catch (err) {
       toast.error('No se pudo guardar la nota', { description: err instanceof Error ? err.message : undefined })
@@ -336,6 +354,7 @@ export default function SeguimientoPage() {
   // Notas, enlace y transcripción ya guardados: se reflejan en la lista y en la agenda abierta.
   const handleFieldsSaved = (id: string, campos: Partial<AppointmentWithRelations>) => {
     setAppointments((prev) => prev.map((a) => (a.id === id ? { ...a, ...campos } : a)))
+    if ('notes' in campos) limpiarBorrador(id)
     if (selectedAppointment?.id === id) {
       setSelectedAppointment((prev) => (prev ? { ...prev, ...campos } : prev))
     }
