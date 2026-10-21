@@ -14,6 +14,7 @@ export type InboxPayment = {
   paid_at: string | null
 }
 type Contact = { id: string; email: string | null; full_name: string | null; custom_fields?: unknown }
+type ContactoProyectado = Omit<Contact, 'custom_fields'> & { emails_alternativos?: unknown }
 export type PendingPayment = InboxPayment & {
   contactId: string | null
   contactName: string | null
@@ -69,20 +70,39 @@ export function pendingPayments(
 }
 
 export async function readPaymentInbox(sb: SupabaseClient, tenantId: string, closerId: string | null) {
-  const read = async <T>(table: string, columns: string) => {
-    const result = await fetchAllRows<T>(
-      () => sb.from(table).select(columns).eq('tenant_id', tenantId).order('id') as unknown as RangeQuery<T>
-    )
+  // `filtrar` aplica condiciones EN LA BASE que de todos modos se aplicarían después en código
+  // (pendingPayments): así no se descargan filas que se van a tirar. Los filtros son equivalentes, no nuevos.
+  type Consulta = ReturnType<ReturnType<SupabaseClient['from']>['select']>
+  const read = async <T>(table: string, columns: string, filtrar?: (q: Consulta) => Consulta) => {
+    const result = await fetchAllRows<T>(() => {
+      const base = sb.from(table).select(columns).eq('tenant_id', tenantId) as unknown as Consulta
+      return (filtrar ? filtrar(base) : base).order('id') as unknown as RangeQuery<T>
+    })
     if (result.error || result.truncated) throw new Error('No se pudo leer la bandeja completa de cobros. Reintenta.')
     return result.rows
   }
   const [payments, contacts, collections, appointments, sales, customerLinks] = await Promise.all([
+    // Solo los pagos que pueden estar pendientes: pendingPayments descarta el resto sin mirarlos.
     read<InboxPayment>(
       'stripe_payments',
-      'payment_id,charge_id,customer_id,customer_email,amount,refunded_amount,currency,status,paid_at'
+      'payment_id,charge_id,customer_id,customer_email,amount,refunded_amount,currency,status,paid_at',
+      (q) => q.in('status', ['succeeded', 'partially_refunded'])
     ),
-    read<Contact>('contacts', 'id,email,full_name,custom_fields'),
-    read<{ payment_reference: string | null }>('collections', 'payment_reference'),
+    // Del JSON `custom_fields` de cada contacto (puede ser enorme: campos de GHL) solo se lee una clave,
+    // `emails_alternativos` (aliasDeContacto). Se trae solo esa y se reconstruye la forma que espera el
+    // resto del código.
+    read<ContactoProyectado>(
+      'contacts',
+      'id,email,full_name,emails_alternativos:custom_fields->emails_alternativos'
+    ).then((rows) =>
+      rows.map(({ emails_alternativos, ...c }): Contact => ({
+        ...c,
+        custom_fields: emails_alternativos == null ? {} : { emails_alternativos },
+      }))
+    ),
+    read<{ payment_reference: string | null }>('collections', 'payment_reference', (q) =>
+      q.not('payment_reference', 'is', null)
+    ),
     closerId
       ? read<{ contact_id: string; closer_id: string | null }>('appointments', 'contact_id,closer_id')
       : Promise.resolve([]),

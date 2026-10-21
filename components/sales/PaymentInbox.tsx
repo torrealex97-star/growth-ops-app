@@ -12,6 +12,7 @@ import { canViewPaymentInbox } from '@/lib/sales/payment-inbox-access'
 import type { suggestPayment } from '@/lib/sales/payment-recognition'
 import type { PendingPayment } from '@/lib/sales/payment-inbox'
 import { loadPaymentInbox, invalidatePaymentInbox } from '@/lib/sales/payment-inbox-client'
+import { pedir } from '@/lib/ui/pedir'
 import { VincularCobro } from '@/components/sales/VincularCobro'
 import type { SugerenciaContacto } from '@/lib/sales/identidad-pago'
 
@@ -117,21 +118,34 @@ export function PaymentInbox({ compact = false, onCount }: { compact?: boolean; 
     const update = () => {
       void refresh(controller.signal)
     }
+    // Recuperar el foco relanzaba la lectura COMPLETA de la bandeja cada vez que se cambiaba de pestaña.
+    // Una vez cada 30 s basta; los cambios reales llegan por el evento `changed`.
+    let ultimaPorFoco = Date.now()
+    const alVolver = () => {
+      if (Date.now() - ultimaPorFoco < 30_000) return
+      ultimaPorFoco = Date.now()
+      update()
+    }
     window.addEventListener(changed, update)
-    window.addEventListener('focus', update)
+    window.addEventListener('focus', alVolver)
     return () => {
       controller.abort()
       window.removeEventListener(changed, update)
-      window.removeEventListener('focus', update)
+      window.removeEventListener('focus', alVolver)
     }
   }, [refresh, onCount])
 
   async function open(paymentId: string) {
     setOpening(paymentId)
     try {
-      const res = await fetch(`/api/${tenant}/evergreen/sales/payment-inbox?payment=${encodeURIComponent(paymentId)}`)
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error)
+      // `pedir` pone techo de tiempo y traduce un 504/HTML a un mensaje legible: antes el `.json()` a pelo
+      // soltaba «Unexpected token <» o dejaba el cobro «abriéndose» sin fin.
+      const r = await pedir<Detail>(
+        `/api/${tenant}/evergreen/sales/payment-inbox?payment=${encodeURIComponent(paymentId)}`,
+        { timeoutMs: 58_000 }
+      )
+      if (!r.ok) throw new Error(r.mensaje)
+      const body = r.data as Detail & Record<string, any>
       setDetail(body)
       // Reconocido por Price ID (ver lib/sales/priceRecognition.ts): se prerrellena, pero sigue
       // siendo una sugerencia — el admin/closer puede cambiarla antes de guardar.
