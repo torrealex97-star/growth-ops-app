@@ -49,11 +49,12 @@ const PUBLIC_PATHS = [
 
 // Sub-rutas públicas DENTRO de un tenant (no requieren sesión Supabase),
 // expresadas relativas al tenant — es decir, sin el segmento [tenant].
-const TENANT_PUBLIC_SUFFIXES = ['/login', '/recover', '/afiliados/registro']
+const TENANT_PUBLIC_SUFFIXES = ['/login', '/recover', '/afiliados/registro', '/f/']
 const TENANT_API_PUBLIC_SUFFIXES = [
   '/evergreen/auth', // login/recover/callback
   '/evergreen/afiliados/registro',
   '/evergreen/afiliados/form-config',
+  '/evergreen/forms/public', // formularios públicos: config, sesión y envío (sin sesión, con rate limit)
   '/evergreen/webhooks', // GHL / player VSL — se autentican con su propio secreto, no con sesión
   '/evergreen/tracking/events', // ingestión canónica — se autentica con TRACKING_INGEST_KEY
   '/evergreen/admin/migrate-meta', // migración v19 Meta — CRON_SECRET o sesión admin

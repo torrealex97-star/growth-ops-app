@@ -110,7 +110,8 @@ export type ConfigCapi = { pixelId: string; accessToken: string; apiVersion: str
 export function capiConfig(cfg: Record<string, string | undefined>): ConfigCapi | null {
   const pixelId = (cfg.META_PIXEL_ID ?? '').trim()
   const accessToken = (cfg.META_ACCESS_TOKEN ?? '').trim()
-  if (cfg.META_CAPI_ENABLED !== 'true') return null
+  // El checkbox de Integraciones guarda '1'/'0'; se acepta también 'true' como el resto de flags de Meta.
+  if (!/^(1|true)$/i.test((cfg.META_CAPI_ENABLED ?? '').trim())) return null
   if (!/^\d{8,20}$/.test(pixelId) || !accessToken) return null
   return { pixelId, accessToken, apiVersion: (cfg.META_API_VERSION ?? '').trim() || META_API_VERSION }
 }

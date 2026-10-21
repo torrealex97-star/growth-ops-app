@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { requirePantalla } from '@/lib/auth/requirePantalla'
+import { businessEndOfDay, businessStartOfDay, businessToday } from '@/lib/dates/business'
 import { fetchAllRows } from '@/lib/supabase/paginate'
 import { calcularTraficoWeb, type EventoTrafico } from '@/lib/analytics/trafico-web'
 
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
   if ('error' in session) return session.error
 
   const url = new URL(req.url)
-  const to = url.searchParams.get('to') || ymd(Date.now())
+  const to = url.searchParams.get('to') || businessToday()
   const from = url.searchParams.get('from') || ymd(Date.parse(`${to}T00:00:00Z`) - 29 * DIA_MS)
   if (!isIsoDate(from) || !isIsoDate(to)) {
     return NextResponse.json({ error: 'Las fechas deben ir en formato YYYY-MM-DD' }, { status: 400 })
@@ -38,6 +39,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
   const prevTo = ymd(Date.parse(`${from}T00:00:00Z`) - DIA_MS)
   const prevFrom = ymd(Date.parse(`${from}T00:00:00Z`) - dias * DIA_MS)
 
+  if (!businessStartOfDay(prevFrom) || !businessEndOfDay(to)) {
+    return NextResponse.json({ error: 'Fechas inválidas' }, { status: 400 })
+  }
   const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
     auth: { autoRefreshToken: false, persistSession: false },
   })
@@ -48,8 +52,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
         .select('visitor_id,session_id,event_name,occurred_at,url:properties->>url,referrer:properties->>referrer')
         .eq('tenant_id', session.tenantId)
         .in('event_name', EVENTOS)
-        .gte('occurred_at', `${desde}T00:00:00Z`)
-        .lte('occurred_at', `${hasta}T23:59:59.999Z`)
+        // Días del negocio (Europe/Madrid), no UTC: si no, se pierden las 00:00-02:00 del primer día.
+        .gte('occurred_at', (businessStartOfDay(desde) as Date).toISOString())
+        .lte('occurred_at', (businessEndOfDay(hasta) as Date).toISOString())
         .order('id')
     )
   const [actual, anterior] = await Promise.all([leer(from, to), leer(prevFrom, prevTo)])

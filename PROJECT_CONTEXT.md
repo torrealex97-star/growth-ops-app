@@ -378,3 +378,14 @@ Tres bugs reales encontrados en producción en la misma auditoría, los tres del
 2. **Una columna que existe en producción sin migración en el repo probablemente no la lee nadie.** `users.pays_commissions` llevaba meses en la BD (aplicada a mano, sin migración — el mismo patrón ya documentado en incidentes anteriores de este repo) y CERO líneas de código la comprobaban: una socia marcada para no comisionar comisionó igual, 43 filas y 1.992,20€ ya liquidados. Regla operativa: cuando encuentres una columna "sospechosa" (existe pero no aparece en ningún `.select()` ni tipo TS), asume que hay una regla de negocio rota hasta que compruebes lo contrario — no asumas que "si no se usa, no importa".
 3. **"Vacío" no es un valor seguro por defecto en una integración con token compartido.** `resolveMetaConfigs` trataba "ninguna cuenta de Meta seleccionada" como "sincroniza todas las que vea el token" — y el token de Meta Business Manager veía cuentas de OTRO negocio del mismo dueño. Resultado: 164 campañas, ~190.081€ de `campaign_daily` y 16.552€ ya escritos en `expenses` de un negocio ajeno, acumulados en silencio porque nadie marcó explícitamente una cuenta (o alguien la desmarcó). Regla operativa para CUALQUIER integración que agregue varias cuentas/fuentes bajo una misma credencial: "sin selección" debe fallar con un error claro, nunca sincronizar de más. Y ningún atajo de UI ("Seleccionar todas") debe invitar a marcar cuentas sin comprobar de quién son.
 4. **La corrección de código no arregla los datos ya escritos.** Los tres bugs de arriba llevaban tiempo corriendo: la corrección de código (PR #211) para el próximo cobro/sync no revierte lo que ya se generó mal. Hubo que auditar con SQL directo (`mcp__Supabase__execute_sql`) cuánto había realmente contaminado antes de tocar el código, y limpiar los datos aparte (con confirmación explícita del dueño del negocio en cada decisión: qué reclasificar, qué borrar, qué dejar como histórico). Un fix que solo toca `lib/` sin auditar la BD deja el problema — ya cuantificado y ya conocido — sin resolver donde más importa.
+
+## 15. Módulo de Formularios (octubre 2026)
+
+Constructor de formularios conversacionales (Marketing › Formularios), formulario público
+`/<subcuenta>/f/<slug>` y feedback de alumnos (Alumnos › Feedback). **Lee `docs/FORMULARIOS.md`
+antes de tocarlo.** Lo esencial: lo publicado vive en `form_versions` (inmutable); solo se guarda el
+camino real de respuestas; el servidor puntúa y decide final/redirección; los envíos públicos entran
+solo por rutas de servidor (sin RLS anónima); webhooks salientes firmados reintentados desde el cron
+diario ya existente. Dos mejoras de rendimiento del mismo periodo viven en `vercel.json`
+(`regions: ["dub1"]`, junto a Supabase eu-west-1) y `lib/auth/requireTenant.ts` (lecturas de auth en
+paralelo).

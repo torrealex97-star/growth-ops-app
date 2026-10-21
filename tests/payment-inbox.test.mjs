@@ -67,6 +67,12 @@ test('all sources are tenant-scoped and a read error is never an empty inbox', a
           scopes.push([table, key, value])
           return this
         },
+        in() {
+          return this
+        },
+        not() {
+          return this
+        },
         order() {
           return this
         },

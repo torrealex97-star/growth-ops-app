@@ -160,6 +160,33 @@ export function resolveMetaAttribution(
   }
 }
 
+/**
+ * La ruta del catálogo rechaza (400) más de 300 IDs por tipo. Con un histórico largo se superaba y
+ * TODAS las filas salían «no identificado» sin aviso: se parte en peticiones de como mucho `max` IDs
+ * por tipo, que luego se fusionan.
+ */
+export function trocearSenales(signals: MetaAttributionSignals, max = 300): MetaAttributionSignals[] {
+  const n = Math.max(
+    1,
+    Math.ceil(signals.campaignExternalIds.length / max),
+    Math.ceil(signals.campaignInternalIds.length / max),
+    Math.ceil(signals.adExternalIds.length / max)
+  )
+  const bloques: MetaAttributionSignals[] = []
+  for (let i = 0; i < n; i++) {
+    const trozo = (xs: string[]) => xs.slice(i * max, (i + 1) * max)
+    const bloque = {
+      campaignExternalIds: trozo(signals.campaignExternalIds),
+      campaignInternalIds: trozo(signals.campaignInternalIds),
+      adExternalIds: trozo(signals.adExternalIds),
+    }
+    if (bloque.campaignExternalIds.length || bloque.campaignInternalIds.length || bloque.adExternalIds.length) {
+      bloques.push(bloque)
+    }
+  }
+  return bloques
+}
+
 export function collectMetaAttributionSignals(inputs: MetaAttributionInput[]): MetaAttributionSignals {
   const campaignExternalIds = new Set<string>()
   const campaignInternalIds = new Set<string>()

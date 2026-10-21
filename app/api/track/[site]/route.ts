@@ -158,7 +158,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     eventName,
     eventId,
     receivedAt,
-    capi: { clientIp: ip, userAgent },
+    capi: { clientIp: ip, userAgent, bot: bot === 'likely_bot' },
   })
   return NextResponse.json(resultado.json, { status: resultado.status })
 }

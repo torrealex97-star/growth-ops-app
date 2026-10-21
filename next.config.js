@@ -44,7 +44,9 @@ const nextConfig = {
       { source: '/.well-known/:path*', headers: corsMcp },
       {
         // Todo salvo /embed y los scripts públicos de tracking.
-        source: '/((?!embed|tracker\\.js).*)',
+        // `[^/]+/f/` = formularios públicos (/<subcuenta>/f/<slug>): se incrustan por iframe en webs y
+        // landings de terceros, así que NO llevan X-Frame-Options ni frame-ancestors (igual que /embed).
+        source: '/((?!embed|tracker\\.js|[^/]+/f/).*)',
         headers: [
           { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
           {

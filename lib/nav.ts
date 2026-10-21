@@ -285,6 +285,26 @@ export const NAV_SECTIONS: NavSection[] = [
       },
       { label: 'Contenido', href: '/marketing/contenido', icon: Clapperboard, roles: [...LEAD, 'marketing', 'editor'] },
       {
+        label: 'Formularios',
+        href: '/marketing/formularios',
+        icon: ClipboardList,
+        roles: [...LEAD, 'marketing'],
+        children: [
+          {
+            label: 'Mis formularios',
+            href: '/marketing/formularios',
+            icon: ClipboardList,
+            roles: [...LEAD, 'marketing'],
+          },
+          {
+            label: 'Plantillas',
+            href: '/marketing/formularios/plantillas',
+            icon: FileText,
+            roles: [...LEAD, 'marketing'],
+          },
+        ],
+      },
+      {
         label: 'Colaboradores',
         href: '/marketing/afiliados/afiliados',
         icon: TrendingUp,
@@ -307,6 +327,17 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'Alumnos', href: '/students', icon: GraduationCap, roles: [...LEAD, 'csm'] },
       { label: 'Eventos CSM', href: '/csm-events', icon: CalendarCheck, roles: [...LEAD, 'csm'] },
+      {
+        label: 'Feedback',
+        href: '/students/feedback',
+        icon: Award,
+        roles: [...LEAD, 'csm'],
+        children: [
+          { label: 'Resumen', href: '/students/feedback', icon: Award, roles: [...LEAD, 'csm'] },
+          { label: 'Profesores', href: '/students/feedback/profesores', icon: GraduationCap, roles: [...LEAD, 'csm'] },
+          { label: 'Respuestas', href: '/students/feedback/respuestas', icon: ClipboardList, roles: [...LEAD, 'csm'] },
+        ],
+      },
       { label: 'Cancelaciones', href: '/drops', icon: UserMinus, roles: [...LEAD, 'csm'] },
       { label: 'Contratos de alumnos', href: '/contratos', icon: FileText, roles: [...LEAD, 'csm', 'gestoria'] },
       { label: 'Contratos de equipo', href: '/contratos/equipo', icon: Shield, roles: LEAD },

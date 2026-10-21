@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
-import { requirePantalla } from '@/lib/auth/requirePantalla'
+import { requireTenant } from '@/lib/auth/requireTenant'
 import { isValidEventName } from '@/lib/tracking/ingest'
 import { normalizarEventoRaw, type TrackBody } from '@/lib/tracking/normalizar'
 
@@ -13,7 +13,6 @@ export const runtime = 'nodejs'
 // de Vercel (docs/FREE_TIER_OPERATIONS.md). Idempotente: usa el mismo código que la ingesta
 // (normalizarEventoRaw) y el canónico se upserta por (tenant_id, source, source_event_id), así que
 // repetirlo no duplica nada. Lotes pequeños y acotados para no pasar del presupuesto de la Function.
-const PANTALLA = '/settings/data-health'
 const LIMITE_POR_DEFECTO = 100
 const LIMITE_MAXIMO = 200
 
@@ -26,8 +25,12 @@ type RawPendiente = {
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
   const { tenant } = await params
-  const session = await requirePantalla(tenant, PANTALLA)
+  // Reprocesar escribe datos: solo admin/director (Data Health lo ven también marketing y adscripción).
+  const session = await requireTenant(tenant)
   if ('error' in session) return session.error
+  if (!['admin', 'director'].includes(session.role || '')) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  }
 
   const body = (await req.json().catch(() => ({}))) as { limit?: unknown }
   const pedido = body.limit === undefined ? LIMITE_POR_DEFECTO : Number(body.limit)

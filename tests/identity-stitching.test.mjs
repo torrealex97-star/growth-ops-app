@@ -70,7 +70,13 @@ test('un teléfono sin prefijo internacional no identifica', () => {
 })
 
 // Cliente Supabase mínimo que registra cada operación para verificar tenant y guardas.
-function fakeSb({ visitorContact = null, contactsPorEmail = [], touchpoints = 3 } = {}) {
+function fakeSb({
+  visitorContact = null,
+  contactsPorEmail = [],
+  contactsPorTelefono = [],
+  touchpoints = 3,
+  carrera = false,
+} = {}) {
   const log = []
   const from = (tabla) => {
     const op = { tabla, filtros: [], tipo: 'select', payload: null }
@@ -86,8 +92,10 @@ function fakeSb({ visitorContact = null, contactsPorEmail = [], touchpoints = 3 
         Promise.resolve({ data: tabla === 'analytics_visitors' ? { contact_id: visitorContact } : null, error: null }),
       then: (res) => {
         let data = []
-        if (tabla === 'contacts') data = op.filtros.some((f) => f[1] === 'email_normalized') ? contactsPorEmail : []
-        if (tabla === 'analytics_visitors' && op.tipo === 'update') data = visitorContact ? [] : [{ id: 'v1' }]
+        if (tabla === 'contacts')
+          data = op.filtros.some((f) => f[1] === 'email_normalized') ? contactsPorEmail : contactsPorTelefono
+        if (tabla === 'analytics_visitors' && op.tipo === 'update')
+          data = visitorContact || carrera ? [] : [{ id: 'v1' }]
         if (tabla === 'analytics_touchpoints' && op.tipo === 'update')
           data = Array.from({ length: touchpoints }, (_, i) => ({ id: `t${i}` }))
         return Promise.resolve({ data, error: null }).then(res)
@@ -131,4 +139,53 @@ test('la ingesta llama al stitching solo en eventos de identificación y sin rom
   const r = readFileSync('lib/tracking/normalizar.ts', 'utf8')
   assert.match(r, /IDENTITY_EVENTS = new Set\(\['lead', 'form_submit', 'appointment_booked', 'purchase'\]\)/)
   assert.match(r, /try \{[\s\S]*aplicarVinculo[\s\S]*\} catch/)
+})
+
+test('el teléfono se busca solo con dígitos, como lo guarda contacts.phone_normalized', async () => {
+  const { sb, log } = fakeSb({ contactsPorTelefono: [{ id: 'c1' }] })
+  const r = await aplicarVinculo({
+    sb,
+    tenantId: 'T1',
+    visitorId: 'v1',
+    canonicalEventId: 'e1',
+    phone: '+34 600 111 222',
+  })
+  assert.equal(r.accion, 'vincular')
+  const consulta = log.find((o) => o.tabla === 'contacts')
+  assert.ok(consulta.filtros.some((f) => f[1] === 'phone_normalized' && f[2] === '34600111222'))
+})
+
+test('si otra petición enlazó antes al visitante, los toques NO se asignan a este contacto', async () => {
+  const { sb, log } = fakeSb({ contactsPorEmail: [{ id: 'c1' }], carrera: true })
+  const r = await aplicarVinculo({ sb, tenantId: 'T1', visitorId: 'v1', canonicalEventId: 'e1', email: 'a@b.com' })
+  assert.deepEqual(r.hechos, { visitante: false, toques: 0 })
+  assert.equal(log.filter((o) => o.tabla === 'analytics_touchpoints').length, 0)
+  assert.equal(log.filter((o) => o.tabla === 'identity_matches').length, 0)
+})
+
+test('email desconocido + teléfono que coincide: revisión, no vínculo (teléfono compartido)', () => {
+  const d = decidirVinculo({
+    contactoActualDelVisitante: null,
+    email: 'nuevo@x.com',
+    phone: '+34600111222',
+    porEmail: [],
+    porTelefono: [{ id: 'c1' }],
+  })
+  assert.equal(d.accion, 'revision')
+  assert.equal(d.motivo, 'telefono_con_email_desconocido')
+  assert.equal(
+    decidirVinculo({
+      contactoActualDelVisitante: null,
+      phone: '+34600111222',
+      porEmail: [],
+      porTelefono: [{ id: 'c1' }],
+    }).accion,
+    'vincular'
+  )
+})
+
+test('el evento canónico no guarda email ni teléfono en claro y el cliente no pisa los campos del servidor', () => {
+  const n = readFileSync('lib/tracking/normalizar.ts', 'utf8')
+  assert.match(n, /\.\.\.sinIdentificadores\(body\.properties\),\s+url: body\.url/)
+  assert.match(n, /const \{ email: _email, phone: _phone, \.\.\.resto \}/)
 })

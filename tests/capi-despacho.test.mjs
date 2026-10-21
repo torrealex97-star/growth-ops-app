@@ -137,6 +137,11 @@ test('un error de Meta se registra como failed y no lanza', async () => {
 test('solo la ingesta en vivo dispara la CAPI; el reproceso no', () => {
   const ingesta = readFileSync('app/api/track/[site]/route.ts', 'utf8')
   const reproceso = readFileSync('app/api/[tenant]/evergreen/tracking/reproceso/route.ts', 'utf8')
-  assert.match(ingesta, /capi: \{ clientIp: ip, userAgent \}/)
+  assert.match(ingesta, /capi: \{ clientIp: ip, userAgent, bot: bot === 'likely_bot' \}/)
   assert.doesNotMatch(reproceso, /capi:/)
+})
+
+test('un bot no dispara la CAPI desde la ingesta', () => {
+  const n = readFileSync('lib/tracking/normalizar.ts', 'utf8')
+  assert.match(n, /args\.capi && !args\.capi\.bot && EVENTOS_CAPI\[eventName\]/)
 })
