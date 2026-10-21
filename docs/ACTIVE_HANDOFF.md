@@ -1,3 +1,55 @@
+# CENTRALIZACIÓN DE RAMAS Y PENDIENTES (21-oct) — qué está en `main`, qué falta y quién lo hace
+
+**Regla desde hoy:** el trabajo se centraliza aquí. Varias sesiones empujaban a la vez y el E2E de CI (grupo
+`e2e-tenant-qa`) se cancelaba entre ellas, dejando el Release gate en rojo sin fallo real. Arreglado en #589
+(`cancel-in-progress: false`). Para varias ramas dependientes: **una rama de integración, un solo CI, merge commit**
+(así se hizo con #588 y #591). Trabajar en un `git worktree` propio, no en la carpeta compartida.
+
+## Fusionado en esta centralización
+
+- **#588** atribución, tracking y Meta (integra #567 campaña/anuncio exactos, #568 multi-touch, #569 stitching de
+  identidad, #570 funnel por eventos, #573 tráfico web, #575 generador UTM, #576 reproceso, #577 CAPI inerte,
+  #582 Pixel opt-in `_fbc/_fbp`, #583 despacho Lead/Schedule a la CAPI). **La CAPI sigue APAGADA**: exige Pixel ID
+  numérico + token + `META_CAPI_ENABLED='true'`.
+- **#591** módulo de Formularios completo (integra #572, #574, #578–#581, #585). Tablas `form*` ya aplicadas en BD.
+- **#571** plantillas de email con React Email · **#584** Anuncios solo de cuentas seleccionadas · **#589** CI sin
+  cancelaciones del E2E · **#592** correcciones de la revisión de código (otra sesión).
+- Cerrados por estar dentro de los anteriores: #576, #582, #583, #572, #574, #578–#581, #585, #552. Ramas borradas.
+
+## Ramas y PR que quedan
+
+- **#590 Dependabot** (27 actualizaciones): falla lint/tests. No fusionar tal cual; cerrar y pedir grupos pequeños,
+  o actualizar a mano por familias (empezar por `@typescript-eslint`).
+- **Ramas SOLO locales sin PR** (decisión del dueño antes de borrarlas): `backup/main-local-perf` (1 commit, 16-oct),
+  `codex/skeleton-emptystate-adopcion` (13 commits, 2-oct; comprobar si `components/ui/skeleton|empty-state` ya
+  cubren lo suyo), `rescate/linaje-viejo-20260913` (106 commits, copia de rescate). No se han tocado.
+
+## PENDIENTES DEL DUEÑO (por orden de impacto)
+
+1. **Aplicar 2 migraciones de Formularios** (solo endurecen RLS; el código no depende de ellas):
+   `supabase/migrations/20261020120000_forms_csm_solo_alumnos.sql` (csm solo ve feedback de alumnos) y
+   `20261020130000_forms_hardening.sql` (borrar solo admin/director; respuestas solo revisión). SQL Editor de Supabase.
+2. **Calendly**: nunca ha entregado un webhook real (entrada del 19-oct): falta crear la suscripción por API
+   (`POST /webhook_subscriptions`). Hasta entonces las citas entran solo con el cron diario (04:20 UTC).
+3. **Secretos del backup** `BACKUP_DATABASE_URL` y `BACKUP_PASSPHRASE` (el backup nocturno falla cada noche sin ellos).
+4. **Typeform**: añadir a la URL del formulario los campos ocultos `utm_source`, `utm_medium`, `utm_campaign`, `ref`
+   (hoy 0 respuestas llegan atribuidas); formularios de feedback con `purpose=feedback`.
+5. **Meta CAPI/Pixel**: decidir si se activa (Pixel ID + token con `ads_management` + `META_CAPI_ENABLED`) y el
+   Pixel opt-in del tracker; `META_APP_SECRET` y `RESEND_API_KEY` por volver a pegar.
+6. Google Analytics Admin API + propiedad GA4; cada closer conecta Fathom y Google Calendar; 48 asistencias por
+   marcar; «Firmado fuera» (contrato) de la persona pendiente; orígenes del píxel; Cloudflare rate limiting;
+   protección de contraseñas filtradas en Supabase.
+7. Probar tras desplegar: un email real desde Configuración › Correos (plantillas nuevas), un cobro con otro correo
+   (bandeja → «Es esta persona»), un formulario público de Formularios, y Contactos/Agendas como closer.
+8. Decidir: textos «Academia» y «Winner» fijos en los correos de alumnos de todas las subcuentas (hacerlos configurables).
+
+## PRÓXIMOS PASOS TÉCNICOS (míos)
+
+- Recaptura completa del fixture de esquema (`esquema-produccion-20260923.json`) cuando haya conectividad al pooler.
+- TanStack Query en pantallas pesadas y round-robin/enrutamiento (ideas de Cal.diy): opcionales.
+- Normalizar alias de canal («ig»/«instagram») en el modelo de último toque.
+- Revisar con calma el módulo de Formularios en producción (se fusionó con CI verde y tests, sin revisión manual).
+
 # COMPLETADO — barrido de errores: drift del artefacto de tipos BD (20-oct, Buffy) · `fix/platform-settings-invariante` (PR #586, squash `509c0405`)
 
 `npm run quality` en rojo por dos tests del invariante de esquema. Aclaración de alcance del squash: el commit
