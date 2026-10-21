@@ -83,6 +83,7 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@typescript-eslint/eslint-plugin": "^8.71.2",
+    "@typescript-eslint/parser": "^8.72.0",
     "dotenv": "^18.0.8",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.4.2",
