@@ -1,17 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
 import { getTenantConfigWithFallback } from '@/lib/config'
 import { getOrCreateContact } from '@/lib/contacts/resolve'
-import { leerToque, registrarToque, toqueTieneDatos } from '@/lib/contacts/atribucion'
-import { resolverColaboradorPorCodigo } from '@/lib/collaborators/scope'
+import { guardarCualificacion, registrarOrigen } from '@/lib/contacts/origen-y-cualificacion'
 import { hechoDesdeSobre } from '@/lib/eventos/canonico'
 import { verificarFirmaTypeform } from '@/lib/webhooks/typeform'
 import { escaparLike } from '@/lib/search/like'
-import {
-  fusionarCualificacion,
-  listaFormulariosFeedback,
-  normalizarRespuestaTypeform,
-  type RespuestaTypeform,
-} from '@/lib/typeform/respuesta'
+import { listaFormulariosFeedback, normalizarRespuestaTypeform, type RespuestaTypeform } from '@/lib/typeform/respuesta'
 
 // MOTOR DEL WEBHOOK DE TYPEFORM.
 //
@@ -213,79 +207,9 @@ async function proyectarLead(
   if (!resolved.ok) return 'error'
   const contactId = resolved.contact.id
 
-  // Atribución: los campos ocultos de la URL (utm_*) son el toque, y `ref` (o `referral`/`colaborador`) es
-  // el código de una colaboradora, resuelto en el servidor a su perfil: la comisión va por FK, nunca por
-  // texto. Un fallo aquí no tumba el webhook: el contacto y sus respuestas valen más que su procedencia.
-  try {
-    const codigo = r.ocultos.ref || r.ocultos.referral || r.ocultos.colaborador || null
-    const perfil = codigo ? await resolverColaboradorPorCodigo(sb, tenantId, codigo) : null
-    const toque = { ...leerToque(r.ocultos), source: 'typeform' }
-    if (perfil || toqueTieneDatos(leerToque(r.ocultos))) {
-      const resultado = await registrarToque(sb, tenantId, contactId, {
-        ...toque,
-        enEl: r.enviadoEn ?? ahora,
-        colaboradorId: perfil?.id ?? null,
-      })
-      if (!resultado.ok) console.warn('[atribucion/typeform] no se pudo registrar el toque:', resultado.error)
-    }
-  } catch (e) {
-    console.warn('[atribucion/typeform] no se pudo registrar el toque:', e instanceof Error ? e.message : e)
-  }
-
-  // Cualificación del contacto: lo nuevo gana en sus claves y se conserva lo que Calendly ya traía.
-  const { data: actual } = await sb
-    .from('contacts')
-    .select('qualification')
-    .eq('id', contactId)
-    .eq('tenant_id', tenantId)
-    .maybeSingle()
-  const fusionada = fusionarCualificacion(actual?.qualification as Record<string, unknown> | null, r.cualificacion)
-  const { error: errQ } = await sb
-    .from('contacts')
-    .update({ qualification: fusionada, qualification_updated_at: ahora })
-    .eq('id', contactId)
-    .eq('tenant_id', tenantId)
-  if (errQ) console.error('[typeform-webhook] no se pudo guardar la cualificación del contacto:', errQ.message)
-
-  await copiarAAgendas(sb, tenantId, contactId, r.cualificacion)
+  await registrarOrigen(sb, tenantId, contactId, r.ocultos, { source: 'typeform', enEl: r.enviadoEn ?? ahora })
+  await guardarCualificacion(sb, tenantId, contactId, r.cualificacion, ahora)
   return contactId
-}
-
-/**
- * Copia las respuestas de Typeform a las agendas YA existentes de la persona. La agenda manda en lo que
- * ya contestó (las respuestas de Calendly son lo que dijo al reservar) y Typeform rellena el resto.
- * Una agenda cancelada no se toca: no hay nadie a quien enseñársela.
- */
-async function copiarAAgendas(
-  sb: Servicio,
-  tenantId: string,
-  contactId: string,
-  cualificacionTypeform: Record<string, unknown>
-): Promise<void> {
-  const { data: citas, error } = await sb
-    .from('appointments')
-    .select('id, status, qualification')
-    .eq('tenant_id', tenantId)
-    .eq('contact_id', contactId)
-  if (error) {
-    console.warn('[typeform-webhook] no se pudieron leer las agendas del contacto:', error.message)
-    return
-  }
-  const pendientes = (citas ?? []) as { id: string; status: string | null; qualification: unknown }[]
-  await Promise.all(
-    pendientes.map(async (cita) => {
-      if (/cancel/i.test(cita.status ?? '')) return
-      const propia = (cita.qualification as Record<string, unknown> | null) ?? null
-      const fusionada = propia ? fusionarCualificacion(cualificacionTypeform, propia) : cualificacionTypeform
-      if (JSON.stringify(fusionada) === JSON.stringify(propia)) return
-      const { error: errUp } = await sb
-        .from('appointments')
-        .update({ qualification: fusionada })
-        .eq('id', cita.id)
-        .eq('tenant_id', tenantId)
-      if (errUp) console.warn(`[typeform-webhook] no se pudo copiar a la agenda ${cita.id}:`, errUp.message)
-    })
-  )
 }
 
 /** Feedback: solo se ENCUENTRA a la persona (email, luego teléfono); nunca se crea un contacto. */
