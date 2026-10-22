@@ -39,6 +39,7 @@ test('la cabecera que el catálogo declara es la que la ruta comprueba de verdad
     hotmart: { cabecera: 'x-hotmart-hottok', clave: 'HOTMART_WEBHOOK_SECRET' },
     whop: { cabecera: 'webhook-signature', clave: 'WHOP_WEBHOOK_SECRET' },
     typeform: { cabecera: 'typeform-signature', clave: 'TYPEFORM_WEBHOOK_SECRET' },
+    'ghl-mensajes': { cabecera: 'x-ghl-secret', clave: 'GHL_WEBHOOK_SECRET' },
     contratos: { cabecera: 'x-ghl-secret', clave: 'GHL_WEBHOOK_SECRET' },
     onboarding: { cabecera: 'x-ghl-secret', clave: 'ONBOARDING_INBOUND_SECRET' },
   }

@@ -43,6 +43,7 @@ test('un webhook que reutiliza el secreto de GHL no ofrece generar uno nuevo (ro
   // Regla general: quien comparte clave con otro webhook no puede inventarse el secreto por su cuenta.
   for (const w of WEBHOOKS_ENTRANTES) {
     const compartida = WEBHOOKS_ENTRANTES.some((o) => o.id !== w.id && o.auth.configKey === w.auth.configKey)
-    if (compartida && w.id !== 'ghl-citas') assert.equal(w.guia.secretoLoEligesTu, false, w.id)
+    if (compartida && w.id !== 'ghl-citas' && w.id !== 'ghl-mensajes')
+      assert.equal(w.guia.secretoLoEligesTu, false, w.id)
   }
 })

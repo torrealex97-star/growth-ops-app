@@ -2185,6 +2185,135 @@ export type EsquemaPublico = {
         tenant_id: string | undefined
       }
     }
+    ConversationEvents: {
+      Row: {
+        id: string
+        tenant_id: string
+        conversation_id: string
+        actor_user_id: string | null
+        kind: string
+        data: Json
+        created_at: string
+      }
+      Insert: {
+        id: string | undefined
+        tenant_id: string
+        conversation_id: string
+        actor_user_id: string | null
+        kind: string
+        data: Json | undefined
+        created_at: string | undefined
+      }
+      Update: {
+        id: string | undefined
+        tenant_id: string | undefined
+        conversation_id: string | undefined
+        actor_user_id: string | undefined
+        kind: string | undefined
+        data: Json | undefined
+        created_at: string | undefined
+      }
+    }
+    ConversationMessages: {
+      Row: {
+        id: string
+        tenant_id: string
+        conversation_id: string
+        external_id: string
+        direction: string
+        author: string
+        body: string
+        sent_at: string
+        created_at: string
+      }
+      Insert: {
+        id: string | undefined
+        tenant_id: string
+        conversation_id: string
+        external_id: string
+        direction: string
+        author: string
+        body: string | undefined
+        sent_at: string
+        created_at: string | undefined
+      }
+      Update: {
+        id: string | undefined
+        tenant_id: string | undefined
+        conversation_id: string | undefined
+        external_id: string | undefined
+        direction: string | undefined
+        author: string | undefined
+        body: string | undefined
+        sent_at: string | undefined
+        created_at: string | undefined
+      }
+    }
+    Conversations: {
+      Row: {
+        id: string
+        tenant_id: string
+        external_id: string
+        source: string
+        channel: string
+        contact_id: string | null
+        contact_external_id: string | null
+        status: string
+        snoozed_until: string | null
+        assignee_id: string | null
+        ai_mode: string
+        labels: string[]
+        last_inbound_at: string | null
+        last_message_at: string | null
+        first_reply_at: string | null
+        unread_count: number
+        summary: string | null
+        created_at: string
+        updated_at: string
+      }
+      Insert: {
+        id: string | undefined
+        tenant_id: string
+        external_id: string
+        source: string | undefined
+        channel: string | undefined
+        contact_id: string | null
+        contact_external_id: string | null
+        status: string | undefined
+        snoozed_until: string | null
+        assignee_id: string | null
+        ai_mode: string | undefined
+        labels: string[] | undefined
+        last_inbound_at: string | null
+        last_message_at: string | null
+        first_reply_at: string | null
+        unread_count: number | undefined
+        summary: string | null
+        created_at: string | undefined
+        updated_at: string | undefined
+      }
+      Update: {
+        id: string | undefined
+        tenant_id: string | undefined
+        external_id: string | undefined
+        source: string | undefined
+        channel: string | undefined
+        contact_id: string | undefined
+        contact_external_id: string | undefined
+        status: string | undefined
+        snoozed_until: string | undefined
+        assignee_id: string | undefined
+        ai_mode: string | undefined
+        labels: string[] | undefined
+        last_inbound_at: string | undefined
+        last_message_at: string | undefined
+        first_reply_at: string | undefined
+        unread_count: number | undefined
+        summary: string | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+      }
+    }
     CsmEvents: {
       Row: {
         id: string | null
