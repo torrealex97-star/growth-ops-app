@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   ComposedChart,
   LineChart,
@@ -311,7 +312,7 @@ export function DailyMetricsPanel({ from, to }: { from?: string | null; to?: str
       {/* Tabla por fecha */}
       <div className="dashboard-card overflow-x-auto max-h-[480px]">
         {loading ? (
-          <div className="h-48 animate-pulse bg-card" />
+          <Skeleton className="h-48" />
         ) : rows.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">
             Sin datos diarios en este rango. Sincroniza el gasto diario de Meta para rellenar la tabla.

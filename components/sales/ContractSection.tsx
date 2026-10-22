@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { FileText, Copy, Check, ExternalLink, Send, Loader2, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatDateTime } from '@/lib/utils'
@@ -133,7 +134,7 @@ export function ContractSection({ saleId }: { saleId: string }) {
   }
 
   if (loading) {
-    return <div className="bg-card border border-border rounded-lg p-6 mt-4 h-24 animate-pulse" />
+    return <Skeleton className="border border-border p-6 mt-4 h-24" />
   }
 
   return (

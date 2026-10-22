@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -272,7 +273,7 @@ export default function BibliotecaPage() {
           </div>
 
           {loading ? (
-            <div className="h-48 bg-card rounded-lg animate-pulse" />
+            <Skeleton className="h-48" />
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <Video className="w-12 h-12 text-muted-foreground mb-4" />

@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { AlertTriangle, Activity, Target, ArrowRight } from 'lucide-react'
@@ -20,7 +21,7 @@ import { AnotacionesInspector } from '@/components/metrics/AnotacionesInspector'
 
 const SalesChart = dynamic(() => import('@/components/os/SalesChart').then((m) => ({ default: m.SalesChart })), {
   ssr: false,
-  loading: () => <div className="dashboard-card h-72 animate-pulse" />,
+  loading: () => <Skeleton className="dashboard-card h-72" />,
 })
 
 // EL PANEL DE GROWTH: la restricción primero, las tarjetas después.

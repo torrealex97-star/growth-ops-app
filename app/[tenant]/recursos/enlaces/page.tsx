@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -545,7 +546,7 @@ export default function EnlacesPage() {
   }
 
   if (loading) {
-    return <div className="h-48 bg-card rounded-lg animate-pulse" />
+    return <Skeleton className="h-48" />
   }
 
   return (

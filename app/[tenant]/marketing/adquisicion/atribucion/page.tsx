@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { fetchAllRows } from '@/lib/supabase/paginate'
 import {
   funnelBySource,
@@ -113,7 +114,7 @@ function BarList({
     return (
       <div className="space-y-3">
         {[...Array(5)].map((_, i) => (
-          <div key={i} className="h-6 animate-pulse bg-muted rounded" />
+          <Skeleton key={i} className="h-6 bg-muted rounded" />
         ))}
       </div>
     )
@@ -699,7 +700,7 @@ export default function AttributionPage() {
             'El crédito pondera según el tiempo entre el primer y el último toque (semivida de 7 días, igual que el time-decay de Meta/Google Ads): cuanto más lejano el primer toque, más se lleva el último. No aplica a Agendas.'}
         </p>
         {loading ? (
-          <div className="h-40 animate-pulse bg-muted rounded" />
+          <Skeleton className="h-40 bg-muted rounded" />
         ) : rows.length === 0 ? (
           <p className="text-sm text-muted-foreground py-8 text-center">Sin datos de atribución todavía.</p>
         ) : (
@@ -850,7 +851,7 @@ export default function AttributionPage() {
 
       <div className="dashboard-card p-5">
         {loadingTouch ? (
-          <div className="h-40 animate-pulse bg-muted rounded" />
+          <Skeleton className="h-40 bg-muted rounded" />
         ) : touchRows.length === 0 ? (
           <p className="text-sm text-muted-foreground py-8 text-center">Sin datos de atribución todavía.</p>
         ) : (
@@ -918,7 +919,7 @@ export default function AttributionPage() {
           <span className="text-xs text-muted-foreground">{filteredQual.length} leads</span>
         </div>
         {loadingQual ? (
-          <div className="h-40 animate-pulse bg-muted rounded" />
+          <Skeleton className="h-40 bg-muted rounded" />
         ) : filteredQual.length === 0 ? (
           <p className="text-sm text-muted-foreground py-8 text-center">Sin respuestas de formulario todavía.</p>
         ) : (

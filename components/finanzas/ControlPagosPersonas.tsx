@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import Link from 'next/link'
 import { AlertTriangle, CalendarClock, CreditCard, RefreshCw, Undo2, Users, Wallet } from 'lucide-react'
 import { KPICard } from '@/components/os/DashboardKPICard'
@@ -184,7 +185,7 @@ export function ControlPagosPersonas({ tenant, q }: { tenant: string; q: string 
       {loading ? (
         <div className="space-y-3">
           {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="h-24 bg-card rounded-lg animate-pulse" />
+            <Skeleton key={i} className="h-24" />
           ))}
         </div>
       ) : error ? (

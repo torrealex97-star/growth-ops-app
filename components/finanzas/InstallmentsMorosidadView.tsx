@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency, formatDate } from '@/lib/utils'
@@ -246,7 +247,7 @@ export function InstallmentsMorosidadView() {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="h-24 bg-card rounded-lg animate-pulse" />
+            <Skeleton key={i} className="h-24" />
           ))}
         </div>
       ) : (
