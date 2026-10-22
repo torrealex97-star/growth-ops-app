@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { MessageSquare, Bot, CheckCircle2, Clock, Inbox, Loader2, Undo2 } from 'lucide-react'
+import Link from 'next/link'
+import { MessageSquare, Bot, CheckCircle2, Clock, Inbox, Loader2, Send, Settings2, Undo2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { useParamUrl } from '@/lib/hooks/useParamUrl'
@@ -27,6 +28,7 @@ type Fila = {
   contacts: { full_name: string | null } | { full_name: string | null }[] | null
 }
 type Mensaje = { id: string; direction: string; author: string; body: string; sent_at: string }
+type Borrador = { id: string; texto: string }
 
 const nombreDe = (c: Fila['contacts']) => (Array.isArray(c) ? c[0] : c)?.full_name ?? 'Sin nombre'
 const TODOS = 'todas'
@@ -42,6 +44,9 @@ export default function ConversacionesPage() {
   const [sel, setSel] = useState<string | null>(null)
   const [mensajes, setMensajes] = useState<Mensaje[] | null>(null)
   const [trabajando, setTrabajando] = useState(false)
+  const [borradores, setBorradores] = useState<Borrador[]>([])
+  const [edicion, setEdicion] = useState<Record<string, string>>({})
+  const [respuesta, setRespuesta] = useState('')
 
   const puedeIA = !!sesion && (sesion.isSuperAdmin || (ROLES_IA as readonly string[]).includes(sesion.rol ?? ''))
 
@@ -77,6 +82,8 @@ export default function ConversacionesPage() {
     }
     let vivo = true
     setMensajes(null)
+    setBorradores([])
+    setRespuesta('')
     ;(async () => {
       const sb = createClient()
       const { data } = await sb
@@ -86,7 +93,21 @@ export default function ConversacionesPage() {
         .eq('conversation_id', sel)
         .order('sent_at', { ascending: true })
         .limit(300)
-      if (vivo) setMensajes((data ?? []) as Mensaje[])
+      const { data: evs } = await sb
+        .from('conversation_events')
+        .select('id,data')
+        .eq('tenant_id', tenantId)
+        .eq('conversation_id', sel)
+        .eq('kind', 'borrador')
+        .order('created_at', { ascending: false })
+        .limit(5)
+      if (!vivo) return
+      setMensajes((data ?? []) as Mensaje[])
+      setBorradores(
+        ((evs ?? []) as { id: string; data: { texto?: string; estado?: string } }[])
+          .filter((e) => e.data?.estado === 'pendiente' && e.data?.texto)
+          .map((e) => ({ id: e.id, texto: e.data.texto as string }))
+      )
     })()
     return () => {
       vivo = false
@@ -115,12 +136,70 @@ export default function ConversacionesPage() {
     }
   }
 
+  async function recargarHilo() {
+    const id = sel
+    setSel(null)
+    await cargarLista()
+    setTimeout(() => setSel(id), 0)
+  }
+
+  async function enviarRespuesta() {
+    if (!sel || !respuesta.trim()) return
+    setTrabajando(true)
+    try {
+      const res = await fetch(`/api/${tenant}/evergreen/conversaciones/${sel}/responder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texto: respuesta }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body.error ?? 'No se pudo enviar')
+      toast.success('Mensaje enviado')
+      setRespuesta('')
+      await recargarHilo()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo enviar')
+    } finally {
+      setTrabajando(false)
+    }
+  }
+
+  async function resolverBorrador(b: Borrador, accion: 'aprobar' | 'descartar') {
+    if (!sel) return
+    setTrabajando(true)
+    try {
+      const res = await fetch(`/api/${tenant}/evergreen/conversaciones/${sel}/borradores`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accion, eventoId: b.id, texto: edicion[b.id] ?? b.texto }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body.error ?? 'No se pudo completar')
+      toast.success(accion === 'aprobar' ? 'Borrador enviado' : 'Borrador descartado')
+      await recargarHilo()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo completar')
+    } finally {
+      setTrabajando(false)
+    }
+  }
+
   const ventana = actual ? estadoVentana(actual.channel, 'ia', actual.last_inbound_at) : null
 
   return (
     <div className="space-y-4 p-4 lg:p-6">
       <div>
-        <h1 className="text-xl font-semibold text-foreground">Conversaciones</h1>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h1 className="text-xl font-semibold text-foreground">Conversaciones</h1>
+          {puedeIA ? (
+            <Link
+              href={`/${tenant}/conversaciones/agente`}
+              className="inline-flex items-center gap-1.5 text-xs text-brand-400 hover:underline"
+            >
+              <Settings2 className="h-3.5 w-3.5" aria-hidden /> Configurar el agente de IA
+            </Link>
+          ) : null}
+        </div>
         <p className="text-sm text-muted-foreground">
           Los mensajes de tus leads por Instagram y el resto de canales conectados a GHL, en un solo sitio.
         </p>
@@ -296,9 +375,62 @@ export default function ConversacionesPage() {
                   ))
                 )}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Para responder, hazlo desde GHL por ahora: el envío desde aquí llega en la siguiente entrega.
-              </p>
+              {borradores.map((b) => (
+                <div key={b.id} className="space-y-2 rounded-lg border border-brand-500/40 bg-brand-500/5 p-3">
+                  <p className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+                    <Bot className="h-3.5 w-3.5" aria-hidden /> Borrador del agente: revísalo antes de enviarlo
+                  </p>
+                  <textarea
+                    value={edicion[b.id] ?? b.texto}
+                    onChange={(e) => setEdicion((p) => ({ ...p, [b.id]: e.target.value }))}
+                    rows={3}
+                    maxLength={1000}
+                    aria-label="Texto del borrador"
+                    className="w-full rounded-lg border border-border bg-muted p-2 text-sm text-foreground"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      disabled={trabajando || !ventana?.abierta}
+                      onClick={() => resolverBorrador(b, 'aprobar')}
+                    >
+                      <Send className="mr-1.5 h-3.5 w-3.5" /> Aprobar y enviar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={trabajando}
+                      onClick={() => resolverBorrador(b, 'descartar')}
+                    >
+                      Descartar
+                    </Button>
+                  </div>
+                </div>
+              ))}
+
+              <div className="space-y-2">
+                <textarea
+                  value={respuesta}
+                  onChange={(e) => setRespuesta(e.target.value)}
+                  rows={3}
+                  maxLength={1000}
+                  placeholder={
+                    ventana?.abierta
+                      ? 'Escribe tu respuesta…'
+                      : 'La ventana de respuesta está cerrada: responde desde GHL.'
+                  }
+                  disabled={!ventana?.abierta}
+                  aria-label="Tu respuesta"
+                  className="w-full rounded-lg border border-border bg-muted p-2 text-sm text-foreground placeholder:text-muted-foreground disabled:opacity-60"
+                />
+                <Button
+                  size="sm"
+                  disabled={trabajando || !respuesta.trim() || !ventana?.abierta}
+                  onClick={enviarRespuesta}
+                >
+                  <Send className="mr-1.5 h-3.5 w-3.5" /> Enviar
+                </Button>
+              </div>
             </div>
           )}
         </section>
