@@ -65,7 +65,7 @@ test('no queda ningún catch tipado como any', () => {
 })
 
 test('el mensaje de error se saca comprobando el tipo, no asumiéndolo', () => {
-  const codigo = leer('app/[tenant]/setting-ai/page.tsx')
+  const codigo = leer('app/[tenant]/conversaciones/EntrenamientoTab.tsx')
   assert.match(codigo, /function mensajeDeError\(e: unknown\): string/)
   assert.match(codigo, /if \(e instanceof Error\) return e\.message/)
   // Y nunca deja el hueco en blanco: un fallo sin mensaje sigue diciendo algo.

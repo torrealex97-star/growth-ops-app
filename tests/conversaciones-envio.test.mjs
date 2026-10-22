@@ -212,13 +212,14 @@ test('las rutas exigen rol de gestión; solo admin/director tocan la configuraci
 })
 
 test('la pantalla ofrece responder, aprobar y descartar borradores, y la configuración solo a admin/director', () => {
-  const p = readFileSync('app/[tenant]/conversaciones/page.tsx', 'utf8')
+  const p = readFileSync('app/[tenant]/conversaciones/BandejaTab.tsx', 'utf8')
   assert.match(p, /conversaciones\/\$\{sel\}\/responder/)
   assert.match(p, /conversaciones\/\$\{sel\}\/borradores/)
   assert.match(p, /Aprobar y enviar/)
   assert.match(p, /disabled=\{!ventana\?\.abierta\}/)
-  assert.match(p, /puedeIA \? \(\s*<Link\s+href=\{`\/\$\{tenant\}\/conversaciones\/agente`\}/)
-  const a = readFileSync('app/[tenant]/conversaciones/agente/page.tsx', 'utf8')
+  const shell = readFileSync('app/[tenant]/conversaciones/page.tsx', 'utf8')
+  assert.match(shell, /t !== 'agente' \|\| puedeIA/)
+  const a = readFileSync('app/[tenant]/conversaciones/AgenteTab.tsx', 'utf8')
   assert.match(a, /Agente activo en esta subcuenta \(apagado = no hace nada\)/)
   assert.match(a, /Permitir modo autónomo/)
 })

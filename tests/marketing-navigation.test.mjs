@@ -22,7 +22,7 @@ const NEW_PAGE_FILES = [
   'app/[tenant]/instagram/carruseles/page.tsx',
   'app/[tenant]/instagram/competencia/page.tsx',
   'app/[tenant]/marketing/contenido/page.tsx',
-  'app/[tenant]/setting-ai/page.tsx',
+  'app/[tenant]/conversaciones/EntrenamientoTab.tsx',
   'app/[tenant]/settings/page.tsx',
   'app/[tenant]/settings/data-health/page.tsx',
 ]
@@ -70,7 +70,7 @@ test('los detalles de carruseles conservan el id al redirigir', () => {
 // KPIs': entrar en Marketing debe responder de dónde vienen los resultados. La vista OPERATIVA de
 // Campañas no se renombró ni se movió de sitio — sigue siendo una entrada propia, y este test lo
 // comprueba para que el renombrado no se lleve la operativa por delante.
-test('Marketing contiene el hub de métricas, Instagram, Contenido, Colaboradores y Setting AI como hubs de primer nivel', () => {
+test('Marketing contiene el hub de métricas, Instagram, Contenido, Colaboradores y Conversaciones como hubs de primer nivel', () => {
   const nav = readFileSync(join(root, 'lib/nav.ts'), 'utf8')
   const marketingStart = nav.indexOf("dept: 'marketing'")
   const marketingEnd = nav.indexOf("dept: 'producto'", marketingStart)
@@ -82,7 +82,8 @@ test('Marketing contiene el hub de métricas, Instagram, Contenido, Colaboradore
   assert.match(marketingSection, /label: 'Instagram'/)
   assert.match(marketingSection, /label: 'Contenido'/)
   assert.match(marketingSection, /label: 'Colaboradores'/)
-  assert.match(marketingSection, /label: 'Setting AI'/)
+  assert.match(marketingSection, /label: 'Conversaciones'/)
+  assert.doesNotMatch(marketingSection, /label: 'Setting AI'/)
   assert.doesNotMatch(marketingSection, /label: 'Data Health'/)
 })
 
@@ -102,7 +103,7 @@ test('el menú compartido con ⌘K contiene todas las páginas absorbidas', () =
     ['Radar de contenido', '/instagram/radar'],
     ['Carruseles y Flyers', '/instagram/carruseles'],
     ['Contenido', '/marketing/contenido'],
-    ['Setting AI', '/setting-ai'],
+    ['Conversaciones', '/conversaciones'],
     ['Data Health', '/settings/data-health'],
   ]
 

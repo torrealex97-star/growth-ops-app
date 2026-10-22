@@ -107,10 +107,11 @@ test('la ruta de métricas exige rol de gestión, acota la lectura y declara cua
   assert.match(r, /TOPE_CONVERSACIONES/)
   assert.match(r, /parcial/)
   assert.match(r, /\.eq\('tenant_id', sesion\.tenantId\)/)
-  const p = readFileSync('app/[tenant]/conversaciones/metricas/page.tsx', 'utf8')
+  const p = readFileSync('app/[tenant]/conversaciones/MetricasTab.tsx', 'utf8')
   assert.match(p, /Sin datos/)
 })
 
-test('la pantalla de Conversaciones enlaza a las métricas', () => {
-  assert.match(readFileSync('app/[tenant]/conversaciones/page.tsx', 'utf8'), /conversaciones\/metricas/)
+test('la pantalla de Conversaciones ofrece la pestaña de métricas y la ruta antigua redirige', () => {
+  assert.match(readFileSync('app/[tenant]/conversaciones/page.tsx', 'utf8'), /metricas: \{ etiqueta: 'Métricas'/)
+  assert.match(readFileSync('app/[tenant]/conversaciones/metricas/page.tsx', 'utf8'), /conversaciones\?tab=metricas/)
 })

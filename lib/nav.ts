@@ -320,7 +320,6 @@ export const NAV_SECTIONS: NavSection[] = [
           { label: 'Campañas', href: '/marketing/afiliados/campanas', icon: Megaphone, roles: LEAD },
         ],
       },
-      { label: 'Setting AI', href: '/setting-ai', icon: Bot, roles: [...LEAD, 'setter', 'marketing'] },
       {
         label: 'Conversaciones',
         href: '/conversaciones',

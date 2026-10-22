@@ -95,7 +95,7 @@ test('la ruta responde configured:false con motivo en fallos de IG (no 500 ciego
 })
 
 test('el front acota su espera y presenta el motivo', () => {
-  const ui = lee('app/[tenant]/setting-ai/ConversacionesTab.tsx')
+  const ui = lee('app/[tenant]/conversaciones/PlataformasTab.tsx')
   assert.match(ui, /AbortController/, 'timeout en cliente')
   assert.match(ui, /35_000/, 'techo de espera razonable')
   assert.match(ui, /r\.ok \?/, 'revisa res.ok antes de parsear')

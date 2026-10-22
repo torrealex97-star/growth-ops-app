@@ -1,3 +1,7 @@
+# COMPLETADO — Conversaciones y Setting AI fundidos en una pantalla (22-oct)
+
+`/conversaciones?tab=bandeja|plataformas|agente|entrenamiento|metricas`. Rutas antiguas redirigen; «Setting AI» sale del menú.
+
 # COMPLETADO — Conversaciones: reparto, memoria y borrado de personas (22-oct)
 
 - **Round-robin** entre setters activos (casilla en la config del agente, apagada por defecto), sin pisar asignaciones humanas.

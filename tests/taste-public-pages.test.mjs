@@ -86,7 +86,7 @@ const MODALES_LOTE3 = [
 const MODALES_LOTE4 = [
   'app/[tenant]/marketing/adquisicion/campanas/page.tsx',
   'app/[tenant]/marketing/contenido/page.tsx',
-  'app/[tenant]/setting-ai/page.tsx',
+  'app/[tenant]/conversaciones/EntrenamientoTab.tsx',
   'app/[tenant]/instagram/page.tsx',
   'components/social/CompetitorWorkspace.tsx',
   'app/[tenant]/finanzas/gastos-facturas/gastos/page.tsx',
