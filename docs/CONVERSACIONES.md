@@ -50,3 +50,17 @@ No se ha copiado código; las carpetas `enterprise/` de Chatwoot (SLA, capacity,
 
 Los mensajes son datos personales: entran en el mapa de PII. Pendiente incluir `conversation_messages` y `conversations` en el
 plan de borrado de personas (`lib/privacidad/*`).
+
+## Reparto, memoria y borrado de datos personales
+
+- **Reparto round-robin** (`lib/conversaciones/reparto.ts`, `asignar.ts`): apagado por defecto (casilla en la configuración
+  del agente). Reparte entre los setters ACTIVOS de la subcuenta (`users.role_id` → `roles.key = 'setter'` y miembro del
+  tenant): gana la menor carga viva (abiertas + pendientes, tope 40), luego quien lleva más sin recibir una. Solo rellena
+  huecos (`assignee_id is null`), nunca pisa una asignación humana, y deja un evento `asignacion` con `auto: true`.
+  Se aplica a conversaciones atendidas por personas y a los traspasos de la IA.
+- **Memoria por contacto** (`memoria.ts`, `memoria-bd.ts`): resumen en `conversations.summary` de lo que ya no cabe en el
+  prompt (más de 24 turnos), actualizado cada ≥4 mensajes nuevos (evento `resumen` con la marca `hasta`), más los resúmenes
+  de otras conversaciones de la misma persona. Es texto de un modelo sobre texto del lead: se limpia (sin enlaces, sin
+  cabeceras de rol, sin `TRASPASO`, ≤700 car.) y entra al prompt etiquetado como DATOS. Si falla, el agente sigue sin memoria.
+- **Borrado de personas**: `erase_person` borra las conversaciones del contacto (por `contact_id` y por el id de GHL, para
+  las que nunca se enlazaron); mensajes, borradores y resumen caen en cascada. Ver `docs/F6-MAPA-PII.md` §1.1.

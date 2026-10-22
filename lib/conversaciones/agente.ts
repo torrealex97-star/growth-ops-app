@@ -26,6 +26,8 @@ export type ConfigAgente = {
   maxEnviosDia: number
   /** Horario de atención del agente en hora local de la subcuenta (`desde`/`hasta` en horas 0-24). null = siempre. */
   horario: { desde: number; hasta: number; zona: string } | null
+  /** Reparte round-robin entre los setters las conversaciones sin responsable. Apagado por defecto. */
+  repartoAutomatico: boolean
 }
 
 export const CONFIG_POR_DEFECTO: ConfigAgente = {
@@ -34,6 +36,7 @@ export const CONFIG_POR_DEFECTO: ConfigAgente = {
   maxSeguidosSinRespuesta: 2,
   maxEnviosDia: 200,
   horario: null,
+  repartoAutomatico: false,
 }
 
 export type MensajeHistorial = { autor: 'lead' | 'humano' | 'ia' | 'sistema'; texto: string; enviadoEn: string }

@@ -169,6 +169,24 @@ test('fathom_match_review se borra por contacto Y por correo', async () => {
   assert.match(op.or, /invitee_email\.in\./)
 })
 
+test('las conversaciones se borran por contacto Y por identificador de GHL, y se lee antes de anonimizar', async () => {
+  const sb = sbFalso({
+    contacto: { email: CONTACTO.email, email_normalized: CONTACTO.email, ghl_contact_id: 'abc"123' },
+  })
+  await correr(sb)
+  const op = sb.ops.find((o) => o.tabla === 'conversations')
+  assert.equal(op.tipo, 'delete')
+  assert.match(op.or, /contact_id\.eq\./)
+  assert.match(op.or, /contact_external_id\.eq\."abc123"/, 'el identificador se sanea antes de entrar en el filtro')
+})
+
+test('sin identificador de GHL se borra solo por contacto', async () => {
+  const sb = sbFalso()
+  await correr(sb)
+  const op = sb.ops.find((o) => o.tabla === 'conversations')
+  assert.doesNotMatch(op.or, /contact_external_id/)
+})
+
 test('el contacto se anonimiza y se marca, en la misma operación', async () => {
   const sb = sbFalso()
   await correr(sb)

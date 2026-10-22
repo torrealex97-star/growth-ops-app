@@ -73,6 +73,7 @@ type Ctx = {
   tenantId: string
   contactId: string
   correos: string[]
+  ghlId: string | null
   simulacion: boolean
 }
 
@@ -97,7 +98,7 @@ async function ejecutar(
 }
 
 async function aplicarPaso(paso: PasoBorrado, ctx: Ctx): Promise<ResultadoStore> {
-  const { sb, tenantId, contactId, correos, simulacion } = ctx
+  const { sb, tenantId, contactId, correos, ghlId, simulacion } = ctx
   const base = (tabla: string) => sb.from(tabla).delete({ count: 'exact' }).eq('tenant_id', tenantId)
   const vaciar = (tabla: string, cols: string[]) =>
     sb
@@ -118,6 +119,17 @@ async function aplicarPaso(paso: PasoBorrado, ctx: Ctx): Promise<ResultadoStore>
       return ejecutar(paso.store, paso.motivo, simulacion, () =>
         vaciar('activities', paso.columnas ?? ['notes']).eq('contact_id', contactId)
       )
+
+    case 'conversations':
+      // Por contacto Y por identificador de GHL: una conversación puede no haberse enlazado nunca con el
+      // contacto (contact_id nulo) y aun así contener sus mensajes. Los mensajes y eventos caen en cascada.
+      return ejecutar(paso.store, paso.motivo, simulacion, () => {
+        const limpio = ghlId ? ghlId.replace(/["\\,()]/g, '') : ''
+        const filtro = limpio
+          ? `contact_id.eq.${contactId},contact_external_id.eq."${limpio}"`
+          : `contact_id.eq.${contactId}`
+        return base('conversations').or(filtro)
+      })
 
     case 'fathom_match_review':
       // Por contacto Y por correo: 108 de sus 177 filas nunca llegaron a tener contacto asociado,
@@ -194,14 +206,15 @@ export async function erasePerson(
   // necesita para alcanzar las filas que nunca tuvieron contacto asociado.
   const { data: contacto } = await sb
     .from('contacts')
-    .select('email, email_normalized')
+    .select('email, email_normalized, ghl_contact_id')
     .eq('tenant_id', tenantId)
     .eq('id', contactId)
     .maybeSingle()
   const correos = [...new Set([contacto?.email, contacto?.email_normalized].filter(Boolean) as string[])]
 
+  const ghlId = (contacto as { ghl_contact_id?: string | null } | null)?.ghl_contact_id ?? null
   const plan = planificarBorrado(politica)
-  const ctx: Ctx = { sb, tenantId, contactId, correos, simulacion }
+  const ctx: Ctx = { sb, tenantId, contactId, correos, ghlId, simulacion }
 
   const pasos: ResultadoStore[] = []
   for (const paso of plan) {

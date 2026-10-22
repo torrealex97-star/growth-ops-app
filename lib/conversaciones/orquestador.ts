@@ -1,7 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { asignarRoundRobin } from './asignar'
 import { decidirAgente, type MensajeHistorial } from './agente'
 import { CLAVE_CONFIG_AGENTE, leerConfigAgente } from './config'
 import { esEstado } from './estados'
+import { memoriaParaPrompt } from './memoria-bd'
 import { registrarMensaje } from './persistir'
 import { construirPrompt, validarBorrador } from './redactor'
 import { evaluarTraspaso, exigeNoContactar, type MotivoTraspaso } from './traspaso'
@@ -64,7 +66,8 @@ async function traspasar(
   c: FilaConv,
   motivo: string,
   mensajeId: string,
-  noContactar = false
+  noContactar = false,
+  repartir = false
 ) {
   const etiquetas = noContactar && !c.labels.includes('no-contactar') ? [...c.labels, 'no-contactar'] : c.labels
   await sb
@@ -73,6 +76,8 @@ async function traspasar(
     .eq('tenant_id', tenantId)
     .eq('id', c.id)
   await evento(sb, tenantId, c.id, 'traspaso', { motivo, mensaje_id: mensajeId, no_contactar: noContactar })
+  // Quien recibe el traspaso es una persona: si nadie es responsable aún, el reparto se lo da a un setter.
+  if (repartir) await asignarRoundRobin(sb, tenantId, c.id)
 }
 
 export async function procesarMensajeEntrante(
@@ -93,9 +98,6 @@ export async function procesarMensajeEntrante(
   if (error || !fila) return { accion: 'error', error: 'conversación no encontrada' }
   const c = fila as FilaConv
 
-  // Barato primero: IA apagada en la conversación → no se lee nada más.
-  if (c.ai_mode === 'off') return { accion: 'silencio', motivo: 'conversacion_apagada' }
-
   const { data: ajuste } = await sb
     .from('integration_settings')
     .select('value')
@@ -103,6 +105,13 @@ export async function procesarMensajeEntrante(
     .eq('key', CLAVE_CONFIG_AGENTE)
     .maybeSingle()
   const { config, guion } = leerConfigAgente((ajuste as { value?: string } | null)?.value ?? null)
+  const repartir = config.repartoAutomatico
+
+  // Barato primero: IA apagada en la conversación → la atiende una persona; solo se le busca responsable.
+  if (c.ai_mode === 'off') {
+    if (repartir) await asignarRoundRobin(sb, tenantId, c.id)
+    return { accion: 'silencio', motivo: 'conversacion_apagada' }
+  }
   if (!config.activo) return { accion: 'silencio', motivo: 'agente_apagado' }
 
   const { data: filasMsg } = await sb
@@ -161,7 +170,8 @@ export async function procesarMensajeEntrante(
       c,
       traspaso.motivo as MotivoTraspaso,
       mensajeEntranteId,
-      exigeNoContactar(traspaso.motivo)
+      exigeNoContactar(traspaso.motivo),
+      repartir
     )
     return { accion: 'traspaso', motivo: traspaso.motivo ?? 'señal' }
   }
@@ -179,25 +189,28 @@ export async function procesarMensajeEntrante(
     for (const [k, v] of Object.entries(q ?? {})) if (k !== 'respuestas' && v !== null && v !== '') conocidos.add(k)
   }
 
+  // Memoria: lo hablado fuera de la ventana del prompt y lo de otras conversaciones de la misma persona.
+  const memoria = await memoriaParaPrompt(sb, tenantId, c, deps.ia)
+
   let texto: string
   try {
     const prompt = construirPrompt(
       guion,
       conocidos,
       historial.map((m) => ({ autor: m.autor === 'sistema' ? 'humano' : m.autor, texto: m.texto })),
-      null
+      memoria
     )
     const r = await deps.ia({ system: prompt.system, messages: prompt.messages, maxTokens: 300, temperature: 0.4 })
     const v = validarBorrador(r.text, guion.enlaceAgenda)
     if (!v.ok) {
-      await traspasar(sb, tenantId, c, `validacion: ${v.motivo}`, mensajeEntranteId)
+      await traspasar(sb, tenantId, c, `validacion: ${v.motivo}`, mensajeEntranteId, false, repartir)
       return { accion: 'traspaso', motivo: `validacion: ${v.motivo}` }
     }
     texto = v.texto
   } catch (e) {
     // La IA no respondió: no se queda el lead sin atender. Pasa a una persona y se anota el motivo.
     const msg = e instanceof Error ? e.message : 'error de la IA'
-    await traspasar(sb, tenantId, c, `ia_error: ${msg}`.slice(0, 200), mensajeEntranteId)
+    await traspasar(sb, tenantId, c, `ia_error: ${msg}`.slice(0, 200), mensajeEntranteId, false, repartir)
     return { accion: 'error', error: msg }
   }
 
@@ -208,7 +221,7 @@ export async function procesarMensajeEntrante(
 
   // Autónomo: se envía y se guarda como mensaje de la IA. Un fallo de envío traspasa; nunca reintenta a ciegas.
   if (!c.contact_external_id) {
-    await traspasar(sb, tenantId, c, 'sin_contacto_ghl', mensajeEntranteId)
+    await traspasar(sb, tenantId, c, 'sin_contacto_ghl', mensajeEntranteId, false, repartir)
     return { accion: 'traspaso', motivo: 'sin_contacto_ghl' }
   }
   try {
@@ -234,7 +247,7 @@ export async function procesarMensajeEntrante(
     return { accion: 'enviado', texto }
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'error de envío'
-    await traspasar(sb, tenantId, c, `envio_error: ${msg}`.slice(0, 200), mensajeEntranteId)
+    await traspasar(sb, tenantId, c, `envio_error: ${msg}`.slice(0, 200), mensajeEntranteId, false, repartir)
     return { accion: 'error', error: msg }
   }
 }

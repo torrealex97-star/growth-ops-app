@@ -91,6 +91,7 @@ export function leerConfigAgente(guardado: unknown): ConfigCompleta {
     maxSeguidosSinRespuesta: entero(j.maxSeguidosSinRespuesta, 1, 5, CONFIG_POR_DEFECTO.maxSeguidosSinRespuesta),
     maxEnviosDia: entero(j.maxEnviosDia, 1, 2000, CONFIG_POR_DEFECTO.maxEnviosDia),
     horario: leerHorario(j.horario),
+    repartoAutomatico: j.repartoAutomatico === true,
   }
   const guion: GuionAgente = {
     negocio: cadena(j.negocio, 120) ?? GUION_POR_DEFECTO.negocio,
