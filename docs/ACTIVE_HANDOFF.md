@@ -1,3 +1,27 @@
+# UNIFICACIÓN COMPLETA DE RAMAS (22-oct) — todo en `main`, remoto limpio
+
+Estado: el remoto solo tiene `main`. No hay PR abiertos. Las 6 ramas que dejaron otras sesiones (#594–#599) ya
+estaban fusionadas y solo se borraron. Ramas locales superadas borradas (fases de Formularios, integraciones,
+`backup/main-local-perf` = #551, `codex/skeleton-emptystate-adopcion`: 38 de 40 ficheros ya estaban adoptados).
+Se conserva `rescate/linaje-viejo-20260913` (copia de rescate de 106 commits del 13-sep) hasta que el dueño decida.
+
+Fusionado en esta pasada:
+
+- **#600** un solo `Skeleton` compartido: 40 huecos de carga sueltos en 28 ficheros + test que impide volver a escribirlos.
+- **#601** los leads del módulo de Formularios ahora se ATRIBUYEN (utm_*, `ref` de colaboradora) y su cualificación
+  llega al contacto y a sus agendas, con código compartido con Typeform (`lib/contacts/origen-y-cualificacion.ts`).
+  Hueco encontrado al revisar Formularios: antes `contact_attributions` no se escribía desde los formularios.
+  Revisión de Formularios (lectura): envío público con idempotencia, límite de ritmo, honeypot, tope de tamaño;
+  webhooks con HMAC, SSRF léxico y por DNS; CSV con protección de fórmulas; config pública sin pesos de scoring. Sin
+  hallazgos graves. Matiz: el feedback de alumnos es anónimo (basta conocer un email) y el límite de ritmo es en memoria
+  por instancia (aceptable en este plan).
+
+## Pendiente de aplicar (lo bloquea el permiso, no el código)
+
+Las 2 migraciones de Formularios NO están aplicadas (comprobado en BD el 22-oct): el sistema impidió aplicarlas desde
+la sesión. Pegar en el SQL Editor de Supabase `supabase/migrations/20261020120000_forms_csm_solo_alumnos.sql` y
+después `20261020130000_forms_hardening.sql`. Solo endurecen políticas RLS.
+
 # CENTRALIZACIÓN DE RAMAS Y PENDIENTES (21-oct) — qué está en `main`, qué falta y quién lo hace
 
 **Regla desde hoy:** el trabajo se centraliza aquí. Varias sesiones empujaban a la vez y el E2E de CI (grupo
