@@ -16,17 +16,18 @@ del inventario es el que hace o rompe `erase_person`: **¿la fila se puede alcan
 
 ### 1.1 Alcanzable por `contact_id` — `erase_person` puede borrarlo
 
-| Store                  | Columnas con PII                                                                                     | Filas con dato                             |
-| ---------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| `contacts`             | `full_name`, `email`, `phone`, `first_name`, `last_name`, `instagram`, `notes`, y los `*_normalized` | **620** de 972 con email o teléfono        |
-| `appointments`         | **`transcript`**, `notes`, `transcript_drive_url`                                                    | **107 transcripciones reales de llamadas** |
-| `contact_notes`        | `note`                                                                                               | 0                                          |
-| `activities`           | `notes`                                                                                              | 1                                          |
-| `contact_attributions` | `utm_content`, `first_/last_utm_content`                                                             | 0                                          |
-| `sales`                | `access_email`, `notes`                                                                              | 28 ventas                                  |
-| `stripe_customers`     | `email`, `name`                                                                                      | **28**                                     |
-| `contracts`            | `body_snapshot`, `notes`                                                                             | 0                                          |
-| `csm_events`, `drops`  | `notes`                                                                                              | 0                                          |
+| Store                                                             | Columnas con PII                                                                                     | Filas con dato                                                                             |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `contacts`                                                        | `full_name`, `email`, `phone`, `first_name`, `last_name`, `instagram`, `notes`, y los `*_normalized` | **620** de 972 con email o teléfono                                                        |
+| `appointments`                                                    | **`transcript`**, `notes`, `transcript_drive_url`                                                    | **107 transcripciones reales de llamadas**                                                 |
+| `contact_notes`                                                   | `note`                                                                                               | 0                                                                                          |
+| `activities`                                                      | `notes`                                                                                              | 1                                                                                          |
+| `contact_attributions`                                            | `utm_content`, `first_/last_utm_content`                                                             | 0                                                                                          |
+| `sales`                                                           | `access_email`, `notes`                                                                              | 28 ventas                                                                                  |
+| `stripe_customers`                                                | `email`, `name`                                                                                      | **28**                                                                                     |
+| `conversations` + `conversation_messages` + `conversation_events` | `body` de los mensajes, `texto` de los borradores, `summary` (memoria del agente)                    | nuevas (módulo Conversaciones); se borran enteras por `contact_id` o `contact_external_id` |
+| `contracts`                                                       | `body_snapshot`, `notes`                                                                             | 0                                                                                          |
+| `csm_events`, `drops`                                             | `notes`                                                                                              | 0                                                                                          |
 
 `appointments.transcript` es el store más pesado en PII del sistema: 107 transcripciones de llamadas
 con personas reales, dentro de una tabla de negocio central. Está correctamente vinculado, así que

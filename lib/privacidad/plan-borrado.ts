@@ -78,6 +78,14 @@ export function planificarBorrado(politica: PoliticaRetencion): PasoBorrado[] {
       motivo: 'la actividad cuenta para métricas de equipo; el texto libre puede nombrar a la persona',
     },
     {
+      store: 'conversations',
+      tratamiento: 'borrar',
+      motivo:
+        'los mensajes, los borradores del agente y el resumen de memoria son texto libre de la persona. ' +
+        'Se borra la conversación entera (mensajes y eventos caen en cascada), también las que nunca ' +
+        'llegaron a enlazarse con el contacto y solo conservan su identificador de GHL',
+    },
+    {
       store: 'fathom_match_review',
       tratamiento: 'borrar',
       motivo:

@@ -14,6 +14,7 @@ type Config = {
   maxSeguidosSinRespuesta: number
   maxEnviosDia: number
   horario: { desde: number; hasta: number; zona: string } | null
+  repartoAutomatico: boolean
 }
 type Guion = {
   negocio: string
@@ -122,6 +123,14 @@ export default function AgenteSettingPage() {
             onChange={(e) => setConfig({ ...config, permitirAutonomo: e.target.checked })}
           />
           Permitir modo autónomo (si no, siempre propone borradores para aprobar)
+        </label>
+        <label className="flex items-center gap-2 text-sm text-foreground">
+          <input
+            type="checkbox"
+            checked={config.repartoAutomatico}
+            onChange={(e) => setConfig({ ...config, repartoAutomatico: e.target.checked })}
+          />
+          Repartir automáticamente las conversaciones sin responsable entre los setters (round-robin)
         </label>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-xs text-muted-foreground">

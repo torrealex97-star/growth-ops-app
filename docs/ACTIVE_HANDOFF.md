@@ -1,3 +1,12 @@
+# COMPLETADO — Conversaciones: reparto, memoria y borrado de personas (22-oct)
+
+- **Round-robin** entre setters activos (casilla en la config del agente, apagada por defecto), sin pisar asignaciones humanas.
+- **Memoria por contacto**: resumen en `conversations.summary` + resúmenes de otras conversaciones de la misma persona.
+- **`erase_person`** borra las conversaciones (por `contact_id` y por id de GHL). Mapa PII actualizado.
+- **PENDIENTE (bloqueado por el sistema, no por código):** las 2 migraciones de Forms
+  (`20261020120000_forms_csm_solo_alumnos.sql`, `20261020130000_forms_hardening.sql`) siguen SIN aplicar en producción: la
+  herramienta de BD rechazó `apply_migration` otra vez. Hay que pegarlas en el SQL Editor de Supabase o autorizarlas.
+
 # COMPLETADO — Conversaciones y agente de IA de setting (22-oct) · #603–#609
 
 Bandeja de conversaciones (GHL → Instagram/Facebook) y agente de IA APAGADO por defecto. Detalle en
