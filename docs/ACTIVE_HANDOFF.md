@@ -1,3 +1,29 @@
+# COMPLETADO — Conversaciones y agente de IA de setting (22-oct) · #603–#609
+
+Bandeja de conversaciones (GHL → Instagram/Facebook) y agente de IA APAGADO por defecto. Detalle en
+`docs/CONVERSACIONES.md`. Migración `20261022100000_conversaciones.sql` APLICADA en producción (3 tablas, RLS restrictiva,
+solo SELECT para authenticated; se retiraron TRUNCATE/REFERENCES/TRIGGER). Tipos añadidos a `database-generated.ts`.
+
+- **Núcleo puro** (ventana, estados, ingesta idempotente, decisión del agente, traspaso por reglas, redactor + validación).
+- **Webhook** `/webhooks/ghl-mensajes` + guía de conexión en el catálogo; **pantalla** Conversaciones; acciones por rol;
+  **responder**, **borradores** (aprobar/descartar) y **configuración** del agente (solo admin/director); **métricas**.
+- Tests: ~100 nuevos, con el flujo completo (IA y envío simulados) y base en memoria.
+
+## PENDIENTE (dueño)
+
+1. **Conectar el webhook de mensajes en GHL** (workflows «Customer Replied» y «Message sent» con Custom Webhook y la
+   cabecera `x-ghl-secret`; la guía sale en Integraciones › GoHighLevel).
+2. **Verificar con la cuenta real:** escopes de lectura del token de GHL, que el cuerpo del webhook lleve los campos
+   esperados y si GHL permite enviar por IG fuera de 24 h. Hasta entonces, empezar en modo BORRADOR.
+3. Activar el agente solo cuando haya guion y enlace de agenda; probar con UNA conversación.
+4. TikTok: no hay API de mensajería en España (EEE); solo lectura vía GHL.
+
+## PENDIENTE (técnico)
+
+- Incluir `conversations`/`conversation_messages` en el plan de borrado de personas (`lib/privacidad/*`) y en el mapa de PII.
+- Memoria por contacto (resumen persistente), asignación round-robin, respuestas rápidas y etiquetas desde la pantalla.
+- Sincronización de respaldo (hoy solo webhook) reutilizando `lib/ghl/conversaciones.ts`.
+
 # UNIFICACIÓN COMPLETA DE RAMAS (22-oct) — todo en `main`, remoto limpio
 
 Estado: el remoto solo tiene `main`. No hay PR abiertos. Las 6 ramas que dejaron otras sesiones (#594–#599) ya
