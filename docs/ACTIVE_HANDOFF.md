@@ -1,3 +1,10 @@
+# COMPLETADO — Fix «Bad Request» al conectar el MCP a ChatGPT/Claude (22-oct)
+
+Causa: el POST del consentimiento redirigía con 307 y el navegador reenviaba el POST al callback del cliente (en BD:
+4 códigos emitidos, 0 canjeados). Ahora 303; además se acepta `client_secret_basic`, se admite http solo en loopback y la
+pantalla de consentimiento indica el alcance (super admin = todas las subcuentas; resto = su subcuenta y su rol). Ver
+`docs/mcp-server.md`. **Tras desplegar: reconectar ChatGPT/Claude** (crean un cliente nuevo).
+
 # COMPLETADO — Conversaciones y Setting AI fundidos en una pantalla (22-oct)
 
 `/conversaciones?tab=bandeja|plataformas|agente|entrenamiento|metricas`. Rutas antiguas redirigen; «Setting AI» sale del menú.

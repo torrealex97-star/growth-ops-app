@@ -134,7 +134,7 @@ test('el middleware deja pasar /api/mcp y .well-known sin cookie de sesión', ()
 test('registro dinámico: redirect_uri https y consentimiento fija la propiedad', () => {
   const register = leer('app/api/mcp/oauth/register/route.ts')
   const authorize = leer('app/api/mcp/oauth/authorize/route.ts')
-  assert.match(register, /https:/)
+  assert.match(register, /redirectUriPermitida/) // https siempre; http solo en loopback (ver mcp-oauth-compat)
   assert.doesNotMatch(register, /http:\/\/(?!localhost)/) // sin http plano en las URIs aceptadas
   // La propiedad se asigna al aprobar: un client_id registrado por cualquiera no lee nada solo.
   assert.match(authorize, /asignarPropietario/)

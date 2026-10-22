@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { hashToken, randomToken } from '@/lib/mcp/crypto'
+import { redirectUriPermitida } from '@/lib/mcp/oauth'
 import { insertClient } from '@/lib/mcp/store'
 
 /**
@@ -11,10 +12,10 @@ import { insertClient } from '@/lib/mcp/store'
  * Coste de abuso bajo: cada registro crea una fila que no puede usarse si el usuario nunca
  * aprueba el consentimiento; el secret se devuelve UNA vez.
  */
-const SCHEME_OK = /^https:\/\/[^\s/$.?#].[^\s]*$/i
+const METODOS_AUTH = ['none', 'client_secret_post', 'client_secret_basic'] as const
 
 export async function POST(request: NextRequest) {
-  let body: { client_name?: unknown; redirect_uris?: unknown }
+  let body: { client_name?: unknown; redirect_uris?: unknown; token_endpoint_auth_method?: unknown }
   try {
     body = await request.json()
   } catch {
@@ -31,8 +32,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'redirect_uris debe contener entre 1 y 10 URLs https' }, { status: 400 })
   }
   for (const uri of uris) {
-    if (!SCHEME_OK.test(uri)) {
-      return NextResponse.json({ error: `redirect_uri inválida (solo https): ${uri.slice(0, 100)}` }, { status: 400 })
+    if (!redirectUriPermitida(uri)) {
+      return NextResponse.json(
+        { error: `redirect_uri inválida (https, o http solo en localhost): ${uri.slice(0, 100)}` },
+        { status: 400 }
+      )
     }
   }
   const clientId = `mcp_${randomToken(16)}`
@@ -53,7 +57,10 @@ export async function POST(request: NextRequest) {
       client_id_issued_at: Math.floor(Date.now() / 1000),
       client_name: name,
       redirect_uris: uris,
-      token_endpoint_auth_method: 'client_secret_post',
+      // Se devuelve el método que el cliente pidió (si lo soportamos): anunciar otro distinto del que usa
+      // rompe el canje en clientes estrictos.
+      token_endpoint_auth_method:
+        METODOS_AUTH.find((m) => m === body.token_endpoint_auth_method) ?? 'client_secret_post',
       grant_types: ['authorization_code', 'refresh_token'],
       response_types: ['code'],
     },

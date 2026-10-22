@@ -32,6 +32,42 @@ export function verificarPkce(verifier: string, challenge: string): boolean {
   return expectedB64 === challenge
 }
 
+/** Credenciales de `Authorization: Basic base64(id:secreto)` (RFC 6749 §2.3.1, con URL-decoding de cada parte). */
+export function credencialesBasic(cabecera: string | null): { clientId: string; clientSecret: string } | null {
+  const m = /^Basic\s+([A-Za-z0-9+/=_-]+)$/i.exec(cabecera?.trim() ?? '')
+  if (!m) return null
+  let texto: string
+  try {
+    texto = Buffer.from(m[1], 'base64').toString('utf8')
+  } catch {
+    return null
+  }
+  const i = texto.indexOf(':')
+  if (i < 1) return null
+  try {
+    return { clientId: decodeURIComponent(texto.slice(0, i)), clientSecret: decodeURIComponent(texto.slice(i + 1)) }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * ¿Es aceptable esta redirect_uri al registrar un cliente? https siempre; http SOLO en loopback
+ * (localhost, 127.0.0.1, [::1]) como permite RFC 8252 §7.3 / OAuth 2.1: Claude Code, Claude Desktop y el
+ * MCP Inspector reciben el código en un puerto local y su registro se rechazaba con «Bad Request».
+ */
+export function redirectUriPermitida(uri: string): boolean {
+  let u: URL
+  try {
+    u = new URL(uri)
+  } catch {
+    return false
+  }
+  if (u.username || u.password || u.hash) return false
+  if (u.protocol === 'https:') return !!u.hostname
+  return u.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(u.hostname)
+}
+
 export type AuthorizeOk = { ok: true; redirectUrl: string }
 export type AuthorizeErr = { ok: false; redirectUrl: string }
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { canjearCodigo, refrescarToken } from '@/lib/mcp/oauth'
+import { canjearCodigo, credencialesBasic, refrescarToken } from '@/lib/mcp/oauth'
 
 /**
  * Token endpoint OAuth 2.1. Solo authorization_code (con PKCE) y refresh_token con rotación.
@@ -21,6 +21,14 @@ export async function POST(request: NextRequest) {
       { error: 'invalid_request', error_description: 'Cuerpo inválido' },
       { status: 400, headers: noStore }
     )
+  }
+
+  // client_secret_basic: ChatGPT y otros clientes mandan las credenciales en la cabecera Authorization y no
+  // en el cuerpo. Sin esto el canje fallaba con «Faltan code, client_id…» (Bad Request). Lo del cuerpo manda.
+  const basic = credencialesBasic(request.headers.get('authorization'))
+  if (basic) {
+    if (typeof body.client_id !== 'string' || !body.client_id) body.client_id = basic.clientId
+    if (typeof body.client_secret !== 'string' || !body.client_secret) body.client_secret = basic.clientSecret
   }
 
   const grant = typeof body.grant_type === 'string' ? body.grant_type : ''

@@ -84,3 +84,21 @@ ni una fila de la B, aunque el prompt lo pida.
 
 Los tokens de 15 min mueren solos; el refresh a los 30 días. Para revocar YA, borra el cliente o
 sus filas de `mcp_oauth_tokens` (el usuario dueño puede hacerlo por RLS con su sesión).
+
+## Alcance de los datos por usuario
+
+El MCP nunca usa un rol propio con más visibilidad: ejecuta con las claims del usuario que autorizó y el rol
+`mcp_reader` (sin `BYPASSRLS`), así que ve exactamente lo que vería en la app.
+
+- **Super administrador**: todas las subcuentas.
+- **Resto de usuarios**: solo su(s) subcuenta(s) y solo las filas que su rol puede leer (mismas políticas RLS que la web).
+
+La pantalla de consentimiento muestra cuál de los dos alcances tendrá la conexión. Verificado en producción con un
+usuario `member` (1 subcuenta, 1 contacto, 0 ventas) frente al super admin (4 subcuentas, 900 contactos, 51 ventas).
+
+## Errores «Bad Request» al conectar (corregidos)
+
+- El POST del consentimiento redirigía con 307 (conserva el método) y el navegador reenviaba el POST al callback de
+  ChatGPT/Claude: ahora es **303**.
+- El canje de código ignoraba `Authorization: Basic` (`client_secret_basic`): ahora se acepta y se anuncia.
+- El registro rechazaba `http://localhost:…` (Claude Code, Inspector): ahora se admite http solo en loopback.
