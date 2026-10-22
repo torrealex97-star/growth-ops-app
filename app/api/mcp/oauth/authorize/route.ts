@@ -24,7 +24,7 @@ const PAGE_STYLES = `
   .si{background:#2563eb;color:white;border-color:#2563eb} .no{background:transparent;color:#94a3b8}
 `
 
-async function sesionActual(): Promise<{ userId: string } | null> {
+async function sesionActual(): Promise<{ userId: string; superAdmin: boolean } | null> {
   const cookieStore = await cookies()
   const authed = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
     cookies: {
@@ -37,18 +37,30 @@ async function sesionActual(): Promise<{ userId: string } | null> {
   const {
     data: { user },
   } = await authed.auth.getUser()
-  return user ? { userId: user.id } : null
+  if (!user) return null
+  const { data: sa } = await authed.rpc('is_super_admin')
+  return { userId: user.id, superAdmin: sa === true }
 }
 
-function paginaConsentimiento(opts: { clientName: string; clientId: string; params: URLSearchParams; error?: string }) {
-  const { clientName, clientId, params, error } = opts
+function paginaConsentimiento(opts: {
+  clientName: string
+  clientId: string
+  params: URLSearchParams
+  error?: string
+  superAdmin?: boolean
+}) {
+  const { clientName, clientId, params, error, superAdmin } = opts
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Autorizar acceso MCP</title><style>${PAGE_STYLES}</style></head><body><div class="card">
 <h1>${error ? 'No se pudo autorizar' : `¿Autorizar acceso a «${clientName}»?`}</h1>
 ${
   error
     ? `<p>${error}</p>`
-    : `<p><strong>${clientName}</strong> (<code>${clientId.slice(0, 24)}…</code>) pide acceso de <strong>solo lectura</strong> a los datos de tus subcuentas: contactos, ventas, cobros, citas, campañas y métricas, exactamente lo que tu usuario ve en la app.</p>
+    : `<p><strong>${clientName}</strong> (<code>${clientId.slice(0, 24)}…</code>) pide acceso de <strong>solo lectura</strong> ${
+        superAdmin
+          ? 'a los datos de TODAS las subcuentas (eres super administrador): contactos, ventas, cobros, citas, campañas y métricas.'
+          : 'únicamente a los datos de TU subcuenta y solo los que tu rol puede ver en la app (contactos, ventas, cobros, citas, campañas y métricas). Nunca verá otras subcuentas.'
+      }</p>
 <p>No podrá modificar, borrar ni exportar nada que tu sesión no alcance. Puedes revocar el acceso en cualquier momento desde Configuración.</p>`
 }
 <form method="POST" action="/api/mcp/oauth/authorize">
@@ -99,7 +111,18 @@ export async function GET(request: NextRequest) {
     clientName: validacion.clientName ?? 'Cliente MCP',
     clientId: p.get('client_id') ?? '',
     params: p,
+    superAdmin: sesion.superAdmin,
   })
+}
+
+/**
+ * Redirección tras el POST del formulario de consentimiento. DEBE ser 303 (See Other): el 307 que
+ * `NextResponse.redirect` usa por defecto conserva el método, así que el navegador reenviaba el POST
+ * (con el formulario entero) a la URL de retorno de ChatGPT/Claude, que lo rechazaba con «Bad Request»
+ * justo después de pulsar Autorizar. Con 303 el navegador la pide con GET, como exige OAuth.
+ */
+function redirigirTrasPost(url: URL) {
+  return NextResponse.redirect(url, { status: 303, headers: { 'Cache-Control': 'no-store' } })
 }
 
 export async function POST(request: NextRequest) {
@@ -143,14 +166,11 @@ export async function POST(request: NextRequest) {
   if (!approve) {
     url.searchParams.set('error', 'access_denied')
     url.searchParams.set('error_description', 'El usuario denegó el acceso')
-    return NextResponse.redirect(url, { headers: { 'Cache-Control': 'no-store' } })
+    return redirigirTrasPost(url)
   }
 
   const sesion = await sesionActual()
-  if (!sesion)
-    return NextResponse.redirect(new URL('/login', request.nextUrl.origin), {
-      headers: { 'Cache-Control': 'no-store' },
-    })
+  if (!sesion) return redirigirTrasPost(new URL('/login', request.nextUrl.origin))
 
   const code = await emitirCodigo({
     clientId: p.get('client_id')!,
@@ -165,5 +185,5 @@ export async function POST(request: NextRequest) {
   await asignarPropietario(p.get('client_id')!, sesion.userId)
 
   url.searchParams.set('code', code)
-  return NextResponse.redirect(url, { headers: { 'Cache-Control': 'no-store' } })
+  return redirigirTrasPost(url)
 }
