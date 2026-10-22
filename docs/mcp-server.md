@@ -102,3 +102,15 @@ usuario `member` (1 subcuenta, 1 contacto, 0 ventas) frente al super admin (4 su
   ChatGPT/Claude: ahora es **303**.
 - El canje de código ignoraba `Authorization: Basic` (`client_secret_basic`): ahora se acepta y se anuncia.
 - El registro rechazaba `http://localhost:…` (Claude Code, Inspector): ahora se admite http solo en loopback.
+
+## Compatibilidad con ChatGPT (apps)
+
+- **Negociación de versión**: se responde con la versión de protocolo que pide el cliente (2025-06-18, 2025-03-26 o
+  2024-11-05); ChatGPT rechaza una respuesta distinta de la que pidió.
+- **Anotaciones**: las 5 herramientas llevan `readOnlyHint: true`, `destructiveHint: false`, `openWorldHint: false`.
+  Sin ellas ChatGPT las trata como posibles escrituras.
+- **`search` y `fetch`**: el par que ChatGPT espera para buscar/listar. Buscan contactos (nombre, email, teléfono,
+  Instagram) y devuelven el detalle con sus citas; ids `contact:<uuid>`. Pasan por el mismo RLS del usuario: «no
+  encontrado» no distingue entre «no existe» y «no tienes permiso».
+- **Errores de herramienta** como resultado con `isError: true` (el modelo los lee y se corrige), no como error de protocolo.
+- El servidor sigue siendo **solo lectura**: ChatGPT no puede crear ni modificar nada.

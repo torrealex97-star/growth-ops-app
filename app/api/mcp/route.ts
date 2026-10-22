@@ -13,9 +13,16 @@
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { validarAccessToken } from '@/lib/mcp/oauth'
+import { documentoDeContacto, resultadosDeBusqueda, sqlBuscar, sqlFetch } from '@/lib/mcp/busqueda'
 import { ejecutarSqlMcp } from '@/lib/mcp/sql-executor'
 
 const PROTOCOL_VERSION = '2025-06-18'
+// Versiones que sabemos servir. Se responde con la que pide el cliente si la soporta (la especificación manda
+// negociar): ChatGPT y otros clientes piden la 2025-03-26 o la 2024-11-05 y rechazan una respuesta distinta.
+const PROTOCOL_VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05']
+const INSTRUCCIONES =
+  'Datos de GrowthOps en SOLO LECTURA. Cada usuario ve únicamente su subcuenta y lo que su rol permite; solo el super administrador ve todas. Usa search/fetch para contactos, y list_tenants, describe_table y query_db (SQL SELECT) para el resto.'
+const SOLO_LECTURA = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
 const MCP_JWT_SECRET = () => process.env.MCP_JWT_SECRET
 const JSON_RPC_HEADERS = {
   'Content-Type': 'application/json',
@@ -24,6 +31,12 @@ const JSON_RPC_HEADERS = {
 
 function jsonRpc(id: unknown, result: unknown) {
   return { jsonrpc: '2.0', id, result }
+}
+/** Fallo de una HERRAMIENTA: va como resultado con isError (el modelo lo lee y se corrige), no como error de protocolo. */
+function errorDeHerramienta(id: unknown, texto: string) {
+  return NextResponse.json(jsonRpc(id, { content: [{ type: 'text', text: texto }], isError: true }), {
+    headers: JSON_RPC_HEADERS,
+  })
 }
 function jsonRpcError(id: unknown, code: number, message: string) {
   return { jsonrpc: '2.0', id, error: { code, message } }
@@ -72,14 +85,17 @@ async function autenticar(
   return sesion
 }
 
-async function handleInitialize(id: unknown) {
+async function handleInitialize(id: unknown, params?: Record<string, unknown>) {
+  const pedida = typeof params?.protocolVersion === 'string' ? params.protocolVersion : ''
+  const version = PROTOCOL_VERSIONS.includes(pedida) ? pedida : PROTOCOL_VERSION
   return NextResponse.json(
     jsonRpc(id, {
-      protocolVersion: PROTOCOL_VERSION,
-      capabilities: { tools: {} },
-      serverInfo: { name: 'growth-ops-mcp', version: '1.0.0' },
+      protocolVersion: version,
+      capabilities: { tools: { listChanged: false } },
+      serverInfo: { name: 'growth-ops-mcp', title: 'GrowthOps', version: '1.1.0' },
+      instructions: INSTRUCCIONES,
     }),
-    { headers: JSON_RPC_HEADERS }
+    { headers: { ...JSON_RPC_HEADERS, 'MCP-Protocol-Version': version } }
   )
 }
 
@@ -88,13 +104,47 @@ async function handleToolsList(id: unknown) {
     jsonRpc(id, {
       tools: [
         {
+          name: 'search',
+          title: 'Buscar contactos',
+          description:
+            'Busca contactos por nombre, email, teléfono o Instagram. Devuelve hasta 15 resultados con id, título y enlace; usa fetch con el id para ver el detalle.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              query: {
+                type: 'string',
+                description: 'Texto a buscar (nombre, email, teléfono o usuario de Instagram).',
+              },
+            },
+            required: ['query'],
+            additionalProperties: false,
+          },
+          annotations: { title: 'Buscar contactos', ...SOLO_LECTURA },
+        },
+        {
+          name: 'fetch',
+          title: 'Ver un contacto',
+          description:
+            'Devuelve el detalle de un contacto (datos y citas) a partir del id que dio search, con el formato contact:<uuid>.',
+          inputSchema: {
+            type: 'object',
+            properties: { id: { type: 'string', description: 'Id devuelto por search, p. ej. contact:3f2a…' } },
+            required: ['id'],
+            additionalProperties: false,
+          },
+          annotations: { title: 'Ver un contacto', ...SOLO_LECTURA },
+        },
+        {
           name: 'list_tenants',
+          title: 'Listar subcuentas',
           description:
             'Lista las subcuentas (tenants) visibles para el usuario que autorizó esta conexión MCP. Devuelve id, slug, nombre y estado.',
           inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+          annotations: { title: 'Listar subcuentas', ...SOLO_LECTURA },
         },
         {
           name: 'query_db',
+          title: 'Consulta SQL de solo lectura',
           description:
             'Ejecuta una consulta SQL de SOLO LECTURA (SELECT o WITH) sobre la base de datos de la app, con el aislamiento por subcuenta del usuario. Máximo 500 filas y 8 segundos por consulta. Las tablas principales: tenants, users, contacts, appointments, sales, collections, payment_plans, refunds, commissions, campaigns, contact_attributions, canonical_events, funnels, contracts, integration_sync_runs, stripe_payments.',
           inputSchema: {
@@ -105,9 +155,11 @@ async function handleToolsList(id: unknown) {
             required: ['sql'],
             additionalProperties: false,
           },
+          annotations: { title: 'Consulta SQL de solo lectura', ...SOLO_LECTURA },
         },
         {
           name: 'describe_table',
+          title: 'Columnas de una tabla',
           description: 'Devuelve las columnas de una tabla pública (nombre, tipo, nulo) para saber qué consultar.',
           inputSchema: {
             type: 'object',
@@ -115,6 +167,7 @@ async function handleToolsList(id: unknown) {
             required: ['table'],
             additionalProperties: false,
           },
+          annotations: { title: 'Columnas de una tabla', ...SOLO_LECTURA },
         },
       ],
     }),
@@ -127,15 +180,40 @@ async function handleToolCall(
   name: unknown,
   args: Record<string, unknown>,
   userId: string,
-  email: string
+  email: string,
+  origen: string
 ) {
+  if (name === 'search') {
+    const sqlText = sqlBuscar(String(args.query ?? ''))
+    if (!sqlText) return errorDeHerramienta(id, 'Indica un texto para buscar')
+    const r = await ejecutarSqlMcp(sqlText, { userId, email, clientId: 'search' })
+    if (!r.ok) return errorDeHerramienta(id, r.error)
+    const cuerpo = resultadosDeBusqueda(r.rows as never, origen)
+    return NextResponse.json(jsonRpc(id, { content: [{ type: 'text', text: JSON.stringify(cuerpo) }] }), {
+      headers: JSON_RPC_HEADERS,
+    })
+  }
+
+  if (name === 'fetch') {
+    const q = sqlFetch(String(args.id ?? ''))
+    if (!q) return errorDeHerramienta(id, 'Id no válido: usa el que devolvió search (contact:<uuid>)')
+    const r = await ejecutarSqlMcp(q.sql, { userId, email, clientId: 'fetch' })
+    if (!r.ok) return errorDeHerramienta(id, r.error)
+    // Sin fila = no existe o no tienes permiso: no se distingue, para no revelar contactos de otras subcuentas.
+    if (r.rows.length === 0) return errorDeHerramienta(id, 'No encontrado')
+    const doc = documentoDeContacto(r.rows[0] as never, origen)
+    return NextResponse.json(jsonRpc(id, { content: [{ type: 'text', text: JSON.stringify(doc) }] }), {
+      headers: JSON_RPC_HEADERS,
+    })
+  }
+
   if (name === 'list_tenants') {
     const result = await ejecutarSqlMcp('select id, slug, name, status, created_at from tenants order by name', {
       userId,
       email,
       clientId: 'list_tenants',
     })
-    if (!result.ok) return NextResponse.json(jsonRpcError(id, -32000, result.error), { headers: JSON_RPC_HEADERS })
+    if (!result.ok) return errorDeHerramienta(id, result.error)
     return NextResponse.json(jsonRpc(id, { content: [{ type: 'text', text: JSON.stringify(result.rows, null, 2) }] }), {
       headers: JSON_RPC_HEADERS,
     })
@@ -144,13 +222,13 @@ async function handleToolCall(
   if (name === 'describe_table') {
     const table = String(args.table ?? '')
     if (!/^[a-z_][a-z0-9_]*$/i.test(table)) {
-      return NextResponse.json(jsonRpcError(id, -32602, 'Nombre de tabla inválido'), { headers: JSON_RPC_HEADERS })
+      return errorDeHerramienta(id, 'Nombre de tabla inválido')
     }
     const result = await ejecutarSqlMcp(
       `select column_name, data_type, is_nullable from information_schema.columns where table_schema='public' and table_name='${table}' order by ordinal_position`,
       { userId, email, clientId: 'describe_table' }
     )
-    if (!result.ok) return NextResponse.json(jsonRpcError(id, -32000, result.error), { headers: JSON_RPC_HEADERS })
+    if (!result.ok) return errorDeHerramienta(id, result.error)
     if (result.rowCount === 0) {
       return NextResponse.json(jsonRpc(id, { content: [{ type: 'text', text: `Tabla desconocida: ${table}` }] }), {
         headers: JSON_RPC_HEADERS,
@@ -164,7 +242,7 @@ async function handleToolCall(
   if (name === 'query_db') {
     const sqlText = String(args.sql ?? '')
     const result = await ejecutarSqlMcp(sqlText, { userId, email, clientId: 'query_db' })
-    if (!result.ok) return NextResponse.json(jsonRpcError(id, -32000, result.error), { headers: JSON_RPC_HEADERS })
+    if (!result.ok) return errorDeHerramienta(id, result.error)
     const meta = `— ${result.rowCount} filas en ${result.durationMs} ms${result.truncated ? ' (TRUNCADO a 500: afina el filtro o añade LIMIT)' : ''}`
     return NextResponse.json(
       jsonRpc(id, {
@@ -202,7 +280,7 @@ export async function POST(request: NextRequest) {
 
   switch (body.method) {
     case 'initialize':
-      return handleInitialize(id)
+      return handleInitialize(id, body.params)
     case 'notifications/initialized':
       return new NextResponse(null, { status: 202 })
     case 'tools/list':
@@ -213,7 +291,8 @@ export async function POST(request: NextRequest) {
         body.params?.name,
         (body.params?.arguments as Record<string, unknown>) ?? {},
         userId,
-        email
+        email,
+        new URL(request.url).origin
       )
     case 'ping':
       return NextResponse.json(jsonRpc(id, {}), { headers: JSON_RPC_HEADERS })
