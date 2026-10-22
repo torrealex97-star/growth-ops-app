@@ -73,7 +73,7 @@ async function autenticar(
       { status: 401, headers: { 'WWW-Authenticate': desafioBearer(request) } }
     )
   }
-  // Validación canónica única (lib/mcp/oauth.ts): firma + jti presente en BD y no revocado.
+  // Validación canónica única (lib/mcp/oauth.ts): firma + hash del token presente en BD y no revocado.
   // Comprobar contra BD es lo que permite revocar sesiones sin esperar a que caduque el token.
   const sesion = await validarAccessToken(header.slice(7).trim())
   if (!sesion) {

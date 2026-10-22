@@ -1,3 +1,9 @@
+# COMPLETADO — MCP: «autenticación correcta, descubrimiento fallido» (22-oct)
+
+Causa: `validarAccessToken` buscaba el token en BD por el `jti` en crudo, pero se guarda `token_hash = SHA-256(token)`. Todo
+Bearer válido daba 401 y `initialize`/`tools/list` nunca respondían. Ahora se busca por el hash y se comprueba que el `sub`
+del JWT coincida con el usuario de la fila. **Tras desplegar, reconectar** (los tokens ya emitidos sirven: están bien en BD).
+
 # COMPLETADO — Fix «Bad Request» al conectar el MCP a ChatGPT/Claude (22-oct)
 
 Causa: el POST del consentimiento redirigía con 307 y el navegador reenviaba el POST al callback del cliente (en BD:

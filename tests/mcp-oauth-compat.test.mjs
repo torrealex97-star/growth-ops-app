@@ -115,3 +115,43 @@ test('consentimiento: muestra a qué dominio volverá el código y solo reenvía
   assert.doesNotMatch(html, /name="extra"/)
   assert.match(html, /name="redirect_uri"/)
 })
+
+// ── «Autenticación correcta, descubrimiento fallido»: el Bearer válido se rechazaba siempre
+import { validarAccessToken } from '../lib/mcp/oauth.ts'
+import { hashToken, signJwt } from '../lib/mcp/crypto.ts'
+
+test('un access token emitido por el servidor se valida (se busca por SHA-256 del token, no por el jti)', async () => {
+  process.env.MCP_JWT_SECRET = 'x'.repeat(40)
+  const token = signJwt(
+    { sub: 'user-1', jti: 'abc', typ: 'mcp_access', scope: 'read', client_id: 'mcp_1' },
+    'x'.repeat(40),
+    900
+  )
+  const consultas = []
+  const buscar = async (hash) => {
+    consultas.push(hash)
+    return hash === hashToken(token) ? { user_id: 'user-1', client_id: 'mcp_1' } : null
+  }
+  const r = await validarAccessToken(token, buscar)
+  assert.deepEqual(r, { userId: 'user-1', email: '', clientId: 'mcp_1' })
+  assert.deepEqual(consultas, [hashToken(token)])
+})
+
+test('token revocado/desconocido, de otro usuario, mal firmado o de otro tipo → rechazado', async () => {
+  process.env.MCP_JWT_SECRET = 'x'.repeat(40)
+  const firmar = (extra, secreto = 'x'.repeat(40)) =>
+    signJwt({ sub: 'user-1', typ: 'mcp_access', ...extra }, secreto, 900)
+  assert.equal(await validarAccessToken(firmar({}), async () => null), null, 'no está en BD / revocado')
+  assert.equal(
+    await validarAccessToken(firmar({}), async () => ({ user_id: 'otro', client_id: 'c' })),
+    null,
+    'otro usuario'
+  )
+  assert.equal(
+    await validarAccessToken(firmar({}, 'y'.repeat(40)), async () => ({ user_id: 'user-1' })),
+    null,
+    'firma ajena'
+  )
+  assert.equal(await validarAccessToken(firmar({ typ: 'otro' }), async () => ({ user_id: 'user-1' })), null, 'tipo')
+  assert.equal(await validarAccessToken('basura', async () => ({ user_id: 'user-1' })), null)
+})
