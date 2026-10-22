@@ -6,7 +6,7 @@
  *   valida en el canje del código pero NO se exige en el header del endpoint /token para
  *   clientes públicos; se acepta client_id + code_verifier.
  * - Códigos de 60 s y de UN SOLO uso (consumeCode hace UPDATE atómico sobre used_at).
- * - Access token JWT HS256 de 15 min con jti = hash del token en BD (revocable).
+ * - Access token JWT HS256 de 15 min con token_hash = SHA-256 del token en BD (revocable).
  * - Refresh rotativo de 30 días: cada canje revoca el anterior (revokeByRefreshHash).
  */
 import { hashToken, randomToken, secretMatches, signJwt, verifyJwt } from './crypto'
@@ -205,15 +205,24 @@ async function emitirTokens(input: { clientId: string; userId: string; scope: st
   }
 }
 
-/** Validación de Bearer: firma + jti presente en BD y no revocado. */
+/**
+ * Validación de Bearer: firma + token presente en BD y no revocado.
+ *
+ * La BD guarda `token_hash = SHA-256(access token completo)` (ver `emitirTokens`). Antes se buscaba por el `jti`
+ * en crudo, que nunca coincide con ese hash: TODO Bearer válido se rechazaba con 401 y el cliente decía
+ * «autenticación correcta, descubrimiento fallido» (initialize/tools/list nunca llegaban a responder).
+ */
 export async function validarAccessToken(
-  token: string
+  token: string,
+  buscar: typeof findAccessToken = findAccessToken
 ): Promise<{ userId: string; email: string; clientId: string } | null> {
   const secret = jwtSecret()
   if (!secret) return null
   const claims = verifyJwt(token, secret)
   if (!claims || claims.typ !== 'mcp_access') return null
-  const row = await findAccessToken(String(claims.jti ?? ''))
+  const row = await buscar(hashToken(token))
   if (!row) return null
+  // El usuario del JWT y el de la fila deben ser el mismo: un token firmado no puede apuntar a otra sesión.
+  if (typeof claims.sub === 'string' && claims.sub !== row.user_id) return null
   return { userId: row.user_id, email: String(claims.email ?? ''), clientId: row.client_id ?? '' }
 }
