@@ -110,3 +110,7 @@ test('la ruta de métricas exige rol de gestión, acota la lectura y declara cua
   const p = readFileSync('app/[tenant]/conversaciones/metricas/page.tsx', 'utf8')
   assert.match(p, /Sin datos/)
 })
+
+test('la pantalla de Conversaciones enlaza a las métricas', () => {
+  assert.match(readFileSync('app/[tenant]/conversaciones/page.tsx', 'utf8'), /conversaciones\/metricas/)
+})

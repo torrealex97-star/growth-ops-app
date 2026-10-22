@@ -191,6 +191,9 @@ export default function ConversacionesPage() {
       <div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-xl font-semibold text-foreground">Conversaciones</h1>
+          <Link href={`/${tenant}/conversaciones/metricas`} className="text-xs text-brand-400 hover:underline">
+            Métricas
+          </Link>
           {puedeIA ? (
             <Link
               href={`/${tenant}/conversaciones/agente`}
