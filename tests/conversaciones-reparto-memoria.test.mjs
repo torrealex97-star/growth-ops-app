@@ -241,3 +241,12 @@ test('orquestador: un traspaso de la IA a una persona también pasa por el repar
   assert.equal(r.accion, 'traspaso')
   assert.ok(['u1', 'u2'].includes(db.conversations[0].assignee_id))
 })
+
+test('orquestador: una conversación ya asignada no vuelve a lanzar el reparto en cada mensaje', async () => {
+  const db = orquestable({ repartoAutomatico: true }, 'off')
+  db.conversations[0].assignee_id = 'u2'
+  const antes = db.conversation_events.length
+  await procesarMensajeEntrante(cliente(db), 'T', 'C1', 'm1', depsNo)
+  assert.equal(db.conversations[0].assignee_id, 'u2')
+  assert.equal(db.conversation_events.length, antes)
+})
