@@ -69,7 +69,18 @@ export function pendingPayments(
   })
 }
 
-export async function readPaymentInbox(sb: SupabaseClient, tenantId: string, closerId: string | null) {
+/**
+ * `soloPago`: cuando una ruta solo necesita UN cobro (resolve, vincular, detalle de `?payment=`), se leen en la
+ * base únicamente ese pago, sus referencias de cobro y su cliente de Stripe. El resultado para ese pago es el
+ * mismo que con la bandeja completa: `pendingPayments` solo mira esas tres cosas del pago, más los contactos
+ * (que siguen leyéndose enteros porque la ambigüedad de correo exige verlos todos).
+ */
+export async function readPaymentInbox(
+  sb: SupabaseClient,
+  tenantId: string,
+  closerId: string | null,
+  opciones: { soloPago?: string } = {}
+) {
   // `filtrar` aplica condiciones EN LA BASE que de todos modos se aplicarían después en código
   // (pendingPayments): así no se descargan filas que se van a tirar. Los filtros son equivalentes, no nuevos.
   type Consulta = ReturnType<ReturnType<SupabaseClient['from']>['select']>
@@ -81,13 +92,22 @@ export async function readPaymentInbox(sb: SupabaseClient, tenantId: string, clo
     if (result.error || result.truncated) throw new Error('No se pudo leer la bandeja completa de cobros. Reintenta.')
     return result.rows
   }
-  const [payments, contacts, collections, appointments, sales, customerLinks] = await Promise.all([
-    // Solo los pagos que pueden estar pendientes: pendingPayments descarta el resto sin mirarlos.
-    read<InboxPayment>(
-      'stripe_payments',
-      'payment_id,charge_id,customer_id,customer_email,amount,refunded_amount,currency,status,paid_at',
-      (q) => q.in('status', ['succeeded', 'partially_refunded'])
-    ),
+  const soloPago = opciones.soloPago
+  // Solo los pagos que pueden estar pendientes: pendingPayments descarta el resto sin mirarlos.
+  const payments = await read<InboxPayment>(
+    'stripe_payments',
+    'payment_id,charge_id,customer_id,customer_email,amount,refunded_amount,currency,status,paid_at',
+    (q) => {
+      const base = q.in('status', ['succeeded', 'partially_refunded'])
+      return soloPago ? base.eq('payment_id', soloPago) : base
+    }
+  )
+  if (soloPago && payments.length === 0) return []
+  const referencias = soloPago ? [soloPago, ...payments.flatMap((p) => (p.charge_id ? [p.charge_id] : []))] : null
+  const clientesDelPago = soloPago
+    ? [...new Set(payments.flatMap((p) => (p.customer_id ? [p.customer_id] : [])))]
+    : null
+  const [contacts, collections, appointments, sales, customerLinks] = await Promise.all([
     // Del JSON `custom_fields` de cada contacto (puede ser enorme: campos de GHL) solo se lee una clave,
     // `emails_alternativos` (aliasDeContacto). Se trae solo esa y se reconstruye la forma que espera el
     // resto del código.
@@ -101,7 +121,7 @@ export async function readPaymentInbox(sb: SupabaseClient, tenantId: string, clo
       }))
     ),
     read<{ payment_reference: string | null }>('collections', 'payment_reference', (q) =>
-      q.not('payment_reference', 'is', null)
+      referencias ? q.in('payment_reference', referencias) : q.not('payment_reference', 'is', null)
     ),
     closerId
       ? read<{ contact_id: string; closer_id: string | null }>('appointments', 'contact_id,closer_id')
@@ -109,10 +129,13 @@ export async function readPaymentInbox(sb: SupabaseClient, tenantId: string, clo
     closerId
       ? read<{ contact_id: string; closer_id: string | null }>('sales', 'contact_id,closer_id')
       : Promise.resolve([]),
-    read<{ stripe_customer_id: string; contact_id: string | null; name: string | null }>(
-      'stripe_customers',
-      'stripe_customer_id,contact_id,name'
-    ),
+    clientesDelPago && clientesDelPago.length === 0
+      ? Promise.resolve([])
+      : read<{ stripe_customer_id: string; contact_id: string | null; name: string | null }>(
+          'stripe_customers',
+          'stripe_customer_id,contact_id,name',
+          clientesDelPago ? (q) => q.in('stripe_customer_id', clientesDelPago) : undefined
+        ),
   ])
   const allowed = closerId
     ? new Set([...appointments, ...sales].filter((r) => r.closer_id === closerId).map((r) => r.contact_id))

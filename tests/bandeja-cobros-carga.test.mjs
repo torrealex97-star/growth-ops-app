@@ -95,3 +95,31 @@ test('recuperar el foco no relanza la lectura completa de la bandeja más de una
   assert.match(c, /addEventListener\('focus', alVolver\)/)
   assert.match(c, /removeEventListener\('focus', alVolver\)/)
 })
+
+test('con soloPago se lee en la base solo ese pago, sus referencias y su cliente, con el mismo resultado', async () => {
+  const { sb, log } = fakeSb({
+    stripe_payments: [pago()],
+    contacts: [{ id: 'c1', email: 'trabajo@x.com', full_name: 'Ana', emails_alternativos: null }],
+  })
+  const filas = await readPaymentInbox(sb, 'T1', null, { soloPago: 'pi_1' })
+  assert.equal(filas.length, 1)
+  assert.equal(filas[0].contactId, 'c1')
+  const pagos = log.find((o) => o.tabla === 'stripe_payments')
+  assert.ok(pagos.filtros.some((f) => f[0] === 'eq' && f[1] === 'payment_id' && f[2] === 'pi_1'))
+  const cobros = log.find((o) => o.tabla === 'collections')
+  assert.deepEqual(
+    cobros.filtros.find((f) => f[0] === 'in'),
+    ['in', 'payment_reference', ['pi_1', 'ch_1']]
+  )
+  const clientes = log.find((o) => o.tabla === 'stripe_customers')
+  assert.deepEqual(
+    clientes.filtros.find((f) => f[0] === 'in'),
+    ['in', 'stripe_customer_id', ['cus_1']]
+  )
+})
+
+test('con soloPago y un pago inexistente no se leen más tablas', async () => {
+  const { sb, log } = fakeSb({ stripe_payments: [] })
+  assert.deepEqual(await readPaymentInbox(sb, 'T1', null, { soloPago: 'pi_x' }), [])
+  assert.equal(log.filter((o) => o.tabla === 'contacts').length, 0)
+})
