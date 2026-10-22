@@ -4,6 +4,8 @@ import { z } from 'zod'
 import { getConfigValue } from '@/lib/forms/config-vars'
 import { getOrCreateContact } from '@/lib/contacts/resolve'
 import { buscarContactoPorEmail } from '@/lib/contacts/buscar'
+import { guardarCualificacion, registrarOrigen } from '@/lib/contacts/origen-y-cualificacion'
+import { cualificacionDeFormulario } from '@/lib/forms/cualificacion'
 import { safeRedirectUrl } from '@/lib/forms/logic'
 import { evaluateSubmission } from '@/lib/forms/submission'
 import { loadPublishedForm, serviceClient } from '@/lib/forms/server'
@@ -164,6 +166,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   if (error) {
     console.error('[forms/submit] no se pudo guardar:', error.message)
     return NextResponse.json({ error: 'No se pudo guardar tu respuesta. Inténtalo de nuevo.' }, { status: 500 })
+  }
+
+  // Un lead de captación o cualificación se ATRIBUYE y se CUALIFICA igual que uno de Typeform: los
+  // parámetros de la URL (utm_*, ref de colaboradora) son su origen, y sus respuestas viajan al contacto y a
+  // sus agendas. Un fallo aquí no tumba el envío: la respuesta ya está guardada.
+  if (!b.partial && contactId && (form.audience === 'captacion' || form.audience === 'cualificacion')) {
+    await registrarOrigen(sb, form.tenantId, contactId, hiddenClean, { source: 'formulario', enEl: now })
+    const cualificacion = cualificacionDeFormulario(form.config, ev.answers, form.formId)
+    if (Object.keys(cualificacion).length > 0) {
+      await guardarCualificacion(sb, form.tenantId, contactId, cualificacion, now).catch((e) =>
+        console.warn('[forms/submit] no se pudo guardar la cualificación:', e instanceof Error ? e.message : e)
+      )
+    }
   }
 
   // Webhooks salientes: primer intento en segundo plano, sin retrasar la respuesta al visitante.
