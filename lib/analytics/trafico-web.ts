@@ -1,8 +1,8 @@
 // PANEL DE TRÁFICO WEB (estilo Plausible/Umami) sobre canonical_events del pixel propio.
 // Puro y sin I/O. Se cuentan PERSONAS (visitor_id) y SESIONES distintas, no filas: una recarga no es
 // otra visita. La fuente sale de utm_source de la URL y, si no hay, del referrer (mismo criterio que
-// la ingesta: deriveChannel). Los bots no se pueden separar aquí: la ingesta los guarda en raw_events
-// pero no marca el evento canónico.
+// la ingesta: deriveChannel). Los eventos marcados `bot` por la ingesta se excluyen y se cuentan aparte;
+// los anteriores a esa marca (bot === undefined) se cuentan como tráfico normal.
 import { deriveChannel } from '@/lib/tracking/ingest'
 
 export type EventoTrafico = {
@@ -12,6 +12,10 @@ export type EventoTrafico = {
   url: string | null
   referrer: string | null
   occurred_at: string
+  /** `properties->>bot` llega como texto ('true'/'false'); se acepta también el booleano. */
+  bot?: boolean | string | null
+  device?: string | null
+  country?: string | null
 }
 
 export type FilaConteo = { clave: string; visitantes: number; porcentaje: number }
@@ -24,6 +28,10 @@ export type ResumenTrafico = {
   conversion: number | null
   topPaginas: FilaConteo[]
   topFuentes: FilaConteo[]
+  topDispositivos: FilaConteo[]
+  topPaises: FilaConteo[]
+  /** Visitantes descartados por ser bots (no entran en ninguna cifra de arriba). */
+  bots: number
 }
 
 const EVENTOS_VISTA = new Set(['page_view', 'landing_view'])
@@ -75,6 +83,9 @@ export function calcularTraficoWeb(eventos: EventoTrafico[], opciones: { top?: n
   const convertidos = new Set<string>()
   const porPagina = new Map<string, Set<string>>()
   const porFuente = new Map<string, Set<string>>()
+  const porDispositivo = new Map<string, Set<string>>()
+  const porPais = new Map<string, Set<string>>()
+  const bots = new Set<string>()
   // Una sola fuente por visitante: la de su primera visita del periodo (atribución de entrada).
   const primeraFuente = new Map<string, string>()
   let paginasVistas = 0
@@ -84,12 +95,18 @@ export function calcularTraficoWeb(eventos: EventoTrafico[], opciones: { top?: n
   for (const e of ordenados) {
     const v = e.visitor_id
     if (!v) continue
+    if (e.bot === true || e.bot === 'true') {
+      bots.add(v)
+      continue
+    }
     if (EVENTOS_CONVERSION.has(e.event_name)) convertidos.add(v)
     if (!EVENTOS_VISTA.has(e.event_name)) continue
     visitantes.add(v)
     paginasVistas += 1
     if (e.session_id) sesiones.add(e.session_id)
     const ruta = rutaDe(e.url)
+    if (e.device) porDispositivo.set(e.device, (porDispositivo.get(e.device) ?? new Set()).add(v))
+    if (e.country) porPais.set(e.country, (porPais.get(e.country) ?? new Set()).add(v))
     if (ruta) porPagina.set(ruta, (porPagina.get(ruta) ?? new Set()).add(v))
     if (!primeraFuente.has(v)) primeraFuente.set(v, fuenteDe(e.url, e.referrer))
   }
@@ -103,5 +120,9 @@ export function calcularTraficoWeb(eventos: EventoTrafico[], opciones: { top?: n
     conversion: visitantes.size ? (conversores / visitantes.size) * 100 : null,
     topPaginas: top(porPagina, visitantes.size, n),
     topFuentes: top(porFuente, visitantes.size, n),
+    topDispositivos: top(porDispositivo, visitantes.size, n),
+    topPaises: top(porPais, visitantes.size, n),
+    // Un visitante que fue marcado bot en un evento y humano en otro cuenta como persona, no como bot.
+    bots: [...bots].filter((b) => !visitantes.has(b)).length,
   }
 }

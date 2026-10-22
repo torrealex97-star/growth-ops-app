@@ -159,6 +159,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     eventId,
     receivedAt,
     capi: { clientIp: ip, userAgent, bot: bot === 'likely_bot' },
+    cliente: { bot, userAgent, country: request.headers.get('x-vercel-ip-country') },
   })
   return NextResponse.json(resultado.json, { status: resultado.status })
 }

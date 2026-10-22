@@ -49,7 +49,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     fetchAllRows<EventoTrafico>(() =>
       sb
         .from('canonical_events')
-        .select('visitor_id,session_id,event_name,occurred_at,url:properties->>url,referrer:properties->>referrer')
+        .select(
+          'visitor_id,session_id,event_name,occurred_at,url:properties->>url,referrer:properties->>referrer,bot:properties->>bot,device:properties->>device,country:properties->>country'
+        )
         .eq('tenant_id', session.tenantId)
         .in('event_name', EVENTOS)
         // Días del negocio (Europe/Madrid), no UTC: si no, se pierden las 00:00-02:00 del primer día.
