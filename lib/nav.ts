@@ -53,6 +53,7 @@ import {
   FileAudio,
   Handshake,
   Globe,
+  MessageSquare,
 } from 'lucide-react'
 import { allowedPrefixesFor, type AppRole, type Department } from '@/lib/auth/permissions'
 
@@ -320,6 +321,12 @@ export const NAV_SECTIONS: NavSection[] = [
         ],
       },
       { label: 'Setting AI', href: '/setting-ai', icon: Bot, roles: [...LEAD, 'setter', 'marketing'] },
+      {
+        label: 'Conversaciones',
+        href: '/conversaciones',
+        icon: MessageSquare,
+        roles: [...LEAD, 'setter', 'marketing'],
+      },
     ],
   },
   {
