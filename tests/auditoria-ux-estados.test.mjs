@@ -27,7 +27,7 @@ test('home: un error de Supabase no se presenta como cero subcuentas', () => {
 })
 
 test('setting-ai: la persistencia local tolera storage no disponible', () => {
-  const src = read('app/[tenant]/setting-ai/page.tsx')
+  const src = read('app/[tenant]/conversaciones/EntrenamientoTab.tsx')
   const bloque = src.slice(src.indexOf('localStorage.setItem(') - 400, src.indexOf('localStorage.setItem(') + 500)
   assert.ok(bloque.includes('try {') && bloque.includes('} catch {'), 'setItem envuelto en try/catch')
 })

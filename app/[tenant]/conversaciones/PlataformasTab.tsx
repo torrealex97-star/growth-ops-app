@@ -128,7 +128,7 @@ function IconoCanal({ tipo, className }: { tipo: 'sms' | 'call' | 'email' | 'cha
   return <MessageCircle className={className} />
 }
 
-export default function ConversacionesTab() {
+export default function PlataformasTab() {
   const tenant = useTenant()
   const [platform, setPlatform] = useState<Platform>('instagram')
   const [loading, setLoading] = useState(false)
@@ -347,7 +347,7 @@ export default function ConversacionesTab() {
   }, [openId, seleccionada?.messages.length])
 
   return (
-    <div className="flex flex-col h-[calc(100vh-6.5rem)] text-foreground">
+    <div className="flex flex-col h-[calc(100vh-11rem)] text-foreground">
       <div className="flex items-center gap-3 flex-wrap pb-3 border-b border-border">
         <div>
           <h1 className="text-base font-bold text-foreground leading-tight">Conversaciones</h1>

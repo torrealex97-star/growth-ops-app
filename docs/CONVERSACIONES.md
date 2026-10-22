@@ -64,3 +64,11 @@ plan de borrado de personas (`lib/privacidad/*`).
   cabeceras de rol, sin `TRASPASO`, ≤700 car.) y entra al prompt etiquetado como DATOS. Si falla, el agente sigue sin memoria.
 - **Borrado de personas**: `erase_person` borra las conversaciones del contacto (por `contact_id` y por el id de GHL, para
   las que nunca se enlazaron); mensajes, borradores y resumen caen en cascada. Ver `docs/F6-MAPA-PII.md` §1.1.
+
+## Una sola pantalla
+
+`/conversaciones` reúne lo que antes estaba en `/setting-ai` y en las subpáginas del módulo, con pestañas en la URL
+(`?tab=`): **Bandeja** (conversaciones guardadas, estados, borradores), **Plataformas** (lectura en directo de
+Instagram/GHL/Facebook/TikTok con análisis), **Agente de IA** (solo admin/director), **Entrenamiento** (simulador, crítico
+y mejora del prompt) y **Métricas**. `/setting-ai`, `/conversaciones/agente` y `/conversaciones/metricas` redirigen a la
+pestaña correspondiente. «Setting AI» desaparece del menú.
