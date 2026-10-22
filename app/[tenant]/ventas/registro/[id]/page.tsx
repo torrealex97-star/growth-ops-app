@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { isSetterRoleKey, isCloserRoleKey, isAffiliateRoleKey } from '@/lib/users'
@@ -617,8 +618,8 @@ export default function SaleDetailPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="h-8 w-48 bg-card rounded animate-pulse" />
-        <div className="h-32 bg-card rounded-lg animate-pulse" />
+        <Skeleton className="h-8 w-48 rounded" />
+        <Skeleton className="h-32" />
       </div>
     )
   }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useId, useState, type ReactNode } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import Link from 'next/link'
 import { ArrowUpRight, BarChart3, Info } from 'lucide-react'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
@@ -100,7 +101,7 @@ export function MetricExplorer({
         aria-label={`${metric.label}: evolución del periodo seleccionado`}
       >
         {loading ? (
-          <div className="h-full rounded-xl bg-muted motion-safe:animate-pulse" />
+          <Skeleton className="h-full rounded-xl bg-muted motion-safe:animate-pulse" />
         ) : !hasData ? (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
             Sin registros para esta métrica en el periodo.
@@ -292,7 +293,7 @@ export function BreakdownBars({
     <div className="dashboard-card rounded-xl p-4">
       <h3 className="font-display text-base font-semibold">{title}</h3>
       {loading ? (
-        <div className="mt-5 h-32 rounded-xl bg-muted motion-safe:animate-pulse" />
+        <Skeleton className="mt-5 h-32 rounded-xl bg-muted motion-safe:animate-pulse" />
       ) : rows.length === 0 ? (
         <p className="py-8 text-sm text-muted-foreground">Sin desglose disponible en el periodo.</p>
       ) : (
@@ -339,7 +340,7 @@ export function CompactMetric({
           )}
         </div>
         {loading ? (
-          <div className="mt-2 h-6 w-16 rounded bg-muted motion-safe:animate-pulse" />
+          <Skeleton className="mt-2 h-6 w-16 rounded bg-muted motion-safe:animate-pulse" />
         ) : (
           <p className="mt-1 font-display text-base xl:text-lg font-semibold leading-6 tracking-tight tabular-nums">
             {value}
@@ -363,7 +364,7 @@ export function AppointmentStatusStrip({
     <div className="dashboard-card rounded-xl p-4">
       <h3 className="text-sm font-medium">Estado de las citas</h3>
       {loading ? (
-        <div className="mt-4 h-8 rounded bg-muted motion-safe:animate-pulse" />
+        <Skeleton className="mt-4 h-8 rounded bg-muted motion-safe:animate-pulse" />
       ) : total === 0 ? (
         <p className="py-4 text-sm text-muted-foreground">Sin citas registradas en el periodo.</p>
       ) : (

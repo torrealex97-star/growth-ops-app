@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { AlertCircle, CalendarCheck2, ChevronDown, CircleDollarSign, RefreshCw, ShieldCheck } from 'lucide-react'
 import { formatCurrency, formatNumber } from '@/lib/utils'
 import type { RevenueAttributionResult, RevenueAttributionRow } from '@/lib/meta/revenue-attribution'
@@ -104,8 +105,8 @@ export function RevenueAttributionView({ tenant, rangeFrom, rangeTo, campaignIds
   if (loading) {
     return (
       <div className="space-y-4" aria-busy="true" aria-label="Cargando embudo de atribución">
-        <div className="h-40 animate-pulse rounded-2xl bg-card" />
-        <div className="h-72 animate-pulse rounded-2xl bg-card" />
+        <Skeleton className="h-40 rounded-2xl" />
+        <Skeleton className="h-72 rounded-2xl" />
       </div>
     )
   }

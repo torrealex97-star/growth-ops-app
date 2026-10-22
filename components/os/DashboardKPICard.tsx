@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -86,8 +87,8 @@ export function KPICard({
 
       {loading ? (
         <div className="space-y-2">
-          <div className="h-8 w-32 bg-muted animate-pulse rounded" />
-          <div className="h-4 w-20 bg-muted animate-pulse rounded" />
+          <Skeleton className="h-8 w-32 bg-muted rounded" />
+          <Skeleton className="h-4 w-20 bg-muted rounded" />
         </div>
       ) : (
         <>

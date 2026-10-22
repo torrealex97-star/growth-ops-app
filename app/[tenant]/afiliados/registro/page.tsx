@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { TrendingUp, Loader2, CheckCircle2 } from 'lucide-react'
 import type { AffiliateFormField } from '@/lib/types/database'
 import { useTenant, useTenantBranding } from '@/lib/tenant-context'
@@ -82,7 +83,7 @@ export default function RegistroAfiliadoPage() {
         </div>
 
         {loading ? (
-          <div className="h-72 bg-card border border-border rounded-xl animate-pulse" />
+          <Skeleton className="h-72 border border-border rounded-xl" />
         ) : done ? (
           <div className="bg-card border border-border rounded-xl p-8 text-center">
             <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-4" />

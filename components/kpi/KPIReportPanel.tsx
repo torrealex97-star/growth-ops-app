@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { createClient } from '@/lib/supabase/client'
 import { KPIForm } from '@/components/kpi/KPIForm'
 import { Button } from '@/components/ui/button'
@@ -210,7 +211,7 @@ export function KPIReportPanel() {
       </div>
 
       {loading ? (
-        <div className="h-64 bg-card rounded-lg animate-pulse" />
+        <Skeleton className="h-64" />
       ) : templates.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <ClipboardList className="w-12 h-12 text-muted-foreground mb-4" />

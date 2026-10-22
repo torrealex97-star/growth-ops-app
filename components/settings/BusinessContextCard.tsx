@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { ImagePlus, Loader2, Save, Sparkles, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -107,7 +108,7 @@ export function BusinessContextCard() {
     }
   }
 
-  if (loading) return <div className="h-48 bg-card rounded-lg animate-pulse" />
+  if (loading) return <Skeleton className="h-48" />
   if (!readable) return null
 
   return (

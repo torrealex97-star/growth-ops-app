@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { FileText, ChevronDown, ChevronRight, Eye, Download } from 'lucide-react'
 import { toast } from 'sonner'
 import { SearchBox, normalizeText } from '@/components/ui/search-box'
@@ -91,7 +92,7 @@ export default function ContratosProductoPage() {
       </div>
 
       {loading ? (
-        <div className="h-64 bg-card rounded-lg animate-pulse" />
+        <Skeleton className="h-64" />
       ) : filtered.length === 0 ? (
         <div className="bg-card border border-border rounded-lg p-10 text-center">
           <FileText className="w-10 h-10 text-muted-foreground mx-auto mb-3" />

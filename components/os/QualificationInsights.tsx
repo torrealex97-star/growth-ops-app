@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { createClient } from '@/lib/supabase/client'
 import { ClipboardList, MessageSquareQuote } from 'lucide-react'
 import { extraerRespuestas, tieneRespuestasEstructuradas } from '@/lib/metrics/respuestas-formulario'
@@ -130,7 +131,7 @@ export function QualificationInsights() {
     return { distribuciones, motivosLibres, conFormulario, estructuradas, total: rows.length }
   }, [rows])
 
-  if (loading) return <div className="h-48 animate-pulse bg-muted rounded-lg" />
+  if (loading) return <Skeleton className="h-48 bg-muted" />
 
   if (error) {
     return (

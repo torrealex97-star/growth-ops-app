@@ -1,4 +1,5 @@
 import { ConnectedFunnel } from './ConnectedFunnel'
+import { Skeleton } from '@/components/ui/skeleton'
 import type { FunnelTotals } from '@/lib/analytics'
 
 interface FunnelStripProps {
@@ -17,7 +18,7 @@ export function FunnelStrip({ totals, loading }: FunnelStripProps) {
   if (loading) {
     return (
       <div className="dashboard-card p-5">
-        <div className="h-24 animate-pulse rounded-lg bg-muted" />
+        <Skeleton className="h-24 bg-muted" />
       </div>
     )
   }

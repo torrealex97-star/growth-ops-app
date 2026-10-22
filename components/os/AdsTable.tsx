@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/utils'
 import type { AdRangeRow, Campaign, CampaignAd } from '@/lib/types/database'
@@ -126,7 +127,7 @@ export function AdsTable({
       </div>
     )
   }
-  if (!rango) return <div className="h-64 bg-card rounded-lg animate-pulse" />
+  if (!rango) return <Skeleton className="h-64" />
 
   return (
     <div className="space-y-4">
