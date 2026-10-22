@@ -50,8 +50,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       )
     const rows =
       paymentId && session.role === 'closer' && !session.isSuperAdmin
-        ? await readPaymentInbox(sb, session.tenantId, session.userId)
-        : await readPaymentInbox(sb, session.tenantId, null)
+        ? await readPaymentInbox(sb, session.tenantId, session.userId, { soloPago: paymentId })
+        : await readPaymentInbox(sb, session.tenantId, null, paymentId ? { soloPago: paymentId } : {})
     if (paymentId) {
       const payment = rows.find((r) => r.payment_id === paymentId)
       if (!payment)

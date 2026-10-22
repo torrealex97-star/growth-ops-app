@@ -21,8 +21,8 @@ test('shared inbox reads stay tenant scoped; registration retains assignment res
     'utf8'
   )
   assert.match(list, /canViewPaymentInbox\(session.role, session.isSuperAdmin\)/)
-  assert.match(list, /readPaymentInbox\(sb, session.tenantId, null\)/)
-  assert.match(resolve, /readPaymentInbox\(sb, session.tenantId, closer\)/)
+  assert.match(list, /readPaymentInbox\(sb, session.tenantId, null, paymentId \? \{ soloPago: paymentId \} : \{\}\)/)
+  assert.match(resolve, /readPaymentInbox\(sb, session.tenantId, closer, \{ soloPago: body.paymentId \}\)/)
   assert.match(resolve, /\['admin', 'director', 'closer'\]/)
 })
 
@@ -77,7 +77,10 @@ test('all sources are tenant-scoped and a read error is never an empty inbox', a
           return this
         },
         range() {
-          return Promise.resolve({ data: null, error: { message: 'offline' } })
+          // Los pagos se leen primero (sin ellos no hay nada que filtrar); el resto de fuentes fallan.
+          return Promise.resolve(
+            table === 'stripe_payments' ? { data: [], error: null } : { data: null, error: { message: 'offline' } }
+          )
         },
       }
     },
