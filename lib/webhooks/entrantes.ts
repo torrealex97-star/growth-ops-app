@@ -102,6 +102,27 @@ export const WEBHOOKS_ENTRANTES: WebhookEntrante[] = [
     },
   },
   {
+    id: 'ghl-mensajes',
+    groupId: 'ghl',
+    titulo: 'GoHighLevel — mensajes de conversaciones',
+    descripcion:
+      'Cada mensaje entrante y saliente (Instagram, Facebook, WhatsApp…) llega a la bandeja de Conversaciones en el momento.',
+    path: '/api/{tenant}/evergreen/webhooks/ghl-mensajes',
+    metodo: 'POST',
+    auth: { tipo: 'cabecera', nombre: 'x-ghl-secret', configKey: 'GHL_WEBHOOK_SECRET' },
+    eventos: ['InboundMessage', 'OutboundMessage'],
+    evidencia: null,
+    guia: {
+      donde:
+        'GoHighLevel → Automation → Workflows → crea un workflow con el disparador «Customer Replied» (mensaje entrante) y otro con «Message sent» (saliente); en cada uno añade la acción «Custom Webhook» (método POST) con la dirección de arriba.',
+      secreto:
+        'Es el MISMO secreto que el webhook de citas de GHL: no generes otro. En el Custom Webhook añade una cabecera llamada x-ghl-secret con ese valor (Integraciones → GoHighLevel → Webhook Secret). En el cuerpo envía conversationId, messageId, contactId, direction, messageType, body y dateAdded.',
+      prueba:
+        'Escribe un mensaje de prueba por Instagram al perfil conectado a GHL. En Conversaciones debe aparecer la conversación; si no llega, revisa que el workflow esté publicado y que el cuerpo lleve esos campos.',
+      secretoLoEligesTu: false,
+    },
+  },
+  {
     id: 'calendly',
     groupId: 'calendly',
     titulo: 'Calendly — citas y cancelaciones',
