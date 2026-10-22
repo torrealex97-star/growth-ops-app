@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireTenant } from '@/lib/auth/requireTenant'
-import { isValidEventName } from '@/lib/tracking/ingest'
+import { isValidEventName, type BotClassification } from '@/lib/tracking/ingest'
 import { normalizarEventoRaw, type TrackBody } from '@/lib/tracking/normalizar'
 
 export const runtime = 'nodejs'
@@ -21,6 +21,8 @@ type RawPendiente = {
   site_id: string | null
   received_at: string
   payload: TrackBody | null
+  user_agent: string | null
+  bot_classification: BotClassification | null
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
@@ -45,7 +47,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   // Índice parcial raw_events_pendientes_idx (tenant_id, received_at) WHERE processing_status='received'.
   const { data, error } = await sb
     .from('raw_events')
-    .select('id,site_id,received_at,payload')
+    .select('id,site_id,received_at,payload,user_agent,bot_classification')
     .eq('tenant_id', session.tenantId)
     .eq('source', 'pixel')
     .eq('processing_status', 'received')
@@ -79,6 +81,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
         eventName,
         eventId,
         receivedAt: new Date(fila.received_at),
+        // El país no se guarda en el raw: un evento reprocesado queda sin país (honesto, no inventado).
+        cliente: { bot: fila.bot_classification ?? 'unknown', userAgent: fila.user_agent, country: null },
       })
       if (r.json.accepted === true) normalizados += 1
       else sinResolver += 1

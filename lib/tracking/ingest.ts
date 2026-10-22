@@ -3,6 +3,17 @@
 // de Supabase. El modelo de datos (tracking_sites / raw_events / canonical_events) ya existe
 // en la migración 20260915100000; esto es la capa de aplicación que faltaba.
 
+export type Dispositivo = 'movil' | 'tablet' | 'escritorio'
+
+/** Dispositivo grueso a partir del user-agent (sin guardar el UA). null si no hay UA. */
+export function classifyDevice(userAgent: string | null | undefined): Dispositivo | null {
+  const ua = userAgent?.toLowerCase().trim()
+  if (!ua) return null
+  if (/ipad|tablet|kindle|silk/.test(ua) || (/android/.test(ua) && !/mobile/.test(ua))) return 'tablet'
+  if (/mobi|iphone|ipod|android/.test(ua)) return 'movil'
+  return 'escritorio'
+}
+
 export type BotClassification = 'likely_bot' | 'likely_human' | 'unknown'
 
 /**
