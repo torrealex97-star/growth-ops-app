@@ -71,3 +71,15 @@ test('la API exige permiso de pantalla y filtra por tenant', async () => {
   assert.match(r, /\.eq\('tenant_id', session\.tenantId\)/)
   assert.doesNotMatch(r, /select\('\*'\)/)
 })
+
+test('los eventos marcados bot se excluyen y se cuentan aparte; dispositivo y país se agrupan', () => {
+  const r = calcularTraficoWeb([
+    { ...ev('v1', 's1', 'page_view', 'https://x.com/', null, 0), bot: 'false', device: 'movil', country: 'ES' },
+    { ...ev('v2', 's2', 'page_view', 'https://x.com/', null, 1), bot: 'true', device: 'escritorio', country: 'US' },
+    { ...ev('v3', 's3', 'page_view', 'https://x.com/', null, 2), device: 'movil' },
+  ])
+  assert.equal(r.visitantes, 2)
+  assert.equal(r.bots, 1)
+  assert.deepEqual(r.topDispositivos, [{ clave: 'movil', visitantes: 2, porcentaje: 100 }])
+  assert.deepEqual(r.topPaises, [{ clave: 'ES', visitantes: 1, porcentaje: 50 }])
+})

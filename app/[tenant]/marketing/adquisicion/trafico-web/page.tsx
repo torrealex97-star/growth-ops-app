@@ -112,7 +112,8 @@ export default function TraficoWebPage() {
         <h2 className="text-lg font-bold text-foreground">Tráfico web</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Visitas del tracking propio, sin cookies de terceros. Se cuentan personas y sesiones distintas, no recargas.
-          La fuente de cada persona es la de su primera visita del periodo. Los bots no se pueden separar todavía.
+          La fuente de cada persona es la de su primera visita del periodo. Los bots detectados se excluyen de las
+          cifras y se cuentan aparte.
         </p>
       </div>
 
@@ -198,11 +199,28 @@ export default function TraficoWebPage() {
             vacio={loading ? 'Cargando…' : 'Sin fuentes todavía.'}
           />
           <TopLista
+            titulo="Dispositivos"
+            filas={a?.topDispositivos ?? []}
+            vacio={loading ? 'Cargando…' : 'Sin datos de dispositivo todavía (solo eventos nuevos).'}
+          />
+          <TopLista
+            titulo="Países"
+            filas={a?.topPaises ?? []}
+            vacio={loading ? 'Cargando…' : 'Sin datos de país todavía (solo eventos nuevos).'}
+          />
+          <TopLista
             titulo="Páginas más vistas"
             filas={a?.topPaginas ?? []}
             vacio={loading ? 'Cargando…' : 'Sin páginas todavía.'}
           />
         </div>
+      )}
+      {!loading && !error && a && a.bots > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {formatNumber(a.bots)}{' '}
+          {a.bots === 1 ? 'visitante detectado como bot excluido' : 'visitantes detectados como bots excluidos'} de las
+          cifras.
+        </p>
       )}
     </div>
   )

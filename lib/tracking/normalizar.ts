@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { deriveChannel } from '@/lib/tracking/ingest'
+import { classifyDevice, deriveChannel, type BotClassification } from '@/lib/tracking/ingest'
 import { aplicarVinculo } from '@/lib/tracking/identity-apply'
 import { sanitizarFbc, sanitizarFbp } from '@/lib/tracking/meta-click'
 import { EVENTOS_CAPI, despacharCapi } from '@/lib/meta/capi-dispatch'
@@ -50,6 +50,12 @@ export type ResultadoNormalizacion = { status: number; json: Record<string, unkn
  * ejecuten EXACTAMENTE el mismo código. Es idempotente: el canónico se upserta por
  * (tenant_id, source, source_event_id) y visitor/session/touchpoint son get-or-create.
  */
+/** Código ISO-3166 alfa-2 (cabecera de la plataforma); cualquier otra cosa se descarta. */
+function paisValido(c: string | null | undefined): string | null {
+  const v = c?.trim().toUpperCase()
+  return v && /^[A-Z]{2}$/.test(v) && v !== 'XX' ? v : null
+}
+
 export async function normalizarEventoRaw(
   sb: SupabaseClient,
   args: {
@@ -65,6 +71,11 @@ export async function normalizarEventoRaw(
      * eventos viejos no aporta y duplicaría trabajo.
      */
     capi?: { clientIp: string | null; userAgent: string | null; bot: boolean }
+    /**
+     * Contexto del cliente para el panel de tráfico (bot / dispositivo / país). Se guarda ya clasificado en
+     * el canónico: ni el user-agent ni la IP se persisten ahí. El reproceso lo rellena desde el raw.
+     */
+    cliente?: { bot: BotClassification; userAgent: string | null; country: string | null }
   }
 ): Promise<ResultadoNormalizacion> {
   const { tenantId, body, eventName, eventId, receivedAt } = args
@@ -250,6 +261,13 @@ export async function normalizarEventoRaw(
         referrer: body.referrer ?? null,
         fbc: sanitizarFbc(body.fbc),
         fbp: sanitizarFbp(body.fbp),
+        ...(args.cliente
+          ? {
+              bot: args.cliente.bot === 'likely_bot',
+              device: classifyDevice(args.cliente.userAgent),
+              country: paisValido(args.cliente.country),
+            }
+          : {}),
       },
     },
     { onConflict: 'tenant_id,source,source_event_id', ignoreDuplicates: true }
