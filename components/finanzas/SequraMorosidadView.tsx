@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
@@ -169,7 +170,7 @@ export function SequraMorosidadView() {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="h-24 bg-card rounded-lg animate-pulse" />
+            <Skeleton key={i} className="h-24" />
           ))}
         </div>
       ) : (

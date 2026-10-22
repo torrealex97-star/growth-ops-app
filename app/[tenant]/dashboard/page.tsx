@@ -1,6 +1,7 @@
 'use client'
 
 import { useDeferredValue, useEffect, useMemo, useState, useCallback } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import Link from 'next/link'
 import { metodoDePlan } from '@/lib/metrics/agregados'
 import { interpretarRespuestaFuturas, type FilaFutura } from '@/lib/commissions/future-response'
@@ -74,7 +75,7 @@ import { useSesion, useTenant } from '@/lib/tenant-context'
 
 const SalesChart = dynamic(() => import('@/components/os/SalesChart').then((m) => ({ default: m.SalesChart })), {
   ssr: false,
-  loading: () => <div className="h-64 animate-pulse bg-card rounded-lg" />,
+  loading: () => <Skeleton className="h-64" />,
 })
 
 type TargetRow = {

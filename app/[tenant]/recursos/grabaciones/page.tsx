@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { AlertTriangle, Check, FileAudio, Loader2, RotateCcw, Upload, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
@@ -242,7 +243,7 @@ export default function GrabacionesPage() {
       </div>
 
       {loading ? (
-        <div className="h-40 animate-pulse rounded-lg bg-card" />
+        <Skeleton className="h-40" />
       ) : items.length === 0 ? (
         <p className="text-sm text-muted-foreground">Todavía no hay ninguna grabación en el banco.</p>
       ) : (

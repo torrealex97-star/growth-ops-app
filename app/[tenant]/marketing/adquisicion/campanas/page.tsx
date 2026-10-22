@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { createClient } from '@/lib/supabase/client'
 import { Radio, Plus, Pencil, Receipt, CheckCircle2, RefreshCw, AlertTriangle, Zap, History } from 'lucide-react'
 import { toast } from 'sonner'
@@ -832,7 +833,7 @@ export default function CampaignsPage() {
 
       {view === 'campaigns' &&
         (loading ? (
-          <div className="h-64 bg-card rounded-lg animate-pulse" />
+          <Skeleton className="h-64" />
         ) : (
           <>
             {/* Solo lo que el embudo de abajo no cuenta: desfase Meta vs Funnel, y cuántas

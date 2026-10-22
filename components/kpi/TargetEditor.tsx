@@ -10,6 +10,7 @@
 // (is_admin_or_director): un rol sin permiso recibe el error del servidor, no una promesa falsa.
 
 import { useCallback, useEffect, useState } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { createClient } from '@/lib/supabase/client'
 import { useSesion, useTenantId } from '@/lib/tenant-context'
 import { Button } from '@/components/ui/button'
@@ -227,7 +228,7 @@ export function TargetEditor() {
       </div>
 
       {loading ? (
-        <div className="h-40 bg-muted/40 rounded-lg animate-pulse" />
+        <Skeleton className="h-40 bg-muted/40" />
       ) : rows.length === 0 ? (
         <p className="text-sm text-muted-foreground py-8 text-center">
           Sin objetivos de dashboard. Crea uno y la tarjeta correspondiente empezará a comparar contra él.

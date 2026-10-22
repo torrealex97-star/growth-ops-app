@@ -1,6 +1,7 @@
 'use client'
 
 import { Fragment, useState, useEffect, useMemo } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -588,9 +589,9 @@ export default function ContactDetailPage() {
   if (loading) {
     return (
       <div className="p-6 space-y-6">
-        <div className="h-8 w-48 bg-card rounded animate-pulse" />
-        <div className="h-32 bg-card rounded-lg animate-pulse" />
-        <div className="h-64 bg-card rounded-lg animate-pulse" />
+        <Skeleton className="h-8 w-48 rounded" />
+        <Skeleton className="h-32" />
+        <Skeleton className="h-64" />
       </div>
     )
   }

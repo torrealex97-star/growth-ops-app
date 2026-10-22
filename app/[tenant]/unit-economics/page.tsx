@@ -1,6 +1,7 @@
 'use client'
 
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { createClient } from '@/lib/supabase/client'
 import { mensajeDeCarga, primerError } from '@/lib/supabase/resultado'
 import { FunnelDinamico, FUNNEL_LABELS, FUNNEL_ORDEN, type OpcionFunnel } from '@/components/os/FunnelDinamico'
@@ -1323,7 +1324,7 @@ export default function UnitEconomicsPage() {
                     {loading ? (
                       <div className="space-y-2">
                         {[...Array(4)].map((_, i) => (
-                          <div key={i} className="h-10 w-full bg-muted animate-pulse rounded" />
+                          <Skeleton key={i} className="h-10 w-full bg-muted rounded" />
                         ))}
                       </div>
                     ) : !hasData || channelRows.length === 0 ? (

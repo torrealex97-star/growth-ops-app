@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { CalendarDays, Check, Loader2, RefreshCw, Unplug } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -192,8 +193,8 @@ export function GoogleCalendarSettings({ tenant }: { tenant: string }) {
         <div className="mt-6 space-y-6">
           {loading && !state ? (
             <div className="space-y-3" aria-live="polite">
-              <div className="h-5 w-52 animate-pulse rounded bg-muted" />
-              <div className="h-20 animate-pulse rounded-lg bg-muted" />
+              <Skeleton className="h-5 w-52 rounded bg-muted" />
+              <Skeleton className="h-20 bg-muted" />
             </div>
           ) : !state?.connected ? (
             <div className="space-y-4 border-t border-border pt-5">
