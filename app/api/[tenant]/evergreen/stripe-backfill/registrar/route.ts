@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireTenant } from '@/lib/auth/requireTenant'
 import { getTenantConfigWithFallback } from '@/lib/config'
+import { mapConLimite } from '@/lib/async/pool'
 import { stripeGet } from '@/lib/stripe/client'
 import { classifyForBackfill, type BackfillRow } from '@/lib/finance/stripeBackfill'
 import { buildCollection, buildSaleFromPayments, type ImportChoice } from '@/lib/finance/stripeImport'
@@ -11,6 +12,13 @@ import type { StripeIntent } from '@/lib/finance/stripeReconciliation'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
+
+// Lecturas a Stripe en paralelo (límite de Stripe ≈ 100 req/s: 6 va sobrado).
+const LECTURAS_STRIPE_EN_PARALELO = 6
+// Presupuesto de tiempo: pasado esto NO se empiezan más ventas. Cada venta se escribe entera o se deshace,
+// y lo ya registrado deja su referencia en `collections`, así que volver a lanzar la tanda solo
+// procesa lo pendiente (nunca duplica). Mejor parar limpio que morir a mitad de una venta con el 504.
+const PRESUPUESTO_MS = 50_000
 
 // Registrar como VENTAS los pagos de Stripe que el informe marca como `registrable`.
 //
@@ -86,6 +94,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   }
 
   const sb = serviceClient()
+  const inicio = Date.now()
 
   // El producto y el plan tienen que ser de ESTA subcuenta: con service_role, un id de otra pasaría
   // sin que RLS lo pare, y quedaría una venta apuntando al producto de otro cliente.
@@ -154,23 +163,30 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   // PASO 1 — releer y clasificar TODOS los pagos antes de escribir nada. Hace falta la tanda entera
   // para saber qué pagos son del mismo cliente: agrupar sobre la marcha crearía la primera venta
   // antes de saber que el segundo pago era su plazo.
-  const clasificados = new Map<string, BackfillRow>()
-  for (const paymentId of paymentIds) {
+  // Lecturas independientes a Stripe: 6 a la vez (200 en serie no caben en los 60 s de la Function).
+  // `mapConLimite` conserva el orden de entrada, así que el resultado es el mismo que en serie.
+  const lecturas = await mapConLimite(paymentIds, LECTURAS_STRIPE_EN_PARALELO, async (paymentId) => {
     // Cada pago se relee de Stripe por su id: es la fuente de la verdad sobre importe y estado, y
     // así el importe escrito no puede venir manipulado desde el navegador.
-    let intent: StripeIntent
     try {
-      intent = await stripeGet<StripeIntent>(
+      const intent = await stripeGet<StripeIntent>(
         `payment_intents/${encodeURIComponent(paymentId)}`,
         new URLSearchParams([['expand[]', 'latest_charge']]),
         { secretKey: key, accountId: cfg.STRIPE_ACCOUNT_ID }
       )
+      return { paymentId, intent }
     } catch (e) {
-      resultados.push({ paymentId, ok: false, motivo: e instanceof Error ? e.message : 'Stripe no respondió' })
+      return { paymentId, error: e instanceof Error ? e.message : 'Stripe no respondió' }
+    }
+  })
+  const clasificados = new Map<string, BackfillRow>()
+  for (const l of lecturas) {
+    if ('error' in l) {
+      resultados.push({ paymentId: l.paymentId, ok: false, motivo: l.error })
       continue
     }
-
-    clasificados.set(paymentId, classifyForBackfill(intent, { knownReferences, contactsByEmail }))
+    const { intent } = l
+    clasificados.set(l.paymentId, classifyForBackfill(intent, { knownReferences, contactsByEmail }))
   }
 
   // PASO 2 — agrupar por contacto. Un pago sin contacto identificado no agrupa con nadie: se
@@ -207,7 +223,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   // PASO 3 — una venta por contacto, con todos sus cobros.
   let ventasCreadas = 0
   let comisionesGeneradas = 0
+  let pendientesPorTiempo = 0
   for (const [contactId, filas] of porContacto) {
+    if (Date.now() - inicio > PRESUPUESTO_MS) {
+      pendientesPorTiempo += filas.length
+      for (const f of filas) {
+        resultados.push({
+          paymentId: f.paymentId,
+          ok: false,
+          motivo: 'Pendiente: se agotó el tiempo de esta tanda. Vuelve a lanzarla; solo se procesará lo que falta.',
+        })
+      }
+      continue
+    }
     const built = buildSaleFromPayments(filas, choice)
     if ('error' in built) {
       for (const f of filas) resultados.push({ paymentId: f.paymentId, ok: false, motivo: built.error })
@@ -312,6 +340,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     registradas,
     ventasCreadas,
     comisionesGeneradas,
+    pendientesPorTiempo,
     total: paymentIds.length,
     resultados,
   })
