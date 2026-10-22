@@ -36,7 +36,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
 
   try {
     const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
-    const rows = await readPaymentInbox(sb, session.tenantId, null)
+    const rows = await readPaymentInbox(sb, session.tenantId, null, { soloPago: paymentId })
     const pago = rows.find((r) => r.payment_id === paymentId)
     if (!pago)
       return NextResponse.json({ error: 'El cobro ya está registrado. Actualiza la bandeja.' }, { status: 409 })

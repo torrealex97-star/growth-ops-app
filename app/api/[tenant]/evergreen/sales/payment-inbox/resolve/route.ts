@@ -43,7 +43,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   try {
     const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
     const closer = session.role === 'closer' && !session.isSuperAdmin ? session.userId : null
-    const rows = await readPaymentInbox(sb, session.tenantId, closer)
+    const rows = await readPaymentInbox(sb, session.tenantId, closer, { soloPago: body.paymentId })
     const payment = rows.find((r) => r.payment_id === body.paymentId)
     if (!payment) return fail('Este pago ya se ha registrado o no está asignado a ti. Actualiza la bandeja.', 409)
     if (!payment.contactId) return fail('Identifica primero un único contacto con este email en CRM.')
