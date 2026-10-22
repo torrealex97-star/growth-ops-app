@@ -12,17 +12,8 @@
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
+import { htmlConsentimiento } from '@/lib/mcp/consentimiento'
 import { emitirCodigo, validarAutorizacion } from '@/lib/mcp/oauth'
-
-const PAGE_STYLES = `
-  body{font-family:system-ui,sans-serif;background:#0b1120;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
-  .card{background:#111827;border:1px solid #1f2937;border-radius:12px;padding:32px;max-width:440px}
-  h1{font-size:18px;margin:0 0 8px} p{color:#94a3b8;font-size:14px;line-height:1.6}
-  code{background:#0b1120;padding:2px 6px;border-radius:4px;font-size:12px;color:#7dd3fc;word-break:break-all}
-  form{display:flex;gap:12px;margin-top:24px}
-  button{flex:1;padding:10px;border-radius:8px;border:1px solid #334155;cursor:pointer;font-size:14px}
-  .si{background:#2563eb;color:white;border-color:#2563eb} .no{background:transparent;color:#94a3b8}
-`
 
 async function sesionActual(): Promise<{ userId: string; superAdmin: boolean } | null> {
   const cookieStore = await cookies()
@@ -42,32 +33,8 @@ async function sesionActual(): Promise<{ userId: string; superAdmin: boolean } |
   return { userId: user.id, superAdmin: sa === true }
 }
 
-function paginaConsentimiento(opts: {
-  clientName: string
-  clientId: string
-  params: URLSearchParams
-  error?: string
-  superAdmin?: boolean
-}) {
-  const { clientName, clientId, params, error, superAdmin } = opts
-  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Autorizar acceso MCP</title><style>${PAGE_STYLES}</style></head><body><div class="card">
-<h1>${error ? 'No se pudo autorizar' : `¿Autorizar acceso a «${clientName}»?`}</h1>
-${
-  error
-    ? `<p>${error}</p>`
-    : `<p><strong>${clientName}</strong> (<code>${clientId.slice(0, 24)}…</code>) pide acceso de <strong>solo lectura</strong> ${
-        superAdmin
-          ? 'a los datos de TODAS las subcuentas (eres super administrador): contactos, ventas, cobros, citas, campañas y métricas.'
-          : 'únicamente a los datos de TU subcuenta y solo los que tu rol puede ver en la app (contactos, ventas, cobros, citas, campañas y métricas). Nunca verá otras subcuentas.'
-      }</p>
-<p>No podrá modificar, borrar ni exportar nada que tu sesión no alcance. Puedes revocar el acceso en cualquier momento desde Configuración.</p>`
-}
-<form method="POST" action="/api/mcp/oauth/authorize">
-${[...params.entries()].map(([k, v]) => `<input type="hidden" name="${k}" value="${v.replace(/"/g, '&quot;')}">`).join('\n')}
-${error ? '' : '<button class="si" type="submit" name="approve" value="1">Autorizar</button><button class="no" type="submit" name="approve" value="0">Denegar</button>'}
-</form></div></body></html>`
-  return new NextResponse(html, {
+function paginaConsentimiento(opts: Parameters<typeof htmlConsentimiento>[0]) {
+  return new NextResponse(htmlConsentimiento(opts), {
     headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
   })
 }

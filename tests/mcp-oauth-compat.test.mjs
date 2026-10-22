@@ -72,6 +72,46 @@ test('el MCP hereda el aislamiento del usuario: claims reales + rol sin BYPASSRL
 
 test('la pantalla de consentimiento dice qué alcance tendrá según sea super admin o no', () => {
   assert.match(authorize, /rpc\('is_super_admin'\)/)
-  assert.match(authorize, /TODAS las subcuentas/)
-  assert.match(authorize, /únicamente a los datos de TU subcuenta/)
+  const pantalla = readFileSync('lib/mcp/consentimiento.ts', 'utf8')
+  assert.match(pantalla, /TODAS las subcuentas/)
+  assert.match(pantalla, /únicamente a los datos de TU subcuenta/)
+})
+
+// ── Revisión de código: XSS en la pantalla de consentimiento
+import { htmlConsentimiento } from '../lib/mcp/consentimiento.ts'
+
+test('consentimiento: nombre del cliente, error y parámetros se escapan (no hay XSS)', () => {
+  const params = new URLSearchParams({
+    client_id: 'mcp_"><script>x</script>',
+    redirect_uri: 'https://evil.example/cb"onmouseover="x',
+    state: 's"><img src=x>',
+  })
+  params.set('"><script>alert(1)</script>', 'v') // nombre de parámetro malicioso
+  const html = htmlConsentimiento({
+    clientName: '<img src=x onerror=alert(1)>',
+    clientId: params.get('client_id'),
+    params,
+  })
+  assert.doesNotMatch(html, /<script>alert|<img src=x|onerror=alert\(1\)>/)
+  assert.doesNotMatch(html, /name="[^"]*<script/)
+  assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;/)
+  const conError = htmlConsentimiento({
+    clientName: 'X',
+    clientId: 'a',
+    params: new URLSearchParams(),
+    error: 'Scope no permitido: <b>x</b>',
+  })
+  assert.doesNotMatch(conError, /<b>x<\/b>/)
+})
+
+test('consentimiento: muestra a qué dominio volverá el código y solo reenvía los campos OAuth', () => {
+  const params = new URLSearchParams({
+    redirect_uri: 'https://chatgpt.com/connector/oauth/abc',
+    client_id: 'mcp_1',
+    extra: 'no',
+  })
+  const html = htmlConsentimiento({ clientName: 'ChatGPT', clientId: 'mcp_1', params })
+  assert.match(html, /volverás a <code>chatgpt\.com<\/code>/)
+  assert.doesNotMatch(html, /name="extra"/)
+  assert.match(html, /name="redirect_uri"/)
 })

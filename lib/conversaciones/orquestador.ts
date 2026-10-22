@@ -50,6 +50,7 @@ type FilaConv = {
   contact_external_id: string | null
   last_inbound_at: string | null
   labels: string[]
+  assignee_id: string | null
 }
 
 const evento = (
@@ -77,7 +78,7 @@ async function traspasar(
     .eq('id', c.id)
   await evento(sb, tenantId, c.id, 'traspaso', { motivo, mensaje_id: mensajeId, no_contactar: noContactar })
   // Quien recibe el traspaso es una persona: si nadie es responsable aún, el reparto se lo da a un setter.
-  if (repartir) await asignarRoundRobin(sb, tenantId, c.id)
+  if (repartir && !c.assignee_id) await asignarRoundRobin(sb, tenantId, c.id)
 }
 
 export async function procesarMensajeEntrante(
@@ -91,7 +92,7 @@ export async function procesarMensajeEntrante(
 
   const { data: fila, error } = await sb
     .from('conversations')
-    .select('id,external_id,channel,status,ai_mode,contact_id,contact_external_id,last_inbound_at,labels')
+    .select('id,external_id,channel,status,ai_mode,contact_id,contact_external_id,last_inbound_at,labels,assignee_id')
     .eq('tenant_id', tenantId)
     .eq('id', conversationId)
     .maybeSingle()
@@ -109,7 +110,8 @@ export async function procesarMensajeEntrante(
 
   // Barato primero: IA apagada en la conversación → la atiende una persona; solo se le busca responsable.
   if (c.ai_mode === 'off') {
-    if (repartir) await asignarRoundRobin(sb, tenantId, c.id)
+    // Solo si nadie es responsable: así los mensajes siguientes de una conversación ya asignada no repiten 5 consultas.
+    if (repartir && !c.assignee_id) await asignarRoundRobin(sb, tenantId, c.id)
     return { accion: 'silencio', motivo: 'conversacion_apagada' }
   }
   if (!config.activo) return { accion: 'silencio', motivo: 'agente_apagado' }
