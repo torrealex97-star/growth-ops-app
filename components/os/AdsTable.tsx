@@ -5,9 +5,10 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/utils'
 import type { AdRangeRow, Campaign, CampaignAd } from '@/lib/types/database'
-import { AlertTriangle, Megaphone } from 'lucide-react'
+import { AlertTriangle, Megaphone, RefreshCw } from 'lucide-react'
 import { SearchBox, normalizeText } from '@/components/ui/search-box'
 import { useTenantId } from '@/lib/tenant-context'
+import type { RevenueAttributionRow } from '@/lib/meta/revenue-attribution'
 
 const div = (a: number, b: number): number | null => (b > 0 ? a / b : null)
 
@@ -33,6 +34,8 @@ type Props = {
 
 type Fila = AdRangeRow & { campaign_id: string | null; status: string | null }
 
+type CrmEstado = 'cargando' | 'ok' | 'error'
+
 // Vista a nivel de ANUNCIO para el periodo, cuenta y campañas elegidos en la barra global.
 // Las métricas salen de Meta para el rango exacto; `campaign_ads` solo aporta el estado del anuncio.
 export function AdsTable({
@@ -52,6 +55,15 @@ export function AdsTable({
   const [error, setError] = useState<string | null>(null)
   const [avisos, setAvisos] = useState<string[]>([])
   const [search, setSearch] = useState('')
+  // CRM por anuncio (agendas/asistencias/cierres): sale de la MISMA atribución canónica que
+  // «Análisis Meta» (revenue-attribution), que ya resuelve cada cita al anuncio con el orden de
+  // toques completo. Se une por external_id; un anuncio sin fila de atribución se pinta «—»:
+  // no tiene agendas atribuidas conocidas, que es distinto de «cero agendas».
+  const [crmEstado, setCrmEstado] = useState<CrmEstado>('cargando')
+  const [crmFilas, setCrmFilas] = useState<Map<string, RevenueAttributionRow>>(new Map())
+  const [crmCobertura, setCrmCobertura] = useState<{ booked: number; adAttributed: number } | null>(null)
+  const [crmError, setCrmError] = useState<string | null>(null)
+  const [crmIntento, setCrmIntento] = useState(0)
 
   const campaignNameById = useMemo(() => new Map(campaigns.map((c) => [c.id, c.name])), [campaigns])
   const campaignIdByExt = useMemo(
@@ -74,6 +86,35 @@ export function AdsTable({
   }, [tenantId, version])
 
   const conRango = !!(rangeFrom && rangeTo)
+
+  useEffect(() => {
+    const ctrl = new AbortController()
+    setCrmEstado('cargando')
+    setCrmError(null)
+    const params = new URLSearchParams()
+    if (conRango) {
+      params.set('from', rangeFrom as string)
+      params.set('to', rangeTo as string)
+    }
+    // Sin filtro de campañas elegido NO se envía el parámetro: el endpoint debe mirar todas.
+    if (selectedCampaignIds.length > 0) params.set('campaigns', selectedCampaignIds.join(','))
+    fetch(`/api/${tenant}/evergreen/meta/revenue-attribution?${params}`, { signal: ctrl.signal })
+      .then(async (res) => {
+        const json = await res.json()
+        if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`)
+        const ads = (json.ads ?? []) as RevenueAttributionRow[]
+        setCrmFilas(new Map(ads.filter((a) => a.adId).map((a) => [a.adId as string, a])))
+        setCrmCobertura({ booked: json.coverage?.booked ?? 0, adAttributed: json.coverage?.adAttributed ?? 0 })
+        setCrmEstado('ok')
+      })
+      .catch((e: unknown) => {
+        if (ctrl.signal.aborted) return
+        setCrmEstado('error')
+        setCrmError(e instanceof Error ? e.message : 'No se pudo leer el CRM por anuncio')
+      })
+    return () => ctrl.abort()
+  }, [tenant, conRango, rangeFrom, rangeTo, selectedCampaignIds, version, crmIntento])
+
   useEffect(() => {
     const ctrl = new AbortController()
     setRango(null)
@@ -119,6 +160,11 @@ export function AdsTable({
   const totalFollowers = filas.reduce((s, a) => s + a.followers, 0)
   const costPerFollower = div(totalSpend, totalFollowers)
 
+  // Las columnas CRM solo aparecen cuando existe atribución a nivel de anuncio con contenido:
+  // si nadie tiene agendas atribuidas, tres columnas de guiones serían ruido, no información.
+  const mostrarCrm = crmEstado === 'ok' && [...crmFilas.values()].some((fila) => fila.booked > 0 || fila.sales > 0)
+  const sinAtribuir = crmCobertura && crmCobertura.booked - crmCobertura.adAttributed
+
   if (error) {
     return (
       <div className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
@@ -134,6 +180,27 @@ export function AdsTable({
       <SearchBox value={search} onChange={setSearch} placeholder="Buscar anuncio o conjunto…" className="w-full" />
 
       {avisos.length > 0 && <p className="text-xs text-yellow-400">Datos incompletos: {avisos.join(' · ')}</p>}
+
+      {crmEstado === 'error' && (
+        <div className="flex items-center gap-2 rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-xs text-yellow-400">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>CRM por anuncio ilegible: {crmError}. La tabla muestra solo métricas de Meta.</span>
+          <button
+            type="button"
+            onClick={() => setCrmIntento((n) => n + 1)}
+            className="ml-auto inline-flex items-center gap-1 rounded border border-yellow-500/30 px-2 py-1 hover:bg-yellow-500/10"
+          >
+            <RefreshCw className="h-3 w-3" /> Reintentar
+          </button>
+        </div>
+      )}
+
+      {mostrarCrm && sinAtribuir !== null && sinAtribuir > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {sinAtribuir} de {crmCobertura?.booked} agendas del periodo no tienen atribución a anuncio: no se reparten ni
+          se inventan; quedan fuera de estas columnas.
+        </p>
+      )}
 
       {/* Una superficie con divisores en vez de 4 cards idénticas — mismo patrón que la
           cabecera de Campañas, para no repetir "grid de KPI cards" en cada pantalla. */}
@@ -178,6 +245,13 @@ export function AdsTable({
                 <th className="px-4 py-3 text-right">€/Seg</th>
                 <th className="px-4 py-3 text-right">CPC</th>
                 <th className="px-4 py-3 text-right">CTR</th>
+                {mostrarCrm && (
+                  <>
+                    <th className="px-4 py-3 text-right">Agendas</th>
+                    <th className="px-4 py-3 text-right">Asistencias</th>
+                    <th className="px-4 py-3 text-right">Cierres</th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -186,6 +260,7 @@ export function AdsTable({
                 const ctr = div(a.clicks, a.impressions)
                 const cpf = div(a.spend, a.followers)
                 const campana = a.campaign_id ? campaignNameById.get(a.campaign_id) : undefined
+                const crm = crmFilas.get(a.external_id)
                 return (
                   <tr key={a.external_id} className="border-b border-border/60 hover:bg-muted/30">
                     <td className="px-4 py-3 text-foreground max-w-[280px]">
@@ -225,6 +300,19 @@ export function AdsTable({
                     <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">
                       {formatPercent(ctr === null ? null : ctr * 100, 2)}
                     </td>
+                    {mostrarCrm && (
+                      <>
+                        <td className="px-4 py-3 text-right text-foreground tabular-nums">
+                          {crm ? formatNumber(crm.booked) : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-right text-foreground tabular-nums">
+                          {crm ? formatNumber(crm.shows) : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-right text-foreground tabular-nums">
+                          {crm ? formatNumber(crm.sales) : '—'}
+                        </td>
+                      </>
+                    )}
                   </tr>
                 )
               })}
