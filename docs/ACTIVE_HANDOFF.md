@@ -1,3 +1,15 @@
+# COMPLETADO — Vista de Anuncios: columnas CRM por anuncio (23-oct, PR #625)
+
+La pestaña Anuncios de Campañas une las filas de anuncios de `revenue-attribution` (la atribución
+canónica, mismo orden de toques que «Análisis Meta») por `external_id` y añade las columnas
+**Agendas / Asistencias / Cierres** con el MISMO rango de la barra global. Reglas: las columnas solo
+aparecen si existe atribución a anuncio con contenido; un anuncio sin fila de atribución pinta «—»
+(hueco ≠ cero); si la lectura del CRM falla, aviso amarillo con reintentar y la tabla Meta queda
+intacta; se declara cuántas agendas del periodo quedan sin atribución a anuncio en vez de repartirlas.
+Ficheros: `components/os/AdsTable.tsx`, `tests/ads-columnas-crm.test.mjs` (7 pruebas). Sin cambios de
+rutas ni de lógica de atribución. Validado: `npm run quality` (2.209 tests) y CI en verde (Quality,
+Build, Smoke E2E, gitleaks, Release gate) para `66e9464a`; fusionado en `main` (`6c69fc52`).
+
 # COMPLETADO — Diagnóstico «solo la VSL concentra la atribución Meta» + sonda de solo-lectura (23-oct, PR #623)
 
 **Resultado:** la concentración NO es un bug del panel — es cómo llega el tráfico. Medido sobre
