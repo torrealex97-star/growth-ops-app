@@ -176,3 +176,23 @@ test('la API exige tenant, permiso, paginación y nunca consulta datos globales'
   assert.doesNotMatch(route, /select\('\*'\)/)
   assert.match(route, /Lectura incompleta/)
 })
+
+test('la ruta adjunta el toque vigente del contacto a cada cita (contactAttribution)', () => {
+  // Sin esto, las citas que llegan sin UTMs propios — la mayoría en producción — quedaban
+  // «no identificado» aunque contact_attributions del comprador dijera de dónde vino.
+  const route = readFileSync('app/api/[tenant]/evergreen/meta/revenue-attribution/route.ts', 'utf8')
+  assert.match(route, /'contact_attributions'/)
+  assert.match(route, /'contact_id,utm_source,utm_campaign,utm_content'/)
+  assert.match(route, /attrByContact\.get/)
+  assert.match(route, /contactAttribution:/)
+})
+
+test('el cliente de Meta pide instagram_profile_follow como campo de insights (no en actions)', () => {
+  const client = readFileSync('lib/meta/client.ts', 'utf8')
+  const matches = client.match(/instagram_profile_follow/g) ?? []
+  assert.ok(matches.length >= 3, 'campo en campaña, anuncio y comentario/documentación')
+  assert.ok(
+    (client.match(/followers: Math\.max\(Number\(r\.instagram_profile_follow\)/g) ?? []).length >= 2,
+    'el mapping usa el campo de insights (campaña y anuncio)'
+  )
+})

@@ -30,7 +30,7 @@ const chunks = <T>(values: T[]) => {
 
 async function rowsByIds(
   sb: SupabaseClient,
-  table: 'sales' | 'collections' | 'refunds' | 'stripe_payments',
+  table: 'sales' | 'collections' | 'refunds' | 'stripe_payments' | 'contact_attributions',
   select: string,
   tenantId: string,
   column: string,
@@ -139,9 +139,29 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
         adset_name: row.adset_name ? String(row.adset_name) : null,
       })),
     }
+    // Atribución del CONTACTO (contact_attributions, toque vigente): la mayoría de citas llega
+    // sin UTMs propios y la única evidencia de su origen está en el contacto. Se lee por lote
+    // para no superar el límite del catálogo y se adjunta como último recurso del resolver.
+    const allContactIds = [
+      ...new Set(
+        appointmentsResult.rows
+          .map((row) => row.contact_id)
+          .filter((id): id is string => typeof id === 'string' && id.length > 0)
+      ),
+    ]
+    const contactAttrs = await rowsByIds(
+      sb,
+      'contact_attributions',
+      'contact_id,utm_source,utm_campaign,utm_content',
+      tenantId,
+      'contact_id',
+      allContactIds
+    )
+    const attrByContact = new Map(contactAttrs.map((row) => [String(row.contact_id), row]))
     const allAppointments = appointmentsResult.rows.map((row) => ({
       ...row,
       contacts: Array.isArray(row.contacts) ? (row.contacts[0] ?? null) : row.contacts,
+      contactAttribution: attrByContact.get(String(row.contact_id ?? '')) ?? null,
     })) as RevenueAppointment[]
     const appointments = !hasCampaignScope
       ? allAppointments

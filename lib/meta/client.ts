@@ -46,7 +46,7 @@ export type MetaInsight = {
   clicks: number
   reach: number
   leads: number
-  followers: number // seguidores atribuidos (action_type de tipo follow)
+  followers: number // seguidores atribuidos (campo de insights instagram_profile_follow)
   linkClicks: number // clics en el enlace (inline_link_clicks)
   landingViews: number // visitas a la página (landing_page_view)
 }
@@ -363,7 +363,11 @@ export async function fetchMetaInsights(
   cfg: MetaConfig,
   datePreset: MetaDatePreset = 'maximum'
 ): Promise<MetaInsight[]> {
-  const fields = 'campaign_id,campaign_name,spend,impressions,clicks,inline_link_clicks,reach,actions'
+  // `instagram_profile_follow` es un CAMPO de insights (como inline_link_clicks), no un action_type
+  // de `actions`: Meta reporta ahí los seguidores ganados por campañas de captación. Preguntarlo
+  // dentro de actions no da nada — por eso esta métrica estaba a 0 en TODAS las campañas.
+  const fields =
+    'campaign_id,campaign_name,spend,impressions,clicks,inline_link_clicks,reach,actions,instagram_profile_follow'
   const url =
     `${GRAPH}/${cfg.version}/${cfg.accountId}/insights` +
     `?level=campaign&fields=${fields}&date_preset=${datePreset}&limit=500` +
@@ -377,7 +381,9 @@ export async function fetchMetaInsights(
     clicks: Number(r.clicks) || 0,
     reach: Number(r.reach) || 0,
     leads: parseLeads(r.actions),
-    followers: parseFollows(r.actions),
+    // La fuente fiable es el campo de insights; parseFollows cubre variantes por action_type si
+    // algún tipo de campaña las reportara ahí. El mayor de los dos gana.
+    followers: Math.max(Number(r.instagram_profile_follow) || 0, parseFollows(r.actions)),
     linkClicks: Number(r.inline_link_clicks) || 0,
     landingViews: sumAction(r.actions, 'landing_page_view'),
   }))
@@ -475,7 +481,8 @@ export async function fetchMetaAdInsights(
   cfg: MetaConfig,
   periodo: MetaDatePreset | { since: string; until: string } = 'maximum'
 ): Promise<MetaAdInsight[]> {
-  const fields = 'ad_id,ad_name,adset_name,campaign_id,spend,impressions,clicks,inline_link_clicks,reach,actions'
+  const fields =
+    'ad_id,ad_name,adset_name,campaign_id,spend,impressions,clicks,inline_link_clicks,reach,actions,instagram_profile_follow'
   const ventana =
     typeof periodo === 'string' ? `date_preset=${periodo}` : `time_range=${encodeURIComponent(JSON.stringify(periodo))}`
   const url =
@@ -493,7 +500,7 @@ export async function fetchMetaAdInsights(
     clicks: Number(r.clicks) || 0,
     reach: Number(r.reach) || 0,
     leads: parseLeads(r.actions),
-    followers: parseFollows(r.actions),
+    followers: Math.max(Number(r.instagram_profile_follow) || 0, parseFollows(r.actions)),
     linkClicks: Number(r.inline_link_clicks) || 0,
     landingViews: sumAction(r.actions, 'landing_page_view'),
   }))

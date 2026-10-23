@@ -97,6 +97,40 @@ test('utm_content sin match en el catálogo no inventa un anuncio', () => {
   assert.equal(result.ad.name, null)
 })
 
+test('la cita sin UTMs propios se atribuye por el toque vigente del contacto (contactAttribution)', () => {
+  // Caso real de producción: el webhook de Calendly no trae UTMs y la única evidencia de
+  // dónde vino la persona está en contact_attributions del comprador.
+  const result = resolveMetaAttribution(
+    {
+      utm_source: null,
+      utm_campaign: null,
+      contacts: { campaign_id: null },
+      contactAttribution: {
+        utm_source: '120252786405750750',
+        utm_campaign: '120252786405750750',
+        utm_content: 'Vídeo principal',
+      },
+    },
+    catalog
+  )
+  assert.equal(result.campaign.resolved, true)
+  assert.equal(result.campaign.name, 'Campaña captación')
+  assert.equal(result.ad.name, 'Vídeo principal', 'utm_content del contacto nombra el anuncio')
+  assert.equal(result.ad.resolved, true)
+})
+
+test('la evidencia capturada en la cita manda sobre la del contacto', () => {
+  const result = resolveMetaAttribution(
+    {
+      attribution_booking: { campaign_id: '120252786405750750', ad_id: '120299999999999999' },
+      contactAttribution: { utm_source: '120252786405750750', utm_campaign: 'Otra campaña' },
+    },
+    catalog
+  )
+  assert.equal(result.campaign.name, 'Campaña captación', 'el toque de la cita gana')
+  assert.equal(result.ad.name, 'Vídeo principal', 'el ad_id de la cita gana')
+})
+
 test('recoge solo ids válidos para el endpoint mínimo y deduplica', () => {
   const result = collectMetaAttributionSignals([
     {

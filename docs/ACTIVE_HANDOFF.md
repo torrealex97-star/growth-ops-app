@@ -1,3 +1,32 @@
+# COMPLETADO — Atribución Meta: seguidores, agendas y ventas por campaña/anuncio (23-oct)
+
+Tres causas raíz, diagnosticadas con SELECTs de solo lectura sobre producción:
+
+1. **Seguidores a 0 en todas las campañas/anuncios:** el cliente de Meta solo leía `actions[]`
+   buscando un action_type de tipo follow; pero Meta reporta los seguidores de captación como CAMPO
+   de insights (`instagram_profile_follow`, como `inline_link_clicks`), nunca dentro de `actions`.
+   Ahora se pide en campaña y anuncio y gana el máximo de las dos lecturas.
+2. **El resolver de atribución ignoraba los UTMs de los toques:** las columnas de la cita
+   (`utm_source/utm_campaign/utm_content`) están vacías en la mayoría de filas, pero los blobs
+   (`attribution_booking` sobre todo) SÍ los llevan — y se miraban solo ad_id/ad_name. Ahora
+   `evidence()` cae a los UTMs del toque cuando la columna viene vacía, y usa `utm_content`
+   ({{ad.name}} de Meta) para nombrar el anuncio acotado a la campaña, con las mismas reglas
+   anti-ambigüedad de `resolver-anuncio.ts`.
+3. **El embudo por cohorte no leía la atribución del contacto:** de 51 ventas solo 3 eran
+   atribuibles con los UTMs de las citas; ~18 más tienen el comprador con atribución Meta en
+   `contact_attributions` (51 sources = IDs de campaña). La ruta `/meta/revenue-attribution` ahora
+   lee `contact_attributions` por lote y adjunta el toque vigente como ÚLTIMO recurso del resolver
+   (la evidencia de la cita manda sobre la del contacto).
+
+Ficheros: `lib/meta/client.ts`, `lib/meta/ad-attribution.ts`,
+`app/api/[tenant]/evergreen/meta/revenue-attribution/route.ts`, tests de regresión en
+`tests/meta-ad-attribution.test.mjs` y `tests/meta-revenue-attribution.test.mjs`. Validado:
+`npm run quality` y `npm run build` en verde (typecheck local limpio tras retirar 4 copias
+`*.d 2.ts` regenerables de `.next/types/` que envenenaban el tsc local; artefactos, no código).
+**Pendiente para que se vea en la pantalla:** re-lanzar la sync de Meta (campañas) y la de
+anuncios — `followers` se repuebla al vuelo; no hay backfill de datos que no existen (nada se
+inventa), y las campañas nuevas necesitan UTMs completos en el enlace para atribuir anuncio.
+
 # COMPLETADO — MCP: «autenticación correcta, descubrimiento fallido» (22-oct)
 
 Causa: `validarAccessToken` buscaba el token en BD por el `jti` en crudo, pero se guarda `token_hash = SHA-256(token)`. Todo
