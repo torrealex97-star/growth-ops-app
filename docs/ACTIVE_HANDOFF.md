@@ -1,3 +1,17 @@
+# COMPLETADO — Backfill de campaign_id aplicado en producción: hueco de ads cerrado (23-oct, PR #627)
+
+Corredor `scripts/backfill-campaign-id.mjs` que invoca el backfill canónico
+(`lib/contacts/backfill-campaign-id.ts`: idempotente, solo matches directas, guard
+`campaign_id IS NULL`, orgánicas/ambiguas/sin-match nunca se escriben) por subcuenta, con medición
+del hueco antes/después. **Aplicado en producción (verificado con relectura):** en
+`women-digital-closer`, 32 contactos con UTMs de ads sin `campaign_id` quedaron asignados — todos a
+`🟢 AGENDA | VSL | MUJER 20-50 AUDIENCE` (51 de la cohorte con UTM la llevan ahora). Quedan 63 sin
+campaña que NO son hueco de ads: 55 orgánicas (tiktok_organic, etc.) y 8 UTMs sin match en el
+catálogo (test-camp, dominio de GHL) — cola honesta, nada inventado. El corredor es idempotente:
+segunda pasada `directas=0`. Validado: `npm run quality` (2.209 tests) y CI en verde para
+`628ad06d`; fusionado en `main` (`718cd5ed`). Efecto en pantallas: la cohorte por campaña y el
+embudo de atribución ya distinguen la campaña de origen de estos 32 contactos.
+
 # COMPLETADO — Vista de Anuncios: columnas CRM por anuncio (23-oct, PR #625)
 
 La pestaña Anuncios de Campañas une las filas de anuncios de `revenue-attribution` (la atribución
