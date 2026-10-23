@@ -31,6 +31,13 @@ export type MetaAttributionInput = {
   attribution_second?: JsonObject | null
   attribution_last?: JsonObject | null
   attribution_booking?: JsonObject | null
+  /**
+   * Atribución del CONTACTO (contact_attributions, toque vigente), como ÚLTIMO recurso: en
+   * producción la mayoría de citas de Calendly llega sin UTMs propios (el webhook del evento no
+   * los trae) y la única evidencia de dónde vino esa persona está en el toque del contacto. Va
+   * la última del orden de toques: la evidencia capturada en la cita manda sobre la del contacto.
+   */
+  contactAttribution?: JsonObject | null
   contacts?: { campaign_id?: string | null } | null
 }
 
@@ -78,6 +85,7 @@ function touches(input: MetaAttributionInput): ToqueAtribucion[] {
     input.attribution_first,
     input.attribution_second,
     input.raw_payload,
+    input.contactAttribution,
   ]
   return values.filter(Boolean).map((value) => leerToque(value))
 }
@@ -97,11 +105,15 @@ function evidence(input: MetaAttributionInput) {
   const adSetId = firstValue(candidates.map((touch) => touch.adSetId))
   const campaignIdFromTouch = firstValue(candidates.map((touch) => touch.utmId))
   const utmSource = clean(input.utm_source) ?? firstValue(candidates.map((touch) => touch.utmSource))
+  // Los toques SÍ llevan el nombre de la campaña y del anuncio (utm_campaign/utm_content); si la
+  // fila de la cita vino vacía, la evidencia del toque vale lo mismo que valía la columna.
+  const utmCampaign = clean(input.utm_campaign) ?? firstValue(candidates.map((touch) => touch.utmCampaign))
+  const utmContent = clean(input.utm_content) ?? firstValue(candidates.map((touch) => touch.utmContent))
   const campaignExternalId = firstValue([
     campaignIdFromTouch && META_NUMERIC_ID.test(campaignIdFromTouch) ? campaignIdFromTouch : null,
     utmSource && META_NUMERIC_ID.test(utmSource) ? utmSource : null,
   ])
-  return { adId, adName, adSetId, campaignExternalId, utmSource }
+  return { adId, adName, adSetId, campaignExternalId, utmSource, utmCampaign, utmContent }
 }
 
 export function resolveMetaAttribution(
@@ -120,7 +132,7 @@ export function resolveMetaAttribution(
     campaign = catalog.campaigns.find((item) => item.external_id === ad.campaign_external_id)
   }
   if (!campaign) {
-    const result = resolverCampanaPorUtm(input.utm_campaign, catalog.campaigns, { utmSource: found.utmSource })
+    const result = resolverCampanaPorUtm(found.utmCampaign, catalog.campaigns, { utmSource: found.utmSource })
     if (result.ok && result.kind === 'directa') {
       campaign = catalog.campaigns.find((item) => item.id === result.campaignId)
     }
@@ -131,8 +143,8 @@ export function resolveMetaAttribution(
   // campaña arriba. Acotado a la campaña ya resuelta para no confundir anuncios homónimos de
   // campañas distintas (comprobado en producción, ver resolver-anuncio.ts).
   let adPorUtm: MetaAdReference | undefined
-  if (!ad && !found.adName && input.utm_content) {
-    const resultadoAnuncio = resolverAnuncioPorUtm(input.utm_content, catalog.ads, {
+  if (!ad && !found.adName && found.utmContent) {
+    const resultadoAnuncio = resolverAnuncioPorUtm(found.utmContent, catalog.ads, {
       campaignExternalId: campaign?.external_id ?? found.campaignExternalId ?? null,
     })
     if (resultadoAnuncio.ok && resultadoAnuncio.kind === 'directa') {

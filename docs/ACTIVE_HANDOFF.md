@@ -11,6 +11,46 @@ Validado local: `npm run quality` (format + lint + typecheck + 789 tests) y `npm
 (comportamiento de las uniques y del claim) y registrar la versión en `schema_migrations`; luego
 conectar los 3 Custom Webhooks de GHL con `x-ghl-secret` y `?evento=alta|encuesta|confirmacion`.
 
+# COMPLETADO — Atribución Meta: seguidores, agendas y ventas por campaña/anuncio (23-oct)
+
+Tres causas raíz, diagnosticadas con SELECTs de solo lectura sobre producción:
+
+1. **Seguidores a 0 en todas las campañas/anuncios:** el cliente de Meta solo leía `actions[]`
+   buscando un action_type de tipo follow; pero Meta reporta los seguidores de captación como CAMPO
+   de insights (`instagram_profile_follow`, como `inline_link_clicks`), nunca dentro de `actions`.
+   Ahora se pide en campaña y anuncio y gana el máximo de las dos lecturas.
+2. **El resolver de atribución ignoraba los UTMs de los toques:** las columnas de la cita
+   (`utm_source/utm_campaign/utm_content`) están vacías en la mayoría de filas, pero los blobs
+   (`attribution_booking` sobre todo) SÍ los llevan — y se miraban solo ad_id/ad_name. Ahora
+   `evidence()` cae a los UTMs del toque cuando la columna viene vacía, y usa `utm_content`
+   ({{ad.name}} de Meta) para nombrar el anuncio acotado a la campaña, con las mismas reglas
+   anti-ambigüedad de `resolver-anuncio.ts`.
+3. **El embudo por cohorte no leía la atribución del contacto:** la ruta `/meta/revenue-attribution`
+   ahora lee `contact_attributions` por lote y adjunta el toque vigente como ÚLTIMO recurso del
+   resolver (la evidencia de la cita manda sobre la del contacto).
+
+Ficheros: `lib/meta/client.ts`, `lib/meta/ad-attribution.ts`,
+`app/api/[tenant]/evergreen/meta/revenue-attribution/route.ts`, tests de regresión en
+`tests/meta-ad-attribution.test.mjs` y `tests/meta-revenue-attribution.test.mjs`. Validado:
+`npm run quality` y `npm run build` en verde (typecheck local limpio tras retirar 4 copias
+`*.d 2.ts` regenerables de `.next/types/` que envenenaban el tsc local; artefactos, no código).
+
+**DESPLIEGUE Y SYNC VERIFICADOS en producción (23-oct, #619):** PR #619 mergeado con CI verde
+(E2E incluido), deploy `dpl_x4Vt9m6…` READY con alias `app.scalixsystems.com`, y crons
+re-lanzados vía GitHub Actions (`cron-meta.yml` y el nuevo `cron-meta-ads-manual.yml`, ambos
+workflow_dispatch). Resultado medido en BD: campañas 9 sincronizadas con **1.811 followers totales**
+(antes 0), funnel de la campaña de agenda 51 leads / 54 agendas / 7 shows; anuncios 249 sincronizados,
+87 con followers (1.450 en ventana 90d).
+
+**HUECO REAL QUE QUEDA (no es de código):** las 51 ventas cerradas siguen sin atribuir a campaña
+porque los COMPRADORES no llevan atribución Meta en NINGUNA fuente de la app — verificada su fila de
+`contact_attributions` (25 vacías, 7 organic/direct/IG/google, 0 con ID de campaña Meta) y los blobs
+de su cita (6 con blob, ninguno con ID Meta). Los 51 contactos que SÍ están atribuidos a la campaña
+de agenda no tienen ventas. La pista es el webhook de compra (Hotmart/Whop/Stripe): si el payload del
+proveedor lleva las UTMs del comprador, hay que extraerlas en `toqueDesdePayload` y registrarlas;
+si GHL las tiene, sincronizarlas. Sin esos datos capturados, ninguna corrección de código puede
+atribuir la venta — y las campañas nuevas necesitan UTMs completos en el enlace.
+
 # COMPLETADO — MCP: «autenticación correcta, descubrimiento fallido» (22-oct)
 
 Causa: `validarAccessToken` buscaba el token en BD por el `jti` en crudo, pero se guarda `token_hash = SHA-256(token)`. Todo
