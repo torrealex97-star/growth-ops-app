@@ -99,6 +99,9 @@ const DEPARTMENT_PREFIXES: Record<Department, string[]> = {
     '/setting-ai',
     '/conversaciones',
     '/funnels',
+    // Panel de lanzamientos: el calendario/activo vive por subcuenta y el webhook de GHL apunta
+    // leads al lanzamiento abierto. Sin prefijo, el filtro del menú lo escondería para todos.
+    '/lanzamiento',
   ],
   producto: ['/students', '/csm-events', '/drops', '/contratos'],
   // '/dashboard' y '/unit-economics' viven aquí porque la sección "Dirección" se disolvió: sus
@@ -135,6 +138,7 @@ export const NAV_PAGES: { href: string; label: string; dept: Department }[] = [
   { href: '/recursos/grabaciones', label: 'Recursos de venta · Grabaciones', dept: 'ventas' },
   { href: '/recursos/contratos-producto', label: 'Recursos de venta · Contratos de producto', dept: 'ventas' },
   { href: '/funnels', label: 'Funnels', dept: 'marketing' },
+  { href: '/lanzamiento', label: 'Lanzamientos', dept: 'marketing' },
   { href: '/marketing/adquisicion/campanas', label: 'Adquisición · Campañas', dept: 'marketing' },
   { href: '/marketing/adquisicion/atribucion', label: 'Adquisición · Atribución', dept: 'marketing' },
   { href: '/marketing/adquisicion/vsl', label: 'Adquisición · VSL', dept: 'marketing' },

@@ -54,6 +54,7 @@ import {
   Handshake,
   Globe,
   MessageSquare,
+  Rocket,
 } from 'lucide-react'
 import { allowedPrefixesFor, type AppRole, type Department } from '@/lib/auth/permissions'
 
@@ -262,6 +263,14 @@ export const NAV_SECTIONS: NavSection[] = [
             roles: [...LEAD, 'marketing'],
           },
         ],
+      },
+      {
+        // Lanzamiento activo: los leads del webhook de GHL se apuntan al abierto más reciente y este
+        // es el panel donde se abre el siguiente (claim atómico en lib/launch/lanzamientos.ts).
+        label: 'Lanzamientos',
+        href: '/lanzamiento',
+        icon: Rocket,
+        roles: [...LEAD, 'marketing'],
       },
       {
         label: 'Instagram',
