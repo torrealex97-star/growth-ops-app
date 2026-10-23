@@ -1,3 +1,19 @@
+# COMPLETADO — Cron de Meta cada 30 min retirado: solo queda el schedule previsto (23-oct)
+
+Causa del «corre cada 30 minutos»: el botón «Auto 30 min» de Campañas (`POST
+/api/[tenant]/evergreen/admin/setup-meta-cron`) programaba en Supabase pg_cron un job
+`meta-sync-30min-<tenant>` con `*/30 * * * *` (vía pg_net) que DUPLICABA la cadencia prevista
+(GitHub Actions `cron-meta.yml`, diario 03:00 UTC; vercel.json solo tiene meta-ads 02:00 y
+reminders 07:00). Cambios: la ruta pasa a DELETE-only (desprograma cualquier job
+`meta-sync-30min-*`, mismo auth), el POST responde 405, el botón se retiró de la UI y hay prueba
+de regresión (`tests/cron-meta-schedule-unico.test.mjs`) que impide cadencia sub-diaria de Meta en
+workflows, vercel.json, la ruta y la página. Validado: `npm run quality` (2202 tests) y
+`npm run build` en verde.
+**Pendiente de producción (dueño, SQL Editor de Supabase):** `select jobname, schedule, active
+from cron.job where jobname like 'meta-sync-30min-%';` para ver los jobs vivos y
+`select cron.unschedule(jobname) from cron.job where jobname like 'meta-sync-30min-%';` para
+retirarlos (o llamar al DELETE de la ruta con Bearer CRON_SECRET tras el despliegue).
+
 # COMPLETADO — Portabilidad iawinners: L1 Lanzamientos fusionado en main (23-oct, PR #618)
 
 Módulo completo en `main` (`95904341`): migración `20261023100000_lanzamientos.sql` (launches +

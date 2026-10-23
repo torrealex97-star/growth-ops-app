@@ -58,7 +58,7 @@ const TENANT_API_PUBLIC_SUFFIXES = [
   '/evergreen/webhooks', // GHL / player VSL — se autentican con su propio secreto, no con sesión
   '/evergreen/tracking/events', // ingestión canónica — se autentica con TRACKING_INGEST_KEY
   '/evergreen/admin/migrate-meta', // migración v19 Meta — CRON_SECRET o sesión admin
-  '/evergreen/admin/setup-meta-cron', // programa pg_cron 30 min — CRON_SECRET o sesión admin
+  '/evergreen/admin/setup-meta-cron', // solo DELETE (desprograma pg_cron residual) — CRON_SECRET o sesión admin
   // Vercel Cron: el GET se autentica con CRON_SECRET, no con sesión, así que el middleware no debe
   // exigirla. El POST de la misma ruta (disparo manual desde la UI) SÍ exige sesión, pero la
   // comprueba la propia ruta con requireTenant leyendo la cookie — no depende de este listado.
