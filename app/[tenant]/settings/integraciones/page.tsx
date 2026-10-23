@@ -1028,6 +1028,29 @@ export default function IntegracionesPage() {
     }
   }
 
+  // Backfill de atribución GHL: relee en GHL la ficha de cada contacto sin UTMs y guarda aquí su
+  // atribución (primera/última campaña y anuncio), con la misma semántica first-wins del webhook.
+  // Idempotente: los contactos ya atribuidos no se releen. Los compradores van primero.
+  async function backfillAtribucionGhl() {
+    setSyncingId('ghl-atribucion-backfill')
+    try {
+      const r = await fetch(`/api/${tenant}/evergreen/settings/integraciones/atribucion-backfill`, {
+        method: 'POST',
+      })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(j.error || 'El backfill falló')
+      toast.success('Atribución sincronizada desde GHL', {
+        description: `${j.contactosConNuevosDatos ?? 0} contactos atribuidos de ${j.contactosConsiderados ?? 0} revisados · ${j.toquesRegistrados ?? 0} toques · ${j.cortado ? 'parcial (vuelve a lanzar para continuar)' : 'completo'}`,
+      })
+    } catch (error) {
+      toast.error('No se pudo sincronizar la atribución', {
+        description: error instanceof Error ? error.message : String(error),
+      })
+    } finally {
+      setSyncingId(null)
+    }
+  }
+
   async function ensureCalendlyWebhook() {
     setSyncingId('calendly-webhook')
     try {
@@ -1657,6 +1680,32 @@ export default function IntegracionesPage() {
                                 <RefreshCw className="mr-2 h-4 w-4" />
                               )}
                               {syncingId === 'ghl-custom-fields' ? 'Importando campos…' : 'Importar campos'}
+                            </Button>
+                          </section>
+                        ) : null}
+
+                        {g.id === 'ghl' ? (
+                          <section className="mb-5 space-y-2 rounded-lg border border-border p-3 text-sm">
+                            <p className="font-medium">Atribución de los contactos desde GHL</p>
+                            <p className="text-muted-foreground text-xs">
+                              Relee en GHL la ficha de cada contacto sin UTMs y guarda aquí su atribución (primera y
+                              última campaña/anuncio). No pisa lo ya atribuido y los compradores van primero. Puedes
+                              lanzarlo tantas veces como quieras.
+                            </p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => backfillAtribucionGhl()}
+                              disabled={syncingId === 'ghl-atribucion-backfill'}
+                            >
+                              {syncingId === 'ghl-atribucion-backfill' ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              ) : (
+                                <RefreshCw className="mr-2 h-4 w-4" />
+                              )}
+                              {syncingId === 'ghl-atribucion-backfill'
+                                ? 'Sincronizando atribución…'
+                                : 'Sincronizar atribución'}
                             </Button>
                           </section>
                         ) : null}
