@@ -150,7 +150,6 @@ export default function CampaignsPage() {
   const [syncing, setSyncing] = useState(false)
   const [syncingDaily, setSyncingDaily] = useState(false)
   const [migrating, setMigrating] = useState(false)
-  const [croning, setCroning] = useState(false)
   const [view, setView] = useState<'revenue' | 'meta' | 'campaigns' | 'ads'>('revenue')
   const [syncingAds, setSyncingAds] = useState(false)
   const [adsVersion, setAdsVersion] = useState(0)
@@ -458,20 +457,6 @@ export default function CampaignsPage() {
     }
   }
 
-  const runCronSetup = async () => {
-    setCroning(true)
-    try {
-      const res = await fetch(`/api/${tenant}/evergreen/admin/setup-meta-cron`, { method: 'POST' })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error || 'Error activando el cron')
-      toast.success('Auto 30 min activado', { description: 'Supabase sincronizará Meta cada 30 minutos.' })
-    } catch (e) {
-      toast.error('No se pudo activar el auto 30 min', { description: e instanceof Error ? e.message : undefined })
-    } finally {
-      setCroning(false)
-    }
-  }
-
   const runAdsSync = async () => {
     setSyncingAds(true)
     try {
@@ -690,15 +675,6 @@ export default function CampaignsPage() {
                 className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-50"
               >
                 <Zap className={`w-4 h-4 ${migrating ? 'animate-pulse' : ''}`} />
-              </button>
-              <button
-                onClick={runCronSetup}
-                disabled={croning}
-                title="Auto 30 min — programar sincronización automática (Supabase pg_cron)"
-                aria-label="Activar sincronización automática cada 30 minutos"
-                className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-50"
-              >
-                <RefreshCw className={`w-4 h-4 ${croning ? 'animate-spin' : ''}`} />
               </button>
             </div>
           )}
