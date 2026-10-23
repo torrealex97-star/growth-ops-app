@@ -1,3 +1,34 @@
+# COMPLETADO — Diagnóstico «solo la VSL concentra la atribución Meta» + sonda de solo-lectura (23-oct, PR #623)
+
+**Resultado:** la concentración NO es un bug del panel — es cómo llega el tráfico. Medido sobre
+producción con la sonda `scripts/sonda-atribucion-meta.mjs` (PR #623 fusionado; solo lectura, sin
+PII en el log):
+
+1. **Catálogo Meta = 10 campañas; solo `AGENDA|VSL|CLOSER` tiene delivery al funnel trackeado:**
+   es la única con gasto relevante en el periodo del embudo (~1.4k €), 818 leads Meta y 51 leads
+   del embudo. `TRAFICO|*` (~4.5k €) y `VISUALIZACION|*` (~400 €) marcan ~12 y ~26 leads Meta con
+   **0 leads de embudo**: no apuntan a la landing trackeada, y sin clic al funnel no hay UTMs que
+   capturar. `COLD AUDIENCE - Copia` no gastó nada.
+2. **Los UTMs capturados son 100% de la VSL:** 51 contactos (37 LOOKALIKE + 14 COPIA), 53 agendas
+   y ~1.0k eventos de pixel (929 sesiones, 879 anónimos, 15–23 oct) llevan
+   `utm_source=120252786405750750` (id de la campaña VSL). Los `utm_campaign` con textos distintos
+   («COLD LOOKALIKE», etc.) son etiquetas viejas de una plantilla reutilizada: el `utm_id`/id y los
+   adsets `AD n | VSL | CLOSER` confirman la misma campaña. No hay ni un UTM de otra campaña en
+   ninguna fuente medida (contact_attributions, appointments, raw_events, canonical_events).
+3. **¿UTMs históricos de otras campañas recuperables?** En la BD, no: no existen. En GHL no se ha
+   podido verificar localmente (el token está cifrado con la CONFIG_ENC_KEY de producción y la
+   clave local falla con «unable to authenticate data»): la vía es la rama de atribución GHL que
+   corre en el servidor (enriquecimiento/backfill), pendiente de deploy.
+4. **Huecos reales de recuperación detectados (no son UTMs de otras campañas):** (a) 51 contactos
+   con UTMs de ads en `contact_attributions` pero solo 19 con `contacts.campaign_id` — falta pasar
+   el backfill de `campaign_id`; (b) `analytics_visitors` con 0 `contact_id` y
+   `vsl_viewer_identities` vacía: el paso identify visitante→contacto nunca ha escrito (~879
+   anónimos de la VSL son atribuibles si se enlaza); (c) compradores: 51 ventas, 47 sin ningún UTM
+   (columnas y blobs vacíos) — solo recuperable leyendo fichas históricas de GHL, no desde la BD.
+
+**Estado:** `probado` (SELECTs y sonda sobre producción); `no verificado` en GHL (credencial no
+descifrable con la clave local). Ninguna fila fue modificada.
+
 # COMPLETADO — Cron de Meta cada 30 min retirado: solo queda el schedule previsto (23-oct)
 
 Causa del «corre cada 30 minutos»: el botón «Auto 30 min» de Campañas (`POST
