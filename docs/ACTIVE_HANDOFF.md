@@ -12,20 +12,31 @@ Tres causas raíz, diagnosticadas con SELECTs de solo lectura sobre producción:
    `evidence()` cae a los UTMs del toque cuando la columna viene vacía, y usa `utm_content`
    ({{ad.name}} de Meta) para nombrar el anuncio acotado a la campaña, con las mismas reglas
    anti-ambigüedad de `resolver-anuncio.ts`.
-3. **El embudo por cohorte no leía la atribución del contacto:** de 51 ventas solo 3 eran
-   atribuibles con los UTMs de las citas; ~18 más tienen el comprador con atribución Meta en
-   `contact_attributions` (51 sources = IDs de campaña). La ruta `/meta/revenue-attribution` ahora
-   lee `contact_attributions` por lote y adjunta el toque vigente como ÚLTIMO recurso del resolver
-   (la evidencia de la cita manda sobre la del contacto).
+3. **El embudo por cohorte no leía la atribución del contacto:** la ruta `/meta/revenue-attribution`
+   ahora lee `contact_attributions` por lote y adjunta el toque vigente como ÚLTIMO recurso del
+   resolver (la evidencia de la cita manda sobre la del contacto).
 
 Ficheros: `lib/meta/client.ts`, `lib/meta/ad-attribution.ts`,
 `app/api/[tenant]/evergreen/meta/revenue-attribution/route.ts`, tests de regresión en
 `tests/meta-ad-attribution.test.mjs` y `tests/meta-revenue-attribution.test.mjs`. Validado:
 `npm run quality` y `npm run build` en verde (typecheck local limpio tras retirar 4 copias
 `*.d 2.ts` regenerables de `.next/types/` que envenenaban el tsc local; artefactos, no código).
-**Pendiente para que se vea en la pantalla:** re-lanzar la sync de Meta (campañas) y la de
-anuncios — `followers` se repuebla al vuelo; no hay backfill de datos que no existen (nada se
-inventa), y las campañas nuevas necesitan UTMs completos en el enlace para atribuir anuncio.
+
+**DESPLIEGUE Y SYNC VERIFICADOS en producción (23-oct, #619):** PR #619 mergeado con CI verde
+(E2E incluido), deploy `dpl_x4Vt9m6…` READY con alias `app.scalixsystems.com`, y crons
+re-lanzados vía GitHub Actions (`cron-meta.yml` y el nuevo `cron-meta-ads-manual.yml`, ambos
+workflow_dispatch). Resultado medido en BD: campañas 9 sincronizadas con **1.811 followers totales**
+(antes 0), funnel de la campaña de agenda 51 leads / 54 agendas / 7 shows; anuncios 249 sincronizados,
+87 con followers (1.450 en ventana 90d).
+
+**HUECO REAL QUE QUEDA (no es de código):** las 51 ventas cerradas siguen sin atribuir a campaña
+porque los COMPRADORES no llevan atribución Meta en NINGUNA fuente de la app — verificada su fila de
+`contact_attributions` (25 vacías, 7 organic/direct/IG/google, 0 con ID de campaña Meta) y los blobs
+de su cita (6 con blob, ninguno con ID Meta). Los 51 contactos que SÍ están atribuidos a la campaña
+de agenda no tienen ventas. La pista es el webhook de compra (Hotmart/Whop/Stripe): si el payload del
+proveedor lleva las UTMs del comprador, hay que extraerlas en `toqueDesdePayload` y registrarlas;
+si GHL las tiene, sincronizarlas. Sin esos datos capturados, ninguna corrección de código puede
+atribuir la venta — y las campañas nuevas necesitan UTMs completos en el enlace.
 
 # COMPLETADO — MCP: «autenticación correcta, descubrimiento fallido» (22-oct)
 
