@@ -1,3 +1,33 @@
+# DIAGNÓSTICO — Por qué el identify visitante→contacto nunca ha escrito (23-oct)
+
+**Causa raíz (probado sobre producción): el mecanismo está completo, pero sus dos entradas nunca
+ocurren en el funnel real.** Ni un bug de escritura ni RLS: es wiring que falta en la landing.
+
+1. **`analytics_visitors.contact_id = 0` (1.212 visitantes):** el stitching (`aplicarVinculo`,
+   idempotente y auditado en `identity_matches`) SOLO se dispara con eventos de identidad del
+   pixel (`lead`/`form_submit`/`appointment_booked`/`purchase` con `properties.email|phone`). En
+   producción el pixel ha recibido 1.512 raws: 1.510 `page_view` y 2 `cta_click` — CERO eventos de
+   identidad. La captura de leads es un widget de Typeform (home) y Calendly (agenda), servicios
+   externos cuyos envíos nunca pasan por `tracker.js`; el tracker expone `window.gop('lead',
+   {email})` pero nadie lo llama. Los leads entran por webhook de GHL/Calendly sin `anonymous_id`,
+   así que no hay visitante que enlazar.
+2. **`vsl_viewer_identities` vacía y `vsl_sessions = 0`:** la ruta `/vsl` de la landing (392
+   page_view recientes) NO incrusta nuestro player: no hay iframe `embed/vsl/*` ni
+   `embed/loader.js`; el vídeo es un embed de **YouTube** (`fUT4Y02N-KQ`) con referencias Wistia.
+   Sin iframe no hay `/api/vsl/session` (0 filas) y sin sesión no hay nada que identificar: el
+   identify (`tccVSL.identify` + auto-captura por URL) vive en loader.js, que tampoco está.
+   El vídeo `vsl-principal` (Bunny) está configurado en `vsl_videos` y `/embed/vsl/vsl-principal`
+   y `/embed/loader.js` responden 200 en producción — las piezas están, la página no las carga.
+
+**Arreglo propuesto (requiere editar el funnel de GHL, acción del dueño; nada de código bloquea):**
+(a) sustituir el embed de YouTube por `<iframe src="https://app.scalixsystems.com/embed/vsl/vsl-principal">`
+y añadir `<script src="https://app.scalixsystems.com/embed/loader.js">` en `/vsl`; (b) opcional en
+código, listo para implementar: que loader.js, al identificar, emita también el evento pixel
+`window.gop('lead', {email})` para que el MISMO email escriba `analytics_visitors.contact_id` vía el
+stitching existente; (c) con loader.js en la página, los enlaces Calendly se decoran solos con
+`salesforce_uuid=anonId` + UTMs y el puente de agendas sin optin pasa a funcionar. Hasta que la
+landing cargue estas piezas, cualquier código nuevo de identidad no escribiría nada.
+
 # COMPLETADO — Backfill de campaign_id aplicado en producción: hueco de ads cerrado (23-oct, PR #627)
 
 Corredor `scripts/backfill-campaign-id.mjs` que invoca el backfill canónico
