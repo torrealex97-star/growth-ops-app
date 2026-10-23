@@ -1,3 +1,16 @@
+# EN CURSO — Portabilidad iawinners: L1 Lanzamientos portado y validado localmente (23-oct)
+
+Rama `feat/portabilidad-iawinners-modulos` (fila del tablero). Módulo completo: migración
+`20261023100000_lanzamientos.sql` (launches + contact_launches, RLS RESTRICTIVE, SIN APLICAR aún en
+producción), núcleo puro de calidad de lead (`lib/launch/calidad.ts`), calendario con apertura atómica
+(`lib/launch/lanzamientos.ts`), webhook GHL de alta/encuesta/confirmación (secreto por subcuenta
+`LANZAMIENTO_WEBHOOK_SECRET`, sobres en `raw_events`, deduplicado por SHA-256 del cuerpo), API del
+panel y pantalla `/lanzamiento` + menú. Plan completo en `docs/PORTABILIDAD_IAWINNERS.md`.
+Validado local: `npm run quality` (format + lint + typecheck + 789 tests) y `npm run build` en verde.
+**Siguiente acción exacta:** aplicar la migración en producción con dry-run de comportamiento
+(comportamiento de las uniques y del claim) y registrar la versión en `schema_migrations`; luego
+conectar los 3 Custom Webhooks de GHL con `x-ghl-secret` y `?evento=alta|encuesta|confirmacion`.
+
 # COMPLETADO — MCP: «autenticación correcta, descubrimiento fallido» (22-oct)
 
 Causa: `validarAccessToken` buscaba el token en BD por el `jti` en crudo, pero se guarda `token_hash = SHA-256(token)`. Todo
@@ -4040,6 +4053,7 @@ fusionar, bórrala.** Si lo que vas a tocar está aquí a nombre de otro, no lo 
 
 | Agente      | Qué                                                                                                                                                                                                                                                      | Rama                        | Toca                                                         | Desde |
 | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ------------------------------------------------------------ | ----- |
+| Freebuff    | Portabilidad de módulos de iawinners a multitenant — L1 Lanzamientos: calendario (`launches`), calidad de lead, webhook GHL (alta/encuesta/confirmación) y panel. Plan en `docs/PORTABILIDAD_IAWINNERS.md`                                                | `feat/portabilidad-iawinners-modulos` | migración `20261023100000_lanzamientos.sql`, `lib/launch/*`, `app/api/[tenant]/evergreen/{webhooks/lanzamiento,lanzamiento}/route.ts`, `app/[tenant]/lanzamiento/page.tsx`, entrada en `lib/nav.ts`, `tests/lanzamiento-*.test.mjs` | 23-oct |
 | Freebuff    | Cierre de dependabots: #439 merged (googleapis, CI verde); #437/#438 majors APLAZADAS (react-table v9, eslint 10 rompen CI); #518 grupo minor bloqueado por lockstep typescript-eslint (ver comentario propio); pendiente PR de config en dependabot.yml | `main` + ramas dependabot   | `package.json`/lock (solo vía dependabot), docs, migraciones | 3-oct |
 | Codex       | PR #325 reservation-refunds (E2E en rojo, su autor continúa)                                                                                                                                                                                             | `codex/reservation-refunds` | ventas/cobros (según su rama)                                | 3-oct |
 | Claude Code | Plan: F01 (RLS colaborador, P0), F19; sin rama activa aún                                                                                                                                                                                                | —                           | `docs/plan/`, migraciones RLS                                | 3-oct |
