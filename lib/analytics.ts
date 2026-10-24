@@ -123,6 +123,30 @@ const labelSource = (a?: { source: string | null; utm_source: string | null }) =
   [a?.source, a?.utm_source].find((value) => value && !['ghl', 'ghl_import'].includes(value.trim().toLowerCase())) ||
   SOURCE_FALLBACK
 
+/**
+ * Etiqueta de la fuente que pintan las métricas (Actividad por fuente, embudo por fuente).
+ *
+ * Cuando la atribución estructurada nombra una COLABORADORA (`contact_attributions.collaborator_id`),
+ * la etiqueta ES esa persona: llevar al lead es el trabajo que las métricas deben acertar a mostrar,
+ * y leérselo bajo el canal crudo («instagram», «ficha»…) esconde su atribución, sus agendas y sus
+ * ventas detrás de una etiqueta que no es de ella. Los rankings por persona (TeamRanking,
+ * AgendasPorPersona) ya la nombraban; aquí la tabla por FUENTE hace lo mismo.
+ *
+ * Sin nombre legible queda «Colaboradora» a secas: la relación es cierta, el nombre no se inventa
+ * (mismo convenio que `nameOf… || 'Colaborador'` en ventasPorColaborador).
+ */
+export type EtiquetaFuenteOpts = { nombresColaboradora?: Map<string, string> }
+export function etiquetaDeFuente(
+  row: Pick<AttributionRow, 'source' | 'utm_source' | 'collaborator_id'> | undefined,
+  opts?: EtiquetaFuenteOpts
+): string {
+  if (row?.collaborator_id) {
+    const nombre = opts?.nombresColaboradora?.get(row.collaborator_id)
+    return nombre ? `Colaboradora: ${nombre}` : 'Colaboradora'
+  }
+  return labelSource(row)
+}
+
 // --- Meses ---
 export function lastNMonths(n: number, refYm: string): string[] {
   const [y, m] = refYm.split('-').map(Number)
@@ -311,14 +335,15 @@ export type AttribRow = { source: string; leads: number; sales: number; gross: n
 export function attributionBySource(
   contactIds: string[],
   attributions: AttributionRow[],
-  sales: SaleRow[]
+  sales: SaleRow[],
+  opts?: EtiquetaFuenteOpts
 ): AttribRow[] {
   // fuente principal por contacto (is_primary si existe, si no la primera)
   const bySource = new Map<string, AttribRow>()
   const contactSource = new Map<string, string>()
   const primaryFirst = [...attributions].sort((a, b) => Number(b.is_primary) - Number(a.is_primary))
   for (const a of primaryFirst) {
-    if (!contactSource.has(a.contact_id)) contactSource.set(a.contact_id, labelSource(a))
+    if (!contactSource.has(a.contact_id)) contactSource.set(a.contact_id, etiquetaDeFuente(a, opts))
   }
   const ensure = (src: string) =>
     bySource.get(src) ?? bySource.set(src, { source: src, leads: 0, sales: 0, gross: 0, convRate: 0 }).get(src)!
@@ -416,7 +441,8 @@ export function funnelBySource(
   attributions: AttributionRow[],
   sales: SaleRow[],
   appointments: AppointmentRow[],
-  modelo: ModeloAtribucion = 'primer'
+  modelo: ModeloAtribucion = 'primer',
+  opts?: EtiquetaFuenteOpts
 ): FunnelRow[] {
   const contactSource = new Map<string, string>()
   const primaryFirst = [...attributions].sort((a, b) => Number(b.is_primary) - Number(a.is_primary))
@@ -425,7 +451,7 @@ export function funnelBySource(
     // Mismo filtro que el primer toque: un «ghl» como último toque describe el sistema, no el canal.
     const ultimo =
       modelo === 'ultimo' ? labelSource({ source: null, utm_source: (a.last_utm_source ?? '').trim() || null }) : null
-    contactSource.set(a.contact_id, ultimo && ultimo !== SOURCE_FALLBACK ? ultimo : labelSource(a))
+    contactSource.set(a.contact_id, ultimo && ultimo !== SOURCE_FALLBACK ? ultimo : etiquetaDeFuente(a, opts))
   }
   const srcOf = (cid?: string | null) => (cid && contactSource.get(cid)) || SOURCE_FALLBACK
 
