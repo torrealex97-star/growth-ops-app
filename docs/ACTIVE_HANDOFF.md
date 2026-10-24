@@ -1,3 +1,5 @@
+# COMPLETADO — `public_tenant_branding` cerrado a whitelist de branding (24-oct, Freebuff)
+
 # COMPLETADO — Aplicar y verificar la migración 20261006090000 (RLS InitPlan + índices FK) en producción (24-oct, Freebuff)
 
 Circunstancia al reclamar: la migración estaba **solo fusionada en `main`**, no aplicada en
@@ -31,6 +33,29 @@ optimize_rls_and_foreign_key_indexes` con los statements reales. El INSERT dupó
 Rama `perf/rls-initplan-verificado`, PR de docs con el estado completado. **Bucle abierto:**
 EXPLAIN del top-queries de `appointments` (SCALABILITY_AUDIT PR-2) para medir el efecto real del
 InitPlan/índices; el historial vacío del resto de migraciones queda documentado pero sin resolver.
+
+Auditoría pedida tras lo de la migración RLS: ¿qué ve `anon` por la RPC `public_tenant_branding`?
+Estado real medido en producción:
+
+- La RPC era SECURITY DEFINER devolviendo `settings -> 'branding'` **entero**: solo era "branding"
+  por convención, no por restricción. Una clave propagada a `settings.branding` (la UI hace
+  `{ ...currentBranding, logo_url }`) viajaba publicada a todo el mundo.
+- Sin vías alternas: `tenants` sin ACL para anon (REVOQUE del 19-sep intacto), cero policies
+  TO anon sobre tenants, cero vistas, y la única función con EXECUTE anon que toca tenants es la
+  propia RPC. La exposición era EL channel de datos públicos por subcuenta.
+- Hoja de ruta de cierre: proyección WHITELIST del' sólo las tres claves que pinta el consumidor
+  (`name`, `accent`, `logo_url`), con `logo_url` NULL cuando no hay; semántica de filas intacta
+  (0 filas = slug desconocido/inactivo; 1 fila con NULL = activo sin marca propia).
+
+Aplicado con dry-run previo (BEGIN…ROLLBACK con `SET LOCAL ROLE anon` y aserciones) y verificado
+post-apply como anon: scalix devuelve `{name, accent, logo_url}` exacto, qa-e2e una fila con
+NULL, slug desconocido 0 filas; ACL reiterada (anon + authenticated). Registrado en
+`supabase_migrations.schema_migrations` como `20261024120000/public_tenant_branding_whitelist` con
+los statements — queda el fichero dirty `supabase/migrations/20261024120000_public_tenant_branding_whitelist.sql`.
+
+Regla que queda escrita: **lo público de tenants es EXACTAMENTE la proyección de la RPC; ninguna
+nueva clave de branding sale por accidente** — si pintara algo más, hay que añadirlo a mano en la
+whitelist. Ojo SCALABILITY no aplica; código app ni lecturas cambian.
 
 # COMPLETADO — Atribuciones, agendas y ventas de colaboradoras visibles en las métricas (24-oct)
 
