@@ -304,14 +304,116 @@ test('la API exige tenant, permiso, paginación y nunca consulta datos globales'
   assert.match(route, /Lectura incompleta/)
 })
 
+test('colaboradores: nivel de persona con la misma cohorte, mismas reglas y suma que cierra', () => {
+  // Sin la dimensión no hay nivel (la vista no puede mostrar una tab vacía disfrazada de datos).
+  const sinColabs = buildRevenueAttribution({
+    appointments: [appointment('a1', 'c1', 'show')],
+    sales: [],
+    collections: [],
+    refunds: [],
+    stripePayments: [],
+    catalog,
+  })
+  assert.deepEqual(sinColabs.colaboradores, [])
+
+  // La ruta usa un Map contacto → {id, name}: misma forma aquí.
+  const colaboradorDe = new Map([
+    ['c1', { id: 'collab-a', name: 'Ana' }],
+    ['c3', { id: 'collab-b', name: null }],
+  ])
+  const result = buildRevenueAttribution({
+    appointments: [
+      appointment('a1', 'c1', 'show'),
+      appointment('a2', 'c2', 'no_show'), // c2 sin colaboradora → hueco declarado, no repartido
+      appointment('a3', 'c3', 'scheduled'),
+    ],
+    sales: [sale('s1', 'c1', 'a1', 100), sale('s3', 'c3', 'a3', 50)],
+    collections: [
+      {
+        id: 'col1',
+        sale_id: 's1',
+        payment_reference: 'pi_1',
+        gross_amount: 100,
+        status: 'collected',
+        collected_at: '2026-10-02T12:00:00Z',
+      },
+    ],
+    refunds: [],
+    stripePayments: [],
+    catalog,
+    campaignSpend: {},
+    colaboradorDe,
+  })
+
+  const ana = result.colaboradores.find((r) => r.campaignExternalId === 'collab-a')
+  assert.ok(ana, 'la colaboradora del contacto de la venta aparece')
+  assert.equal(ana.campaignName, 'Ana')
+  assert.equal(ana.booked, 1)
+  assert.equal(ana.shows, 1)
+  assert.equal(ana.noShows, 0)
+  assert.equal(ana.sales, 1)
+  assert.equal(ana.bookedRevenue, 100)
+  assert.equal(ana.cashCollected, 100)
+
+  const berta = result.colaboradores.find((r) => r.campaignExternalId === 'collab-b')
+  assert.ok(berta)
+  assert.equal(berta.campaignName, null, 'el builder no inventa «Sin nombre»: es la glosa de la vista para name null')
+  assert.equal(berta.booked, 1)
+  assert.equal(berta.shows, 0, 'scheduled no es asistencia')
+  assert.equal(berta.sales, 1)
+  assert.equal(berta.cashCollected, 0)
+
+  const sinPersona = result.colaboradores.find((r) => r.key === 'colab:unknown')
+  assert.ok(sinPersona, 'el hueco de persona es una fila declarada')
+  assert.equal(sinPersona.booked, 1)
+  assert.equal(
+    sinPersona.campaignName,
+    null,
+    'ni «Sin colaborador» se fabrica en el builder: es la glosa de la vista para colab:unknown'
+  )
+
+  const sumaBooked = result.colaboradores.reduce((acc, r) => acc + r.booked, 0)
+  assert.equal(sumaBooked, result.summary.booked, 'la suma de colaboradoras cierra con la cohorte completa')
+})
+
 test('la ruta adjunta el toque vigente del contacto a cada cita (contactAttribution)', () => {
   // Sin esto, las citas que llegan sin UTMs propios — la mayoría en producción — quedaban
   // «no identificado» aunque contact_attributions del comprador dijera de dónde vino.
   const route = readFileSync('app/api/[tenant]/evergreen/meta/revenue-attribution/route.ts', 'utf8')
   assert.match(route, /'contact_attributions'/)
-  assert.match(route, /'contact_id,utm_source,utm_campaign,utm_content'/)
+  // colaborador_id es de la dimensión Colaboradoras: se lee en la MISMA lectura por lote para no
+  // lanzar una segunda contra la tabla entera. id e is_primary vienen para decidir el toque vigente.
+  assert.match(route, /'id,contact_id,utm_source,utm_campaign,utm_content,is_primary,collaborator_id'/)
   assert.match(route, /attrByContact\.get/)
   assert.match(route, /contactAttribution:/)
+})
+
+test('la ruta define la dimensión Colaboradoras en una sola lectura de contact_attributions', () => {
+  const route = readFileSync('app/api/[tenant]/evergreen/meta/revenue-attribution/route.ts', 'utf8')
+  assert.match(route, /collaborator_profiles/)
+  assert.match(route, /colaboradorDe/)
+  // El nombre nunca se inventa: perfil ausente ⇒ name null (o Sin perfil legible en la vista).
+  assert.match(route, /colabNames\.get\(collaboratorId\) \|\| null/)
+  // El build recibe la dimensión; con ella vacía, la lista sale vacía y la vista no enseña hueco
+  // disfrazado de datos.
+  assert.match(route, /colaboradorDe,/, 'el build recibe la dimensión')
+})
+
+test('el toque vigente es la fila is_primary y la colaboradora viene de ese MISMO toque', () => {
+  // Sin preferencia por is_primary el Map se queda con la última fila en orden arbitrario de
+  // PostgREST: indeterminismo entre builds y dimensión Colaboradoras emparejada con el anuncio
+  // de OTRA fila del mismo contacto (la colaboradora pertenece al toque que decide, no a otro).
+  const route = readFileSync('app/api/[tenant]/evergreen/meta/revenue-attribution/route.ts', 'utf8')
+  // Preferencia por la fila primaria sobre la no-primaria.
+  assert.match(route, /esPrimaria && previa\.is_primary !== true/, 'is_primary manda sobre cualquier otra fila')
+  // Desempate determinista entre filas del mismo tipo de primariedad.
+  assert.match(route, /String\(row\.id\) > String\(previa\.id\)/)
+  // La dimensión de colaboradora se deriva del mapa del toque vigente, no del lote crudo.
+  assert.match(
+    route,
+    /for \(const \[contactId, row\] of attrByContact\)/,
+    'colaboradorDe recorre el toque vigente, que es el mismo que lee el resolver de Meta'
+  )
 })
 
 test('el cliente de Meta pide instagram_profile_follow como campo de insights (no en actions)', () => {

@@ -91,7 +91,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
     const tenantId = auth.tenantId
 
-    const [appointmentsResult, campaignsResult, adsResult, dailyResult] = await Promise.all([
+    const [appointmentsResult, campaignsResult, adsResult, dailyResult, colabProfilesResult] = await Promise.all([
       fetchAllRows<AnyRow>(() => {
         let query = sb
           .from('appointments')
@@ -124,9 +124,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
               .order('id')
           )
         : Promise.resolve({ rows: [], error: null, truncated: false }),
+      // Nombres legibles de las colaboradoras activas de la subcuenta (tab Colaboradoras del
+      // Análisis Meta): la relación estructurada vive en contact_attributions.collaborator_id.
+      fetchAllRows<AnyRow>(() =>
+        sb.from('collaborator_profiles').select('id, name').eq('tenant_id', tenantId).eq('status', 'active').order('id')
+      ),
     ])
 
-    const sourceResults = [appointmentsResult, campaignsResult, adsResult, dailyResult]
+    const sourceResults = [appointmentsResult, campaignsResult, adsResult, dailyResult, colabProfilesResult]
     const failed = sourceResults.find((result) => result.error || result.truncated)
     if (failed) {
       return NextResponse.json(
@@ -161,12 +166,41 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     const contactAttrs = await rowsByIds(
       sb,
       'contact_attributions',
-      'contact_id,utm_source,utm_campaign,utm_content',
+      // id e is_primary: los valores para decidir qué fila es el toque vigente (ver abajo).
+      'id,contact_id,utm_source,utm_campaign,utm_content,is_primary,collaborator_id',
       tenantId,
       'contact_id',
       allContactIds
     )
-    const attrByContact = new Map(contactAttrs.map((row) => [String(row.contact_id), row]))
+    // TOQUE VIGENTE = la fila is_primary del contacto, la misma que escribe y lee registrarToque
+    // (lib/contacts/atribucion.ts). Un contacto puede tener filas históricas: sin esta preferencia
+    // el Map se queda con la última en orden arbitrario de PostgREST — indeterminismo entre builds
+    // y toque equivocado si la fila no-primaria manda. Desempate por id para determinismo puro.
+    const attrByContact = new Map<string, AnyRow>()
+    for (const row of contactAttrs) {
+      const contactId = String(row.contact_id)
+      const previa = attrByContact.get(contactId)
+      const esPrimaria = row.is_primary === true
+      if (
+        !previa ||
+        (esPrimaria && previa.is_primary !== true) ||
+        (esPrimaria === (previa.is_primary === true) && String(row.id) > String(previa.id))
+      ) {
+        attrByContact.set(contactId, row)
+      }
+    }
+    // Dimensión COLABORADORA para el tab de Análisis Meta: se deriva del MISMO toque vigente que
+    // usa el resolver de Meta (attrByContact), no de filas sueltas — así el anuncio y la
+    // colaboradora del embudo provienen del mismo hecho del contacto. En la fila primaria vive la
+    // regla first-collaborator-wins escrita por registrarToque; un id sin perfil activo (dado de
+    // baja, p. ej.) conserva el id y la fila sale sin nombre; el nombre nunca se inventa.
+    const colabNames = new Map(colabProfilesResult.rows.map((row) => [String(row.id), String(row.name ?? '')]))
+    const colaboradorDe = new Map<string, { id: string; name: string | null }>()
+    for (const [contactId, row] of attrByContact) {
+      const collaboratorId = row.collaborator_id ? String(row.collaborator_id) : null
+      if (!collaboratorId) continue
+      colaboradorDe.set(contactId, { id: collaboratorId, name: colabNames.get(collaboratorId) || null })
+    }
     const allAppointments = appointmentsResult.rows.map((row) => ({
       ...row,
       contacts: Array.isArray(row.contacts) ? (row.contacts[0] ?? null) : row.contacts,
@@ -268,6 +302,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
         stripePayments: stripePayments as StripePaymentRow[],
         catalog,
         campaignSpend: from && to ? campaignSpend : undefined,
+        colaboradorDe,
       },
       { includeCash }
     )

@@ -56,7 +56,7 @@ export function RevenueAttributionView({ tenant, rangeFrom, rangeTo, campaignIds
   const [data, setData] = useState<ApiResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [level, setLevel] = useState<'campaigns' | 'ads'>('campaigns')
+  const [level, setLevel] = useState<'campaigns' | 'ads' | 'colaboradores'>('campaigns')
   const [showDetails, setShowDetails] = useState(false)
   const [version, setVersion] = useState(0)
 
@@ -86,7 +86,11 @@ export function RevenueAttributionView({ tenant, rangeFrom, rangeTo, campaignIds
     return () => controller.abort()
   }, [campaignIds, rangeFrom, rangeTo, tenant, version])
 
-  const rows = useMemo(() => data?.[level] ?? [], [data, level])
+  // En el nivel Colaboradoras la dimensión es la persona (colaboradores[]), no la tabla por Meta.
+  const rows = useMemo(
+    () => (data === null ? [] : level === 'colaboradores' ? (data.colaboradores ?? []) : data[level]),
+    [data, level]
+  )
   const insight = useMemo(() => {
     const comparable = rows.filter((row) => row.booked >= 2 && row.shows + row.noShows > 0 && row.resolved)
     const attendanceLeak = [...comparable].sort((a, b) => (a.showRate ?? 101) - (b.showRate ?? 101))[0]
@@ -286,6 +290,14 @@ export function RevenueAttributionView({ tenant, rangeFrom, rangeTo, campaignIds
             >
               Anuncios
             </button>
+            <button
+              type="button"
+              onClick={() => setLevel('colaboradores')}
+              aria-pressed={level === 'colaboradores'}
+              className="rounded-md px-3 py-1.5 text-muted-foreground aria-pressed:bg-brand-600 aria-pressed:text-white"
+            >
+              Colaboradoras
+            </button>
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -311,13 +323,21 @@ export function RevenueAttributionView({ tenant, rangeFrom, rangeTo, campaignIds
                 <tr key={row.key} className="hover:bg-muted/20">
                   <td className="max-w-[320px] px-5 py-4">
                     <p className={`truncate font-medium ${row.resolved ? 'text-foreground' : 'text-amber-300'}`}>
-                      {row.adName ??
-                        row.campaignName ??
-                        (level === 'ads' ? 'Anuncio sin atribuir' : 'Campaña sin atribuir')}
+                      {level === 'colaboradores'
+                        ? (row.campaignName ??
+                          (row.key === 'colab:unknown' ? 'Sin colaborador' : 'Colaboradora sin nombre'))
+                        : (row.adName ??
+                          row.campaignName ??
+                          (level === 'ads' ? 'Anuncio sin atribuir' : 'Campaña sin atribuir'))}
                     </p>
                     <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                      {level === 'ads' && row.campaignName ? `${row.campaignName} · ` : ''}
-                      {row.adId ?? row.campaignExternalId ?? 'Sin ID verificable'}
+                      {level === 'colaboradores'
+                        ? // Con nombre el UUID sobra (ruido); solo se muestra cuando el perfil no legible
+                          // explica por qué la fila no tiene nombre.
+                          row.campaignName
+                          ? ''
+                          : (row.campaignExternalId ?? 'Sin perfil legible')
+                        : `${level === 'ads' && row.campaignName ? `${row.campaignName} · ` : ''}${row.adId ?? row.campaignExternalId ?? 'Sin ID verificable'}`}
                     </p>
                   </td>
                   <td className="px-3 py-4 text-right tabular-nums text-foreground">{row.booked}</td>

@@ -34,7 +34,7 @@ export type RevenueSale = {
 export type RevenueCollection = InternalCollectionRow & { sale_id: string }
 export type RevenueRefund = InternalRefundRow & { sale_id?: string | null }
 
-export type AttributionLevel = 'campaign' | 'ad'
+export type AttributionLevel = 'campaign' | 'ad' | 'colaborador'
 
 /**
  * DESGLOSE DEL HUECO POR CAUSA (un hueco no es un cero): cuántas agendas elegibles caen en cada
@@ -85,6 +85,8 @@ export type RevenueAttributionRow = {
 export type RevenueAttributionResult = {
   campaigns: RevenueAttributionRow[]
   ads: RevenueAttributionRow[]
+  /** Filas por COLABORADORA (atribución estructurada del contacto). Vacío si el consumidor no pasa `colaboradorDe`. */
+  colaboradores: RevenueAttributionRow[]
   summary: Omit<RevenueAttributionRow, 'key' | 'level' | 'campaignId' | 'campaignName' | 'adId' | 'adName' | 'resolved'>
   coverage: {
     booked: number
@@ -225,6 +227,13 @@ export function buildRevenueAttribution(
     stripePayments: StripePaymentRow[]
     catalog: MetaAttributionCatalog
     campaignSpend?: SpendMap
+    /**
+     * Dimensión COLABORADORA: contacto → perfil estructurado (contact_attributions.collaborator_id
+     * + nombre legible de collaborator_profiles). Independiente del resolver de Meta: lleva el lead
+     * es el trabajo de la colaboradora, no una señal de campaña. Ids sin perfil legible conservan el
+     * id (fila resuelta con nombre null); sin colaborador cae en `colab:unknown` («Sin colaborador»).
+     */
+    colaboradorDe?: Map<string, { id: string; name: string | null }> | null
   },
   { includeCash = true }: RevenueAttributionOptions = {}
 ): RevenueAttributionResult {
@@ -264,6 +273,7 @@ export function buildRevenueAttribution(
   }
   const campaignRows = new Map<string, RevenueAttributionRow>()
   const adRows = new Map<string, RevenueAttributionRow>()
+  const colabRows = new Map<string, RevenueAttributionRow>()
 
   const getRows = (appointment: RevenueAppointment) => {
     const attribution = attributionByAppointment.get(appointment.id)!
@@ -311,12 +321,32 @@ export function buildRevenueAttribution(
         )
       )
     }
-    return { campaign: campaignRows.get(campaignKey)!, ad: adRows.get(adKey)! }
+    const colab = appointment.contact_id ? input.colaboradorDe?.get(appointment.contact_id) : undefined
+    const colabKey = colab ? `colab:${colab.id}` : 'colab:unknown'
+    if (!colabRows.has(colabKey)) {
+      colabRows.set(
+        colabKey,
+        emptyRow(
+          'colaborador',
+          colabKey,
+          {
+            campaignId: null,
+            campaignExternalId: colab?.id ?? null,
+            campaignName: colab?.name ?? null,
+            adId: null,
+            adName: null,
+            resolved: Boolean(colab),
+          },
+          null // la colaboradora no tiene inversión de Meta asociada
+        )
+      )
+    }
+    return { campaign: campaignRows.get(campaignKey)!, ad: adRows.get(adKey)!, colaborador: colabRows.get(colabKey)! }
   }
 
   for (const appointment of eligibleAppointments) {
     const rows = getRows(appointment)
-    for (const row of [rows.campaign, rows.ad]) {
+    for (const row of [rows.campaign, rows.ad, rows.colaborador]) {
       row.booked += 1
       if (isAttended(appointment.status)) row.shows += 1
       else if (isNoShow(appointment.status)) row.noShows += 1
@@ -344,7 +374,7 @@ export function buildRevenueAttribution(
     const appointment = appointmentForSale(sale, appointmentIndex)
     if (!appointment) continue
     const rows = getRows(appointment)
-    for (const row of [rows.campaign, rows.ad]) {
+    for (const row of [rows.campaign, rows.ad, rows.colaborador]) {
       row.sales += 1
       row.bookedRevenue += num(sale.gross_amount)
       row.cashCollected += cash
@@ -358,6 +388,8 @@ export function buildRevenueAttribution(
     .map((row) => finalize(row, includeCash))
     .sort((a, b) => b.booked - a.booked)
   const ads = [...adRows.values()].map((row) => finalize(row, includeCash)).sort((a, b) => b.booked - a.booked)
+  // Sin map no se fabrican filas: el consumidor que no pide la dimensión la recibe vacía.
+  const colaboradores = input.colaboradorDe ? [...colabRows.values()].map((row) => finalize(row, includeCash)) : []
   const shows = eligibleAppointments.filter((appointment) => isAttended(appointment.status)).length
   const noShows = eligibleAppointments.filter((appointment) => isNoShow(appointment.status)).length
   const unresolved = eligibleAppointments.length - shows - noShows
@@ -367,6 +399,7 @@ export function buildRevenueAttribution(
   return {
     campaigns,
     ads,
+    colaboradores,
     summary: finalize(
       {
         ...emptyRow(
