@@ -1,3 +1,27 @@
+# COMPLETADO (veredicto NO) — Investigar si el ad_id del fbclid «fb.1.» sirve como señal del resolver (24-oct, Freebuff/producto)
+
+Objetivo: los únicos toques con señal de anuncio son `contact_attributions.utm_content` con
+«fb.1.» (click ID nuevo de Meta) o con el nombre del anuncio (ambiguo por placements duplicadas).
+Se investigó si el blob «fb.1.» contiene el `adid` decodificable y verificable contra
+`campaign_ads`. **Resultado: NO es decodificable a un id de anuncio real → no se añade al
+resolver** (regla: no inventar señales; solo ids exactos).
+
+Hallazgos sobre producción (sonda efímera, ya borrada del repo):
+
+- 41 toques «fb.1.» en `contact_attributions`, todos de la campaña `120252786405750750`, cuyos
+  anuncios SÍ están en el catálogo (campaign_ads), así que la verificación estadística era posible.
+- Estructura empírica: quitar los 2 primeros carácteres del blob y decodificar base64url deja ver
+  un TLV con claves ASCII (`extn`, `aem`, un byte-estado de 1 byte que varía entre filas, `pdof`, `adid`,
+  `srtc`, `app_id` con su valor como dígitos ASCII, y un blob final de alta entropía) — el
+  framing es estable en las 41 filas.
+- El valor tras `adid` NO es el id del anuncio: barrido exhaustivo de todas las ventanas de 5–8
+  bytes del payload entero (big y little endian) contra el catálogo real (ads + campañas) dio
+  0 coincidencias en 41/41 filas; los runs de dígitos ASCII tampoco. El blob final es de alta
+  entropía (cifrado), y la investigación de terceros ya defendía que «adid» del formato W no es
+  el id del anuncio ni va en claro.
+- Consecuencia: el resolver sigue con sus señas actuales (ad_id de toques con fbclid real +
+  nombre de utm_content exacto y acotado por campaña) y queda como estaba, sin cambios.
+
 # DIAGNÓSTICO — Por qué el identify visitante→contacto nunca ha escrito (23-oct)
 
 **Causa raíz (probado sobre producción): el mecanismo está completo, pero sus dos entradas nunca
