@@ -98,6 +98,9 @@ export function AdsTable({
     }
     // Sin filtro de campañas elegido NO se envía el parámetro: el endpoint debe mirar todas.
     if (selectedCampaignIds.length > 0) params.set('campaigns', selectedCampaignIds.join(','))
+    // Aquí solo se pintan agendas/asistencias/cierres: metrics=bookings evita las lecturas de cash
+    // (collections/refunds/stripe), que son las caras cuando la cohorte de agendas es grande.
+    params.set('metrics', 'bookings')
     fetch(`/api/${tenant}/evergreen/meta/revenue-attribution?${params}`, { signal: ctrl.signal })
       .then(async (res) => {
         const json = await res.json()
@@ -195,10 +198,14 @@ export function AdsTable({
         </div>
       )}
 
-      {mostrarCrm && sinAtribuir !== null && sinAtribuir > 0 && (
+      {/* La nota de cobertura NO depende de mostrarCrm: aunque NINGÚN anuncio resuelva (el caso
+          de utm_content con nombres duplicados en Meta, que vuelven el resolver 'ambigua'), el
+          hueco se declara en pantalla en vez de ocultar columnas y nota a la vez en silencio. */}
+      {crmEstado === 'ok' && sinAtribuir !== null && sinAtribuir > 0 && (
         <p className="text-xs text-muted-foreground">
-          {sinAtribuir} de {crmCobertura?.booked} agendas del periodo no tienen atribución a anuncio: no se reparten ni
-          se inventan; quedan fuera de estas columnas.
+          {sinAtribuir} de {crmCobertura?.booked} agendas del periodo no llegan a un anuncio concreto (nombres
+          duplicados en Meta): no se reparten ni se inventan
+          {mostrarCrm ? '; quedan fuera de estas columnas.' : '; las columnas CRM quedan ocultas.'}
         </p>
       )}
 
