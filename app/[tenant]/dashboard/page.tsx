@@ -688,14 +688,23 @@ function DashboardEquipo() {
     () => canonicalLeads.filter((c) => inPeriod(c.createdAt, range)).map((c) => c.leadId),
     [canonicalLeads, range]
   )
+  // Nombres legibles de colaboradores para la etiqueta de fuente: los contactos con atribución
+  // estructurada se pintan como «Colaboradora: <nombre>» en las tablas de atribución, no como el
+  // canal crudo del enlace que usaron (igual que los rankings por persona).
+  const nombresColaboradora = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const p of collabProfiles) m.set(p.id, p.name)
+    return m
+  }, [collabProfiles])
   const attribution = useMemo(() => {
     const aliases = new Map(canonicalLeads.flatMap((c) => c.members.map((m) => [m.id, c.leadId] as const)))
     return attributionBySource(
       filteredContactIds,
       attributions.map((a) => ({ ...a, contact_id: aliases.get(a.contact_id) ?? a.contact_id })),
-      filteredSales.map((s) => ({ ...s, contact_id: aliases.get(s.contact_id ?? '') ?? s.contact_id }))
+      filteredSales.map((s) => ({ ...s, contact_id: aliases.get(s.contact_id ?? '') ?? s.contact_id })),
+      { nombresColaboradora }
     )
-  }, [canonicalLeads, filteredContactIds, attributions, filteredSales])
+  }, [canonicalLeads, filteredContactIds, attributions, filteredSales, nombresColaboradora])
 
   // Mismo dato que la tabla de arriba, un nivel más abajo: no solo el canal, la campaña y el
   // anuncio EXACTOS (resueltos contra el catálogo real sincronizado de Meta, con el mismo
@@ -712,8 +721,13 @@ function DashboardEquipo() {
   }, [canonicalLeads, filteredContactIds, attributions, filteredSales, filteredAppointments, metaCatalog])
 
   const funnelTotals = useMemo(
-    () => aggregateFunnel(funnelBySource(filteredContactIds, attributions, filteredSales, filteredAppointments)),
-    [filteredContactIds, attributions, filteredSales, filteredAppointments]
+    () =>
+      aggregateFunnel(
+        funnelBySource(filteredContactIds, attributions, filteredSales, filteredAppointments, 'primer', {
+          nombresColaboradora,
+        })
+      ),
+    [filteredContactIds, attributions, filteredSales, filteredAppointments, nombresColaboradora]
   )
 
   // Ingresos y clientes del MISMO periodo que el gasto. Aún no se acotan por campaña porque el

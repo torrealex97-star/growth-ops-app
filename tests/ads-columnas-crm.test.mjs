@@ -16,6 +16,11 @@ test('sin filtro de campañas elegido, NO se envía el parámetro campaigns (el 
   assert.match(tabla, /selectedCampaignIds\.length > 0\) params\.set\('campaigns'/)
 })
 
+test('Anuncios pide metrics=bookings: las columnas CRM solo pintan agendas/asistencias/cierres, no cash', () => {
+  assert.match(tabla, /params\.set\('metrics', 'bookings'\)/)
+  assert.match(rutaRevenue, /includeCash = metrics !== 'bookings'/)
+})
+
 test('las columnas CRM solo aparecen cuando existe atribución a nivel de anuncio con contenido', () => {
   assert.match(
     tabla,
@@ -48,4 +53,22 @@ test('si la atribución falla, no se pintan columnas CRM vacías: aviso con rein
 test('la atribución mantiene la cobertura declarada (agendas sin anuncio no se reparten)', () => {
   assert.match(atribucion, /adAttributed/)
   assert.match(tabla, /sinAtribuir/)
+})
+
+test('la nota de cobertura aparece aunque NINGÚN anuncio resuelta: nunca se oculta la nota y las columnas a la vez en silencio', () => {
+  // Regresión del caso de producción 24-oct (widigan-digital-closer): utm_content con nombres
+  // duplicados en Meta resuelve 'ambigua' para todos los toques → adAttributed = 0 →
+  // crmFilas vacío → mostrarCrm false. La nota no puede depender de mostrarCrm.
+  assert.match(
+    tabla,
+    /crmEstado === 'ok' && sinAtribuir !== null && sinAtribuir > 0/,
+    'la nota se pinta con solo el estado de la atribución, sin el gate de mostrarCrm'
+  )
+  // Regex tolerante al reflow de Prettier del JSX (la frase puede partirse entre líneas).
+  assert.match(tabla, /no llegan a un anuncio/)
+  assert.match(tabla, /duplicados en Meta/)
+  assert.match(tabla, /no se reparten ni se inventan/)
+  // La nota declara por qué están ocultas las columnas cuando ningún anuncio resuelve.
+  assert.match(tabla, /las columnas CRM quedan ocultas/)
+  assert.match(tabla, /quedan fuera de estas columnas/)
 })

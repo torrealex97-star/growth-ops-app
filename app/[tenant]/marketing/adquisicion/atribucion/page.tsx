@@ -161,6 +161,11 @@ export default function AttributionPage() {
   // Entradas del embudo por fuente: se guardan para poder recalcularlo al cambiar el modelo sin volver a
   // pedir nada al servidor.
   const [funnelInputs, setFunnelInputs] = useState<Parameters<typeof funnelBySource> | null>(null)
+  // Nombres de colaboradores activos de la subcuenta para etiquetar la fuente: los contactos con
+  // atribución estructurada aparecen en el embudo como «Colaboradora: <nombre>», no como el canal
+  // crudo del enlace que usaron. Un fallo de lectura deja el mapa vacío: la etiqueta cae a
+  // «Colaboradora» — la relación es cierta, el nombre no se inventa.
+  const [colabNombres, setColabNombres] = useState<Map<string, string>>(new Map())
   const [modelo, setModelo] = useState<ModeloEmbudo>('primer')
   const rows = useMemo<FunnelRow[]>(() => {
     if (!funnelInputs) return []
@@ -170,10 +175,12 @@ export default function AttributionPage() {
     // conoce agendas: el crédito solo tiene sentido para leads y ventas). La columna Agendas se
     // muestra como "—" en esos dos modelos en vez de inventar un reparto que la función no calcula.
     if (modelo === 'reparto' || modelo === 'decaimiento') {
+      // Los modelos fraccionados no conocen la atribución de colaborador: ahí el canal manda y así
+      // queda. El etiquetado por persona es de las agrupaciones de un solo toque.
       return funnelMultiToque(contactIds, attributions, sales, modelo).map((r) => ({ ...r, appointments: null }))
     }
-    return funnelBySource(contactIds, attributions, sales, appointments, modelo)
-  }, [funnelInputs, modelo])
+    return funnelBySource(contactIds, attributions, sales, appointments, modelo, { nombresColaboradora: colabNombres })
+  }, [funnelInputs, modelo, colabNombres])
   const [loadingTouch, setLoadingTouch] = useState(true)
   const [touchRows, setTouchRows] = useState<UtmTouchRow[]>([])
   const [apptError, setApptError] = useState(false)
@@ -205,7 +212,7 @@ export default function AttributionPage() {
       const supabase = createClient()
       setLoading(true)
       setGlobalError(false)
-      const [contactsRes, apptsRes, salesRes, touchRes] = await Promise.all([
+      const [contactsRes, apptsRes, salesRes, touchRes, colabRes] = await Promise.all([
         fetchAllRows(() =>
           supabase
             .from('contacts')
@@ -234,18 +241,27 @@ export default function AttributionPage() {
           supabase
             .from('contact_attributions')
             .select(
-              'contact_id,source,utm_source,utm_campaign,utm_content,is_primary,first_utm_source,first_utm_campaign,last_utm_source,last_utm_campaign,first_touch_at,last_touch_at,contacts(full_name,phone)',
+              'contact_id,source,utm_source,utm_campaign,utm_content,is_primary,collaborator_id,first_utm_source,first_utm_campaign,last_utm_source,last_utm_campaign,first_touch_at,last_touch_at,contacts(full_name,phone)',
               { count: 'exact' }
             )
             .eq('tenant_id', tenantId)
             .order('id')
         ),
+        fetchAllRows(() =>
+          supabase
+            .from('collaborator_profiles')
+            .select('id, name', { count: 'exact' })
+            .eq('tenant_id', tenantId)
+            .eq('status', 'active')
+            .order('id')
+        ),
       ])
       if (!mounted) return
-      if ([contactsRes, apptsRes, salesRes, touchRes].some((r) => r.error || r.truncated)) {
+      if ([contactsRes, apptsRes, salesRes, touchRes, colabRes].some((r) => r.error || r.truncated)) {
         setGlobalError(true)
         setFunnelInputs(null)
         setTouchRows([])
+        setColabNombres(new Map())
         setLoading(false)
         setLoadingTouch(false)
         return
@@ -276,6 +292,7 @@ export default function AttributionPage() {
         periodSales.map((a) => ({ ...a, contact_id: aliases.get(a.contact_id ?? '') ?? a.contact_id })),
         uniqueAppointments.map((a) => ({ ...a, contact_id: aliases.get(a.contact_id ?? '') ?? a.contact_id })),
       ])
+      setColabNombres(new Map((colabRes.rows ?? []).map((p) => [p.id, p.name])))
       setLoading(false)
       setTouchRows(
         (touchRes.rows || [])
@@ -547,6 +564,13 @@ export default function AttributionPage() {
       sales: pctOrNull(attributedSales, totals.sales),
       // La facturación atribuida se obtiene del mismo desglose y población que el total.
       revenue: pctOrNull(totals.gross - (directo?.gross ?? 0), totals.gross),
+      // Lo que la RPC reporta directamente sin origen pasa del porcentaje al hueco declarado.
+      sinOrigen: {
+        leads: directo?.leads ?? 0,
+        leadsTotal: totals.leads,
+        sales: directo?.sales ?? 0,
+        salesTotal: totals.sales,
+      },
     }
   }, [rows, totals])
 

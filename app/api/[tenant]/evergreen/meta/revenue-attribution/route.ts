@@ -16,6 +16,10 @@ import { fetchAllRows, type RangeQuery } from '@/lib/supabase/paginate'
 export const runtime = 'nodejs'
 
 const ALLOWED_ROLES = ['admin', 'director', 'manager', 'marketing', 'adscripcion']
+// La dimensión Colaboradoras expone datos de PERSONAS (nombres y emparejamiento
+// contacto→colaboradora, la base de comisiones). marketing/adscripcion pueden entrar a la ruta
+// y ver campañas/anuncios/cohortes, pero no esta dimensión: solo gestión y super admin.
+const COLAB_ROLES = new Set(['admin', 'director', 'manager'])
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const BATCH = 200
@@ -67,6 +71,19 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
 
     const from = req.nextUrl.searchParams.get('from')
     const to = req.nextUrl.searchParams.get('to')
+    // metrics=bookings: el consumidor solo pide el embudo CRM (agendas/asistencias/cierres), así que
+    // se saltan las lecturas de cash (collections/refunds/stripe_payments) — las más caras cuando la
+    // cohorte de agendas es grande. Las ventas se siguen leyendo porque el conteo de cierres sale de
+    // ellas; solo el dinero queda fuera y el resultado lo declara con cashIncluded: false.
+    const metrics = req.nextUrl.searchParams.get('metrics')
+    // Permiso específico de la dimensión: sin él no se lee collaborator_profiles ni se construye el
+    // mapa de personas — el build recibe null, colaboradores sale vacía y filas de personas jamás
+    // llegan a roles que no deben verlas.
+    const puedeVerColaboradoras = auth.isSuperAdmin || (!!auth.role && COLAB_ROLES.has(auth.role))
+    if (metrics !== null && metrics !== '' && metrics !== 'bookings') {
+      return NextResponse.json({ error: "metrics solo admite 'bookings'" }, { status: 400 })
+    }
+    const includeCash = metrics !== 'bookings'
     const hasCampaignScope = req.nextUrl.searchParams.has('campaigns')
     const requestedCampaignIds = (req.nextUrl.searchParams.get('campaigns') ?? '')
       .split(',')
@@ -82,7 +99,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
     const tenantId = auth.tenantId
 
-    const [appointmentsResult, campaignsResult, adsResult, dailyResult] = await Promise.all([
+    const [appointmentsResult, campaignsResult, adsResult, dailyResult, colabProfilesResult] = await Promise.all([
       fetchAllRows<AnyRow>(() => {
         let query = sb
           .from('appointments')
@@ -115,9 +132,22 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
               .order('id')
           )
         : Promise.resolve({ rows: [], error: null, truncated: false }),
+      // Nombres legibles de las colaboradoras activas de la subcuenta (tab Colaboradoras del
+      // Análisis Meta): la relación estructurada vive en contact_attributions.collaborator_id.
+      // La lectura queda condicionada al permiso: roles menores no pagan ni generan la query.
+      puedeVerColaboradoras
+        ? fetchAllRows<AnyRow>(() =>
+            sb
+              .from('collaborator_profiles')
+              .select('id, name')
+              .eq('tenant_id', tenantId)
+              .eq('status', 'active')
+              .order('id')
+          )
+        : Promise.resolve({ rows: [], error: null, truncated: false }),
     ])
 
-    const sourceResults = [appointmentsResult, campaignsResult, adsResult, dailyResult]
+    const sourceResults = [appointmentsResult, campaignsResult, adsResult, dailyResult, colabProfilesResult]
     const failed = sourceResults.find((result) => result.error || result.truncated)
     if (failed) {
       return NextResponse.json(
@@ -152,12 +182,46 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     const contactAttrs = await rowsByIds(
       sb,
       'contact_attributions',
-      'contact_id,utm_source,utm_campaign,utm_content',
+      // id e is_primary: los valores para decidir qué fila es el toque vigente (ver abajo).
+      'id,contact_id,utm_source,utm_campaign,utm_content,is_primary,collaborator_id',
       tenantId,
       'contact_id',
       allContactIds
     )
-    const attrByContact = new Map(contactAttrs.map((row) => [String(row.contact_id), row]))
+    // TOQUE VIGENTE = la fila is_primary del contacto, la misma que escribe y lee registrarToque
+    // (lib/contacts/atribucion.ts). Un contacto puede tener filas históricas: sin esta preferencia
+    // el Map se queda con la última en orden arbitrario de PostgREST — indeterminismo entre builds
+    // y toque equivocado si la fila no-primaria manda. Desempate por id para determinismo puro.
+    const attrByContact = new Map<string, AnyRow>()
+    for (const row of contactAttrs) {
+      const contactId = String(row.contact_id)
+      const previa = attrByContact.get(contactId)
+      const esPrimaria = row.is_primary === true
+      if (
+        !previa ||
+        (esPrimaria && previa.is_primary !== true) ||
+        (esPrimaria === (previa.is_primary === true) && String(row.id) > String(previa.id))
+      ) {
+        attrByContact.set(contactId, row)
+      }
+    }
+    // Dimensión COLABORADORA para el tab de Análisis Meta: se deriva del MISMO toque vigente que
+    // usa el resolver de Meta (attrByContact), no de filas sueltas — así el anuncio y la
+    // colaboradora del embudo provienen del mismo hecho del contacto. En la fila primaria vive la
+    // regla first-collaborator-wins escrita por registrarToque; un id sin perfil activo (dado de
+    // baja, p. ej.) conserva el id y la fila sale sin nombre; el nombre nunca se inventa.
+    // Sin permiso la dimensión NO se construye: null ⇒ el builder la deja vacía de fábrica.
+    let colaboradorDe: Map<string, { id: string; name: string | null }> | null = null
+    if (puedeVerColaboradoras) {
+      const colabNames = new Map(colabProfilesResult.rows.map((row) => [String(row.id), String(row.name ?? '')]))
+      const mapa = new Map<string, { id: string; name: string | null }>()
+      for (const [contactId, row] of attrByContact) {
+        const collaboratorId = row.collaborator_id ? String(row.collaborator_id) : null
+        if (!collaboratorId) continue
+        mapa.set(contactId, { id: collaboratorId, name: colabNames.get(collaboratorId) || null })
+      }
+      colaboradorDe = mapa
+    }
     const allAppointments = appointmentsResult.rows.map((row) => ({
       ...row,
       contacts: Array.isArray(row.contacts) ? (row.contacts[0] ?? null) : row.contacts,
@@ -196,44 +260,50 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       payment_plan_method: metodoDePlan(sale),
     })) as RevenueSale[]
 
-    const collections = await rowsByIds(
-      sb,
-      'collections',
-      'id,sale_id,payment_reference,gross_amount,status,collected_at',
-      tenantId,
-      'sale_id',
-      sales.map((sale) => sale.id)
-    )
+    const collections = includeCash
+      ? await rowsByIds(
+          sb,
+          'collections',
+          'id,sale_id,payment_reference,gross_amount,status,collected_at',
+          tenantId,
+          'sale_id',
+          sales.map((sale) => sale.id)
+        )
+      : []
     const collectionIds = collections.map((collection) => String(collection.id))
-    const refunds = await rowsByIds(
-      sb,
-      'refunds',
-      'collection_id,sale_id,refund_date,gross_refund_amount,status',
-      tenantId,
-      'collection_id',
-      collectionIds
-    )
+    const refunds = includeCash
+      ? await rowsByIds(
+          sb,
+          'refunds',
+          'collection_id,sale_id,refund_date,gross_refund_amount,status',
+          tenantId,
+          'collection_id',
+          collectionIds
+        )
+      : []
     const references = collections
       .map((collection) => collection.payment_reference)
       .filter((value): value is string => typeof value === 'string' && value.length > 0)
-    const [stripeByPayment, stripeByCharge] = await Promise.all([
-      rowsByIds(
-        sb,
-        'stripe_payments',
-        'payment_id,charge_id,amount,refunded_amount,status,paid_at,customer_email,refunded_at,currency,fx_rate_to_eur',
-        tenantId,
-        'payment_id',
-        references
-      ),
-      rowsByIds(
-        sb,
-        'stripe_payments',
-        'payment_id,charge_id,amount,refunded_amount,status,paid_at,customer_email,refunded_at,currency,fx_rate_to_eur',
-        tenantId,
-        'charge_id',
-        references
-      ),
-    ])
+    const [stripeByPayment, stripeByCharge] = includeCash
+      ? await Promise.all([
+          rowsByIds(
+            sb,
+            'stripe_payments',
+            'payment_id,charge_id,amount,refunded_amount,status,paid_at,customer_email,refunded_at,currency,fx_rate_to_eur',
+            tenantId,
+            'payment_id',
+            references
+          ),
+          rowsByIds(
+            sb,
+            'stripe_payments',
+            'payment_id,charge_id,amount,refunded_amount,status,paid_at,customer_email,refunded_at,currency,fx_rate_to_eur',
+            tenantId,
+            'charge_id',
+            references
+          ),
+        ])
+      : [[], []]
     const stripePayments = [
       ...new Map([...stripeByPayment, ...stripeByCharge].map((row) => [row.payment_id, row])).values(),
     ]
@@ -244,19 +314,24 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       if (campaignId) campaignSpend[campaignId] = (campaignSpend[campaignId] ?? 0) + Number(row.spend ?? 0)
     }
 
-    const result = buildRevenueAttribution({
-      appointments,
-      sales,
-      collections: collections as RevenueCollection[],
-      refunds: refunds as RevenueRefund[],
-      stripePayments: stripePayments as StripePaymentRow[],
-      catalog,
-      campaignSpend: from && to ? campaignSpend : undefined,
-    })
+    const result = buildRevenueAttribution(
+      {
+        appointments,
+        sales,
+        collections: collections as RevenueCollection[],
+        refunds: refunds as RevenueRefund[],
+        stripePayments: stripePayments as StripePaymentRow[],
+        catalog,
+        campaignSpend: from && to ? campaignSpend : undefined,
+        colaboradorDe,
+      },
+      { includeCash }
+    )
 
     return NextResponse.json({
       ok: true,
       ...result,
+      metrics: includeCash ? 'full' : 'bookings',
       period: {
         from,
         to,
