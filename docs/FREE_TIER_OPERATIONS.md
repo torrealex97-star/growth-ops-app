@@ -33,6 +33,41 @@ Fuentes: [Vercel Hobby](https://vercel.com/docs/plans/hobby),
 Fuentes: [precios de Supabase](https://supabase.com/pricing) y
 [pausa de proyectos Free](https://supabase.com/docs/guides/platform/free-project-pausing).
 
+## Cuenta Vercel compartida con Closer IA Ops (decisión 24-oct-2026)
+
+En la misma cuenta y equipo de Vercel que el despliegue de producción de Growth Ops convive otro
+proyecto del propietario, Closer IA Ops, sin relación de negocio ni técnica con este repositorio.
+Decisión revisada el 24-oct: **se deja como está y solo se documenta** (proyecto propio, no de
+clientes).
+
+Consecuencias aceptadas conscientemente:
+
+- Los límites de Hobby (4 h de CPU activa/mes, 1 M de invocaciones y sobre todo el **slot único de
+  build en paralelo**) se computan **por equipo**: ambos proyectos tiran de la misma bolsa y del
+  mismo slot de build.
+- Un build largo o atascado de cualquiera de los dos puede cancelar o retrasar los despliegues del
+  otro (los `BUILD_EXCEEDED_MAXIMUM_TIME` consecutivos ya congelaron producción una vez; ver la
+  regla correspondiente en AGENTS.md). Riesgo simétrico: la higiene de builds importa en ambos.
+
+Disparadores para reabrir la separación (no por preferencia estética):
+
+- El uso creciente de ambos proyectos se acerca a los límites de Hobby — misma bolsa, y este repo
+  no puede ver la parte del otro proyecto (la cuota medida aquí solo es la de Growth Ops).
+- Aparecen colas o cancelaciones de build que afectan al despliegue de producción de Growth Ops.
+
+Las dos vías si se reabre (decisión de coste que solo puede tomar el propietario):
+
+1. **Coste cero:** cuenta personal nueva de Vercel (cada cuenta admite un único equipo Hobby: no
+   cabe un segundo equipo en la misma cuenta) e importar Closer IA Ops desde git — redeclarar env
+   vars, dominio y configurar de nuevo sus integraciones.
+2. **Pro ($20/usuario/mes):** actualizar esta cuenta a Pro, crear un equipo de pago para Closer IA
+   Ops y usar **Project Transfer** con cero downtime (soportado Hobby→Pro; hay que ser owner del
+   equipo de origen y miembro del de destino, y el destino necesita método de pago; las
+   integraciones del proyecto hay que reinstalarlas).
+
+Fuentes: [plan Hobby](https://vercel.com/docs/plans/hobby) y
+[transferir proyectos](https://vercel.com/docs/projects/transferring-projects).
+
 ## Cambios aplicados y límite que protegen
 
 | Cambio                                                       | Protección                                                                    |

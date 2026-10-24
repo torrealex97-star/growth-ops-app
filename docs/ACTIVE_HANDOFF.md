@@ -1,4 +1,4 @@
-# COMPLETADO — `public_tenant_branding` cerrado a whitelist de branding (24-oct, Freebuff)
+# COMPLETADO — Cuenta Vercel compartida con Closer IA Ops: decisión «separa si el plan lo permite» (24-oct, Freebuff)
 
 # COMPLETADO — Aplicar y verificar la migración 20261006090000 (RLS InitPlan + índices FK) en producción (24-oct, Freebuff)
 
@@ -56,6 +56,19 @@ los statements — queda el fichero dirty `supabase/migrations/20261024120000_pu
 Regla que queda escrita: **lo público de tenants es EXACTAMENTE la proyección de la RPC; ninguna
 nueva clave de branding sale por accidente** — si pintara algo más, hay que añadirlo a mano en la
 whitelist. Ojo SCALABILITY no aplica; código app ni lecturas cambian.
+=======
+
+Pregunta del usuario: Closer IA Ops (proyecto propio, ajeno a Growth Ops) compartía equipo de Vercel
+con producción de Growth Ops; ¿separa a otro team si el plan lo permite o si conviene? Evaluación:
+en Hobby **no cabe un segundo equipo en la misma cuenta** (docs de Vercel: cada cuenta admite un
+solo equipo Hobby); transferencia de proyecto con cero downtime solo está soportada hacia/desde
+Pro (con owner en origen y miembro en destino). Decisión del propietario asumida en la conversación:
+**dejarlo como está y solo documentar** — decisión de coste que es suya. Documentado en
+[FREE_TIER_OPERATIONS.md](FREE_TIER_OPERATIONS.md): consecuencias compartidas (misma bolsa de CPU,
+mismo slot de build), disparadores para reabrir la separación y las dos vías (cuenta nueva Hobby +
+reimport, o Pro + Transfer). Sin cambios de código ni de Vercel.
+
+> > > > > > > 07e44148 (docs: decision 24-oct sobre la cuenta Vercel compartida con Closer IA Ops (dejarla igual, disparadores y vias de separacion))
 
 # COMPLETADO — Atribuciones, agendas y ventas de colaboradoras visibles en las métricas (24-oct)
 
