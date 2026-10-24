@@ -144,7 +144,7 @@ test('borra en orden FK y suma el total', async () => {
   assert.equal(ok, true)
   assert.equal(total, 10)
   // El orden real de DELETE respeta ORDEN_BORRADO (cada tabla exactamente una vez;
-  // audit_logs entra aparte, como INSERT de cierre, no como borrado).
+  // la limpieza no escribe acta en audit_logs: ver la prueba de regresión).
   const borrados = llamadas.filter((l) => !l.startsWith('__') && l !== 'audit_logs')
   assert.deepEqual(borrados, [...ORDEN_BORRADO])
   assert.deepEqual(
@@ -164,23 +164,17 @@ test('un fallo en una tabla no aborta la limpieza y marca ok=false', async () =>
   assert.match(falloSales.error, /foreign key/)
 })
 
-test('el cierre de auditoría incluye entity_id (NOT NULL en audit_logs)', async () => {
-  const { sb, insertsAuditLogs } = fakeSb({ collections: 1, sales: 1 })
-  await limpiarActividadTenant(sb, 'tenant-1')
-  assert.equal(insertsAuditLogs.length, 1)
-  // Bug real (PR #279, Smoke E2E): faltaba entity_id, NOT NULL desde
-  // 20260910090000_initial_growth_ops.sql — el insert fallaba en silencio hasta que se comprobó
-  // el error, y entonces rompía el reset del tenant QA con un mensaje vacío.
-  assert.equal(insertsAuditLogs[0].entity_id, 'tenant-1')
-})
+test('la limpieza NO deja acta en audit_logs (mantenimiento de QA, no negocio)', async () => {
+  // Regresión 24-oct: cada corrida de limpieza E2E escribía 1 fila
+  // entity_type='e2e_cleanup' en el audit log de PRODUCCIÓN (753 filas ruido desde el
+  // 28-sep, pudiendo camuflar trazabilidad real con trafico de arnés). Si alguien
+  // re-vuelve el insert, esta prueba lo corta.
+  const { sb, llamadas, insertsAuditLogs } = fakeSb({ collections: 1, sales: 1 })
+  const { ok } = await limpiarActividadTenant(sb, 'tenant-1')
 
-test('si el cierre de auditoría falla, el motivo aparece en resultados (no un mensaje vacío)', async () => {
-  const { sb } = fakeSb({ collections: 1 }, { audit_logs: 'null value in column "entity_id" violates not-null' })
-  const { ok, resultados } = await limpiarActividadTenant(sb, 'tenant-1')
-  assert.equal(ok, false)
-  const filaAudit = resultados.find((r) => r.tabla === 'audit_logs')
-  assert.ok(filaAudit, 'el fallo de audit_logs debe aparecer en resultados, no solo en errores')
-  assert.match(filaAudit.error, /entity_id/)
+  assert.equal(ok, true)
+  assert.deepEqual(insertsAuditLogs, [])
+  assert.equal(llamadas.filter((l) => l.startsWith('__insert_')).length, 0)
 })
 
 test('tenant ya limpio → 0 filas, ok=true (idempotente)', async () => {

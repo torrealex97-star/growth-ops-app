@@ -95,25 +95,11 @@ export async function limpiarActividadTenant(
     resultados.push({ tabla, filas, ...(filas === null ? { error: errores[errores.length - 1] } : {}) })
   }
 
-  // Cierre de auditoría de la propia limpieza (no cuenta como actividad de negocio).
-  // entity_id es NOT NULL (20260910090000_initial_growth_ops.sql): al no haber una fila que
-  // borrar que sea "la entidad", se usa el propio tenant — es lo que este evento describe.
-  const { error: auditErr } = await sb.from('audit_logs').insert({
-    tenant_id: tenantId,
-    entity_type: 'e2e_cleanup',
-    entity_id: tenantId,
-    action: 'delete',
-    old_values: { tablas: resultados },
-    new_values: { motivo: 'Limpieza post-suite E2E del tenant QA' },
-  })
-  // Se añade a `resultados` (no solo a `errores`) para que un fallo aquí no quede invisible
-  // para quien lee `resultados` en vez de reconstruir el mensaje a mano (como hacía
-  // scripts/e2e/setup-tenant.mjs, que antes de esto lanzaba "No se pudo limpiar el tenant QA: "
-  // con el motivo vacío justo por este hueco).
-  if (auditErr) {
-    errores.push(`audit_logs: ${auditErr.message}`)
-    resultados.push({ tabla: 'audit_logs', filas: null, error: auditErr.message })
-  }
+  // Sin acta en audit_logs: la limpieza E2E es mantenimiento de QA, no actividad de
+  // negocio, y su corrida diaria escribía 1 fila de ruido cada vez en producción
+  // (medido 24-oct: 753 filas entity_type='e2e_cleanup' desde el 28-sep).
+  // El resultado completo viaja de vuelta al arnés (ok/resultados), que es el
+  // consumidor legítimo de este fallo; si algo falla la suite ya lo marca.
 
   return {
     ok: errores.length === 0,
