@@ -97,10 +97,13 @@ borrados o archivado inmediato. En este nivel, borrar históricos aportaría poc
 valor de negocio.
 
 `pg_stat_statements` señala como principal coste acumulado las lecturas de `appointments`; el advisor
-también detecta policies que recalculan helpers de Auth por fila y FKs activas sin índice. La
-migración `20261006090000_optimize_rls_and_foreign_key_indexes.sql` prepara la corrección sin cambiar
+también detectaba policies que recalculan helpers de Auth por fila y FKs activas sin índice. La
+migración `20261006090000_optimize_rls_and_foreign_key_indexes.sql` aplica la corrección sin cambiar
 reglas de acceso ni datos: convierte esos helpers en InitPlans, elimina un índice duplicado y añade
-índices selectivos. Debe pasar por PR y dry-run antes de aplicarse en producción.
+índices selectivos. Aplicada en producción el 24-oct-2026 en dos lotes con dry-run, sondas JWT
+pre/post idénticas (911 contactos / 786 citas / 53 ventas / 0 calendarios / 10 actividades) y advisor
+limpio; registrada en `supabase_migrations.schema_migrations`. Queda pendiente medir el efecto real
+en `pg_stat_statements` y revisar el plan de ejecución del top de consultas.
 
 Vigilar especialmente `raw_events`, `canonical_events`, `event_delivery_attempts`,
 `contact_attributions`, transcripciones y archivos de VSL/testimonios. Umbral operativo: al 70% del
