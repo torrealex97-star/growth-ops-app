@@ -1,3 +1,37 @@
+# COMPLETADO — Aplicar y verificar la migración 20261006090000 (RLS InitPlan + índices FK) en producción (24-oct, Freebuff)
+
+Circunstancia al reclamar: la migración estaba **solo fusionada en `main`**, no aplicada en
+producción. Medido en la propia BD:
+
+- Mitad de índices sí aplicada (creados con exactamente las características de la migración y
+  `idx_cfa_campaign` ya retirado); **mitad RLS InitPlan pendiente**: las 5 policies del advisor
+  seguían evaluando `auth.uid()` por fila (el advisor `auth_rls_initplan` las seguía señalando).
+- `supabase_migrations.schema_migrations` estaba **vacío** (0 filas): el proyecto se ha llevado por
+  Dashboard/SQL sin registrar historial (y ahí quedó: 90+ versiones no registradas — problema
+  aparte, fuera del alcance de esta reclamación).
+
+Ejecutado y verificado en producción:
+
+1. Dry-run `BEGIN…ROLLBACK` en la misma BD con **aserciones de equivalencia** dentro de la
+   transacción (cada qual/with_check post = literal, cual-a-cual, `auth.uid()`/`auth.role()`/
+   `auth.jwt()` → `(select auth.…)`), checks `permissive`/`cmd` intactos y prueba de
+   comportamiento del role `authenticated` (RLS sigue filtrando sin sesión: 0 filas, sin error).
+   Una aserción destapó el caso `activities.activities_select`: ya estaba en forma SubLink
+   `( SELECT auth.uid() AS uid)` (render del deparse); la regex la enviolvería inútilmente — dadas
+   simántica, se detalla en la migración y queda como caso de capas anidadas sin efecto.
+2. Sondas JWT pre/post con un usuario real: contactos 911, citas 786, ventas 53, calendarios 0,
+   actividades 10 — **idénticas antes y después** → la migración no abre ni cierra nada.
+3. Aplicación real (transacción con aserciones post armadas, impide `COMMIT` indeseado). El advisor
+   `auth_rls_initplan` quedó limpio; se cayó el coste de evaluar los helpers de Auth por fila.
+4. Registro en `supabase_migrations.schema_migrations` como `20261006090000 /
+optimize_rls_and_foreign_key_indexes` con los statements reales. El INSERT dupó contra una convención
+   existente: un agente anterior ya llevaba el registro pasivo de esa versión con el nombre correcto;
+   la línea se mantiene único con `version` como PKey, así que el historial queda coherente.
+
+Rama `perf/rls-initplan-verificado`, PR de docs con el estado completado. **Bucle abierto:**
+EXPLAIN del top-queries de `appointments` (SCALABILITY_AUDIT PR-2) para medir el efecto real del
+InitPlan/índices; el historial vacío del resto de migraciones queda documentado pero sin resolver.
+
 # COMPLETADO — Atribuciones, agendas y ventas de colaboradoras visibles en las métricas (24-oct)
 
 Las tablas de métricas por FUENTE («Actividad por fuente» del Dashboard y embudo por fuente de
@@ -75,7 +109,7 @@ ocurren en el funnel real.** Ni un bug de escritura ni RLS: es wiring que falta 
    producción el pixel ha recibido 1.512 raws: 1.510 `page_view` y 2 `cta_click` — CERO eventos de
    identidad. La captura de leads es un widget de Typeform (home) y Calendly (agenda), servicios
    externos cuyos envíos nunca pasan por `tracker.js`; el tracker expone `window.gop('lead',
-   {email})` pero nadie lo llama. Los leads entran por webhook de GHL/Calendly sin `anonymous_id`,
+{email})` pero nadie lo llama. Los leads entran por webhook de GHL/Calendly sin `anonymous_id`,
    así que no hay visitante que enlazar.
 2. **`vsl_viewer_identities` vacía y `vsl_sessions = 0`:** la ruta `/vsl` de la landing (392
    page_view recientes) NO incrusta nuestro player: no hay iframe `embed/vsl/*` ni
