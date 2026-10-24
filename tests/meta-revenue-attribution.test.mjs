@@ -129,6 +129,23 @@ test('construye agenda → asistencia → venta → cash sin inventar anuncios n
   assert.equal(result.coverage.campaignAttributed, 5)
   assert.equal(result.coverage.adAttributed, 2)
 
+  // El desglose por estado explica EXACTAMENTE el hueco, no lo replica: a3, a5, a6 y a7 no llegan
+  // a un anuncio (todas 'sin_senas' a nivel ad) y a7 además no lleva señal de campaña.
+  assert.deepEqual(result.coverage.estados.campaign, { sinSenas: 1, sinCampaign: 0, ambigua: 0, organica: 0 })
+  assert.deepEqual(result.coverage.estados.ad, { sinSenas: 4, sinAnuncio: 0, ambigua: 0 })
+  assert.equal(
+    result.coverage.estados.campaign.sinSenas +
+      result.coverage.estados.campaign.sinCampaign +
+      result.coverage.estados.campaign.ambigua,
+    result.coverage.booked - result.coverage.campaignAttributed,
+    'la suma del desglose CIERRA el hueco de campaña'
+  )
+  assert.equal(
+    result.coverage.estados.ad.sinSenas + result.coverage.estados.ad.sinAnuncio + result.coverage.estados.ad.ambigua,
+    result.coverage.booked - result.coverage.adAttributed,
+    'la suma del desglose CIERRA el hueco de anuncio'
+  )
+
   const knownCampaign = result.campaigns.find((row) => row.resolved)
   assert.ok(knownCampaign)
   assert.equal(knownCampaign.booked, 5)
@@ -148,6 +165,58 @@ test('construye agenda → asistencia → venta → cash sin inventar anuncios n
     result.campaigns.some((row) => !row.resolved),
     'la campaña desconocida permanece visible'
   )
+})
+
+test('coverage.estados desglosa el hueco por causa: ambigua, sin_campaign, sin señas y orgánica', () => {
+  const doble = {
+    campaigns: [
+      { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', external_id: '120252786405750750', name: 'Captación' },
+      { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', external_id: '120211111111111111', name: 'Captación' },
+    ],
+    ads: [
+      {
+        external_id: '120299999999999999',
+        campaign_external_id: '120252786405750750',
+        name: 'Vídeo principal',
+        adset_name: 'Lookalike',
+      },
+    ],
+  }
+  const appt = (id, extra = {}) => ({
+    id,
+    contact_id: `c-${id}`,
+    appointment_datetime: '2026-10-01T10:00:00Z',
+    status: 'show',
+    utm_source: null,
+    utm_campaign: null,
+    utm_content: null,
+    attribution_booking: null,
+    contacts: null,
+    ...extra,
+  })
+  const result = buildRevenueAttribution({
+    appointments: [
+      appt('a1', { utm_campaign: 'Captación', utm_content: 'Vídeo principal' }), // camp ambigua; sin ancla → el ad por nombre NO decide
+      appt('a2', { utm_campaign: 'Captación' }), // camp ambigua; el ad ni siquiera lleva señal
+      appt('a3', { utm_campaign: 'Campaña que no está en el catálogo' }), // señal pero sin_campaign
+      appt('a4', { utm_campaign: 'direct' }), // orgánico: no es ads y no es hueco de ads igual por eso se declara
+    ],
+    sales: [],
+    collections: [],
+    refunds: [],
+    stripePayments: [],
+    catalog: doble,
+    campaignSpend: {},
+  })
+
+  assert.equal(result.coverage.booked, 4)
+  assert.equal(result.coverage.campaignAttributed, 0)
+  assert.equal(result.coverage.adAttributed, 0)
+  // Hueco de campaña = 4 = 2 ambiguo + 1 sin_campaign + 1 organica; NO hay 'sin_senas' porque las
+  // cuatro llevan señal (aunque sea orgánica).
+  assert.deepEqual(result.coverage.estados.campaign, { sinSenas: 0, sinCampaign: 1, ambigua: 2, organica: 1 })
+  // Hueco de anuncio = 4 = 1 sin_anuncio (nombre sin ancla) + 3 sin_senas (nada de anuncio en el toque).
+  assert.deepEqual(result.coverage.estados.ad, { sinSenas: 3, sinAnuncio: 1, ambigua: 0 })
 })
 
 test('metrics=bookings (includeCash: false) mantiene agendas/asistencias/cierres y declara que el cash NO se leyó', () => {

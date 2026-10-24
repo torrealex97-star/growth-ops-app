@@ -26,6 +26,21 @@ const catalog = {
   ],
 }
 
+// Segundo anuncio homónimo dentro de la MISMA campaña (variantes/placements): es un caso real que
+// ya el resolver declara como ambiguo vía resolverAnuncioPorUtm; sirve para la regresión de estado.
+const catalogConDuplicado = {
+  ...catalog,
+  ads: [
+    ...catalog.ads,
+    {
+      external_id: '120211111111111111',
+      campaign_external_id: '120252786405750750',
+      name: 'Vídeo   principal', // mismo nombre normalizado que 'Vídeo principal'
+      adset_name: 'Placement Stories',
+    },
+  ],
+}
+
 test('traduce el campaign id numérico que GHL guarda como utm_source', () => {
   const result = resolveMetaAttribution({ utm_source: '120252786405750750' }, catalog)
   assert.equal(result.campaign.name, 'Campaña captación')
@@ -58,7 +73,6 @@ test('un ad id desconocido se conserva como evidencia sin atribuirle un nombre f
   assert.equal(result.ad.name, null)
   assert.equal(result.ad.resolved, false)
 })
-
 test('acepta el nombre declarado por el proveedor pero no lo marca como fila de catálogo', () => {
   const result = resolveMetaAttribution(
     { attribution_last: { ad_id: '120277777777777777', ad_name: 'Creatividad declarada por GHL' } },
@@ -116,6 +130,105 @@ test('la cita sin UTMs propios se atribuye por el toque vigente del contacto (co
   assert.equal(result.campaign.resolved, true)
   assert.equal(result.campaign.name, 'Campaña captación')
   assert.equal(result.ad.name, 'Vídeo principal', 'utm_content del contacto nombra el anuncio')
+  assert.equal(result.ad.resolved, true)
+})
+
+test('utm_campaign ambiguo: la acotación del anuncio por campaña falla VISIBLEMENTE, no en silencio', () => {
+  // Regresión del caso que motivó los estados: 'Captación' existe DOS veces en el catálogo
+  // (campañas distintas de Meta con el mismo nombre) y el utm no distingue cuál es. El resolver
+  // NO decide con el nombre y debe declarar la campaña 'ambigua' — y como no hay campaña
+  // acotada, el utm_content no se resuelve: nada de engullir el homónimo de la otra campaña
+  // silenciosamente (antes lo apuntaba a la más parecida en el catálogo sin decir nada).
+  const catalogoDoble = {
+    campaigns: [
+      { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', external_id: '120252786405750750', name: 'Captación' },
+      { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', external_id: '120211111111111111', name: 'Captación' },
+    ],
+    ads: [
+      {
+        external_id: '120299999999999999',
+        campaign_external_id: '120252786405750750',
+        name: 'Vídeo principal',
+        adset_name: 'Lookalike compradores',
+      },
+    ],
+  }
+  const result = resolveMetaAttribution(
+    {
+      utm_campaign: 'Captación',
+      utm_content: 'Vídeo principal',
+    },
+    catalogoDoble
+  )
+  assert.equal(result.campaign.resolved, false)
+  assert.equal(result.campaign.name, null)
+  assert.equal(result.campaign.estado, 'ambigua', 'la campaña no se elige por nombre duplicado')
+  assert.equal(result.ad.resolved, false)
+  assert.equal(
+    result.ad.externalId,
+    null,
+    'sin campaña acotada el utm_content no puede engullir el homónimo de OTRA campaña'
+  )
+  assert.equal(result.ad.estado, 'sin_anuncio')
+})
+
+test('utm_campaign ambiguo pero utm_source con id real: resuelto por identidad, y el anuncio SÍ', () => {
+  // El caso que la nota de cobertura confundía antes: el nombre de campaña es ambiguo pero el
+  // utm_source lleva el campaign id de Meta → se resuelve por identidad, y con esa campaña
+  // acotada el anuncio por nombre SÍ se decide.
+  const catalogoDoble = {
+    campaigns: [
+      { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', external_id: '120252786405750750', name: 'Captación' },
+      { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', external_id: '120211111111111111', name: 'Captación' },
+    ],
+    ads: [
+      {
+        external_id: '120299999999999999',
+        campaign_external_id: '120252786405750750',
+        name: 'Vídeo principal',
+        adset_name: 'Lookalike compradores',
+      },
+    ],
+  }
+  const result = resolveMetaAttribution(
+    {
+      utm_source: '120252786405750750',
+      utm_campaign: 'Captación',
+      utm_content: 'Vídeo principal',
+    },
+    catalogoDoble
+  )
+  assert.equal(result.campaign.resolved, true)
+  assert.equal(result.campaign.estado, 'identidad')
+  assert.equal(result.campaign.externalId, '120252786405750750')
+  assert.equal(result.ad.resolved, true)
+  assert.equal(result.ad.name, 'Vídeo principal')
+  assert.equal(result.ad.estado, 'nombre')
+})
+
+test('el anuncio homónimo dentro de la misma campaña declara su ambigüedad, nunca adivina', () => {
+  const result = resolveMetaAttribution(
+    { utm_source: '120252786405750750', utm_content: 'Vídeo principal' },
+    catalogConDuplicado
+  )
+  assert.equal(result.campaign.resolved, true)
+  assert.equal(result.ad.resolved, false)
+  assert.equal(result.ad.name, null)
+  assert.equal(result.ad.estado, 'ambigua')
+})
+
+test('los estados no alteran el comportamiento cuando todo resuelve: identidad + toque', () => {
+  // Los flujos buenos no deben degradarse por el nuevo vocabulario de estados.
+  const result = resolveMetaAttribution(
+    {
+      utm_source: '120252786405750750',
+      attribution_booking: { campaignId: '120252786405750750', adId: '120299999999999999' },
+    },
+    catalog
+  )
+  assert.equal(result.campaign.estado, 'identidad')
+  assert.equal(result.ad.estado, 'toque')
+  assert.equal(result.campaign.resolved, true)
   assert.equal(result.ad.resolved, true)
 })
 

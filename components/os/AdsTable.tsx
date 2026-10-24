@@ -61,7 +61,15 @@ export function AdsTable({
   // no tiene agendas atribuidas conocidas, que es distinto de «cero agendas».
   const [crmEstado, setCrmEstado] = useState<CrmEstado>('cargando')
   const [crmFilas, setCrmFilas] = useState<Map<string, RevenueAttributionRow>>(new Map())
-  const [crmCobertura, setCrmCobertura] = useState<{ booked: number; adAttributed: number } | null>(null)
+  const [crmCobertura, setCrmCobertura] = useState<
+    | (Pick<
+        import('@/lib/meta/revenue-attribution').RevenueAttributionResult['coverage'],
+        'booked' | 'adAttributed'
+      > & {
+        estados?: import('@/lib/meta/revenue-attribution').EstadosNoResueltos
+      })
+    | null
+  >(null)
   const [crmError, setCrmError] = useState<string | null>(null)
   const [crmIntento, setCrmIntento] = useState(0)
 
@@ -167,6 +175,9 @@ export function AdsTable({
   // si nadie tiene agendas atribuidas, tres columnas de guiones serían ruido, no información.
   const mostrarCrm = crmEstado === 'ok' && [...crmFilas.values()].some((fila) => fila.booked > 0 || fila.sales > 0)
   const sinAtribuir = crmCobertura && crmCobertura.booked - crmCobertura.adAttributed
+  // Desglose del hueco por causa que envía coverage.estados (idéntico al que el builder
+  // calculó sobre la misma resolución): si están presentes la nota nombra cada causa.
+  const causas = crmCobertura && 'estados' in crmCobertura ? crmCobertura.estados?.ad : undefined
 
   if (error) {
     return (
@@ -200,11 +211,15 @@ export function AdsTable({
 
       {/* La nota de cobertura NO depende de mostrarCrm: aunque NINGÚN anuncio resuelva (el caso
           de utm_content con nombres duplicados en Meta, que vuelven el resolver 'ambigua'), el
-          hueco se declara en pantalla en vez de ocultar columnas y nota a la vez en silencio. */}
+          hueco se declara en pantalla en vez de ocultar columnas y nota a la vez en silencio.
+          Con coverage.estados el hueco se explica por causa, no solo por tamaño. */}
       {crmEstado === 'ok' && sinAtribuir !== null && sinAtribuir > 0 && (
         <p className="text-xs text-muted-foreground">
-          {sinAtribuir} de {crmCobertura?.booked} agendas del periodo no llegan a un anuncio concreto (nombres
-          duplicados en Meta): no se reparten ni se inventan
+          {sinAtribuir} de {crmCobertura?.booked} agendas del periodo no llegan a un anuncio concreto
+          {causas
+            ? ` — ${causas.sinSenas} sin señal de anuncio en el toque, ${causas.sinAnuncio} con nombre sin match en el catálogo, ${causas.ambigua} por nombres duplicados en Meta —`
+            : ' (nombres duplicados en Meta)'}
+          : no se reparten ni se inventan
           {mostrarCrm ? '; quedan fuera de estas columnas.' : '; las columnas CRM quedan ocultas.'}
         </p>
       )}

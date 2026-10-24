@@ -139,6 +139,7 @@ export function RevenueAttributionView({ tenant, rangeFrom, rangeTo, campaignIds
   // Misma cuenta que en la tabla de Anuncios: agendas del periodo que no llegan a un anuncio
   // concreto. Puede ser 0 y aun así la sección se pinta: un hueco gripado a cero no se calla.
   const sinAtribuirAnuncios = data.coverage.booked - data.coverage.adAttributed
+  const causasAnuncio = data.coverage.estados?.ad
 
   return (
     <div className="space-y-4">
@@ -239,11 +240,14 @@ export function RevenueAttributionView({ tenant, rangeFrom, rangeTo, campaignIds
         {/* Misma nota que en Anuncios, para que ambas pantallas cuenten la cobertura con las mismas
             palabras: aunque NINGÚN anuncio resuelva, el hueco se declara con su causa en vez de
             dejar la barra «Anuncio conocido» en cero muda. No depende de la vista activa ni de
-            showDetails. */}
+            showDetails. */}{' '}
         {sinAtribuirAnuncios > 0 && (
           <p className="mt-3 text-xs text-muted-foreground">
-            {sinAtribuirAnuncios} de {data.coverage.booked} agendas del periodo no llegan a un anuncio concreto (nombres
-            duplicados en Meta): no se reparten ni se inventan; quedan en la fila «Anuncio sin atribuir»
+            {sinAtribuirAnuncios} de {data.coverage.booked} agendas del periodo no llegan a un anuncio concreto
+            {causasAnuncio
+              ? ` — ${causasAnuncio.sinSenas} sin señal de anuncio en el toque, ${causasAnuncio.sinAnuncio} con nombre sin match en el catálogo, ${causasAnuncio.ambigua} por nombres duplicados en Meta —`
+              : ' (nombres duplicados en Meta)'}
+            : no se reparten ni se inventan; quedan en la fila «Anuncio sin atribuir»
             {level === 'ads' ? '' : ' del nivel Anuncios'}.
           </p>
         )}

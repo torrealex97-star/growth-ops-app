@@ -36,6 +36,29 @@ export type RevenueRefund = InternalRefundRow & { sale_id?: string | null }
 
 export type AttributionLevel = 'campaign' | 'ad'
 
+/**
+ * DESGLOSE DEL HUECO POR CAUSA (un hueco no es un cero): cuántas agendas elegibles caen en cada
+ * estado no resuelto del resolver. Los estados de resolución correcta (identidad/nombre/toque) no
+ * se listan: booked − atribuido lo cierra. La suma de los estados NO resueltos de cada nivel ES
+ * exactamente ese hueco — si alguien rompe el invariante, el desglose ya no explica la nota.
+ *
+ * Campaign: 'sin_senas' (el toque no lleva señal de campaña), 'sin_campaign' (señal pero la
+ * campaña no está en el catálogo: fuera de sync o borrada), 'ambigua' (≥2 campañas comparten el
+ * nombre normalizado — el nombre NO decide), 'organica' (orgánico/direct: no es ads).
+ * Ad: 'sin_senas' (nada de anuncio en el toque), 'sin_anuncio' (nombre en el toque, no matchea
+ * ningún anuncio del catálogo) y 'ambigua' (el nombre matchea ≥2 anuncios: homónimos de
+ * placements/variantes, o sin ancla de campaña para acotarlo).
+ */
+export type EstadosNoResueltos = {
+  campaign: { sinSenas: number; sinCampaign: number; ambigua: number; organica: number }
+  ad: { sinSenas: number; sinAnuncio: number; ambigua: number }
+}
+
+const estadosVacios = (): EstadosNoResueltos => ({
+  campaign: { sinSenas: 0, sinCampaign: 0, ambigua: 0, organica: 0 },
+  ad: { sinSenas: 0, sinAnuncio: 0, ambigua: 0 },
+})
+
 export type RevenueAttributionRow = {
   key: string
   level: AttributionLevel
@@ -71,6 +94,8 @@ export type RevenueAttributionResult = {
     salesAttributed: number
     cashCollected: number
     cashAttributed: number
+    /** Desglose del hueco por causa para la nota de cobertura de las pantallas. */
+    estados: EstadosNoResueltos
   }
   /** false = el consumidor pidió solo el embudo CRM y el cash NO se leyó: sus ceros no son medidos. */
   cashIncluded: boolean
@@ -212,6 +237,23 @@ export function buildRevenueAttribution(
   const attributionByAppointment = new Map(
     eligibleAppointments.map((appointment) => [appointment.id, resolveMetaAttribution(appointment, input.catalog)])
   )
+  // El desglose por estado se construye sobre la MISMA resolución que llena las filas y la
+  // cobertura: cero lecturas nuevas y garantía de que explica exactamente el hueco de arriba.
+  const estados = estadosVacios()
+  for (const attribution of attributionByAppointment.values()) {
+    if (attribution.campaign.resolved) {
+      // Resuelto (identidad/nombre): no es hueco, no entra en el desglose.
+    } else if (attribution.campaign.estado === 'sin_senas') estados.campaign.sinSenas += 1
+    else if (attribution.campaign.estado === 'sin_campaign') estados.campaign.sinCampaign += 1
+    else if (attribution.campaign.estado === 'ambigua') estados.campaign.ambigua += 1
+    else if (attribution.campaign.estado === 'organica') estados.campaign.organica += 1
+
+    if (attribution.ad.resolved) {
+      // Resuelto (toque/nombre declarado): no es hueco, no entra en el desglose.
+    } else if (attribution.ad.estado === 'sin_senas') estados.ad.sinSenas += 1
+    else if (attribution.ad.estado === 'sin_anuncio') estados.ad.sinAnuncio += 1
+    else if (attribution.ad.estado === 'ambigua') estados.ad.ambigua += 1
+  }
   const appointmentIndex: AppointmentIndex = { byId: new Map(), byContact: new Map() }
   for (const appointment of eligibleAppointments) {
     appointmentIndex.byId.set(appointment.id, appointment)
@@ -362,6 +404,7 @@ export function buildRevenueAttribution(
       salesAttributed,
       cashCollected: totalCash,
       cashAttributed,
+      estados,
     },
     cashIncluded: includeCash,
   }
