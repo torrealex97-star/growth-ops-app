@@ -416,6 +416,31 @@ test('el toque vigente es la fila is_primary y la colaboradora viene de ese MISM
   )
 })
 
+test('la dimensión Colaboradoras está acotada a admin, director y manager', () => {
+  // Datos de personas (nombres y emparejamiento contacto→colaboradora, base de comisiones):
+  // roles menores que entran legítimamente a la ruta (marketing, adscripción) no deben poder
+  // leer esta dimensión ni pagar su lectura.
+  const route = readFileSync('app/api/[tenant]/evergreen/meta/revenue-attribution/route.ts', 'utf8')
+  assert.match(route, /COLAB_ROLES = new Set\(\['admin', 'director', 'manager'\]\)/)
+  // super admin ve todo el tenant: el bypass del gate general es el mismo aquí.
+  assert.match(route, /puedeVerColaboradoras = auth\.isSuperAdmin \|\| /)
+  // La lectura de collaborator_profiles queda condicionada al permiso (regex tolerante al
+  // formato de Prettier: el ternario puede partir líneas).
+  assert.match(
+    route,
+    /puedeVerColaboradoras\s*\?\s*fetchAllRows[\s\S]{0,220}collaborator_profiles/,
+    'el rol sin permiso NO lanza la lectura de perfiles'
+  )
+  // Y la dimensión no se construye: sin ella, el builder deja colaboradores vacía y ninguna fila
+  // de personas llega a la respuesta.
+  assert.match(route, /colaboradorDe[\s\S]*?colaboradorDe = mapa/, 'la construcción queda dentro del permit')
+  assert.match(
+    route,
+    /let colaboradorDe: Map<string, \{ id: string; name: string \| null \}> \| null = null/,
+    'sin permit el build recibe null ⇒ colaboradores vacía, no filas incompletas'
+  )
+})
+
 test('el cliente de Meta pide instagram_profile_follow como campo de insights (no en actions)', () => {
   const client = readFileSync('lib/meta/client.ts', 'utf8')
   const matches = client.match(/instagram_profile_follow/g) ?? []

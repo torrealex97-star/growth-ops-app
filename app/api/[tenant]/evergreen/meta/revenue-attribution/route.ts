@@ -16,6 +16,10 @@ import { fetchAllRows, type RangeQuery } from '@/lib/supabase/paginate'
 export const runtime = 'nodejs'
 
 const ALLOWED_ROLES = ['admin', 'director', 'manager', 'marketing', 'adscripcion']
+// La dimensión Colaboradoras expone datos de PERSONAS (nombres y emparejamiento
+// contacto→colaboradora, la base de comisiones). marketing/adscripcion pueden entrar a la ruta
+// y ver campañas/anuncios/cohortes, pero no esta dimensión: solo gestión y super admin.
+const COLAB_ROLES = new Set(['admin', 'director', 'manager'])
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const BATCH = 200
@@ -72,6 +76,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     // cohorte de agendas es grande. Las ventas se siguen leyendo porque el conteo de cierres sale de
     // ellas; solo el dinero queda fuera y el resultado lo declara con cashIncluded: false.
     const metrics = req.nextUrl.searchParams.get('metrics')
+    // Permiso específico de la dimensión: sin él no se lee collaborator_profiles ni se construye el
+    // mapa de personas — el build recibe null, colaboradores sale vacía y filas de personas jamás
+    // llegan a roles que no deben verlas.
+    const puedeVerColaboradoras = auth.isSuperAdmin || (!!auth.role && COLAB_ROLES.has(auth.role))
     if (metrics !== null && metrics !== '' && metrics !== 'bookings') {
       return NextResponse.json({ error: "metrics solo admite 'bookings'" }, { status: 400 })
     }
@@ -126,9 +134,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
         : Promise.resolve({ rows: [], error: null, truncated: false }),
       // Nombres legibles de las colaboradoras activas de la subcuenta (tab Colaboradoras del
       // Análisis Meta): la relación estructurada vive en contact_attributions.collaborator_id.
-      fetchAllRows<AnyRow>(() =>
-        sb.from('collaborator_profiles').select('id, name').eq('tenant_id', tenantId).eq('status', 'active').order('id')
-      ),
+      // La lectura queda condicionada al permiso: roles menores no pagan ni generan la query.
+      puedeVerColaboradoras
+        ? fetchAllRows<AnyRow>(() =>
+            sb
+              .from('collaborator_profiles')
+              .select('id, name')
+              .eq('tenant_id', tenantId)
+              .eq('status', 'active')
+              .order('id')
+          )
+        : Promise.resolve({ rows: [], error: null, truncated: false }),
     ])
 
     const sourceResults = [appointmentsResult, campaignsResult, adsResult, dailyResult, colabProfilesResult]
@@ -194,12 +210,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     // colaboradora del embudo provienen del mismo hecho del contacto. En la fila primaria vive la
     // regla first-collaborator-wins escrita por registrarToque; un id sin perfil activo (dado de
     // baja, p. ej.) conserva el id y la fila sale sin nombre; el nombre nunca se inventa.
-    const colabNames = new Map(colabProfilesResult.rows.map((row) => [String(row.id), String(row.name ?? '')]))
-    const colaboradorDe = new Map<string, { id: string; name: string | null }>()
-    for (const [contactId, row] of attrByContact) {
-      const collaboratorId = row.collaborator_id ? String(row.collaborator_id) : null
-      if (!collaboratorId) continue
-      colaboradorDe.set(contactId, { id: collaboratorId, name: colabNames.get(collaboratorId) || null })
+    // Sin permiso la dimensión NO se construye: null ⇒ el builder la deja vacía de fábrica.
+    let colaboradorDe: Map<string, { id: string; name: string | null }> | null = null
+    if (puedeVerColaboradoras) {
+      const colabNames = new Map(colabProfilesResult.rows.map((row) => [String(row.id), String(row.name ?? '')]))
+      const mapa = new Map<string, { id: string; name: string | null }>()
+      for (const [contactId, row] of attrByContact) {
+        const collaboratorId = row.collaborator_id ? String(row.collaborator_id) : null
+        if (!collaboratorId) continue
+        mapa.set(contactId, { id: collaboratorId, name: colabNames.get(collaboratorId) || null })
+      }
+      colaboradorDe = mapa
     }
     const allAppointments = appointmentsResult.rows.map((row) => ({
       ...row,
