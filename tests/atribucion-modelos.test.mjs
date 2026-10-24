@@ -1,9 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { funnelBySource } from '../lib/analytics.ts'
+import { attributionBySource, funnelBySource } from '../lib/analytics.ts'
 
-const atr = (contact_id, source, last) => ({
+const atr = (contact_id, source, last, extra = {}) => ({
   contact_id,
   source,
   utm_source: source,
@@ -11,6 +11,7 @@ const atr = (contact_id, source, last) => ({
   utm_content: null,
   is_primary: true,
   last_utm_source: last,
+  ...extra,
 })
 const venta = (contact_id) => ({
   id: `v-${contact_id}`,
@@ -48,5 +49,40 @@ test('el modelo por defecto es el primer toque (nada cambia para quien no toca e
 test('la pantalla ofrece el selector y recalcula sin volver a pedir datos', () => {
   const p = readFileSync('app/[tenant]/marketing/adquisicion/atribucion/page.tsx', 'utf8')
   assert.match(p, /aria-label="Modelo de atribución"/)
-  assert.match(p, /\[funnelInputs, modelo\]/)
+  assert.match(p, /\[funnelInputs, modelo, colabNombres\]/)
+  // La atribución estructurada de colaborador manda en la etiqueta: sin collaborator_id en el
+  // select ni el mapa de nombres, un contacto de colaboradora se escondería tras el canal crudo.
+  assert.match(p, /collaborator_id,first_utm_source/)
+  assert.match(p, /from\('collaborator_profiles'\)/)
+})
+
+test('un contacto de colaboradora se nombra como «Colaboradora: <nombre>», no como su canal crudo', () => {
+  // La atribución estructurada (contact_attributions.collaborator_id) ES quién trajo al lead:
+  // esconderla tras «instagram» borra de las métricas el trabajo de la colaboradora.
+  const atribucion = [
+    atr('a', 'instagram', null),
+    atr('b', 'instagram', null, { collaborator_id: 'colab-1' }),
+    atr('c', 'ficha', null, { collaborator_id: 'colab-desconocido' }),
+  ]
+  const nombres = new Map([['colab-1', 'Ana']])
+  const filas = funnelBySource(['a', 'b', 'c'], atribucion, [], [], 'primer', { nombresColaboradora: nombres })
+  const get = (s) => filas.find((r) => r.source === s)
+  assert.equal(get('Colaboradora: Ana').leads, 1, 'con nombre legible, la fila lleva su nombre')
+  assert.equal(
+    get('Colaboradora').leads,
+    1,
+    'sin nombre legible queda «Colaboradora»: la relación es cierta, no se inventa'
+  )
+  assert.equal(get('instagram').leads, 1, 'el contacto SIN colaborador mantiene su canal tal cual')
+
+  const ventas = attributionBySource(['a', 'b'], atribucion, [venta('b')], { nombresColaboradora: nombres })
+  assert.equal(ventas.find((r) => r.source === 'Colaboradora: Ana').sales, 1)
+  assert.equal(ventas.find((r) => r.source === 'instagram').leads, 1)
+})
+
+test('sin opts nada cambia (compatibilidad con consumidores que no pasan nombres)', () => {
+  const a = [atr('a', 'instagram', null, { collaborator_id: 'colab-1' })]
+  const filas = funnelBySource(['a'], a, [], [])
+  assert.equal(filas.length, 1)
+  assert.equal(filas[0].source, 'Colaboradora')
 })

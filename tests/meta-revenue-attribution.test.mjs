@@ -129,6 +129,23 @@ test('construye agenda → asistencia → venta → cash sin inventar anuncios n
   assert.equal(result.coverage.campaignAttributed, 5)
   assert.equal(result.coverage.adAttributed, 2)
 
+  // El desglose por estado explica EXACTAMENTE el hueco, no lo replica: a3, a5, a6 y a7 no llegan
+  // a un anuncio (todas 'sin_senas' a nivel ad) y a7 además no lleva señal de campaña.
+  assert.deepEqual(result.coverage.estados.campaign, { sinSenas: 1, sinCampaign: 0, ambigua: 0, organica: 0 })
+  assert.deepEqual(result.coverage.estados.ad, { sinSenas: 4, sinAnuncio: 0, ambigua: 0 })
+  assert.equal(
+    result.coverage.estados.campaign.sinSenas +
+      result.coverage.estados.campaign.sinCampaign +
+      result.coverage.estados.campaign.ambigua,
+    result.coverage.booked - result.coverage.campaignAttributed,
+    'la suma del desglose CIERRA el hueco de campaña'
+  )
+  assert.equal(
+    result.coverage.estados.ad.sinSenas + result.coverage.estados.ad.sinAnuncio + result.coverage.estados.ad.ambigua,
+    result.coverage.booked - result.coverage.adAttributed,
+    'la suma del desglose CIERRA el hueco de anuncio'
+  )
+
   const knownCampaign = result.campaigns.find((row) => row.resolved)
   assert.ok(knownCampaign)
   assert.equal(knownCampaign.booked, 5)
@@ -148,6 +165,116 @@ test('construye agenda → asistencia → venta → cash sin inventar anuncios n
     result.campaigns.some((row) => !row.resolved),
     'la campaña desconocida permanece visible'
   )
+})
+
+test('coverage.estados desglosa el hueco por causa: ambigua, sin_campaign, sin señas y orgánica', () => {
+  const doble = {
+    campaigns: [
+      { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', external_id: '120252786405750750', name: 'Captación' },
+      { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', external_id: '120211111111111111', name: 'Captación' },
+    ],
+    ads: [
+      {
+        external_id: '120299999999999999',
+        campaign_external_id: '120252786405750750',
+        name: 'Vídeo principal',
+        adset_name: 'Lookalike',
+      },
+    ],
+  }
+  const appt = (id, extra = {}) => ({
+    id,
+    contact_id: `c-${id}`,
+    appointment_datetime: '2026-10-01T10:00:00Z',
+    status: 'show',
+    utm_source: null,
+    utm_campaign: null,
+    utm_content: null,
+    attribution_booking: null,
+    contacts: null,
+    ...extra,
+  })
+  const result = buildRevenueAttribution({
+    appointments: [
+      appt('a1', { utm_campaign: 'Captación', utm_content: 'Vídeo principal' }), // camp ambigua; sin ancla → el ad por nombre NO decide
+      appt('a2', { utm_campaign: 'Captación' }), // camp ambigua; el ad ni siquiera lleva señal
+      appt('a3', { utm_campaign: 'Campaña que no está en el catálogo' }), // señal pero sin_campaign
+      appt('a4', { utm_campaign: 'direct' }), // orgánico: no es ads y no es hueco de ads igual por eso se declara
+    ],
+    sales: [],
+    collections: [],
+    refunds: [],
+    stripePayments: [],
+    catalog: doble,
+    campaignSpend: {},
+  })
+
+  assert.equal(result.coverage.booked, 4)
+  assert.equal(result.coverage.campaignAttributed, 0)
+  assert.equal(result.coverage.adAttributed, 0)
+  // Hueco de campaña = 4 = 2 ambiguo + 1 sin_campaign + 1 organica; NO hay 'sin_senas' porque las
+  // cuatro llevan señal (aunque sea orgánica).
+  assert.deepEqual(result.coverage.estados.campaign, { sinSenas: 0, sinCampaign: 1, ambigua: 2, organica: 1 })
+  // Hueco de anuncio = 4 = 1 sin_anuncio (nombre sin ancla) + 3 sin_senas (nada de anuncio en el toque).
+  assert.deepEqual(result.coverage.estados.ad, { sinSenas: 3, sinAnuncio: 1, ambigua: 0 })
+})
+
+test('metrics=bookings (includeCash: false) mantiene agendas/asistencias/cierres y declara que el cash NO se leyó', () => {
+  const appointments = [
+    appointment('a1', 'c1', 'show', {
+      attribution_booking: { campaign_id: '120252786405750750', ad_id: '120299999999999999' },
+    }),
+    appointment('a2', 'c2', 'no_show', {
+      attribution_booking: { campaign_id: '120252786405750750', ad_id: '120299999999999999' },
+    }),
+  ]
+  const result = buildRevenueAttribution(
+    {
+      appointments,
+      sales: [sale('s1', 'c1', 'a1', 100)],
+      collections: [
+        {
+          id: 'col1',
+          sale_id: 's1',
+          payment_reference: 'pi_1',
+          gross_amount: 100,
+          status: 'collected',
+          collected_at: '2026-10-02T12:00:00Z',
+        },
+      ],
+      refunds: [],
+      stripePayments: [],
+      catalog,
+      campaignSpend: { [campaignId]: 200 },
+    },
+    { includeCash: false }
+  )
+
+  // El embudo CRM (lo que pide Anuncios) no cambia.
+  assert.equal(result.cashIncluded, false)
+  assert.equal(result.summary.booked, 2)
+  assert.equal(result.summary.shows, 1)
+  assert.equal(result.summary.noShows, 1)
+  assert.equal(result.summary.sales, 1, 'los cierres salen de sales, que sí se lee en modo bookings')
+  assert.equal(result.coverage.adAttributed, 2)
+
+  // Lo derivado de cash queda a cero declarado, no a cero medido.
+  assert.equal(result.summary.cashCollected, 0)
+  assert.equal(result.coverage.cashCollected, 0)
+  assert.equal(result.coverage.cashAttributed, 0)
+  assert.equal(result.campaigns.find((row) => row.resolved)?.cashRoas, null)
+})
+
+test('la ruta acepta metrics=bookings y en ese modo NO lanza las lecturas de cash', () => {
+  const route = readFileSync('app/api/[tenant]/evergreen/meta/revenue-attribution/route.ts', 'utf8')
+  assert.match(route, /searchParams\.get\('metrics'\)/)
+  assert.match(route, /metrics !== 'bookings'/)
+  // Las tres lecturas de cash van condicionadas a includeCash; si alguien las deja incondicionales,
+  // el modo bookings vuelve a ser tan caro como el completo.
+  assert.match(route, /const collections = includeCash\s*\?\s*await rowsByIds\(/)
+  assert.match(route, /const refunds = includeCash\s*\?\s*await rowsByIds\(/)
+  assert.match(route, /const \[stripeByPayment, stripeByCharge\] = includeCash\s*\?\s*await Promise\.all\(/)
+  assert.match(route, /\{ includeCash \}/, 'el build recibe el modo')
 })
 
 test('devuelve null, no cero, cuando una tasa no tiene denominador', () => {
@@ -177,14 +304,141 @@ test('la API exige tenant, permiso, paginación y nunca consulta datos globales'
   assert.match(route, /Lectura incompleta/)
 })
 
+test('colaboradores: nivel de persona con la misma cohorte, mismas reglas y suma que cierra', () => {
+  // Sin la dimensión no hay nivel (la vista no puede mostrar una tab vacía disfrazada de datos).
+  const sinColabs = buildRevenueAttribution({
+    appointments: [appointment('a1', 'c1', 'show')],
+    sales: [],
+    collections: [],
+    refunds: [],
+    stripePayments: [],
+    catalog,
+  })
+  assert.deepEqual(sinColabs.colaboradores, [])
+
+  // La ruta usa un Map contacto → {id, name}: misma forma aquí.
+  const colaboradorDe = new Map([
+    ['c1', { id: 'collab-a', name: 'Ana' }],
+    ['c3', { id: 'collab-b', name: null }],
+  ])
+  const result = buildRevenueAttribution({
+    appointments: [
+      appointment('a1', 'c1', 'show'),
+      appointment('a2', 'c2', 'no_show'), // c2 sin colaboradora → hueco declarado, no repartido
+      appointment('a3', 'c3', 'scheduled'),
+    ],
+    sales: [sale('s1', 'c1', 'a1', 100), sale('s3', 'c3', 'a3', 50)],
+    collections: [
+      {
+        id: 'col1',
+        sale_id: 's1',
+        payment_reference: 'pi_1',
+        gross_amount: 100,
+        status: 'collected',
+        collected_at: '2026-10-02T12:00:00Z',
+      },
+    ],
+    refunds: [],
+    stripePayments: [],
+    catalog,
+    campaignSpend: {},
+    colaboradorDe,
+  })
+
+  const ana = result.colaboradores.find((r) => r.campaignExternalId === 'collab-a')
+  assert.ok(ana, 'la colaboradora del contacto de la venta aparece')
+  assert.equal(ana.campaignName, 'Ana')
+  assert.equal(ana.booked, 1)
+  assert.equal(ana.shows, 1)
+  assert.equal(ana.noShows, 0)
+  assert.equal(ana.sales, 1)
+  assert.equal(ana.bookedRevenue, 100)
+  assert.equal(ana.cashCollected, 100)
+
+  const berta = result.colaboradores.find((r) => r.campaignExternalId === 'collab-b')
+  assert.ok(berta)
+  assert.equal(berta.campaignName, null, 'el builder no inventa «Sin nombre»: es la glosa de la vista para name null')
+  assert.equal(berta.booked, 1)
+  assert.equal(berta.shows, 0, 'scheduled no es asistencia')
+  assert.equal(berta.sales, 1)
+  assert.equal(berta.cashCollected, 0)
+
+  const sinPersona = result.colaboradores.find((r) => r.key === 'colab:unknown')
+  assert.ok(sinPersona, 'el hueco de persona es una fila declarada')
+  assert.equal(sinPersona.booked, 1)
+  assert.equal(
+    sinPersona.campaignName,
+    null,
+    'ni «Sin colaborador» se fabrica en el builder: es la glosa de la vista para colab:unknown'
+  )
+
+  const sumaBooked = result.colaboradores.reduce((acc, r) => acc + r.booked, 0)
+  assert.equal(sumaBooked, result.summary.booked, 'la suma de colaboradoras cierra con la cohorte completa')
+})
+
 test('la ruta adjunta el toque vigente del contacto a cada cita (contactAttribution)', () => {
   // Sin esto, las citas que llegan sin UTMs propios — la mayoría en producción — quedaban
   // «no identificado» aunque contact_attributions del comprador dijera de dónde vino.
   const route = readFileSync('app/api/[tenant]/evergreen/meta/revenue-attribution/route.ts', 'utf8')
   assert.match(route, /'contact_attributions'/)
-  assert.match(route, /'contact_id,utm_source,utm_campaign,utm_content'/)
+  // colaborador_id es de la dimensión Colaboradoras: se lee en la MISMA lectura por lote para no
+  // lanzar una segunda contra la tabla entera. id e is_primary vienen para decidir el toque vigente.
+  assert.match(route, /'id,contact_id,utm_source,utm_campaign,utm_content,is_primary,collaborator_id'/)
   assert.match(route, /attrByContact\.get/)
   assert.match(route, /contactAttribution:/)
+})
+
+test('la ruta define la dimensión Colaboradoras en una sola lectura de contact_attributions', () => {
+  const route = readFileSync('app/api/[tenant]/evergreen/meta/revenue-attribution/route.ts', 'utf8')
+  assert.match(route, /collaborator_profiles/)
+  assert.match(route, /colaboradorDe/)
+  // El nombre nunca se inventa: perfil ausente ⇒ name null (o Sin perfil legible en la vista).
+  assert.match(route, /colabNames\.get\(collaboratorId\) \|\| null/)
+  // El build recibe la dimensión; con ella vacía, la lista sale vacía y la vista no enseña hueco
+  // disfrazado de datos.
+  assert.match(route, /colaboradorDe,/, 'el build recibe la dimensión')
+})
+
+test('el toque vigente es la fila is_primary y la colaboradora viene de ese MISMO toque', () => {
+  // Sin preferencia por is_primary el Map se queda con la última fila en orden arbitrario de
+  // PostgREST: indeterminismo entre builds y dimensión Colaboradoras emparejada con el anuncio
+  // de OTRA fila del mismo contacto (la colaboradora pertenece al toque que decide, no a otro).
+  const route = readFileSync('app/api/[tenant]/evergreen/meta/revenue-attribution/route.ts', 'utf8')
+  // Preferencia por la fila primaria sobre la no-primaria.
+  assert.match(route, /esPrimaria && previa\.is_primary !== true/, 'is_primary manda sobre cualquier otra fila')
+  // Desempate determinista entre filas del mismo tipo de primariedad.
+  assert.match(route, /String\(row\.id\) > String\(previa\.id\)/)
+  // La dimensión de colaboradora se deriva del mapa del toque vigente, no del lote crudo.
+  assert.match(
+    route,
+    /for \(const \[contactId, row\] of attrByContact\)/,
+    'colaboradorDe recorre el toque vigente, que es el mismo que lee el resolver de Meta'
+  )
+})
+
+test('la dimensión Colaboradoras está acotada a admin, director y manager', () => {
+  // Datos de personas (nombres y emparejamiento contacto→colaboradora, base de comisiones):
+  // roles menores que entran legítimamente a la ruta (marketing, adscripción) no deben poder
+  // leer esta dimensión ni pagar su lectura.
+  const route = readFileSync('app/api/[tenant]/evergreen/meta/revenue-attribution/route.ts', 'utf8')
+  assert.match(route, /COLAB_ROLES = new Set\(\['admin', 'director', 'manager'\]\)/)
+  // super admin ve todo el tenant: el bypass del gate general es el mismo aquí.
+  assert.match(route, /puedeVerColaboradoras = auth\.isSuperAdmin \|\| /)
+  // La lectura de collaborator_profiles queda condicionada al permiso (regex tolerante al
+  // formato de Prettier: el ternario puede partir líneas).
+  assert.match(
+    route,
+    /puedeVerColaboradoras\s*\?\s*fetchAllRows[\s\S]{0,220}collaborator_profiles/,
+    'el rol sin permiso NO lanza la lectura de perfiles'
+  )
+  // Y la dimensión no se construye: sin ella, el builder deja colaboradores vacía y ninguna fila
+  // de personas llega a la respuesta.
+  assert.match(route, /colaboradorDe[\s\S]*?colaboradorDe = mapa/, 'la construcción queda dentro del permit')
+  assert.match(
+    route,
+    /let colaboradorDe: Map<string, \{ id: string; name: string \| null \}> \| null = null/,
+    'sin permit el build recibe null ⇒ colaboradores vacía, no filas incompletas'
+  )
 })
 
 test('el cliente de Meta pide instagram_profile_follow como campo de insights (no en actions)', () => {
