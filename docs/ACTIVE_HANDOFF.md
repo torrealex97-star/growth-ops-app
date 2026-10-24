@@ -1,3 +1,45 @@
+# COMPLETADO — Atribuciones, agendas y ventas de colaboradoras visibles en las métricas (24-oct)
+
+Las tablas de métricas por FUENTE («Actividad por fuente» del Dashboard y embudo por fuente de
+Atribución) leían a cada contacto su canal crudo (`labelSource`: instagram, ficha…): un contacto
+con atribución estructurada de colaboradora aparecía escondido tras el canal del enlace, y sus
+atribuciones, agendas y ventas no decían quién las trajo. Los rankings por persona ya la nombraban
+(TeamRanking tab Colaboradores para ventas, AgendasPorPersona tab Colaboradores para agendas con su
+%M de show); la tabla por fuente era el hueco.
+
+- `lib/analytics.ts`: nueva `etiquetaDeFuente(row, { nombresColaboradora })` — si la row lleva
+  `collaborator_id`, la etiqueta es `Colaboradora: <nombre>`; sin nombre legible queda
+  «Colaboradora» (la relación es cierta, el nombre no se inventa). Opt-in en
+  `attributionBySource()` y `funnelBySource()` (param `nombresColaboradora`); sin el param nada
+  cambia. Los modelos fraccionados (`funnelMultiToque`) no cambian: no conocen colaborador.
+- `app/[tenant]/dashboard/page.tsx`: pasa `nombresColaboradora` desde los profiles ya cargados
+  (collabProfiles) a la tabla de actividad por fuente.
+- `app/[tenant]/marketing/adquisicion/atribucion/page.tsx`: añade `collaborator_id` al select de
+  `contact_attributions` y una lectura de `collaborator_profiles` (id, name, status=active); en el
+  embudo por fuente (modelos primer/último) los leads/ventas de colaboradoras salen con su nombre.
+- Regen: `tests/atribucion-modelos.test.mjs` — 6/6 con regresiones nuevas (grupo exacto
+  `Colaboradora: Ana` con su leads/ventas separados del canal crudo, «Colaboradora» sin nombre,
+  contactos sin colaborador intactos, y compat sin opts). `npm run quality` completo: 789 unit +
+  métricas, exit 0.
+
+# COMPLETADO — Desglose por estado de resolución en el resolver de Meta y en las notas de cobertura (24-oct)
+
+Tras el «resolver no resuelve y la acotación por campaña puede fallar en silencio», el builder
+(llamando a `resolveMetaAttribution`) ya DECLARA la causa del hueco en vez de colapsarlo en
+`resolved: false`:
+
+- `lib/meta/ad-attribution.ts`: tipos `MetaCampaignEstado` (identidad / nombre / organica /
+  sin_campaign / ambigua / sin_senas) y `MetaAdEstado` (toque / nombre / ambigua / sin_anuncio /
+  sin_senas) expuestos en `resolveMetaAttribution()`, y `lib/meta/revenue-attribution.ts` agrega
+  `coverage.estados` (contados sobre la MISMA resolución que llena filas y cobertura: el desglose
+  explica el hueco, no lo replica — `booked − atribuido` cierra con los contadores).
+- Notas con causas en Anuncios (`AdsTable`) y Análisis Meta (`RevenueAttributionView`): «X sin señal
+  de anuncio en el toque, Y con nombre sin match en el catálogo, Z por nombres duplicados en Meta»;
+  sin desglose (respuesta vieja) caen a la redacción base y nunca a mute.
+- Regen: `tests/meta-revenue-attribution.test.mjs` (8/8, fixture de 4 escenarios),
+  `tests/analisis-meta-cobertura.test.mjs` (4/4, notas de agenda→anuncio que consumen
+  `coverage.estados`), `tests/ads-columnas-crm.test.mjs` (9/9). `npm run quality`: exit 0.
+
 # COMPLETADO (veredicto NO) — Investigar si el ad_id del fbclid «fb.1.» sirve como señal del resolver (24-oct, Freebuff/producto)
 
 Objetivo: los únicos toques con señal de anuncio son `contact_attributions.utm_content` con
