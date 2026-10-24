@@ -67,6 +67,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
 
     const from = req.nextUrl.searchParams.get('from')
     const to = req.nextUrl.searchParams.get('to')
+    // metrics=bookings: el consumidor solo pide el embudo CRM (agendas/asistencias/cierres), así que
+    // se saltan las lecturas de cash (collections/refunds/stripe_payments) — las más caras cuando la
+    // cohorte de agendas es grande. Las ventas se siguen leyendo porque el conteo de cierres sale de
+    // ellas; solo el dinero queda fuera y el resultado lo declara con cashIncluded: false.
+    const metrics = req.nextUrl.searchParams.get('metrics')
+    if (metrics !== null && metrics !== '' && metrics !== 'bookings') {
+      return NextResponse.json({ error: "metrics solo admite 'bookings'" }, { status: 400 })
+    }
+    const includeCash = metrics !== 'bookings'
     const hasCampaignScope = req.nextUrl.searchParams.has('campaigns')
     const requestedCampaignIds = (req.nextUrl.searchParams.get('campaigns') ?? '')
       .split(',')
@@ -196,44 +205,50 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       payment_plan_method: metodoDePlan(sale),
     })) as RevenueSale[]
 
-    const collections = await rowsByIds(
-      sb,
-      'collections',
-      'id,sale_id,payment_reference,gross_amount,status,collected_at',
-      tenantId,
-      'sale_id',
-      sales.map((sale) => sale.id)
-    )
+    const collections = includeCash
+      ? await rowsByIds(
+          sb,
+          'collections',
+          'id,sale_id,payment_reference,gross_amount,status,collected_at',
+          tenantId,
+          'sale_id',
+          sales.map((sale) => sale.id)
+        )
+      : []
     const collectionIds = collections.map((collection) => String(collection.id))
-    const refunds = await rowsByIds(
-      sb,
-      'refunds',
-      'collection_id,sale_id,refund_date,gross_refund_amount,status',
-      tenantId,
-      'collection_id',
-      collectionIds
-    )
+    const refunds = includeCash
+      ? await rowsByIds(
+          sb,
+          'refunds',
+          'collection_id,sale_id,refund_date,gross_refund_amount,status',
+          tenantId,
+          'collection_id',
+          collectionIds
+        )
+      : []
     const references = collections
       .map((collection) => collection.payment_reference)
       .filter((value): value is string => typeof value === 'string' && value.length > 0)
-    const [stripeByPayment, stripeByCharge] = await Promise.all([
-      rowsByIds(
-        sb,
-        'stripe_payments',
-        'payment_id,charge_id,amount,refunded_amount,status,paid_at,customer_email,refunded_at,currency,fx_rate_to_eur',
-        tenantId,
-        'payment_id',
-        references
-      ),
-      rowsByIds(
-        sb,
-        'stripe_payments',
-        'payment_id,charge_id,amount,refunded_amount,status,paid_at,customer_email,refunded_at,currency,fx_rate_to_eur',
-        tenantId,
-        'charge_id',
-        references
-      ),
-    ])
+    const [stripeByPayment, stripeByCharge] = includeCash
+      ? await Promise.all([
+          rowsByIds(
+            sb,
+            'stripe_payments',
+            'payment_id,charge_id,amount,refunded_amount,status,paid_at,customer_email,refunded_at,currency,fx_rate_to_eur',
+            tenantId,
+            'payment_id',
+            references
+          ),
+          rowsByIds(
+            sb,
+            'stripe_payments',
+            'payment_id,charge_id,amount,refunded_amount,status,paid_at,customer_email,refunded_at,currency,fx_rate_to_eur',
+            tenantId,
+            'charge_id',
+            references
+          ),
+        ])
+      : [[], []]
     const stripePayments = [
       ...new Map([...stripeByPayment, ...stripeByCharge].map((row) => [row.payment_id, row])).values(),
     ]
@@ -244,19 +259,23 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       if (campaignId) campaignSpend[campaignId] = (campaignSpend[campaignId] ?? 0) + Number(row.spend ?? 0)
     }
 
-    const result = buildRevenueAttribution({
-      appointments,
-      sales,
-      collections: collections as RevenueCollection[],
-      refunds: refunds as RevenueRefund[],
-      stripePayments: stripePayments as StripePaymentRow[],
-      catalog,
-      campaignSpend: from && to ? campaignSpend : undefined,
-    })
+    const result = buildRevenueAttribution(
+      {
+        appointments,
+        sales,
+        collections: collections as RevenueCollection[],
+        refunds: refunds as RevenueRefund[],
+        stripePayments: stripePayments as StripePaymentRow[],
+        catalog,
+        campaignSpend: from && to ? campaignSpend : undefined,
+      },
+      { includeCash }
+    )
 
     return NextResponse.json({
       ok: true,
       ...result,
+      metrics: includeCash ? 'full' : 'bookings',
       period: {
         from,
         to,

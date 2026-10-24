@@ -150,6 +150,64 @@ test('construye agenda → asistencia → venta → cash sin inventar anuncios n
   )
 })
 
+test('metrics=bookings (includeCash: false) mantiene agendas/asistencias/cierres y declara que el cash NO se leyó', () => {
+  const appointments = [
+    appointment('a1', 'c1', 'show', {
+      attribution_booking: { campaign_id: '120252786405750750', ad_id: '120299999999999999' },
+    }),
+    appointment('a2', 'c2', 'no_show', {
+      attribution_booking: { campaign_id: '120252786405750750', ad_id: '120299999999999999' },
+    }),
+  ]
+  const result = buildRevenueAttribution(
+    {
+      appointments,
+      sales: [sale('s1', 'c1', 'a1', 100)],
+      collections: [
+        {
+          id: 'col1',
+          sale_id: 's1',
+          payment_reference: 'pi_1',
+          gross_amount: 100,
+          status: 'collected',
+          collected_at: '2026-10-02T12:00:00Z',
+        },
+      ],
+      refunds: [],
+      stripePayments: [],
+      catalog,
+      campaignSpend: { [campaignId]: 200 },
+    },
+    { includeCash: false }
+  )
+
+  // El embudo CRM (lo que pide Anuncios) no cambia.
+  assert.equal(result.cashIncluded, false)
+  assert.equal(result.summary.booked, 2)
+  assert.equal(result.summary.shows, 1)
+  assert.equal(result.summary.noShows, 1)
+  assert.equal(result.summary.sales, 1, 'los cierres salen de sales, que sí se lee en modo bookings')
+  assert.equal(result.coverage.adAttributed, 2)
+
+  // Lo derivado de cash queda a cero declarado, no a cero medido.
+  assert.equal(result.summary.cashCollected, 0)
+  assert.equal(result.coverage.cashCollected, 0)
+  assert.equal(result.coverage.cashAttributed, 0)
+  assert.equal(result.campaigns.find((row) => row.resolved)?.cashRoas, null)
+})
+
+test('la ruta acepta metrics=bookings y en ese modo NO lanza las lecturas de cash', () => {
+  const route = readFileSync('app/api/[tenant]/evergreen/meta/revenue-attribution/route.ts', 'utf8')
+  assert.match(route, /searchParams\.get\('metrics'\)/)
+  assert.match(route, /metrics !== 'bookings'/)
+  // Las tres lecturas de cash van condicionadas a includeCash; si alguien las deja incondicionales,
+  // el modo bookings vuelve a ser tan caro como el completo.
+  assert.match(route, /const collections = includeCash\s*\?\s*await rowsByIds\(/)
+  assert.match(route, /const refunds = includeCash\s*\?\s*await rowsByIds\(/)
+  assert.match(route, /const \[stripeByPayment, stripeByCharge\] = includeCash\s*\?\s*await Promise\.all\(/)
+  assert.match(route, /\{ includeCash \}/, 'el build recibe el modo')
+})
+
 test('devuelve null, no cero, cuando una tasa no tiene denominador', () => {
   const result = buildRevenueAttribution({
     appointments: [appointment('pending', 'contact', 'scheduled')],

@@ -72,6 +72,8 @@ export type RevenueAttributionResult = {
     cashCollected: number
     cashAttributed: number
   }
+  /** false = el consumidor pidió solo el embudo CRM y el cash NO se leyó: sus ceros no son medidos. */
+  cashIncluded: boolean
 }
 
 type SpendMap = Record<string, number>
@@ -112,13 +114,23 @@ function emptyRow(
   }
 }
 
-function finalize(row: RevenueAttributionRow): RevenueAttributionRow {
+/**
+ * Modo «sin cash»: cuando el consumidor solo pide el embudo CRM (agendas/asistencias/cierres,
+ * p. ej. las columnas de Anuncios), se saltan las lecturas de cobros, refunds y Stripe — el conteo
+ * de agendas y de cierres no cambia, pero todo lo derivado de cash (cashCollected, cashRoas y el
+ * cash de cobertura) queda a cero y el resultado lo declara con `cashIncluded: false`: un valor
+ * no pedido no es un cero medido.
+ */
+export type RevenueAttributionOptions = { includeCash?: boolean }
+
+function finalize(row: RevenueAttributionRow, includeCash = true): RevenueAttributionRow {
   return {
     ...row,
     showRate: ratio(row.shows, row.shows + row.noShows),
     closeRate: ratio(row.sales, row.shows),
     costPerBooking: row.spend === null ? null : moneyRatio(row.spend, row.booked),
-    cashRoas: row.spend === null ? null : moneyRatio(row.cashCollected, row.spend),
+    // Sin cash leído no hay ROAS: sería 0/spend = 0, un cero que parece medido y no lo es.
+    cashRoas: includeCash && row.spend !== null ? moneyRatio(row.cashCollected, row.spend) : null,
   }
 }
 
@@ -179,15 +191,21 @@ function cashForSale(
  * son los resultados posteriores de esa cohorte. Una venta ambigua queda fuera de la atribución y
  * se declara en cobertura: nunca se reparte ni se adivina.
  */
-export function buildRevenueAttribution(input: {
-  appointments: RevenueAppointment[]
-  sales: RevenueSale[]
-  collections: RevenueCollection[]
-  refunds: RevenueRefund[]
-  stripePayments: StripePaymentRow[]
-  catalog: MetaAttributionCatalog
-  campaignSpend?: SpendMap
-}): RevenueAttributionResult {
+export function buildRevenueAttribution(
+  input: {
+    appointments: RevenueAppointment[]
+    sales: RevenueSale[]
+    collections: RevenueCollection[]
+    refunds: RevenueRefund[]
+    stripePayments: StripePaymentRow[]
+    catalog: MetaAttributionCatalog
+    campaignSpend?: SpendMap
+  },
+  { includeCash = true }: RevenueAttributionOptions = {}
+): RevenueAttributionResult {
+  const collections = includeCash ? input.collections : []
+  const refunds = includeCash ? input.refunds : []
+  const stripePayments = includeCash ? input.stripePayments : []
   const eligibleAppointments = input.appointments.filter(
     (appointment) => !isCancelled(appointment.status) && !isRescheduled(appointment.status)
   )
@@ -279,7 +297,7 @@ export function buildRevenueAttribution(input: {
   let revenueAttributed = 0
 
   for (const sale of validSales) {
-    const cash = cashForSale(sale.id, input.collections, input.refunds, input.stripePayments)
+    const cash = cashForSale(sale.id, collections, refunds, stripePayments)
     totalCash += cash
     const appointment = appointmentForSale(sale, appointmentIndex)
     if (!appointment) continue
@@ -294,8 +312,10 @@ export function buildRevenueAttribution(input: {
     revenueAttributed += num(sale.gross_amount)
   }
 
-  const campaigns = [...campaignRows.values()].map(finalize).sort((a, b) => b.booked - a.booked)
-  const ads = [...adRows.values()].map(finalize).sort((a, b) => b.booked - a.booked)
+  const campaigns = [...campaignRows.values()]
+    .map((row) => finalize(row, includeCash))
+    .sort((a, b) => b.booked - a.booked)
+  const ads = [...adRows.values()].map((row) => finalize(row, includeCash)).sort((a, b) => b.booked - a.booked)
   const shows = eligibleAppointments.filter((appointment) => isAttended(appointment.status)).length
   const noShows = eligibleAppointments.filter((appointment) => isNoShow(appointment.status)).length
   const unresolved = eligibleAppointments.length - shows - noShows
@@ -305,28 +325,31 @@ export function buildRevenueAttribution(input: {
   return {
     campaigns,
     ads,
-    summary: finalize({
-      ...emptyRow(
-        'campaign',
-        'summary',
-        {
-          campaignId: null,
-          campaignExternalId: null,
-          campaignName: null,
-          adId: null,
-          adName: null,
-          resolved: true,
-        },
-        spend
-      ),
-      booked: eligibleAppointments.length,
-      shows,
-      noShows,
-      unresolved,
-      sales: salesAttributed,
-      bookedRevenue: revenueAttributed,
-      cashCollected: cashAttributed,
-    }),
+    summary: finalize(
+      {
+        ...emptyRow(
+          'campaign',
+          'summary',
+          {
+            campaignId: null,
+            campaignExternalId: null,
+            campaignName: null,
+            adId: null,
+            adName: null,
+            resolved: true,
+          },
+          spend
+        ),
+        booked: eligibleAppointments.length,
+        shows,
+        noShows,
+        unresolved,
+        sales: salesAttributed,
+        bookedRevenue: revenueAttributed,
+        cashCollected: cashAttributed,
+      },
+      includeCash
+    ),
     coverage: {
       booked: eligibleAppointments.length,
       campaignAttributed: eligibleAppointments.filter(
@@ -340,5 +363,6 @@ export function buildRevenueAttribution(input: {
       cashCollected: totalCash,
       cashAttributed,
     },
+    cashIncluded: includeCash,
   }
 }
