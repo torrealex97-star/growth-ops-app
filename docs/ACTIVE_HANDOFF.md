@@ -1,4 +1,28 @@
-# COMPLETADO — Cuenta Vercel compartida con Closer IA Ops: decisión «separa si el plan lo permite» (24-oct, Freebuff)
+# RELEVO (24-oct, tarde — Buffy) — estado del repo e hilos candidatos para el próximo agente
+
+**Estado verificado esta pasada:** `main` en `2e1102bd` (PRs del día fusionados: #635 RLS
+InitPlan aplicada en producción, #636 whitelist de branding, #637/#638 docs/e2e-cleanup, PR de
+docs/el acta incluidos), locales limpios y sin ficheros untracked de scratch. Producción
+`app.scalixsystems.com` **verificada por smoke** (home/login/tracker/loader 200,
+`x-vercel-cache: HIT`): sirve `770c87c7` y el último push `2e1102bd` es solo docs — el código
+servido es equivalente. La migración del whitelist de branding está en `main` (PR #636) y
+registrada en `schema_migrations`. Worktrees basura de `.freebuff/` eliminados; las ramas
+`cf-custom-fields-pr`, `docs/handoff-clarity`, `fix/f1-raw-events-unique-total` y
+`docs/consolidacion-y-relevo` se conservan en refs (commits sin fusionar, sin relevo activo).
+
+**Hilos candidatos (por orden sugerido):**
+
+1. **Dependabot abierto:** #630 (grupo minor y patch, checks en verde), #631 y #632 (bumps
+   mayores, revisar CI antes de fusionar). Fusionar por familias, no en lote.
+2. **Bucle EXPLAIN abierto** del cierre de la migración RLS (#635): medir el efecto real del
+   InitPlan/índices sobre las lecturas de `appointments` con `pg_stat_statements`.
+3. **identify visitante→contacto sin escribir (23-oct):** causa raíz documentada en el bloque
+   «DIAGNÓSTICO» — la landing no carga `loader.js` ni el player; la parte (b) opcional en código
+   (que `loader.js` emita `window.gop('lead', …)` al identificar) es el hilo de código pendiente.
+4. **Bloqueos del dueño** que frenan el resto: secretos del backup, migraciones pendientes de
+   aplicar (`20261023100000_lanzamientos.sql`, las dos de forms si siguen sin aplicar),
+   suscripción de webhook de Calendly, activación CAPI/Pixel y Meta CAPI. La lista completa está
+   más abajo en «PENDIENTES DEL DUEÑO».
 
 # COMPLETADO — Aplicar y verificar la migración 20261006090000 (RLS InitPlan + índices FK) en producción (24-oct, Freebuff)
 
@@ -50,13 +74,16 @@ Estado real medido en producción:
 Aplicado con dry-run previo (BEGIN…ROLLBACK con `SET LOCAL ROLE anon` y aserciones) y verificado
 post-apply como anon: scalix devuelve `{name, accent, logo_url}` exacto, qa-e2e una fila con
 NULL, slug desconocido 0 filas; ACL reiterada (anon + authenticated). Registrado en
-`supabase_migrations.schema_migrations` como `20261024120000/public_tenant_branding_whitelist` con
-los statements — queda el fichero dirty `supabase/migrations/20261024120000_public_tenant_branding_whitelist.sql`.
+`supabase_migrations.schema_migrations` como `20261024120000/public_tenant_branding_whitelist` y el
+fichero
+[supabase/migrations/20261024120000_public_tenant_branding_whitelist.sql](../supabase/migrations/20261024120000_public_tenant_branding_whitelist.sql)
+está fusionado en `main` (PR #636).
 
 Regla que queda escrita: **lo público de tenants es EXACTAMENTE la proyección de la RPC; ninguna
 nueva clave de branding sale por accidente** — si pintara algo más, hay que añadirlo a mano en la
 whitelist. Ojo SCALABILITY no aplica; código app ni lecturas cambian.
-=======
+
+# COMPLETADO — Cuenta Vercel compartida con Closer IA Ops: decisión «separa si el plan lo permite» (24-oct, Freebuff)
 
 Pregunta del usuario: Closer IA Ops (proyecto propio, ajeno a Growth Ops) compartía equipo de Vercel
 con producción de Growth Ops; ¿separa a otro team si el plan lo permite o si conviene? Evaluación:
@@ -67,8 +94,6 @@ Pro (con owner en origen y miembro en destino). Decisión del propietario asumid
 [FREE_TIER_OPERATIONS.md](FREE_TIER_OPERATIONS.md): consecuencias compartidas (misma bolsa de CPU,
 mismo slot de build), disparadores para reabrir la separación y las dos vías (cuenta nueva Hobby +
 reimport, o Pro + Transfer). Sin cambios de código ni de Vercel.
-
-> > > > > > > 07e44148 (docs: decision 24-oct sobre la cuenta Vercel compartida con Closer IA Ops (dejarla igual, disparadores y vias de separacion))
 
 # COMPLETADO — Atribuciones, agendas y ventas de colaboradoras visibles en las métricas (24-oct)
 
@@ -894,8 +919,6 @@ esperaban (registro completo con evidencia en el hallazgo de cada módulo):
 - **Relationado:** PRs #479/#481/#482 propias abierta (SPEC-04/05/06). Sus contratos y los
   del plan de corrección vigente son insumos directos de PR-1+; coordinación por tablero.
 - **Base:** `b71dcf55` (merge de #480).
-
-> > > > > > > bb71b194 (docs(spec07): PR-0 vigencia de la auditoría de dashboards del 25-sep y delta SPEC-07)
 
 # EN CURSO — SPEC-06 PR-0: audit de Person 360 y Customer Journey (13-oct, Buffy) · rama `feat/spec06-pr0-person360-audit`
 
@@ -4334,17 +4357,19 @@ suscripción). La venta sin closer del 3-oct sigue requiriendo corrección manua
 
 ## Tablero de reclamaciones (en curso AHORA)
 
-**CODEX — DASHBOARD & METRIC AUDIT (25-sep):** Ampliación tras browser: reclama filtros tenant en `dashboard/page.tsx`, `unit-economics/page.tsx`, `finanzas/analitica/{resumen,pnl,cohortes,proyeccion}/page.tsx`, CTR en `marketing/adquisicion/campanas/page.tsx` y tests asociados. No toca RLS ni motor financiero. auditoría transversal solicitada por el usuario; rama `codex/dashboard-metric-audit`. Reclama `DASHBOARD_AUDIT.md`, `DASHBOARD_CORRECTION_PLAN.md`, sección propia de relevo y fix acotado del conteo HEAD de contactos en `lib/ai/agent/tools.ts` con `tests/metrics/agent-overview-count.test.mjs`. Inspección de código y producción de solo lectura; ningún cambio de datos. No tocar el WIP del checkout Documents ni las migraciones/gastos reclamados por Claude Code. Regla KPI: definición → fuente → completitud → periodo → maduración → asignación → cálculo → benchmark orientativo.
+**CODEX — DASHBOARD & METRIC AUDIT (25-sep):** COMPLETADA — la auditoría y el plan corregido ya
+están en `main` ([DASHBOARD_AUDIT.md](DASHBOARD_AUDIT.md),
+[DASHBOARD_CORRECTION_PLAN.md](DASHBOARD_CORRECTION_PLAN.md)); la rama `codex/dashboard-metric-audit`
+no existe en local ni remoto. Retirada de reclamación activa el 24-oct.
 
 Carriles y reglas en `AGENTS.md` › "Trabajo en paralelo". **Antes de empezar, añade tu fila; al
 fusionar, bórrala.** Si lo que vas a tocar está aquí a nombre de otro, no lo toques.
 
-| Agente      | Qué                                                                                                                                                                                                                                                      | Rama                         | Toca                                                         | Desde  |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- | ------------------------------------------------------------ | ------ |
-| Freebuff    | Cierre de dependabots: #439 merged (googleapis, CI verde); #437/#438 majors APLAZADAS (react-table v9, eslint 10 rompen CI); #518 grupo minor bloqueado por lockstep typescript-eslint (ver comentario propio); pendiente PR de config en dependabot.yml | `main` + ramas dependabot    | `package.json`/lock (solo vía dependabot), docs, migraciones | 3-oct  |
-| Freebuff    | Retirar el acta `audit_logs` de la limpieza E2E (1 fila/corrida en producción, 753 desde el 28-sep; ruido QA, no negocio) + test de regresión                                                                                                            | `chore/e2e-cleanup-sin-acta` | `lib/e2e/limpieza.ts`, `tests/e2e-limpieza.test.mjs`         | 24-oct |
-| Codex       | PR #325 reservation-refunds (E2E en rojo, su autor continúa)                                                                                                                                                                                             | `codex/reservation-refunds`  | ventas/cobros (según su rama)                                | 3-oct  |
-| Claude Code | Plan: F01 (RLS colaborador, P0), F19; sin rama activa aún                                                                                                                                                                                                | —                            | `docs/plan/`, migraciones RLS                                | 3-oct  |
+| Agente      | Qué                                                                                                                                                                  | Rama                         | Toca                                                         | Desde  |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- | ------------------------------------------------------------ | ------ |
+| Freebuff    | Cierre de dependabots: 3 PR abiertos — #630 grupo minor (checks verdes), #631 y #632 bumps mayores (revisar CI antes de fusionar). Fusionar por familias, no en lote | `main` + ramas dependabot    | `package.json`/lock y `dependabot.yml` (solo vía dependabot) | 23-oct |
+| Freebuff    | ~~Retirar el acta `audit_logs` de la limpieza E2E~~ HECHO (PR #638 fusionado 24-oct, CI verde, rama borrada); fila se retira al escribir el relevo                   | `chore/e2e-cleanup-sin-acta` | —                                                            | 24-oct |
+| Claude Code | Plan: F01 (RLS colaborador, P0), F19; sin rama activa aún — fila sin relevo desde 3-oct, verificar antes de continuar                                                | —                            | `docs/plan/`, migraciones RLS                                | 3-oct  |
 
 ## Reglas de trabajo (2026-09-21)
 
