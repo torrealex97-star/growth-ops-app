@@ -16,6 +16,7 @@ import { HISTORY_CAPABILITIES } from '@/lib/integrations/history'
 import { serviceClient, syncCalendly, syncGhl } from '@/lib/integrations/citas-sync'
 import { ensureWebhookSubscription } from '@/lib/calendly'
 import { encryptSecret, getConfigEncryptionKeyFingerprint, invalidateConfigCache } from '@/lib/config'
+import { cargarHistorialTypeform, codificarCursor, decodificarCursor } from '@/lib/typeform/historial'
 import { backfillAtribucionLocal } from '@/lib/contacts/backfill-atribucion'
 import { backfillCampaignId } from '@/lib/contacts/backfill-campaign-id'
 import { runMetaAdsSync, runMetaDailySync, runMetaSync } from '@/lib/meta/sync'
@@ -244,6 +245,47 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
         accion: resultado.accion,
         uri: resultado.uri,
         signingKeyActualizada: resultado.signingKeyNueva !== null,
+      })
+    }
+    if (body.provider === 'typeform') {
+      // Respuestas ANTERIORES al webhook (o de formularios sin webhook): se leen por API y pasan por el mismo
+      // motor, que las encaja con el contacto y las copia a sus agendas. Por lotes: cada petición cabe en 60 s
+      // y devuelve un cursor (`nextPageToken`) para la siguiente. No crea contactos.
+      const cursor = decodificarCursor(typeof body.cursor === 'string' ? body.cursor : null)
+      const lote = await recordSyncRun(
+        sb,
+        {
+          tenantId: auth.tenantId,
+          provider: 'typeform',
+          job: 'typeform-historico',
+          trigger: 'historico',
+          secrets: [cfg.TYPEFORM_API_TOKEN],
+          requiere: { claves: ['TYPEFORM_API_TOKEN'], cfg },
+        },
+        () => cargarHistorialTypeform({ sb, tenantId: auth.tenantId, cfg, cursor }),
+        (r) => ({
+          rowsWritten: r.encajadas,
+          failures: r.errores > 0 ? [`${r.errores} respuestas no se pudieron procesar`] : [],
+          detail: {
+            procesadas: r.procesadas,
+            encajadas: r.encajadas,
+            sinContacto: r.sinContacto,
+            yaProcesadas: r.yaProcesadas,
+            tieneSiguienteLote: Boolean(r.siguiente),
+          },
+        })
+      )
+      return NextResponse.json({
+        provider: 'typeform',
+        imported: 0,
+        updated: lote.encajadas,
+        procesadas: lote.procesadas,
+        sinContacto: lote.sinContacto,
+        yaProcesadas: lote.yaProcesadas,
+        errores: lote.errores,
+        formulariosCompletos: lote.formulariosCompletos,
+        formulariosTotal: lote.formulariosTotal,
+        nextPageToken: lote.siguiente ? codificarCursor(lote.siguiente) : null,
       })
     }
     if (body.provider === 'fathom')

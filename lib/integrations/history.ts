@@ -53,6 +53,13 @@ export const HISTORY_CAPABILITIES: Record<string, HistoryCapability> = {
     reach: 'Todo el histórico de calendarios de la subcuenta, reanudando por lotes hasta el final.',
     slow: true,
   },
+  typeform: {
+    provider: 'typeform',
+    brings: 'Respuestas de formularios anteriores al webhook, unidas a su contacto y a sus citas.',
+    reach: 'Los últimos 120 días de todos los formularios; solo con contactos ya existentes, sin crear leads.',
+    sinceDays: 120,
+    slow: true,
+  },
   fathom: {
     provider: 'fathom',
     brings: 'Grabaciones y transcripciones, emparejadas con la cita a la que pertenecen.',

@@ -36,3 +36,18 @@ Un formulario es de feedback si su URL lleva el campo oculto `purpose=feedback` 
 ## Qué queda registrado
 
 `raw_events` (payload completo, también los rechazos de firma, sin cuerpo) y `canonical_events` con `typeform.formulario.enviado` (sin datos personales: formulario, propósito, nº de respuestas, nota).
+
+## Histórico (respuestas anteriores al webhook)
+
+El webhook solo recoge lo que llega **después** de crearlo. Quien rellenó el formulario antes —o en un formulario sin webhook— llega a la agenda sin sus respuestas. Para recuperarlas:
+
+1. Typeform → Account → **Personal tokens** → generar un token con `forms:read` y `responses:read`. Pegarlo en Integraciones → Typeform → «Token personal» (y `eu` en «Región» si la cuenta es del centro de datos europeo).
+2. Integraciones → Typeform → **Sincronizar histórico**. Recorre todos los formularios de la cuenta (últimos 120 días), por lotes reanudables.
+
+Reglas:
+
+- Pasa por el **mismo motor** que el webhook (`procesarRespuestaTypeform`): idempotente por el `token` de la respuesta; lo ya normalizado se salta.
+- **No crea contactos**: solo encaja con los existentes (email principal, email alternativo recordado, teléfono). Crear cientos de leads con fecha antigua movería las métricas de periodos cerrados. Lo que no encaja queda en `raw_events` y se cuenta como «sin contacto».
+- Un email repetido en varios contactos, o un teléfono compartido, **no se adivina**.
+- Copia las respuestas a las agendas existentes no canceladas (la agenda manda en lo que ya contestó).
+- Límite: si la persona usó en Typeform un correo distinto al de Calendly y no hay teléfono en común, no hay forma segura de unirlos automáticamente.

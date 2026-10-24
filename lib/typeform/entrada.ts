@@ -84,7 +84,39 @@ export async function procesarEntradaTypeform(opciones: {
     return Response.json({ error: 'JSON inválido' }, { status: 400 })
   }
 
-  const respuesta = normalizarRespuestaTypeform(payload, listaFormulariosFeedback(cfg.TYPEFORM_FEEDBACK_FORMS))
+  const { status, cuerpo } = await procesarRespuestaTypeform(sb, tenantId, payload, {
+    formulariosFeedback: listaFormulariosFeedback(cfg.TYPEFORM_FEEDBACK_FORMS),
+    bytes: crudo.length,
+    userAgent: req.headers.get('user-agent'),
+    origen: req.headers.get('origin'),
+  })
+  return Response.json(cuerpo, { status })
+}
+
+export type ResultadoRespuestaTypeform = { status: number; cuerpo: Record<string, unknown> }
+
+/**
+ * Procesa UNA respuesta de Typeform ya autenticada (firma del webhook verificada, o leída por la API con el
+ * token de la subcuenta): guarda el sobre en raw_events, proyecta sobre el contacto y escribe el hecho
+ * canónico. Es el mismo camino para el webhook y para la carga del histórico: una sola lógica, sin deriva.
+ *
+ * `soloExistentes`: no crea contactos nuevos (solo encaja con los que ya hay). Lo usa el histórico, porque
+ * crear con fecha antigua cientos de leads de golpe movería las métricas de periodos ya cerrados.
+ */
+export async function procesarRespuestaTypeform(
+  sb: Servicio,
+  tenantId: string,
+  payload: Record<string, unknown>,
+  opciones: {
+    formulariosFeedback: readonly string[]
+    bytes: number
+    userAgent: string | null
+    origen: string | null
+    soloExistentes?: boolean
+  }
+): Promise<ResultadoRespuestaTypeform> {
+  const { formulariosFeedback, bytes: crudoBytes, userAgent, origen } = opciones
+  const respuesta = normalizarRespuestaTypeform(payload, formulariosFeedback)
   if (!respuesta) {
     // Firma válida pero no es una respuesta de formulario: se guarda ENTERO para reprocesarlo cuando
     // se entienda, y 200 para que Typeform no reintente algo que un reintento no cambia.
@@ -92,14 +124,17 @@ export async function procesarEntradaTypeform(opciones: {
       tenant_id: tenantId,
       source: 'typeform',
       payload,
-      payload_bytes: crudo.length,
+      payload_bytes: crudoBytes,
       processing_status: 'rejected',
       rejection_reason: 'evento no reconocido por el normalizador',
       normalizer_version: NORMALIZADOR,
-      user_agent: req.headers.get('user-agent'),
+      user_agent: userAgent,
     })
     if (error) console.error('[typeform-webhook] no se pudo registrar el evento no reconocido:', error.message)
-    return Response.json({ recibido: true, registrado: true, procesado: false, motivo: 'evento no reconocido' })
+    return {
+      status: 200,
+      cuerpo: { recibido: true, registrado: true, procesado: false, motivo: 'evento no reconocido' },
+    }
   }
 
   const ahora = new Date().toISOString()
@@ -120,10 +155,10 @@ export async function procesarEntradaTypeform(opciones: {
         source_event_id: respuesta.token,
         normalizer_version: NORMALIZADOR,
         payload,
-        payload_bytes: crudo.length,
+        payload_bytes: crudoBytes,
         processing_status: 'received' as const,
-        user_agent: req.headers.get('user-agent'),
-        request_origin: req.headers.get('origin'),
+        user_agent: userAgent,
+        request_origin: origen,
       },
       { onConflict: 'tenant_id,source,source_event_id', ignoreDuplicates: false }
     )
@@ -132,12 +167,12 @@ export async function procesarEntradaTypeform(opciones: {
   if (errorSobre || !sobre) {
     // Fallo nuestro y transitorio: 500 para que Typeform reintente y el sobre acabe guardado.
     console.error('[typeform-webhook] no se pudo guardar el sobre:', errorSobre?.message)
-    return Response.json({ error: 'No se pudo registrar el evento' }, { status: 500 })
+    return { status: 500, cuerpo: { error: 'No se pudo registrar el evento' } }
   }
   const sobreId = sobre.id as string
 
   // Todas las salidas pasan por aquí: así el sobre nunca se queda en «received» para siempre.
-  const responder = async (cuerpo: Record<string, unknown>, status = 200) => {
+  const responder = async (cuerpo: Record<string, unknown>, status = 200): Promise<ResultadoRespuestaTypeform> => {
     const fallo = status >= 400
     const { error } = await sb
       .from('raw_events')
@@ -148,7 +183,7 @@ export async function procesarEntradaTypeform(opciones: {
       })
       .eq('id', sobreId)
     if (error) console.warn('[typeform-webhook] no se pudo cerrar el sobre:', error.message)
-    return Response.json(cuerpo, { status })
+    return { status, cuerpo }
   }
 
   const base = {
@@ -166,7 +201,7 @@ export async function procesarEntradaTypeform(opciones: {
 
   const contactId =
     respuesta.proposito === 'lead'
-      ? await proyectarLead(sb, tenantId, respuesta, ahora)
+      ? await proyectarLead(sb, tenantId, respuesta, ahora, opciones.soloExistentes === true)
       : await buscarContacto(sb, tenantId, respuesta)
   if (contactId === 'error') return responder({ error: 'Error resolviendo el contacto' }, 500)
 
@@ -190,8 +225,16 @@ async function proyectarLead(
   sb: Servicio,
   tenantId: string,
   r: RespuestaTypeform,
-  ahora: string
-): Promise<string | 'error'> {
+  ahora: string,
+  soloExistentes = false
+): Promise<string | null | 'error'> {
+  if (soloExistentes) {
+    const existente = await buscarContactoExistente(sb, tenantId, r)
+    if (!existente || existente === 'error') return existente
+    await registrarOrigen(sb, tenantId, existente, r.ocultos, { source: 'typeform', enEl: r.enviadoEn ?? ahora })
+    await guardarCualificacion(sb, tenantId, existente, r.cualificacion, ahora)
+    return existente
+  }
   const nombreCompleto = [r.nombre, r.apellidos].filter(Boolean).join(' ') || null
   const resolved = await getOrCreateContact(sb, tenantId, {
     email: r.email,
@@ -210,6 +253,53 @@ async function proyectarLead(
   await registrarOrigen(sb, tenantId, contactId, r.ocultos, { source: 'typeform', enEl: r.enviadoEn ?? ahora })
   await guardarCualificacion(sb, tenantId, contactId, r.cualificacion, ahora)
   return contactId
+}
+
+/**
+ * Encaja con un contacto que YA existe, sin crear nada: correo principal, correo alternativo recordado y
+ * teléfono (solo dígitos, como se guarda en `phone_normalized`). Un contacto absorbido por una fusión no cuenta.
+ */
+async function buscarContactoExistente(
+  sb: Servicio,
+  tenantId: string,
+  r: RespuestaTypeform
+): Promise<string | null | 'error'> {
+  if (r.email) {
+    const { data, error } = await sb
+      .from('contacts')
+      .select('id')
+      .eq('tenant_id', tenantId)
+      .is('merged_into', null)
+      .eq('email_normalized', r.email)
+      .limit(2)
+    if (error) return 'error'
+    if (data?.length === 1) return data[0].id as string
+    if (data && data.length > 1) return null
+    const alias = await sb
+      .from('contacts')
+      .select('id')
+      .eq('tenant_id', tenantId)
+      .is('merged_into', null)
+      .contains('custom_fields', { emails_alternativos: [r.email] })
+      .limit(2)
+    if (alias.error) return 'error'
+    if (alias.data?.length === 1) return alias.data[0].id as string
+    if (alias.data && alias.data.length > 1) return null
+  }
+  const digitos = (r.telefono ?? '').replace(/\D/g, '')
+  if (digitos.length >= 8) {
+    const { data, error } = await sb
+      .from('contacts')
+      .select('id')
+      .eq('tenant_id', tenantId)
+      .is('merged_into', null)
+      .eq('phone_normalized', digitos)
+      .limit(2)
+    if (error) return 'error'
+    // Un teléfono compartido (pareja, familia) no identifica a una sola persona: no se adivina.
+    if (data?.length === 1) return data[0].id as string
+  }
+  return null
 }
 
 /** Feedback: solo se ENCUENTRA a la persona (email, luego teléfono); nunca se crea un contacto. */
