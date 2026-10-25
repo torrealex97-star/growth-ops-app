@@ -61,6 +61,23 @@ test('session: una sesión por vídeo+anon, con device/country/UA capturados', (
   assert.match(route, /slug y anonId requeridos/, 'valida entrada mínima')
 })
 
+test('session: el INSERT lleva tenant_id del vídeo resuelto (regresión del 23502 que 500aba el tracking)', () => {
+  const route = lee('app/api/vsl/session/route.ts')
+  // Regresión 25-oct: la migración 20260911150000 declaró vsl_sessions.tenant_id NOT NULL sin
+  // trigger que lo rellene; sin este valor en el INSERT solo subía al error 23502 y el tracking
+  // VSL completo (sesiones, playbacks, latidos) llevaba semanas sin escribir una fila.
+  assert.match(
+    route,
+    /INSERT INTO vsl_sessions \(tenant_id, video_id, anon_id, referrer,/,
+    'la fila nace ya scoping al tenant del vídeo'
+  )
+  assert.match(
+    route,
+    /VALUES \(\$\{video\.tenant_id\}, \$\{video\.id\}, \$\{anonId\}/,
+    'tenant_id viene del vídeo canónico (resolvePublicVsl), nunca del cliente'
+  )
+})
+
 // ---------------------------------------------------------------------------
 // 4. TENANT ISOLATION: toda query tenant-side lleva filtro explícito
 // ---------------------------------------------------------------------------
