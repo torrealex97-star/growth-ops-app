@@ -21,7 +21,10 @@ test('el motion poster usa el preview ligero de Bunny y conserva fallback estát
   assert.match(player, /derivadosDeSource\(src\)/)
   assert.match(player, /bunnyAssets\.preview/)
   assert.match(player, /poster &&/)
-  assert.match(player, /motionPosterReady && motionPoster/)
+  // 24-oct: la intención de cargar el webp se llama posterIntentReady (misma semántica) y el
+  // webp de Bunny queda excluido cuando el tenant eligió su propio segmento de bucle.
+  assert.match(player, /posterIntentReady && motionPoster/)
+  assert.match(player, /cfg\.animationSource !== 'custom'/)
 })
 
 test('ahorro de datos, reduced motion e intersección evitan descargar animación innecesaria', () => {
@@ -57,4 +60,13 @@ test('la vista previa reacciona al autoplay y cada vídeo aísla su estado', () 
   assert.match(player, /cfg\.autoplay, cfg\.tryAudioAutoplay, ready/)
   assert.match(dashboard, /key=\{selectedVideo\.id\}/)
   assert.match(dashboard, /Autoplay reproduce el vídeo directamente y oculta la portada/)
+})
+
+test('24-oct: la miniatura dinámica admite segmento a medida y el play del embed se precarga', () => {
+  assert.match(dashboard, /setCfg\('animationSource'/)
+  assert.match(dashboard, /setCfg\('previewStartSeconds'/)
+  assert.match(dashboard, /setCfg\('previewSeconds'/)
+  // Precarga gobernada del reproductor: idempotente y por intención, con primer fragmento pedido.
+  assert.match(player, /prefetchStartedRef/)
+  assert.match(player, /startFragPrefetch: true/)
 })

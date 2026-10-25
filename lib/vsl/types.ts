@@ -20,6 +20,13 @@ export interface VslConfig {
   thumbnailMode: 'static' | 'animated' // poster inmediato o preview WebP de Bunny cargada bajo demanda
   thumbnailText: string // contexto breve sobre la portada; vacío = sin texto
   showDurationOnPlay: boolean // duración junto al play antes de iniciar
+  // Qué muestra la miniatura dinámica. 'bunny' = el preview.webp automático de Bunny (montaje de
+  // TODA la duración, fijado por Bunny Stream). 'custom' = bucle de vídeo real con el segmento
+  // elegido editorialmente (previewStartSeconds..previewStartSeconds+previewSeconds): máxima
+  // calidad/oferta de frames porque está corriendo el propio vídeo, no un webp muestreado.
+  animationSource: 'bunny' | 'custom'
+  previewStartSeconds: number // inicio del segmento dinámico (0 = desde el principio)
+  previewSeconds: number // duración del bucle dinámico (saneada a 2-12 s en mergeConfig)
 
   // --- Prueba social (contador "viendo ahora" / "ya lo vieron") ---
   socialProof: SocialProofMode // off | fake (inventado) | real (sesiones reales)
@@ -59,6 +66,11 @@ export const DEFAULT_CONFIG: VslConfig = {
   fakeProgress: true,
   loop: true,
   thumbnailMode: 'animated',
+  // V0-safe: el default conserva el comportamiento anterior (webp de Bunny), con el bucle
+  // arrancando desde el segundo 0 si un tenant antiguo activara 'custom' sin haberlo tocado.
+  animationSource: 'bunny',
+  previewStartSeconds: 0,
+  previewSeconds: 6,
   thumbnailText: '',
   showDurationOnPlay: true,
   socialProof: 'off',
@@ -91,7 +103,18 @@ interface VslVideo {
 
 export function mergeConfig(raw: unknown): VslConfig {
   const c = (raw ?? {}) as Partial<VslConfig>
-  return { ...DEFAULT_CONFIG, ...c }
+  // Clamps de los campos numéricos nuevos ANTES de persistir/servir: un 'Infinity' o un string
+  // podado a mano en el JSON de `config` rompería la lógica de bucle y (con ctaAtPercent-style
+  // lecturas) podría colgar el reproductor. 7200 s cubre cualquier VSL razonable (2 h).
+  const startSeg = Math.max(0, Math.floor(Number(c.previewStartSeconds) || 0))
+  const loopLen = Math.min(12, Math.max(2, Math.floor(Number(c.previewSeconds) || DEFAULT_CONFIG.previewSeconds)))
+  return {
+    ...DEFAULT_CONFIG,
+    ...c,
+    previewStartSeconds: Math.min(7200, startSeg),
+    previewSeconds: loopLen,
+    animationSource: c.animationSource === 'custom' ? 'custom' : 'bunny',
+  }
 }
 
 /**
