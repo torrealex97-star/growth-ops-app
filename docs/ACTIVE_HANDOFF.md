@@ -1,8 +1,18 @@
 # RELEVO (24-oct, tarde — Buffy) — estado del repo e hilos candidatos para el próximo agente
 
-**Estado verificado esta pasada:** `main` en `2e1102bd` (PRs del día fusionados: #635 RLS
-InitPlan aplicada en producción, #636 whitelist de branding, #637/#638 docs/e2e-cleanup, PR de
-docs/el acta incluidos), locales limpios y sin ficheros untracked de scratch. Producción
+**Estado verificado esta pasada:** `main` en `361b37c2` (25-oct: PR #640 VSL UI + PR #642 fix del
+500 de `/api/vsl/session`), locales limpios. **Fix #642 verificado END-TO-END en producción**:
+deploy `growth-ops-c8ijthcwu` Ready, dos POST sucesivos a `/api/vsl/session` devuelven 200 con el
+mismo `sessionId` (upsert por vídeo+anon, playback nuevo por POST como diseño) y en BD una
+`vsl_sessions` con `tenant_id` del vídeo + 2 playbacks + 2 `player_impression`; filas QA
+(`qa-smoke-*`) retiradas tras la prueba, residuo 0. El tracking VSL (sesiones, heatmaps, sync
+del % visto a contactos) vuelve a escribir desde este deploy — estuvo roto desde el 11-sep
+(migración `20260911150000` impuso `tenant_id NOT NULL` sin trigger y el INSERT no lo pasaba).
+Nota de repo: se limpiaron ficheros duplicados sufijo « 2» (1937 en `.next` + typeform/tests/
+test-results, todos byte-idénticos al original); persisten inertes copias dentro de `.git`
+(`index 2`, `AUTO_MERGE 2`…) — sugerido revisar la herramienta de sync que los genera.
+Estado previo de la pasada (24-oct tarde): PRs #635 RLS InitPlan aplicada en producción,
+#636 whitelist de branding, #637/#638 docs/e2e-cleanup, PR de docs/el acta incluidos. Producción
 `app.scalixsystems.com` **verificada por smoke** (home/login/tracker/loader 200,
 `x-vercel-cache: HIT`): sirve `770c87c7` y el último push `2e1102bd` es solo docs — el código
 servido es equivalente. La migración del whitelist de branding está en `main` (PR #636) y
@@ -4365,13 +4375,12 @@ no existe en local ni remoto. Retirada de reclamación activa el 24-oct.
 Carriles y reglas en `AGENTS.md` › "Trabajo en paralelo". **Antes de empezar, añade tu fila; al
 fusionar, bórrala.** Si lo que vas a tocar está aquí a nombre de otro, no lo toques.
 
-| Agente      | Qué                                                                                                                                                                  | Rama                         | Toca                                                         | Desde  |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- | ------------------------------------------------------------ | ------ |
-| Freebuff    | Cierre de dependabots: 3 PR abiertos — #630 grupo minor (checks verdes), #631 y #632 bumps mayores (revisar CI antes de fusionar). Fusionar por familias, no en lote | `main` + ramas dependabot    | `package.json`/lock y `dependabot.yml` (solo vía dependabot) | 23-oct |
-| Freebuff    | ~~Retirar el acta `audit_logs` de la limpieza E2E~~ HECHO (PR #638 fusionado 24-oct, CI verde, rama borrada); fila se retira al escribir el relevo                   | `chore/e2e-cleanup-sin-acta` | —                                                            | 24-oct |
+| Agente      | Qué                                                                                                                                                                                              | Rama                         | Toca                                                         | Desde  |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------- | ------------------------------------------------------------ | ------ |
+| Freebuff    | Cierre de dependabots: 3 PR abiertos — #630 grupo minor (checks verdes), #631 y #632 bumps mayores (revisar CI antes de fusionar). Fusionar por familias, no en lote                             | `main` + ramas dependabot    | `package.json`/lock y `dependabot.yml` (solo vía dependabot) | 23-oct |
+| Freebuff    | ~~Retirar el acta `audit_logs` de la limpieza E2E~~ HECHO (PR #638 fusionado 24-oct, CI verde, rama borrada); fila se retira al escribir el relevo                                               | `chore/e2e-cleanup-sin-acta` | —                                                            | 24-oct |
 | Freebuff    | VSL UI: ~~play instantáneo + miniatura dinámica con segmento elegible + borrado desde biblioteca~~ HECHO (PR #640 fusionado 24-oct, CI verde, rama borrada); fila retirada según regla de fusion |
-| Freebuff    | Fix 500 de `/api/vsl/session` (INSERT sin `tenant_id` desde la migración 20260911150000): INSERT con `tenant_id = video.tenant_id`, test de regresión y dry-run idempotencia en BD antes de fusionar | `fix/vsl-session-tenant-id` | `app/api/vsl/session/route.ts`, `tests/`, `docs/ACTIVE_HANDOFF.md` | 25-oct |
-| Claude Code | Plan: F01 (RLS colaborador, P0), F19; sin rama activa aún — fila sin relevo desde 3-oct, verificar antes de continuar                                                | —                            | `docs/plan/`, migraciones RLS                                | 3-oct  |
+| Claude Code | Plan: F01 (RLS colaborador, P0), F19; sin rama activa aún — fila sin relevo desde 3-oct, verificar antes de continuar                                                                            | —                            | `docs/plan/`, migraciones RLS                                | 3-oct  |
 
 ## Reglas de trabajo (2026-09-21)
 
