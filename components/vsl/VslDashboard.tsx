@@ -187,10 +187,15 @@ export function VslDashboard() {
     setTimeout(() => setCopied(false), 1800)
   }
 
-  const del = async (id: string) => {
-    if (!confirm('¿Borrar este vídeo y todas sus métricas?')) return
-    await fetch(`/api/${tenant}/evergreen/vsl/videos?id=${id}`, { method: 'DELETE' })
-    setSelected(null)
+  // Recibe el vídeo completo (no solo su id): si el borrado es de otro vídeo de la lista, la
+  // selección actual no se toca. Solo si se borra el que está abierto se limpia la selección.
+  const del = async (video: { id: string; slug: string }) => {
+    if (
+      !confirm(`¿Borrar «${video.slug}», sus configuraciones y todas sus métricas? Esta acción no recupera el vídeo.`)
+    )
+      return
+    await fetch(`/api/${tenant}/evergreen/vsl/videos?id=${video.id}`, { method: 'DELETE' })
+    if (selected === video.slug) setSelected(null)
     loadVideos()
   }
 
@@ -284,49 +289,64 @@ export function VslDashboard() {
                 const derived = derivadosDeSource(video.source_url)
                 const active = selected === video.slug
                 return (
-                  <button
+                  <div
                     key={video.id}
-                    type="button"
-                    onClick={() => setSelected(video.slug)}
-                    onMouseEnter={() => derived.preview && setPreviewSlug(video.slug)}
-                    onMouseLeave={() => setPreviewSlug((slug) => (slug === video.slug ? null : slug))}
-                    className={`group flex w-full gap-3 rounded-lg p-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
-                      active
-                        ? 'bg-brand-500/10 text-foreground'
-                        : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                    role="listitem"
+                    className={`group flex w-full items-center gap-1 rounded-lg transition-colors focus-within:outline-none focus-within:ring-2 focus-within:ring-brand-500 ${
+                      active ? 'bg-brand-500/10' : 'hover:bg-muted/50 focus-within:bg-muted/50'
                     }`}
-                    aria-current={active ? 'true' : undefined}
                   >
-                    <div className="relative aspect-video w-20 shrink-0 overflow-hidden rounded-md bg-black">
-                      {derived.thumbnail || video.poster_url ? (
-                        <img
-                          src={
-                            derived.preview && previewSlug === video.slug
-                              ? derived.preview
-                              : derived.thumbnail || video.poster_url || ''
-                          }
-                          alt=""
-                          loading="lazy"
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full items-center justify-center text-white/35">
-                          <Video className="h-4 w-4" />
-                        </div>
-                      )}
-                      {!video.source_url && <span className="absolute inset-y-0 left-0 w-0.5 bg-destructive" />}
-                    </div>
-                    <div className="min-w-0 flex-1 py-0.5">
-                      <p className="truncate text-sm font-medium">{video.name}</p>
-                      <p className="mt-1 truncate text-xs text-muted-foreground">
-                        {video.source_url
-                          ? video.duration_seconds > 0
-                            ? fmt(video.duration_seconds)
-                            : 'Lista'
-                          : 'Sin fuente'}
-                      </p>
-                    </div>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelected(video.slug)}
+                      onMouseEnter={() => derived.preview && setPreviewSlug(video.slug)}
+                      onMouseLeave={() => setPreviewSlug((slug) => (slug === video.slug ? null : slug))}
+                      className={`flex min-w-0 flex-1 gap-3 rounded-lg p-2 text-left transition-colors ${
+                        active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                      aria-current={active ? 'true' : undefined}
+                    >
+                      <div className="relative aspect-video w-20 shrink-0 overflow-hidden rounded-md bg-black">
+                        {derived.thumbnail || video.poster_url ? (
+                          <img
+                            src={
+                              derived.preview && previewSlug === video.slug
+                                ? derived.preview
+                                : derived.thumbnail || video.poster_url || ''
+                            }
+                            alt=""
+                            loading="lazy"
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full items-center justify-center text-white/35">
+                            <Video className="h-4 w-4" />
+                          </div>
+                        )}
+                        {!video.source_url && <span className="absolute inset-y-0 left-0 w-0.5 bg-destructive" />}
+                      </div>
+                      <div className="min-w-0 flex-1 py-0.5">
+                        <p className="truncate text-sm font-medium">{video.name}</p>
+                        <p className="mt-1 truncate text-xs text-muted-foreground">
+                          {video.source_url
+                            ? video.duration_seconds > 0
+                              ? fmt(video.duration_seconds)
+                              : 'Lista'
+                            : 'Sin fuente'}
+                        </p>
+                      </div>
+                    </button>
+                    {/* Borrado directo desde la lista (no solo el vídeo seleccionado). Deja de
+                          anidar un botón dentro de otro: aquí es un hermano, envuelto en hover. */}
+                    <button
+                      type="button"
+                      onClick={() => del(video)}
+                      aria-label={`Borrar vídeo ${video.name}`}
+                      className="mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 )
               })}
             </div>
@@ -746,7 +766,7 @@ export function VslDashboard() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => del(selectedVideo.id)}
+                      onClick={() => del(selectedVideo)}
                       className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                     >
                       <Trash2 className="mr-2 h-4 w-4" /> Borrar vídeo
@@ -976,6 +996,68 @@ function VideoForm({
                   <option value="static">Imagen fija</option>
                 </select>
               </div>
+              {config.thumbnailMode === 'animated' && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Qué se muestra en movimiento
+                  </Label>
+                  <select
+                    value={config.animationSource}
+                    onChange={(e) => setCfg('animationSource', e.target.value as VslConfig['animationSource'])}
+                    className="w-full rounded-md border border-white/15 bg-black/30 px-2.5 py-1.5 text-sm text-foreground"
+                  >
+                    <option value="bunny">Recorte automático de Bunny (miniatura WebP ligera)</option>
+                    <option value="custom">Segmento elegido — vídeo real, máxima calidad</option>
+                  </select>
+                  {config.animationSource === 'custom' &&
+                    (duration > 0 ? (
+                      <div className="space-y-3 rounded-md border border-white/10 bg-black/25 p-3">
+                        <div>
+                          <div className="flex items-center justify-between text-sm text-foreground">
+                            <span>El bucle empieza en el segundo</span>
+                            <span className="tabular-nums font-medium">{config.previewStartSeconds}s</span>
+                          </div>
+                          <input
+                            type="range"
+                            min={0}
+                            max={Math.max(0, duration - 1)}
+                            step={1}
+                            value={Math.min(config.previewStartSeconds, Math.max(0, duration - 1))}
+                            onChange={(e) => setCfg('previewStartSeconds', Number(e.target.value))}
+                            className="mt-1 w-full cursor-pointer"
+                            aria-label="Segundo en el que empieza el bucle dinámico"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            De 0 a {fmt(duration)} de vídeo — la vista previa de abajo enseña el bucle en vivo.
+                          </p>
+                        </div>
+                        <div>
+                          <div className="flex items-center justify-between text-sm text-foreground">
+                            <span>Duración del bucle</span>
+                            <span className="tabular-nums font-medium">{config.previewSeconds}s</span>
+                          </div>
+                          <input
+                            type="range"
+                            min={2}
+                            max={12}
+                            step={1}
+                            value={config.previewSeconds}
+                            onChange={(e) => setCfg('previewSeconds', Number(e.target.value))}
+                            className="mt-1 w-full cursor-pointer"
+                            aria-label="Duración en segundos del bucle dinámico"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Se repite en el póster sin descargar el vídeo completo (2-12 s).
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Sube el vídeo para poder ir al segundo exacto del bucle.
+                      </p>
+                    ))}
+                </div>
+              )}
               <Input
                 value={config.thumbnailText}
                 onChange={(e) => setCfg('thumbnailText', e.target.value.slice(0, 90))}
@@ -990,11 +1072,15 @@ function VideoForm({
                 />
                 Mostrar duración junto al botón de play
               </label>
-              {config.thumbnailMode === 'animated' && !derivadosDeSource(sourceUrl).preview && sourceUrl && (
-                <p className="text-xs text-amber-300">
-                  La animación automática necesita una fuente Bunny. Mientras tanto se usará la imagen fija.
-                </p>
-              )}
+              {config.thumbnailMode === 'animated' &&
+                config.animationSource === 'bunny' &&
+                !derivadosDeSource(sourceUrl).preview &&
+                sourceUrl && (
+                  <p className="text-xs text-amber-300">
+                    El recorte automático de Bunny necesita una fuente Bunny. Para otras fuentes elige «Segmento
+                    elegido» (funciona con mp4 y .m3u8) o usa la imagen fija.
+                  </p>
+                )}
               {config.autoplay && (
                 <p className="text-xs text-amber-300">
                   Autoplay reproduce el vídeo directamente y oculta la portada. Desactívalo para mostrar la miniatura y
