@@ -1064,9 +1064,10 @@ export default function IntegracionesPage() {
       }
       let imported = 0
       let updated = 0
+      let sinContacto = 0
       let cursor: string | null = null
       const resumeKey = `growth-ops:history:${tenant}:${g.id}`
-      const resumable = g.id === 'calendly' || g.id === 'ghl'
+      const resumable = g.id === 'calendly' || g.id === 'ghl' || g.id === 'typeform'
       if (resumable) {
         try {
           const saved = JSON.parse(localStorage.getItem(resumeKey) || 'null') as {
@@ -1097,6 +1098,7 @@ export default function IntegracionesPage() {
         // no mostrar 0 cuando el lote sí actualizó appointments.
         imported += j.appointmentsImported ?? j.imported ?? j.inserted ?? j.synced ?? j.total ?? 0
         updated += j.appointmentsUpdated ?? j.updated ?? j.matched ?? 0
+        sinContacto += j.sinContacto ?? 0
         const next = typeof j.nextPageToken === 'string' && j.nextPageToken ? j.nextPageToken : null
         if (!resumable || !next) {
           localStorage.removeItem(resumeKey)
@@ -1106,7 +1108,10 @@ export default function IntegracionesPage() {
         localStorage.setItem(resumeKey, JSON.stringify({ cursor, savedAt: Date.now() }))
       }
       toast.success(`${g.title}: histórico sincronizado`, {
-        description: `${imported} nuevos · ${updated} actualizados`,
+        description:
+          g.id === 'typeform'
+            ? `${updated} respuestas encajadas con su contacto y copiadas a sus agendas · ${sinContacto} sin contacto en el CRM (guardadas, sin crear leads)`
+            : `${imported} nuevos · ${updated} actualizados`,
       })
     } catch (error) {
       toast.error(`${g.title}: no se pudo sincronizar`, {
@@ -1124,6 +1129,7 @@ export default function IntegracionesPage() {
       calendly: ['CALENDLY_API_TOKEN'],
       ghl: ['GHL_API_TOKEN', 'GHL_LOCATION_ID'],
       fathom: ['FATHOM_API_KEY'],
+      typeform: ['TYPEFORM_API_TOKEN'],
     }
     return (requiredByProvider[groupId] || []).every((key) => state[key]?.source !== 'none')
   }

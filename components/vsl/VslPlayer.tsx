@@ -118,6 +118,8 @@ export function VslPlayer({
   const hasPlayedRef = useRef(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const hlsRef = useRef<HlsType | null>(null)
+  const loopVideoRef = useRef<HTMLVideoElement>(null)
+  const loopHlsRef = useRef<HlsType | null>(null)
 
   const [muted, setMuted] = useState(video.config.muted ?? true)
   const [playing, setPlaying] = useState(false)
@@ -131,7 +133,9 @@ export function VslPlayer({
   const [showExitHook, setShowExitHook] = useState(false) // overlay "no te vayas"
   const exitShownRef = useRef(0) // veces mostrado (máx 2/sesión)
   const [showCta, setShowCta] = useState(false) // CTA programado (paridad Vidalytics)
-  const [motionPosterReady, setMotionPosterReady] = useState(false)
+  // La intención de cargar artefactos del póster (webp animado o bucle de vídeo) solo cuando
+  // el reproductor entra en viewport y el dispositivo colabora (sin saveData ni reduce-motion).
+  const [posterIntentReady, setPosterIntentReady] = useState(false)
   const ctaShownRef = useRef(false) // ya se disparó en esta sesión
   const ctaDismissedRef = useRef(false) // el usuario lo cerró (si ctaOnce)
 
@@ -141,20 +145,81 @@ export function VslPlayer({
   const bunnyAssets = derivadosDeSource(src)
   const poster = video.poster_url || bunnyAssets.thumbnail
   const motionPoster = cfg.thumbnailMode === 'animated' ? bunnyAssets.preview : null
+  // Bucle dinámico "a medida": el usuario eligió el segmento (config.animationSource 'custom').
+  // Requisitos: fuente VP/HLS de Bunny (para ABR de la calidad mínima) o un .mp4 directo, sin
+  // autoplay (la portada solo existe en ese modo) y con la intención de carga ya resuelta.
+  const loopStart = Math.max(0, Number(cfg.previewStartSeconds) || 0)
+  const loopLen = Math.min(12, Math.max(2, Math.floor(Number(cfg.previewSeconds) || 6)))
+  const canLoop =
+    cfg.thumbnailMode === 'animated' &&
+    cfg.animationSource === 'custom' &&
+    !cfg.autoplay &&
+    !firstFrame &&
+    !resumeSec &&
+    posterIntentReady &&
+    (bunnyAssets.playlist !== null || src.toLowerCase().endsWith('.mp4'))
 
-  // La portada estática pinta primero. El preview animado solo se solicita cuando el player entra
-  // en viewport y el dispositivo no ha pedido ahorro de datos ni reducción de movimiento.
+  // ---- Precarga gobernada: que el play sea instantáneo sin gastar datos de más -----------
+  const prefetchStartedRef = useRef(false)
+  const prefetch = useCallback(() => {
+    if (prefetchStartedRef.current || cfg.autoplay || (!isHls && !src.toLowerCase().endsWith('.mp4'))) return
+    prefetchStartedRef.current = true
+    if (isHls) {
+      // hls.js sin autoStartLoad (play-on-demand): arranca el load del manifest + primer
+      // fragmento de la calidad mínima AL DETECTAR INTENCIÓN. Al click de play ya está en
+      // buffer: el primer frame apenas muestra espera. startLoad() dos veces es
+      // inofensivo (el ref guarda evita reentradas).
+      hlsRef.current?.startLoad()
+    } else if (videoRef.current) {
+      // Fuente directa (Safari HLS nativo o mp4): sube el preload. No se reinicia con load()
+      // para no tirar lo que el navegador ya hubiese negociado.
+      videoRef.current.preload = 'auto'
+    }
+  }, [cfg.autoplay, isHls, src])
+
+  // La portada estática pinta primero. El artefacto animado (webp de Bunny o bucle de vídeo del
+  // segmento elegido) solo se solicita cuando el player entra en viewport y el dispositivo no
+  // ha pedido ahorro de datos ni reducción de movimiento. Al entrar en viewport y quedar idle
+  // también dispara la PRECARGA de la fuente, para que un play posterior arranque ya caliente.
   useEffect(() => {
-    setMotionPosterReady(false)
+    setPosterIntentReady(false)
     const container = containerRef.current
-    if (!container || !motionPoster || cfg.autoplay) return
+    if (!container) return
+    if (cfg.autoplay) {
+      // Con autoplay el propio arranque calienta el buffer: no hace falta artefacto de póster.
+      prefetchStartedRef.current = true
+      return
+    }
+    if (!motionPoster && !isHls && !src.toLowerCase().endsWith('.mp4')) {
+      // Sin artefacto dinámico posible pero sí fuente: el intent de viewport sigue valiendo para
+      // la precarga (frame instantáneo al click), aunque no cargamos nada extra por el póster.
+      const connection0 = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection
+      if (connection0?.saveData) return
+      let timer0: number | null = null
+      const observer0 = new IntersectionObserver(
+        ([entry]) => {
+          if (!entry?.isIntersecting) return
+          timer0 = window.setTimeout(prefetch, 1200)
+          observer0.disconnect()
+        },
+        { rootMargin: '200px' }
+      )
+      observer0.observe(container)
+      return () => {
+        observer0.disconnect()
+        if (timer0 !== null) window.clearTimeout(timer0)
+      }
+    }
     const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection
     if (connection?.saveData || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     let timer: number | null = null
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (!entry?.isIntersecting) return
-        timer = window.setTimeout(() => setMotionPosterReady(true), 450)
+        timer = window.setTimeout(() => {
+          setPosterIntentReady(true)
+          prefetch()
+        }, 450)
         observer.disconnect()
       },
       { rootMargin: '120px' }
@@ -164,7 +229,90 @@ export function VslPlayer({
       observer.disconnect()
       if (timer !== null) window.clearTimeout(timer)
     }
-  }, [cfg.autoplay, motionPoster])
+  }, [cfg.autoplay, motionPoster, isHls, src, prefetch])
+
+  // ---- Bucle dinámico a medida (segmento elegido editorialmente) --------------------------
+  // Carga el vídeo en un elemento oculto y lo reproduce EN BUCLE desde el segundo elegido,
+  // en la calidad mínima y con el buffer acotado al propio bucle: una vez dentro, el loop
+  // reutiliza lo descargado y no vuelve a pedir red. Se desmonta con el play real (firstFrame).
+  useEffect(() => {
+    if (!canLoop) return
+    const el = loopVideoRef.current
+    if (!el) return
+    let cancelled = false
+    let localHls: HlsType | null = null
+    const from = loopStart
+    const to = loopStart + loopLen
+
+    const startLoop = () => {
+      if (cancelled) return
+      try {
+        if (el.currentTime < from || el.currentTime >= to) el.currentTime = from
+      } catch {
+        return // mismo motivo que en resumeFrom: metadatos aún no listos; se reintenta en el evento
+      }
+      el.muted = true
+      el.play().catch(() => {})
+    }
+    const onLoaded = () => startLoop()
+    const onTimeUpdateLoop = () => {
+      // Salta pide red si ya está buffered; arremete al inicio del bucle en el límite.
+      if (el.currentTime <= from - 0.25 || el.currentTime >= to) {
+        try {
+          el.currentTime = from
+        } catch {
+          // Un seek durante seeking lanza en algunos navegadores: se ignora y el siguiente tick corrige.
+        }
+      }
+    }
+
+    if (isHls) {
+      let destroyed = false
+      void import('hls.js').then(({ default: Hls }) => {
+        if (cancelled || destroyed) return
+        if (!Hls.isSupported()) {
+          el.src = src
+          return
+        }
+        localHls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: false,
+          autoStartLoad: true,
+          // Buffer acotado al bucle: los segundos del segmento elegido caben en memoria y el
+          // loop re-reproduce lo buffered — sin coste de red continuado (imports FREE_TIER).
+          maxBufferLength: loopLen + 2,
+          maxMaxBufferLength: loopLen + 4,
+          startLevel: 0,
+          abrEwmaDefaultEstimate: 500_000,
+        })
+        localHls.loadSource(src)
+        localHls.attachMedia(el)
+        loopHlsRef.current = localHls
+        el.addEventListener('loadeddata', onLoaded)
+      })
+    } else {
+      el.src = src
+      el.addEventListener('loadeddata', onLoaded)
+    }
+    el.addEventListener('timeupdate', onTimeUpdateLoop)
+
+    return () => {
+      cancelled = true
+      el.removeEventListener('loadeddata', onLoaded)
+      el.removeEventListener('timeupdate', onTimeUpdateLoop)
+      el.pause()
+      try {
+        el.removeAttribute('src')
+        el.load()
+      } catch {
+        // Un load() durante teardown puede lanzar en WebKit; luego el elemento se desmonta igual.
+      }
+      if (localHls) {
+        localHls.destroy()
+        if (loopHlsRef.current === localHls) loopHlsRef.current = null
+      }
+    }
+  }, [canLoop, isHls, src, loopStart, loopLen])
 
   // El editor promete una vista previa viva. Si se desactiva autoplay después de que el vídeo
   // haya arrancado, vuelve inmediatamente al poster sin guardar ni recargar la página.
@@ -289,6 +437,9 @@ export function VslPlayer({
             maxBufferLength: 30,
             startLevel: 0, // arranca por la calidad más baja: primer frame en cuanto antes
             abrEwmaDefaultEstimate: 500_000, // estimación inicial conservadora (0,5 Mbps)
+            // Pide el primer fragmento aunque el load aún esté procesando el manifest: shave
+            // cientos de ms del arranque.Ya con startLevel 0 es lo que hace el play "instantáneo".
+            startFragPrefetch: true,
           })
           hls.loadSource(src)
           hls.attachMedia(el)
@@ -761,6 +912,8 @@ export function VslPlayer({
         <button
           type="button"
           data-testid="vsl-poster-play"
+          onMouseEnter={prefetch}
+          onTouchStartCapture={prefetch}
           onClick={togglePlay}
           aria-label={`Reproducir ${video.slug}${video.duration_seconds > 0 ? `, duración ${fmtTime(video.duration_seconds)}` : ''}`}
           className="group absolute inset-0 z-30 flex items-center justify-center overflow-hidden bg-black text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white"
@@ -774,12 +927,26 @@ export function VslPlayer({
               className="absolute inset-0 h-full w-full object-cover"
             />
           )}
-          {motionPosterReady && motionPoster && (
+          {posterIntentReady && motionPoster && cfg.animationSource !== 'custom' && (
             <img
               src={motionPoster}
               alt=""
               aria-hidden="true"
               decoding="async"
+              className="absolute inset-0 h-full w-full object-cover motion-reduce:hidden"
+            />
+          )}
+          {/* Bucle dinámico a medida: vídeo real del segmento elegido. El póster estático
+              permanece debajo para que el LCP no dependa del bucle ni haya flash negro. */}
+          {canLoop && (
+            <video
+              ref={loopVideoRef}
+              aria-hidden="true"
+              tabIndex={-1}
+              muted
+              playsInline
+              preload="metadata"
+              disablePictureInPicture
               className="absolute inset-0 h-full w-full object-cover motion-reduce:hidden"
             />
           )}

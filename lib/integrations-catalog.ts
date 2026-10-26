@@ -855,6 +855,11 @@ export const INTEGRATION_GROUPS: IntegrationGroup[] = [
           'Pide siempre el email en el formulario (campo de tipo Email). Si pones los UTMs en la URL del formulario como campos ocultos (utm_source, utm_medium, utm_campaign…) la respuesta también queda atribuida. Quien rellena el formulario y luego agenda llega a la agenda con sus respuestas.',
       },
       {
+        titulo: 'Traer las respuestas anteriores al webhook (opcional)',
+        detalle:
+          'El webhook solo trae lo que llega después de crearlo. Para recuperar las respuestas de antes: en Typeform abre tu cuenta → Account → Personal tokens → Generate a new token, con los permisos forms:read y responses:read; pégalo en «Token personal» de abajo y guarda. Si tu cuenta es del centro de datos europeo, escribe eu en «Región». Después pulsa «Sincronizar histórico» (aparece al estar conectado): encaja cada respuesta con su contacto por email o teléfono y la copia a sus citas. No crea leads nuevos.',
+      },
+      {
         titulo: 'Feedback de alumnos',
         detalle:
           'Para un formulario de feedback añade el campo oculto purpose=feedback a su URL, o apunta su id en «Formularios de feedback» abajo. Estas respuestas no crean contactos nuevos: se guardan en la ficha del alumno (CSM) con su nota si el formulario trae una escala.',
@@ -867,6 +872,22 @@ export const INTEGRATION_GROUPS: IntegrationGroup[] = [
         type: 'password',
         secret: true,
         help: 'El mismo Secret que escribiste al crear el webhook en Typeform. Se usa para verificar la firma de cada respuesta.',
+      },
+      {
+        key: 'TYPEFORM_API_TOKEN',
+        label: 'Token personal (para el histórico)',
+        type: 'password',
+        secret: true,
+        help: 'Opcional. Token personal de Typeform (Account → Personal tokens) con permisos forms:read y responses:read. Solo se usa para leer respuestas anteriores al webhook; el webhook no lo necesita.',
+      },
+      {
+        key: 'TYPEFORM_REGION',
+        label: 'Región de la cuenta (eu)',
+        type: 'text',
+        secret: false,
+        advanced: true,
+        placeholder: 'eu',
+        help: 'Solo si tu cuenta de Typeform está en el centro de datos europeo: escribe eu. En blanco = cuenta estándar.',
       },
       {
         key: 'TYPEFORM_FEEDBACK_FORMS',

@@ -44,8 +44,8 @@ export async function POST(req: Request) {
 
     const result = await sql.begin(async (tx) => {
       const [row] = await tx`
-        INSERT INTO vsl_sessions (video_id, anon_id, referrer, device, country, user_agent)
-        VALUES (${video.id}, ${anonId}, ${referrer || null}, ${device}, ${country}, ${ua})
+        INSERT INTO vsl_sessions (tenant_id, video_id, anon_id, referrer, device, country, user_agent)
+        VALUES (${video.tenant_id}, ${video.id}, ${anonId}, ${referrer || null}, ${device}, ${country}, ${ua})
         ON CONFLICT (video_id, anon_id)
         DO UPDATE SET updated_at = now(), referrer = COALESCE(vsl_sessions.referrer, EXCLUDED.referrer)
         RETURNING id, tenant_id
