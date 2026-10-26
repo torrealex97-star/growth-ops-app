@@ -51,7 +51,7 @@ CREATE INDEX IF NOT EXISTS contact_launches_tenant_contact_idx ON public.contact
 CREATE INDEX IF NOT EXISTS contact_launches_tenant_launch_idx  ON public.contact_launches (tenant_id, launch_id);
 
 -- Toda tabla accesible por Supabase tiene RLS explícita (regla del repo). Aquí no hay lógica por
--- fila de negocio: la política RESTRICTIVE de tenant es la única, igual que las demás tablas
+-- fila de negocio (helpers de auth envueltos en SELECT para que Postgres los evalúe una vez: InitPlan): la política RESTRICTIVE de tenant es la única, igual que las demás tablas
 -- multitenant. El anon y el authenticated no reciben permisos GRANT de inserción/escritura.
 DO $$
 DECLARE
@@ -63,7 +63,7 @@ BEGIN
     EXECUTE format('REVOKE ALL ON public.%I FROM anon, authenticated', t);
     EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', t || '_tenant_isolation', t);
     EXECUTE format(
-      'CREATE POLICY %I ON public.%I AS RESTRICTIVE FOR ALL USING (tenant_id IN (SELECT public.auth_tenant_ids()) OR public.is_super_admin()) WITH CHECK (tenant_id IN (SELECT public.auth_tenant_ids()) OR public.is_super_admin())',
+      'CREATE POLICY %I ON public.%I AS RESTRICTIVE FOR ALL USING (tenant_id IN (SELECT public.auth_tenant_ids()) OR (SELECT public.is_super_admin())) WITH CHECK (tenant_id IN (SELECT public.auth_tenant_ids()) OR (SELECT public.is_super_admin()))',
       t || '_tenant_isolation', t
     );
   END LOOP;
