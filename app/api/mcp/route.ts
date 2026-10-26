@@ -13,7 +13,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { validarAccessToken } from '@/lib/mcp/oauth'
-import { leerFiltros, sqlAgendas, sqlVentas } from '@/lib/mcp/consultas'
+import { leerCanal, leerFiltros, sqlAgendas, sqlConversaciones, sqlVentas } from '@/lib/mcp/consultas'
 import { documentoDeContacto, resultadosDeBusqueda, sqlBuscar, sqlFetch } from '@/lib/mcp/busqueda'
 import { ejecutarSqlMcp } from '@/lib/mcp/sql-executor'
 
@@ -170,6 +170,24 @@ async function handleToolsList(id: unknown) {
           annotations: { title: 'Listar ventas', ...SOLO_LECTURA },
         },
         {
+          name: 'list_conversations',
+          title: 'Listar conversaciones',
+          description:
+            'Lista conversaciones de la bandeja (más recientes primero): canal, estado, modo de IA, etiquetas, contacto y responsable. NO incluye los mensajes. Filtra por fechas (día UTC), estado (abierta, pendiente, aplazada, resuelta) y canal.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              desde: { type: 'string', description: 'Fecha inicial AAAA-MM-DD (opcional).' },
+              hasta: { type: 'string', description: 'Fecha final AAAA-MM-DD, inclusive (opcional).' },
+              estado: { type: 'string', description: 'abierta, pendiente, aplazada o resuelta (opcional).' },
+              canal: { type: 'string', description: 'p. ej. instagram, facebook, whatsapp (opcional).' },
+              limite: { type: 'number', description: 'Máximo de filas, 1-100 (por defecto 50).' },
+            },
+            additionalProperties: false,
+          },
+          annotations: { title: 'Listar conversaciones', ...SOLO_LECTURA },
+        },
+        {
           name: 'list_tenants',
           title: 'Listar subcuentas',
           description:
@@ -218,6 +236,28 @@ async function handleToolCall(
   email: string,
   origen: string
 ) {
+  if (name === 'list_conversations') {
+    const f = leerFiltros(args)
+    if (!f.ok) return errorDeHerramienta(id, f.error)
+    const c = leerCanal(args)
+    if (!c.ok) return errorDeHerramienta(id, c.error)
+    const r = await ejecutarSqlMcp(sqlConversaciones(f.filtros, c.canal), {
+      userId,
+      email,
+      clientId: 'list_conversations',
+    })
+    if (!r.ok) return errorDeHerramienta(id, r.error)
+    return NextResponse.json(
+      jsonRpc(id, {
+        content: [
+          { type: 'text', text: r.rows.length ? JSON.stringify(r.rows, null, 2) : 'Sin filas.' },
+          { type: 'text', text: `— ${r.rowCount} filas en ${r.durationMs} ms` },
+        ],
+      }),
+      { headers: JSON_RPC_HEADERS }
+    )
+  }
+
   if (name === 'list_appointments' || name === 'list_sales') {
     const f = leerFiltros(args)
     if (!f.ok) return errorDeHerramienta(id, f.error)
