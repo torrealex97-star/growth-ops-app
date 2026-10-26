@@ -1,5 +1,6 @@
 import { mergeConfig } from '@/lib/vsl/db'
 import { resolvePublicVsl } from '@/lib/vsl/public-video'
+import { elegirVarianteAb, parseAbPair } from '@/lib/vsl/ab'
 import { VslPlayer } from '@/components/vsl/VslPlayer'
 
 export const dynamic = 'force-dynamic'
@@ -19,11 +20,40 @@ export default async function VslEmbedPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>
-  searchParams: Promise<{ tenant?: string }>
+  searchParams: Promise<{ tenant?: string; ab?: string }>
 }) {
   const { slug } = await params
-  const { tenant } = await searchParams
-  const resolution = await resolvePublicVsl(slug, tenant)
+  const { tenant, ab } = await searchParams
+  let resolution = await resolvePublicVsl(slug, tenant)
+
+  // Experimento A/B opcional: `?ab=slugA,slugB` reparte las CARGAS 50/50 entre dos vídeos de
+  // vsl_videos de la MISMA subcuenta (misma fuente, distinto segmento dinámico). Cada variante
+  // es su propia fila: las métricas del panel quedan separadas y comparables de casa.
+  // Degradación: si el par no parsea, una variante no existe o caen en OTRA subcuenta, el
+  // embed sigue sirviendo el vídeo pedido — un experimento no rompe jamás un embed vivo.
+  // La moneda es por carga (no sticky por navegador): para comparar agregados a una semana
+  // es suficiente y no añade cookies ni estado propio. La página es force-dynamic, así que
+  // cada render tira de nuevo.
+  if (ab) {
+    const par = parseAbPair(ab)
+    if (par) {
+      try {
+        const [resA, resB] = await Promise.all([
+          resolvePublicVsl(par.varianteA, tenant),
+          resolvePublicVsl(par.varianteB, tenant),
+        ])
+        const moneda = elegirVarianteAb(par, Math.random())
+        const candidata = moneda === par.varianteA ? resA : resB
+        const mismaCuenta =
+          resolution.status === 'found' &&
+          candidata.status === 'found' &&
+          candidata.video.tenant_slug === resolution.video.tenant_slug
+        if (mismaCuenta) resolution = candidata
+      } catch (e) {
+        console.error('[vsl/ab] variante no resolvió, degradando al vídeo pedido', e)
+      }
+    }
+  }
 
   if (resolution.status !== 'found') {
     return (
