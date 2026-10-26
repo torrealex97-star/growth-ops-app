@@ -32,3 +32,7 @@ updates:
       # React Table 9 cambia la API (breaking): migración planificada, no una PR automática.
       - dependency-name: '@tanstack/react-table'
         update-types: ['version-update:semver-major']
+      # SDK de Anthropic 1.x: elimina `temperature` de messages.create (rompe lib/ai/provider.ts) y cambia el
+      # comportamiento de las llamadas a la IA. Migración planificada y probada, no una PR automática.
+      - dependency-name: '@anthropic-ai/sdk'
+        update-types: ['version-update:semver-major']
