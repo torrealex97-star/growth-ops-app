@@ -3,15 +3,14 @@
 Regla: lo que esté listo y verde va a `main` sin preguntar. Aquí solo se listan cosas que **no** están en `main` o **no** están
 aplicadas en producción, con lo que hace falta para subirlas. Al fusionarse una, se borra su fila.
 
-| Qué                                                                                     | Dónde está                                                    | Qué falta para subirlo                                                |
-| --------------------------------------------------------------------------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------- |
-| Migración `20261020120000_forms_csm_solo_alumnos.sql`                                   | En `main` (fichero), **sin aplicar en producción**            | Aplicarla (SQL Editor de Supabase o permiso de `apply_migration`)     |
-| Migración `20261020130000_forms_hardening.sql`                                          | En `main` (fichero), **sin aplicar en producción**            | Igual; aplicar después de la anterior                                 |
-| Migración `20261023100000_lanzamientos.sql` (tablas `launches`, `contact_launches`)     | En `main` (fichero), **sin aplicar en producción**            | Visto bueno de Alex + aplicarla; el módulo `/lanzamiento` la necesita |
-| Skills de Anthropic (`.agents/skills/`, `.claude/skills/`)                              | Solo en el disco local, **ignoradas con `.git/info/exclude`** | Decidir si se commitean (repo público, ~40 ficheros)                  |
-| Rama local `rescate/linaje-viejo-20260913` (106 commits)                                | Solo local                                                    | Decidir: conservar o borrar                                           |
-| Code review VSL 26-oct: prueba social sin mezclar subcuentas (`?tenant=` + fuil cerrado |
-| ante colisión), latido con entrada acotada y join de heatmaps por índice                | Rama `fix/vsl-live-tenant-y-acotados` (local)                 | `npm run quality` verde + PR a `main`                                 |
+| Qué                                                                                               | Dónde está                                                                         | Qué falta para subirlo                                                                          |
+| ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Migración `20261020120000_forms_csm_solo_alumnos.sql`                                             | En `main` (fichero), **sin aplicar en producción**                                 | Aplicarla (SQL Editor de Supabase o permiso de `apply_migration`)                               |
+| Migración `20261020130000_forms_hardening.sql`                                                    | En `main` (fichero), **sin aplicar en producción**                                 | Igual; aplicar después de la anterior                                                           |
+| Migración `20261023100000_lanzamientos.sql` (tablas `launches`, `contact_launches`)               | En `main` (fichero), **sin aplicar en producción**                                 | Visto bueno de Alex + aplicarla; el módulo `/lanzamiento` la necesita                           |
+| SDK `@anthropic-ai/sdk` 1.x                                                                       | No migrado (Dependabot ya lo ignora; #649 cerrado)                                 | Migrar a mano: el SDK 1.x quita `temperature` de `messages.create` y rompe `lib/ai/provider.ts` |
+| Copia de seguridad de la rama vieja `rescate/linaje-viejo-20260913`                               | Rama local borrada; copia en `~/rescate-linaje-viejo-20260913.bundle` (verificada) | Nada; recuperable con `git fetch <bundle> rescate/linaje-viejo-20260913`                        |
+| Code review VSL 26-oct: prueba social sin mezclar subcuentas, latido acotado y heatmap por índice | Rama `fix/vsl-live-tenant-y-acotados` (PR #661)                                    | CI en verde y fusionar; luego verificar contadores con tráfico real                             |
 
 # RELEVO (24-oct, tarde — Buffy) — estado del repo e hilos candidatos para el próximo agente
 
