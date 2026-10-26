@@ -169,7 +169,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ tenant:
     const intervalRows = await sql`
       WITH recent AS (
         SELECT p.playback_id, p.started_at, p.ended_at, p.viewer_id, p.legacy_session_id,
-               vv.duration_seconds
+               p.tenant_id, vv.duration_seconds
         FROM vsl_playback_sessions p
         INNER JOIN vsl_video_versions vv
           ON vv.tenant_id = p.tenant_id AND vv.id = p.video_version_id
@@ -186,7 +186,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ tenant:
              interval.start_second, interval.end_second
       FROM recent
       LEFT JOIN vsl_sessions legacy ON legacy.id = recent.legacy_session_id
-      INNER JOIN vsl_watch_intervals interval ON interval.playback_id = recent.playback_id
+      INNER JOIN vsl_watch_intervals interval
+        ON interval.tenant_id = recent.tenant_id AND interval.playback_id = recent.playback_id
       ORDER BY recent.started_at DESC, interval.start_second
     `
     const heatmapByPlayback = new Map<

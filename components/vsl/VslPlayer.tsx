@@ -343,7 +343,7 @@ export function VslPlayer({
       if (preview) return // no contaminar "viendo ahora" real con la propia vista previa del admin
       let alive = true
       const pull = () => {
-        fetch(`/api/vsl/live/${video.slug}`)
+        fetch(`/api/vsl/live/${video.slug}?tenant=${encodeURIComponent(video.tenant)}`)
           .then((r) => r.json())
           .then((d) => {
             if (alive) setSp({ watching: Number(d.watching) || 0, watched: Number(d.watched) || 0 })

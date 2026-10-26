@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { sql } from '@/lib/vsl/db'
 import { syncContactWatchPct } from '@/lib/vsl/sync'
 import { MinuteRateLimiter } from '@/lib/tracking/ingest'
-import { sanitizeWatchIntervals, secondsFromIntervals } from '@/lib/vsl/tracking'
+import { sanitizeWatchIntervals, secondsFromIntervals, MAX_VIDEO_SECONDS } from '@/lib/vsl/tracking'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,9 +35,6 @@ export async function POST(req: Request) {
     const sessionId: string | undefined = body.sessionId
     const playbackId: string | undefined = body.playbackId
     const intervals = sanitizeWatchIntervals(body.intervals)
-    const seconds: number[] = Array.isArray(body.seconds) ? body.seconds : secondsFromIntervals(intervals)
-    const position = Number(body.position) || 0
-    const duration = Number(body.duration) || 0
     const event: string = body.event || 'beat'
     const eventType = EVENT_TYPES[event] || 'video_progress'
     const eventId = typeof body.eventId === 'string' ? body.eventId.slice(0, 160) : null
@@ -53,9 +50,24 @@ export async function POST(req: Request) {
     }
 
     // Sanea: enteros >= 0 y acotados a una duración razonable (evita basura).
+    // El array de seconds también acota a 240 entradas por latido como los intervalos: sin él, un
+    // cliente hostil podía mandar un array kilométrico y vitaminar el payload/la fila legacy.
+    const secondsRaw: number[] = Array.isArray(body.seconds)
+      ? (body.seconds as unknown[]).slice(0, 240).map((s) => Number(s))
+      : secondsFromIntervals(intervals)
     const clean = Array.from(
-      new Set(seconds.map((s) => Math.floor(Number(s))).filter((s) => Number.isFinite(s) && s >= 0 && s < 86_400))
+      new Set(
+        secondsRaw
+          .slice(0, 240)
+          .map((s) => Math.floor(Number(s)))
+          .filter((s) => Number.isFinite(s) && s >= 0 && s < MAX_VIDEO_SECONDS)
+      )
     )
+
+    // position y duration también viajan del cliente: se acotan al mismo tope para que ninguna
+    // columna (max_position, duration) pueda inflar métricas con valores absurdos.
+    const position = Math.min(Math.max(Number(body.position) || 0, 0), MAX_VIDEO_SECONDS)
+    const duration = Math.min(Math.max(Number(body.duration) || 0, 0), MAX_VIDEO_SECONDS)
 
     const reachedEnd = event === 'ended' || (duration > 0 && position >= duration - 1.5)
     const isPlay = event === 'play'
