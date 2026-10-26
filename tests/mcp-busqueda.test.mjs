@@ -63,7 +63,7 @@ test('el servidor negocia versión, anuncia solo lectura y devuelve errores de h
   for (const t of ['search', 'fetch', 'list_tenants', 'query_db', 'describe_table']) {
     assert.match(ruta, new RegExp(`name: '${t}'`), t)
   }
-  assert.equal((ruta.match(/annotations: \{/g) ?? []).length, 7, 'cada herramienta lleva anotaciones')
+  assert.equal((ruta.match(/annotations: \{/g) ?? []).length, 8, 'cada herramienta lleva anotaciones')
   assert.match(ruta, /isError: true/)
   assert.doesNotMatch(ruta, /jsonRpcError\(id, -32000/, 'los fallos de herramienta ya no son errores de protocolo')
 })

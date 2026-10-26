@@ -123,5 +123,6 @@ usuario `member` (1 subcuenta, 1 contacto, 0 ventas) frente al super admin (4 su
 - **Dinero** (`docs/MONEY.md`): no calculan totales. `gross_amount` es lo pactado, no lo cobrado; una reserva sin completar
   (`reservation_completed_at` nulo) no es venta (D8). Para cobros, `query_db` sobre `collections`.
 - Verificado en producción con RLS: un usuario `member` ve 1 cita de 1 subcuenta y 0 ventas; el super admin ve todas.
-- Pendiente: un `list_conversations` necesita `GRANT SELECT` de `mcp_reader` sobre `conversations` (migración nueva,
-  tabla fuera de la whitelist actual).
+- `list_conversations`: solo la ficha (canal, estado, modo de IA, etiquetas, contacto, responsable), nunca mensajes ni
+  eventos. Requiere aplicar `20261027100000_mcp_reader_conversaciones.sql` (GRANT SELECT sobre `conversations`); hasta
+  entonces la herramienta devuelve «permission denied» como error legible.
