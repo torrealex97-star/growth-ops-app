@@ -224,19 +224,47 @@ export function calculateNegativeCommissionsForRefund(
   const liquidationMonth = getCurrentLiquidationMonth()
   const negativeCommissions: InsertCommission[] = []
 
-  // For each existing positive commission on this sale, create a negative mirror
-  const positiveCommissions = existingCommissions.filter(
-    (c) => c.sale_id === refund.sale_id && c.direction === 'positive'
-  )
+  // La devolución es de la VENTA, y el motor escribe UNA positiva por cobro y participante. La proporción se mide contra
+  // la base total comisionada a cada participante en TODA la venta (no contra cada cobro por separado: con 3 cuotas de
+  // 100 y una devolución de 100, la versión anterior reclamaba 100 a CADA cuota, el triple de lo debido) y descuenta lo
+  // ya reclamado por devoluciones anteriores (una segunda devolución parcial no puede reclamar dos veces lo mismo).
+  const delaVenta = existingCommissions.filter((c) => c.sale_id === refund.sale_id)
+  // Si la devolución se ata a un cobro concreto, solo ese cobro responde de ella.
+  const alcance = (c: Commission) => !refund.collection_id || c.collection_id === refund.collection_id
+  const clave = (c: Commission) => `${c.user_id}|${c.participant_type}`
+  const positiveCommissions = delaVenta.filter((c) => c.direction === 'positive' && alcance(c))
+  const basePositiva = new Map<string, number>()
+  const baseYaReclamada = new Map<string, number>()
+  for (const c of positiveCommissions)
+    basePositiva.set(clave(c), (basePositiva.get(clave(c)) ?? 0) + Number(c.base_amount))
+  for (const c of delaVenta) {
+    if (c.direction === 'negative' && alcance(c))
+      baseYaReclamada.set(clave(c), (baseYaReclamada.get(clave(c)) ?? 0) + Number(c.base_amount))
+  }
+
+  // Cuántas filas positivas tiene cada participante y cuánto se lleva ya repartido: el redondeo por filas perdía
+  // céntimos (3 cuotas de 33,33 = 99,99), así que la ÚLTIMA fila de cada participante absorbe el resto.
+  const filasPorClave = new Map<string, number>()
+  for (const c of positiveCommissions) filasPorClave.set(clave(c), (filasPorClave.get(clave(c)) ?? 0) + 1)
+  const vistas = new Map<string, number>()
+  const repartido = new Map<string, number>()
 
   for (const existing of positiveCommissions) {
-    // Proportionally scale the negative commission based on refund amount vs original base
-    // MISMO TRATO DEL FEE que la positiva: la positiva comisionó sobre (comisionable − fee);
-    // el espejo negativo replica ESE reparto sin re-estimar el fee. Si la positiva se calculó
-    // con fee, su base ya lo descuenta y la negativa usa la misma base proporcional; si no
-    // (histórico sin fee), se replica la base original — nunca se inventa un fee al devolver.
-    const escala = refund.commissionable_refund_amount / Math.max(existing.base_amount, 0.01)
-    const negativeBase = Math.round(existing.base_amount * Math.min(escala, 1) * 100) / 100
+    // MISMO TRATO DEL FEE que la positiva: la positiva comisionó sobre (comisionable − fee); el espejo negativo replica
+    // ESE reparto sin re-estimar el fee — nunca se inventa un fee al devolver.
+    const k = clave(existing)
+    const total = basePositiva.get(k) ?? Number(existing.base_amount)
+    const pendiente = Math.max(total - (baseYaReclamada.get(k) ?? 0), 0)
+    const aReclamar = Math.round(Math.min(refund.commissionable_refund_amount, pendiente) * 100) / 100
+    const parte = total > 0 ? Number(existing.base_amount) / total : 0
+    const n = (vistas.get(k) ?? 0) + 1
+    vistas.set(k, n)
+    const esUltima = n === (filasPorClave.get(k) ?? 1)
+    const negativeBase = esUltima
+      ? Math.round((aReclamar - (repartido.get(k) ?? 0)) * 100) / 100
+      : Math.round(aReclamar * parte * 100) / 100
+    repartido.set(k, (repartido.get(k) ?? 0) + negativeBase)
+    if (negativeBase <= 0) continue
     const negativeCommission: InsertCommission = {
       // La subcuenta la hereda de la comisión que está espejando: es la misma venta.
       tenant_id: existing.tenant_id,
