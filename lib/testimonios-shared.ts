@@ -62,8 +62,8 @@ export function testimonioForPrompt(t: Testimonio): string {
   const lines = [
     `NOMBRE: ${t.name}`,
     t.kind === 'cliente'
-      ? 'TIPO: cliente de la agencia (NO alumno de la academia; preséntalo como cliente al que le implementamos IA).'
-      : 'TIPO: alumno de la academia.',
+      ? 'TIPO: cliente de la agencia (NO alumno; preséntalo como cliente al que le implementamos IA).'
+      : 'TIPO: alumno.',
     t.avatar ? `AVATAR: ${t.avatar}` : null,
     t.sector ? `SECTOR: ${t.sector}` : null,
     t.puntoA ? `PUNTO A (antes): ${t.puntoA}` : null,
