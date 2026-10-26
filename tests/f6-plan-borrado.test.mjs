@@ -26,7 +26,7 @@ const store = (pasos, nombre) => pasos.find((p) => p.store === nombre)
 
 test('sin política decidida, los tres stores que dependen de ella quedan bloqueados', () => {
   const bloqueados = pasosBloqueados(planificarBorrado(POLITICA_SIN_DECIDIR)).map((p) => p.store)
-  assert.deepEqual(bloqueados.sort(), ['appointments.transcript', 'raw_events', 'sales / collections'])
+  assert.deepEqual(bloqueados.sort(), ['appointments.transcript', 'contracts', 'raw_events', 'sales / collections'])
 })
 
 test('sin política decidida, el borrado NO puede declararse completo', () => {

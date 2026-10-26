@@ -130,3 +130,14 @@ decidida antes de cerrar la fase"_. Son decisiones de negocio y base legal, no t
 
 Sin ellas, `erase_person` se puede **implementar y probar** —el comando, la idempotencia, el informe
 por store— pero no se puede **graduar**, porque su política de retención estaría sin definir.
+
+## Añadidos tras la revisión del 27-oct
+
+- `audit_logs`: las rutas de alta/edición de contactos guardan nombre, email y teléfono en `old_values`/`new_values`. El
+  borrado de personas los vacía (se conserva la fila de auditoría).
+- `sales.payer_data` (nombre, DNI, email, teléfono, dirección del pagador) y `sales.student_document_number/_type`: se vacían
+  con la política `conservar_sin_pii`.
+- `contracts.signer_data` (DNI, dirección, ciudad, teléfono), `signer_ip`, `signer_user_agent`: nuevo paso `contracts`, que
+  depende de la misma decisión de retención que los hechos financieros (bloqueado mientras no esté decidida). El PDF firmado
+  del bucket `contratos` sigue conteniéndolos: pendiente de tratar (requiere borrado en Storage).
+- Logs de la plataforma: el fallo de invitación ya no escribe el email en `console.error`.
