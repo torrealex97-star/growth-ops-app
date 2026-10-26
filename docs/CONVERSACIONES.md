@@ -72,3 +72,12 @@ plan de borrado de personas (`lib/privacidad/*`).
 Instagram/GHL/Facebook/TikTok con análisis), **Agente de IA** (solo admin/director), **Entrenamiento** (simulador, crítico
 y mejora del prompt) y **Métricas**. `/setting-ai`, `/conversaciones/agente` y `/conversaciones/metricas` redirigen a la
 pestaña correspondiente. «Setting AI» desaparece del menú.
+
+## Etiquetas y respuestas rápidas
+
+- **Etiquetas**: chips en la cabecera del hilo (añadir con Enter, quitar con ×). Máx. 12 por conversación; se auditan como
+  evento `etiquetas` (`acciones.ts`).
+- **Respuestas rápidas**: plantillas por subcuenta (máx. 30) en `integration_settings` (`conversaciones_respuestas_rapidas`).
+  Las usa todo el equipo de gestión; las crean/quitan admin, director, manager y marketing (con registro en `audit_logs`).
+  `{{nombre}}` se sustituye por el nombre de pila. Elegir una **solo rellena el cuadro**: nada se envía sin pulsar «Enviar»,
+  y fuera de la ventana de respuesta el cuadro está bloqueado.
