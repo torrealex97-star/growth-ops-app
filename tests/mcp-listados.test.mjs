@@ -47,3 +47,10 @@ test('las herramientas nuevas están registradas como solo lectura', () => {
   for (const t of ['list_appointments', 'list_sales']) assert.match(ruta, new RegExp(`name: '${t}'`))
   assert.equal((ruta.match(/annotations: \{/g) ?? []).length, 7)
 })
+
+test('el límite también se acepta como texto numérico («10»), pero no como basura', () => {
+  assert.equal(ok({ limite: '10' }).limite, 10)
+  assert.equal(ok({ limite: ' 25 ' }).limite, 25)
+  assert.equal(ok({ limite: '500' }).limite, LIMITE_MAXIMO)
+  assert.equal(ok({ limite: '10; drop' }).limite, 50)
+})

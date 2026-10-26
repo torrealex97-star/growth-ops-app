@@ -139,7 +139,7 @@ async function handleToolsList(id: unknown) {
           name: 'list_appointments',
           title: 'Listar agendas',
           description:
-            'Lista agendas/citas (las más recientes primero) con contacto, closer, setter, estado, resultado y origen. Filtra por fechas y estado. Solo las que el usuario puede ver.',
+            'Lista agendas/citas (las más recientes primero) con contacto, closer, setter, estado, resultado y origen. Filtra por fechas (día UTC) y estado. Solo las que el usuario puede ver.',
           inputSchema: {
             type: 'object',
             properties: {

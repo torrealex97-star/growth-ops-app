@@ -38,7 +38,10 @@ export function leerFiltros(args: Record<string, unknown>): ResultadoFiltros {
       return { ok: false, error: 'estado solo admite minúsculas, números y guion bajo' }
     estado = args.estado
   }
-  const bruto = typeof args.limite === 'number' ? Math.trunc(args.limite) : LIMITE_POR_DEFECTO
+  // El modelo a veces manda el límite como texto («10»): se acepta si es un entero.
+  const crudo =
+    typeof args.limite === 'string' && /^\d{1,4}$/.test(args.limite.trim()) ? Number(args.limite) : args.limite
+  const bruto = typeof crudo === 'number' ? Math.trunc(crudo) : LIMITE_POR_DEFECTO
   const limite = Math.min(Math.max(Number.isFinite(bruto) ? bruto : LIMITE_POR_DEFECTO, 1), LIMITE_MAXIMO)
   return { ok: true, filtros: { desde, hasta, estado, limite } }
 }
