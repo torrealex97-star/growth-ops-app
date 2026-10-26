@@ -36,3 +36,11 @@ updates:
       # comportamiento de las llamadas a la IA. Migración planificada y probada, no una PR automática.
       - dependency-name: '@anthropic-ai/sdk'
         update-types: ['version-update:semver-major']
+
+  # Las acciones de GitHub Actions (checkout, setup-node, upload-artifact…) también se actualizan: sin esto quedaban
+  # fijadas a una etiqueta mayor sin nadie que las revisara.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 2
