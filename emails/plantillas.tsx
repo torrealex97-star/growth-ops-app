@@ -72,7 +72,7 @@ const ContractSigned = ({ conBoton }: { conBoton: boolean }) => (
 
 const StudentContract = () => (
   <Correo preview="Acepta tus condiciones y recibe tus accesos" pie={PIE_ESIGN}>
-    <Cabecera subtitulo="Bienvenido a la Academia" aire={20} />
+    <Cabecera subtitulo="Te damos la bienvenida" aire={20} />
     <Destacado>{'{{bienvenida}}'}</Destacado>
     <Parrafo>
       {
@@ -87,10 +87,11 @@ const StudentContract = () => (
 const StudentOnboarding = () => (
   <Correo preview="Tus accesos están listos">
     <Cabecera subtitulo="Tus accesos están listos 🚀" aire={20} />
-    <Destacado>{'¡Ya eres un Winner, {{nombre}}!'}</Destacado>
+    <Destacado>{'¡Tus accesos están listos, {{nombre}}!'}</Destacado>
     <Parrafo>
-      Hemos activado tus accesos a la Academia. Sigue el paso a paso de onboarding para empezar hoy mismo: ahí
-      encontrarás cómo entrar a la plataforma, el vídeo de inicio y todo lo que necesitas.
+      {
+        'Hemos activado tus accesos a {{empresa}}. Sigue el paso a paso de onboarding para empezar hoy mismo: ahí encontrarás cómo entrar a la plataforma, el vídeo de inicio y todo lo que necesitas.'
+      }
     </Parrafo>
     <Boton color={COLOR.acento}>Ver mis accesos y empezar</Boton>
     <EnlaceAlternativo />

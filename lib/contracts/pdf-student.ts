@@ -155,7 +155,7 @@ export async function buildStudentContractPdf(input: StudentPdfInput): Promise<U
     }
   }
 
-  sigBlock(MARGIN, 'LA ACADEMIA', [
+  sigBlock(MARGIN, company.name.toUpperCase(), [
     companySignatureLabel(company),
     company.representative ?? company.name,
     `Fecha: ${fecha}`,
