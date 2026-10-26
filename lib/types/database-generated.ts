@@ -1,4 +1,4 @@
-// GENERADO — no editar a mano. Fuente: OpenAPI de PostgREST (2026-10-26T19:06:06.854Z).
+// GENERADO — no editar a mano. Fuente: OpenAPI de PostgREST (2026-10-20T16:25:27.132Z).
 // Regenerar con: npm run tipos:bd  (y commitear). El test tests/esquema-tenant-invariante.test.mjs
 // comprueba que este artefacto sigue fresco respecto al esquema vivo.
 // Espejo exacto del esquema public de Supabase; los tipos de APP siguen en lib/types/database.ts.
@@ -1802,11 +1802,11 @@ export type EsquemaPublico = {
     }
     ContactLaunches: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        contact_id: string | null
-        launch_id: string | null
-        created_at: string | null
+        id: string
+        tenant_id: string
+        contact_id: string
+        launch_id: string
+        created_at: string
         confirmed_at: string | null
         confirm_source: string | null
         invitado_at: string | null
@@ -1814,16 +1814,16 @@ export type EsquemaPublico = {
         utm: Json | null
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        contact_id: string | null | undefined
-        launch_id: string | null | undefined
-        created_at: string | null | undefined
-        confirmed_at: string | null | undefined
-        confirm_source: string | null | undefined
-        invitado_at: string | null | undefined
-        invitado_por: string | null | undefined
-        utm: Json | null | undefined
+        id: string | undefined
+        tenant_id: string
+        contact_id: string
+        launch_id: string
+        created_at: string | undefined
+        confirmed_at: string | null
+        confirm_source: string | null
+        invitado_at: string | null
+        invitado_por: string | null
+        utm: Json | null
       }
       Update: {
         id: string | undefined
@@ -2225,22 +2225,22 @@ export type EsquemaPublico = {
     }
     ConversationEvents: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        conversation_id: string | null
+        id: string
+        tenant_id: string
+        conversation_id: string
         actor_user_id: string | null
-        kind: string | null
-        data: Json | null
-        created_at: string | null
+        kind: string
+        data: Json
+        created_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        conversation_id: string | null | undefined
-        actor_user_id: string | null | undefined
-        kind: string | null | undefined
-        data: Json | null | undefined
-        created_at: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        conversation_id: string
+        actor_user_id: string | null
+        kind: string
+        data: Json | undefined
+        created_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -2254,26 +2254,26 @@ export type EsquemaPublico = {
     }
     ConversationMessages: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        conversation_id: string | null
-        external_id: string | null
-        direction: string | null
-        author: string | null
-        body: string | null
-        sent_at: string | null
-        created_at: string | null
+        id: string
+        tenant_id: string
+        conversation_id: string
+        external_id: string
+        direction: string
+        author: string
+        body: string
+        sent_at: string
+        created_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        conversation_id: string | null | undefined
-        external_id: string | null | undefined
-        direction: string | null | undefined
-        author: string | null | undefined
-        body: string | null | undefined
-        sent_at: string | null | undefined
-        created_at: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        conversation_id: string
+        external_id: string
+        direction: string
+        author: string
+        body: string | undefined
+        sent_at: string
+        created_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -2289,46 +2289,46 @@ export type EsquemaPublico = {
     }
     Conversations: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        external_id: string | null
-        source: string | null
-        channel: string | null
+        id: string
+        tenant_id: string
+        external_id: string
+        source: string
+        channel: string
         contact_id: string | null
         contact_external_id: string | null
-        status: string | null
+        status: string
         snoozed_until: string | null
         assignee_id: string | null
-        ai_mode: string | null
-        labels: string | null
+        ai_mode: string
+        labels: string[]
         last_inbound_at: string | null
         last_message_at: string | null
         first_reply_at: string | null
-        unread_count: number | null
+        unread_count: number
         summary: string | null
-        created_at: string | null
-        updated_at: string | null
+        created_at: string
+        updated_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        external_id: string | null | undefined
-        source: string | null | undefined
-        channel: string | null | undefined
-        contact_id: string | null | undefined
-        contact_external_id: string | null | undefined
-        status: string | null | undefined
-        snoozed_until: string | null | undefined
-        assignee_id: string | null | undefined
-        ai_mode: string | null | undefined
-        labels: string | null | undefined
-        last_inbound_at: string | null | undefined
-        last_message_at: string | null | undefined
-        first_reply_at: string | null | undefined
-        unread_count: number | null | undefined
-        summary: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        external_id: string
+        source: string | undefined
+        channel: string | undefined
+        contact_id: string | null
+        contact_external_id: string | null
+        status: string | undefined
+        snoozed_until: string | null
+        assignee_id: string | null
+        ai_mode: string | undefined
+        labels: string[] | undefined
+        last_inbound_at: string | null
+        last_message_at: string | null
+        first_reply_at: string | null
+        unread_count: number | undefined
+        summary: string | null
+        created_at: string | undefined
+        updated_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -2342,7 +2342,7 @@ export type EsquemaPublico = {
         snoozed_until: string | undefined
         assignee_id: string | undefined
         ai_mode: string | undefined
-        labels: string | undefined
+        labels: string[] | undefined
         last_inbound_at: string | undefined
         last_message_at: string | undefined
         first_reply_at: string | undefined
@@ -4266,26 +4266,26 @@ export type EsquemaPublico = {
     }
     Launches: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        slug: string | null
-        label: string | null
-        fecha: string | null
+        id: string
+        tenant_id: string
+        slug: string
+        label: string
+        fecha: string
         opened_at: string | null
         opened_by: string | null
         movidos: number | null
-        created_at: string | null
+        created_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        slug: string | null | undefined
-        label: string | null | undefined
-        fecha: string | null | undefined
-        opened_at: string | null | undefined
-        opened_by: string | null | undefined
-        movidos: number | null | undefined
-        created_at: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        slug: string
+        label: string
+        fecha: string
+        opened_at: string | null
+        opened_by: string | null
+        movidos: number | null
+        created_at: string | undefined
       }
       Update: {
         id: string | undefined

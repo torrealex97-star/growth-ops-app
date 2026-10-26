@@ -79,3 +79,37 @@ export function sqlVentas(f: FiltrosListado): string {
     `order by s.sale_date desc limit ${f.limite}`
   )
 }
+
+const CANAL = /^[a-z][a-z0-9_]{0,29}$/
+
+/**
+ * Conversaciones de la bandeja (SOLO la ficha: estado, canal, modo de IA, etiquetas, contacto y responsable).
+ * Nunca mensajes ni eventos: llevan texto personal de los leads. Requiere el GRANT de
+ * `20261027100000_mcp_reader_conversaciones.sql`; el RLS limita a los roles de ventas/marketing.
+ */
+export function sqlConversaciones(f: FiltrosListado, canal: string | null): string {
+  const where = [
+    f.desde ? `cv.last_message_at >= '${f.desde}'::date` : '',
+    f.hasta ? `cv.last_message_at < ('${f.hasta}'::date + 1)` : '',
+    f.estado ? `cv.status = '${f.estado}'` : '',
+    canal ? `cv.channel = '${canal}'` : '',
+  ].filter(Boolean)
+  return (
+    `select cv.id, cv.channel, cv.status, cv.ai_mode, cv.labels, cv.unread_count, cv.last_inbound_at, ` +
+    `cv.last_message_at, cv.first_reply_at, c.full_name as contacto, u.full_name as responsable, t.slug as subcuenta ` +
+    `from conversations cv join tenants t on t.id = cv.tenant_id ` +
+    `left join contacts c on c.id = cv.contact_id left join users u on u.id = cv.assignee_id ` +
+    (where.length ? `where ${where.join(' and ')} ` : '') +
+    `order by cv.last_message_at desc nulls last limit ${f.limite}`
+  )
+}
+
+/** `canal` opcional: instagram, facebook, whatsapp, sms, email, tiktok… (minúsculas y guion bajo). */
+export function leerCanal(
+  args: Record<string, unknown>
+): { ok: true; canal: string | null } | { ok: false; error: string } {
+  if (args.canal === undefined || args.canal === null || args.canal === '') return { ok: true, canal: null }
+  if (typeof args.canal !== 'string' || !CANAL.test(args.canal))
+    return { ok: false, error: 'canal solo admite minúsculas, números y guion bajo' }
+  return { ok: true, canal: args.canal }
+}
