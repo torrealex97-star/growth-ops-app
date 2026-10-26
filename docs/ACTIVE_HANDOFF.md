@@ -14,6 +14,15 @@ aplicadas en producción, con lo que hace falta para subirlas. Al fusionarse una
 
 # RELEVO (24-oct, tarde — Buffy) — estado del repo e hilos candidatos para el próximo agente
 
+**Comparativa semanal A/B VSL EN EL PANEL (26-oct tarde, Buffy):** PR #650 fusionado (`b0a86266`):
+el bloque desplegable «Comparativa de hitos entre vídeos» del panel VSL lee en cada visita la ruta
+autenticada `vsl/ab-comparativa` (hitos 25/50/95 + play rate + % medio por vídeo del tenant; label
+«experimento» para `vsl-ab-`), y el runbook deja de pedir SQL a mano. Verificado con `quality`
+(789 tests) y `build` en verde; la ruta usa el mismo patrón de auth RLS-bypass que `vsl/metrics`
+(INSPECTED + TESTED local; no se probó contra BD real — requiere login de subcuenta). El bloqueo
+del experimento sigue siendo el mismo: pegar el snippet en vibepreview (fila 0 de «PENDIENTES DEL
+DUEÑO»), sin cargas reales aún.
+
 **Campaña A/B del segmento dinámico VSL LANZADA (26-oct tarde, Buffy):** PR #646 fusionado
 (`d6ab3e23`), deploy producción Ready y probado con 32 cargas: el reparto 50/50 (`?ab=slugA,slugB`
 en el embed) sirve ambas variantes y el control sin `ab` sigue sirviendo la v1. Variantes en BD:
@@ -464,8 +473,10 @@ después `20261020130000_forms_hardening.sql`. Solo endurecen políticas RLS.
 ## PENDIENTES DEL DUEÑO (por orden de impacto)
 
 0. **Pegar el snippet A/B en vibepreview** ([docs/VSL_AB_OCT26.md](VSL_AB_OCT26.md)): sustituir el
-   iframe del VSL por el que lleva `&ab=vsl-ab-a-oct26,vsl-ab-b-oct26`. La campaña visual con el
-   vídeo base cuando el experimento esté servido allí; critico el 2-nov.
+   iframe del VSL por el que lleva `   &ab=vsl-ab-a-oct26,vsl-ab-b-oct26` (26-oct tarde: el snippet NO está pegado y el player ya
+   no está incrustado en ninguna página real — verificado navegando; 0 sesiones del experimento).
+   La comparativa semanal ya se apunta en el panel VSL; el
+   experimento arranca cuando el snippet esté servido y recibiendo tráfico real; crítico el 2-nov.
 1. **Aplicar 2 migraciones de Formularios** (solo endurecen RLS; el código no depende de ellas):
    `supabase/migrations/20261020120000_forms_csm_solo_alumnos.sql` (csm solo ve feedback de alumnos) y
    `20261020130000_forms_hardening.sql` (borrar solo admin/director; respuestas solo revisión). SQL Editor de Supabase.
@@ -4403,13 +4414,12 @@ no existe en local ni remoto. Retirada de reclamación activa el 24-oct.
 Carriles y reglas en `AGENTS.md` › "Trabajo en paralelo". **Antes de empezar, añade tu fila; al
 fusionar, bórrala.** Si lo que vas a tocar está aquí a nombre de otro, no lo toques.
 
-| Agente           | Qué                                                                                                                                                                                                    | Rama                              | Toca                                                                                                                                                                                       | Desde  |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------ |
-| Freebuff         | Cierre de dependabots: 3 PR abiertos — #630 grupo minor (checks verdes), #631 y #632 bumps mayores (revisar CI antes de fusionar). Fusionar por familias, no en lote                                   | `main` + ramas dependabot         | `package.json`/lock y `dependabot.yml` (solo vía dependabot)                                                                                                                               | 23-oct |
-| Freebuff         | ~~Retirar el acta `audit_logs` de la limpieza E2E~~ HECHO (PR #638 fusionado 24-oct, CI verde, rama borrada); fila se retira al escribir el relevo                                                     | `chore/e2e-cleanup-sin-acta`      | —                                                                                                                                                                                          | 24-oct |
-| Freebuff         | VSL UI: ~~play instantáneo + miniatura dinámica con segmento elegible + borrado desde biblioteca~~ HECHO (PR #640 fusionado 24-oct, CI verde, rama borrada); fila retirada según regla de fusion       |
-| Freebuff (Buffy) | Comparativa semanal A/B VSL automatizada: ruta protegida `ab-comparativa` (SQL de hitos 25/50/95 por vídeo del tenant) + bloque en el panel VSL, para no lanzar SQL a mano cada lunes. Sin migraciones | `feat/vsl-ab-comparativa-semanal` | `app/api/[tenant]/evergreen/vsl/ab-comparativa/route.ts` (nuevo), `components/vsl/VslDashboard.tsx`, `tests/vsl-ab-comparativa.test.mjs`, `docs/VSL_AB_OCT26.md`, `docs/ACTIVE_HANDOFF.md` | 26-oct |
-| Claude Code      | Plan: F01 (RLS colaborador, P0), F19; sin rama activa aún — fila sin relevo desde 3-oct, verificar antes de continuar                                                                                  | —                                 | `docs/plan/`, migraciones RLS                                                                                                                                                              | 3-oct  |
+| Agente      | Qué                                                                                                                                                                                              | Rama                         | Toca                                                         | Desde  |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------- | ------------------------------------------------------------ | ------ |
+| Freebuff    | Cierre de dependabots: 3 PR abiertos — #630 grupo minor (checks verdes), #631 y #632 bumps mayores (revisar CI antes de fusionar). Fusionar por familias, no en lote                             | `main` + ramas dependabot    | `package.json`/lock y `dependabot.yml` (solo vía dependabot) | 23-oct |
+| Freebuff    | ~~Retirar el acta `audit_logs` de la limpieza E2E~~ HECHO (PR #638 fusionado 24-oct, CI verde, rama borrada); fila se retira al escribir el relevo                                               | `chore/e2e-cleanup-sin-acta` | —                                                            | 24-oct |
+| Freebuff    | VSL UI: ~~play instantáneo + miniatura dinámica con segmento elegible + borrado desde biblioteca~~ HECHO (PR #640 fusionado 24-oct, CI verde, rama borrada); fila retirada según regla de fusion |
+| Claude Code | Plan: F01 (RLS colaborador, P0), F19; sin rama activa aún — fila sin relevo desde 3-oct, verificar antes de continuar                                                                            | —                            | `docs/plan/`, migraciones RLS                                | 3-oct  |
 
 ## Reglas de trabajo (2026-09-21)
 
