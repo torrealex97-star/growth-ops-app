@@ -27,13 +27,13 @@ ESTRUCTURA OBLIGATORIA de las slides de contenido (5 o 6 slides, en este orden):
 2. EL GIRO — qué descubrió, qué decisión tomó o cuál era su miedo real.
 3. PUNTO B con la cifra ancla — usa el campo "big" con la cifra más fuerte (ej "12.000€", "23.000€", "11", "3 días"). El heading explica qué es esa cifra.
 4. PUNTO B en detalle — qué vende, cómo funciona o qué ha cambiado en su vida.
-5. EL VEHÍCULO — qué usó exactamente de la academia para conseguirlo.
+5. EL VEHÍCULO — qué usó exactamente del programa para conseguirlo.
 6. (Opcional) Un matiz honesto, un aprendizaje o el siguiente reto.
 
 REGLAS DE ORO:
 - NUNCA inventes ni redondees cifras. Usa solo las que aparezcan en el relato. Si el relato NO tiene cifras económicas, no las inventes: usa una métrica de avance (tiempo, número de clientes, horas ahorradas) en el campo "big", o omite "big" en esa slide.
 - Si el caso no tiene resultados económicos todavía (está en proceso), enfócalo como transformación de mentalidad o habilidad y dilo con honestidad. No lo disfraces de caso de facturación.
-- Si el relato indica que es un CLIENTE de la agencia y no un alumno de la academia, pon label "Caso cliente" en lugar de "Caso de éxito".
+- Si el relato indica que es un CLIENTE de la agencia y no un alumno, pon label "Caso cliente" en lugar de "Caso de éxito".
 - El "hook" es la frase más potente del caso: el contraste antes/después o la cifra. Máximo 90 caracteres.
 - Los "heading" son cortos y contundentes (máximo 60 caracteres). El "body" desarrolla en 1-3 frases (máximo 320 caracteres).
 - El "kicker" es una etiqueta de 1-4 palabras en mayúsculas conceptuales (ej "PUNTO A", "EL GIRO", "EL VEHÍCULO", "SU MIEDO REAL").
@@ -52,7 +52,7 @@ const TOOL: Anthropic.Tool = {
       label: {
         type: 'string',
         enum: ['Caso de éxito', 'Caso cliente'],
-        description: '«Caso cliente» solo si es cliente de la agencia y no alumno de la academia.',
+        description: '«Caso cliente» solo si es cliente de la agencia y no alumno.',
       },
       hook: { type: 'string', description: 'Frase gancho de la portada. Máx 90 caracteres.' },
       slides: {
