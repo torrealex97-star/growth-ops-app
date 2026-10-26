@@ -51,17 +51,115 @@ function getClient(): ReturnType<typeof postgres> {
  * La garantía REAL es la transacción READ ONLY; esto es la primera barrera y el mensaje
  * de error accionable.
  */
+/**
+ * Quita comentarios y literales del SQL con un ANALIZADOR LÉXICO real (no con regex en cadena).
+ *
+ * El orden importaba: la versión anterior quitaba primero los literales y luego los comentarios, así que una comilla
+ * dentro de un comentario de bloque desincronizaba el quitador de literales y se tragaba `; reset role; …`, dejando la
+ * lista de palabras prohibidas viendo solo `select 1`. Aquí se recorre el texto UNA vez, respetando comentarios de
+ * línea y de bloque (anidados), cadenas simples (con comilla doblada y, tras E, con barra invertida), dollar-quoting e
+ * identificadores entre comillas dobles. Devuelve `null` si algo queda sin cerrar: ante la duda, se rechaza.
+ */
+export function sinLiteralesNiComentarios(sqlText: string): string | null {
+  const t = sqlText
+  let out = ''
+  let i = 0
+  while (i < t.length) {
+    const c = t[i]
+    const sig = t[i + 1]
+    if (c === '-' && sig === '-') {
+      const fin = t.indexOf('\n', i)
+      i = fin === -1 ? t.length : fin
+      out += ' '
+      continue
+    }
+    if (c === '/' && sig === '*') {
+      let prof = 1
+      i += 2
+      while (i < t.length && prof > 0) {
+        if (t[i] === '/' && t[i + 1] === '*') {
+          prof++
+          i += 2
+        } else if (t[i] === '*' && t[i + 1] === '/') {
+          prof--
+          i += 2
+        } else i++
+      }
+      if (prof > 0) return null
+      out += ' '
+      continue
+    }
+    if (c === "'") {
+      const escapes = i > 0 && (t[i - 1] === 'E' || t[i - 1] === 'e') && !/[A-Za-z0-9_]/.test(t[i - 2] ?? ' ')
+      i++
+      let cerrada = false
+      while (i < t.length) {
+        if (escapes && t[i] === '\\') {
+          i += 2
+          continue
+        }
+        if (t[i] === "'") {
+          if (t[i + 1] === "'") {
+            i += 2
+            continue
+          }
+          i++
+          cerrada = true
+          break
+        }
+        i++
+      }
+      if (!cerrada) return null
+      out += "''"
+      continue
+    }
+    if (c === '"') {
+      i++
+      let cerrada = false
+      while (i < t.length) {
+        if (t[i] === '"') {
+          if (t[i + 1] === '"') {
+            i += 2
+            continue
+          }
+          i++
+          cerrada = true
+          break
+        }
+        i++
+      }
+      if (!cerrada) return null
+      out += '"x"'
+      continue
+    }
+    if (c === '$') {
+      const m = /^\$([A-Za-z_][A-Za-z0-9_]*)?\$/.exec(t.slice(i, i + 80))
+      if (m) {
+        const cierre = t.indexOf(m[0], i + m[0].length)
+        if (cierre === -1) return null
+        i = cierre + m[0].length
+        out += "''"
+        continue
+      }
+    }
+    out += c
+    i++
+  }
+  return out
+}
+
+/**
+ * ¿La consulta es de solo lectura? Primera barrera y mensaje accionable; la garantía REAL son las capas de debajo:
+ * protocolo EXTENDIDO (una sola sentencia por construcción), rol `mcp_reader` y transacción READ ONLY.
+ */
 export function esConsultaSoloLectura(sqlText: string): boolean {
-  const sinLiterales = sqlText
-    .replace(/'(?:[^']|'')*'/g, "''") // literales de cadena
-    .replace(/--[^\n]*/g, '') // comentarios de línea
-    .replace(/\/\*[\s\S]*?\*\//g, '') // comentarios de bloque
-    .replace(/\$\w*\$/g, "''") // dollar-quoting
-  const sinEspacios = sinLiterales.replace(/\s+/g, ' ').trim()
+  const limpio = sinLiteralesNiComentarios(sqlText)
+  if (limpio === null) return false
+  const sinEspacios = limpio.replace(/\s+/g, ' ').trim()
   if (!/^(select|with|explain|table)\b/i.test(sinEspacios)) return false
   if (/;.*\S/.test(sinEspacios.replace(/;$/, ''))) return false // una sola sentencia
   if (
-    /\b(insert|update|delete|merge|create|alter|drop|truncate|grant|revoke|copy|vacuum|analyze|call|do|set|reset|listen|notify|lock|reindex|cluster|comment|security\s+label|set_config)\b/i.test(
+    /\b(insert|update|delete|merge|create|alter|drop|truncate|grant|revoke|copy|vacuum|analyze|call|do|set|reset|role|session|authorization|listen|notify|lock|reindex|cluster|comment|security\s+label|set_config|into|pg_sleep|dblink|lo_import|lo_export|pg_read_file|pg_read_binary_file|pg_ls_dir)\b/i.test(
       sinEspacios
     )
   ) {
@@ -97,7 +195,9 @@ export async function ejecutarSqlMcp(
       await tx.unsafe(`set local role mcp_reader`)
       // DEFERRABLE: si la transacción tarda en poder declararse read-only, espera en vez de fallar.
       await tx.unsafe(`set local transaction_read_only = on`)
-      return tx.unsafe(consulta, []) as unknown as FilaMcp[]
+      // `simple: false` fuerza el protocolo EXTENDIDO: con él, varias sentencias en una consulta son un error de
+      // Postgres. Con args vacíos postgres.js usa por defecto el protocolo simple, que SÍ ejecuta varias.
+      return tx.unsafe(consulta, [], { simple: false } as unknown as { prepare: boolean }) as unknown as FilaMcp[]
     })) as unknown as FilaMcp[]
     const truncated = rows.length > MAX_ROWS
     return {
