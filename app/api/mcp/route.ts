@@ -13,6 +13,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { validarAccessToken } from '@/lib/mcp/oauth'
+import { leerFiltros, sqlAgendas, sqlVentas } from '@/lib/mcp/consultas'
 import { documentoDeContacto, resultadosDeBusqueda, sqlBuscar, sqlFetch } from '@/lib/mcp/busqueda'
 import { ejecutarSqlMcp } from '@/lib/mcp/sql-executor'
 
@@ -135,6 +136,40 @@ async function handleToolsList(id: unknown) {
           annotations: { title: 'Ver un contacto', ...SOLO_LECTURA },
         },
         {
+          name: 'list_appointments',
+          title: 'Listar agendas',
+          description:
+            'Lista agendas/citas (las más recientes primero) con contacto, closer, setter, estado, resultado y origen. Filtra por fechas y estado. Solo las que el usuario puede ver.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              desde: { type: 'string', description: 'Fecha inicial AAAA-MM-DD (opcional).' },
+              hasta: { type: 'string', description: 'Fecha final AAAA-MM-DD, inclusive (opcional).' },
+              estado: { type: 'string', description: 'Filtra por estado exacto, p. ej. scheduled (opcional).' },
+              limite: { type: 'number', description: 'Máximo de filas, 1-100 (por defecto 50).' },
+            },
+            additionalProperties: false,
+          },
+          annotations: { title: 'Listar agendas', ...SOLO_LECTURA },
+        },
+        {
+          name: 'list_sales',
+          title: 'Listar ventas',
+          description:
+            'Lista ventas (las más recientes primero). gross_amount es lo pactado, NO lo cobrado, y una reserva sin completar (reservation_completed_at nulo) no cuenta como venta: no sumes sin tenerlo en cuenta. Para cobros usa query_db sobre collections.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              desde: { type: 'string', description: 'Fecha inicial AAAA-MM-DD (opcional).' },
+              hasta: { type: 'string', description: 'Fecha final AAAA-MM-DD, inclusive (opcional).' },
+              estado: { type: 'string', description: 'Filtra por estado exacto, p. ej. scheduled (opcional).' },
+              limite: { type: 'number', description: 'Máximo de filas, 1-100 (por defecto 50).' },
+            },
+            additionalProperties: false,
+          },
+          annotations: { title: 'Listar ventas', ...SOLO_LECTURA },
+        },
+        {
           name: 'list_tenants',
           title: 'Listar subcuentas',
           description:
@@ -183,6 +218,24 @@ async function handleToolCall(
   email: string,
   origen: string
 ) {
+  if (name === 'list_appointments' || name === 'list_sales') {
+    const f = leerFiltros(args)
+    if (!f.ok) return errorDeHerramienta(id, f.error)
+    const sqlText = name === 'list_appointments' ? sqlAgendas(f.filtros) : sqlVentas(f.filtros)
+    const r = await ejecutarSqlMcp(sqlText, { userId, email, clientId: String(name) })
+    if (!r.ok) return errorDeHerramienta(id, r.error)
+    const meta = `— ${r.rowCount} filas en ${r.durationMs} ms`
+    return NextResponse.json(
+      jsonRpc(id, {
+        content: [
+          { type: 'text', text: r.rows.length ? JSON.stringify(r.rows, null, 2) : 'Sin filas.' },
+          { type: 'text', text: meta },
+        ],
+      }),
+      { headers: JSON_RPC_HEADERS }
+    )
+  }
+
   if (name === 'search') {
     const sqlText = sqlBuscar(String(args.query ?? ''))
     if (!sqlText) return errorDeHerramienta(id, 'Indica un texto para buscar')
