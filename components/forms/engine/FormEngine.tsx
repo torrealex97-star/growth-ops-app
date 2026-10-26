@@ -565,7 +565,6 @@ export function FormEngine({
                 type="button"
                 onClick={back}
                 className="inline-flex items-center gap-1 hover:text-foreground"
-                aria-label="Volver"
               >
                 <ArrowLeft className="h-4 w-4" /> Atrás
               </button>

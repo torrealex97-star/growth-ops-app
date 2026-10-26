@@ -133,6 +133,7 @@ export function MultiSelect({
                 <button
                   key={o.value}
                   type="button"
+                  aria-pressed={active}
                   onClick={() => toggle(o.value)}
                   className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
                 >

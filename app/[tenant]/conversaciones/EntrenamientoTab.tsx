@@ -459,6 +459,7 @@ export default function EntrenamientoTab() {
         </div>
         <div className="flex-1" />
         <select
+          aria-label="Modelo de IA"
           value={model}
           onChange={(e) => setModel(e.target.value)}
           className="bg-muted border border-border rounded-lg px-2 py-1.5 text-xs"
@@ -671,6 +672,7 @@ export default function EntrenamientoTab() {
                     sendLead()
                   }
                 }}
+                aria-label="Mensaje como el lead"
                 placeholder="Escribe como el lead…  (Enter envía)"
                 className="flex-1 resize-none bg-muted border border-border rounded-xl px-3 py-2.5 text-sm min-h-[44px] max-h-32"
               />
@@ -734,12 +736,14 @@ export default function EntrenamientoTab() {
                     </div>
                     <p className="text-3xs text-muted-foreground mb-0.5">¿Qué mejorar? (regla)</p>
                     <textarea
+                      aria-label="¿Qué mejorar? (regla)"
                       value={c.note || ''}
                       onChange={(e) => updateCorr(c.id, 'note', e.target.value)}
                       className="w-full bg-background border border-border rounded-lg p-2 text-xs mb-1.5 min-h-[40px]"
                     />
                     <p className="text-3xs text-muted-foreground mb-0.5">Cómo debería haber respondido (opcional)</p>
                     <textarea
+                      aria-label="Cómo debería haber respondido (opcional)"
                       value={c.better || ''}
                       onChange={(e) => updateCorr(c.id, 'better', e.target.value)}
                       className="w-full bg-background border border-border rounded-lg p-2 text-xs min-h-[40px]"
