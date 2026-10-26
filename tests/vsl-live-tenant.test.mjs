@@ -7,6 +7,8 @@ import { fileURLToPath } from 'node:url'
 // Code review 26-oct (VSL): regresiones de las correcciones aplicadas.
 // 1) la prueba social pública no mezcla subcuentas, 2) el latido acota la entrada del cliente,
 // 3) el join de heatmaps usa el índice (tenant_id, playback_id).
+// Añadidos 27-oct (review profundo): 4) el % visto en contacts respeta la subcuenta,
+// 5) el viewer_id del playback usa el anonId saneado, 6) identify lleva rate limit.
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
 const read = (path) => readFileSync(join(root, path), 'utf8')
@@ -16,6 +18,8 @@ const track = read('app/api/vsl/track/route.ts')
 const session = read('app/api/vsl/session/route.ts')
 const metrics = read('app/api/[tenant]/evergreen/vsl/metrics/[slug]/route.ts')
 const tracking = read('lib/vsl/tracking.ts')
+const sync = read('lib/vsl/sync.ts')
+const identify = read('app/api/vsl/identify/route.ts')
 
 test('prueba social: con ?tenant= se filtra por la subcuenta (el slug de vídeo NO es único global)', () => {
   // El contador va siempre filtrado por la subcuenta declarada en la query.
@@ -60,6 +64,34 @@ test('la sesión recorta los campos del cliente antes de entrar en filas (anonId
   assert.match(session, /const localAnonId = typeof anonId === 'string' \? anonId\.trim\(\)\.slice\(0, 200\) : null/)
   assert.match(session, /referrer\.slice\(0, 500\)/, 'referrer acotado')
   assert.match(session, /req\.headers\.get\('user-agent'\) \|\| ''\)\.slice\(0, 400\)/, 'user-agent acotado')
+})
+
+test('el % visto en contacts solo toca la subcuenta de la sesión (email compartido ≠ escribir en otros tenants)', () => {
+  // syncContactWatchPct exige tenant_id: un UPDATE por email a secas podía escribir el
+  // porcentaje de una sesión de una subcuenta sobre contactos de otra que compartan email.
+  assert.match(
+    sync,
+    /WHERE tenant_id = \$\{sess\.tenant_id\} AND lower\(email\) = \$\{sess\.lead_email\}/,
+    'el UPDATE lleva tenant_id'
+  )
+  assert.match(sync, /if \(!sess\?\.tenant_id \|\| !sess\.lead_email\) return/, 'sin subcuenta no escribe nada')
+  // Los dos únicos llamantes pasan una sesión con tenant_id (RETURNING del UPDATE de vsl_sessions).
+  assert.match(track, /RETURNING tenant_id, lead_email, max_position, duration/)
+  assert.match(identify, /RETURNING id, tenant_id, lead_email, max_position, duration/)
+})
+
+test('el viewer_id del playback es el anonId saneado, no el texto crudo del cliente', () => {
+  // vsl_viewer_identities enlaza viewer_id con contactos: si el INSERT guardara el anonId sin
+  // recortar, el enlace identify→contacto podría recibir un valor distinto al usado por metrics.
+  assert.match(session, /\$\{localAnonId\}, now\(\), now\(\)/, 'viewer_id = localAnonId saneado')
+  assert.doesNotMatch(session, /viewer_id.*\$\{anonId\}(?![\)"])/, 'el anonId crudo no entra en INSERT')
+})
+
+test('identify también lleva rate limit (rutas públicas VSL: session, track e identify)', () => {
+  assert.match(identify, /MinuteRateLimiter/)
+  assert.match(identify, /limiter\.allow\(`vsl-identify:\$\{ip\}`, 60\)/)
+  assert.match(session, /limiter\.allow\(`vsl-session:\$\{ip\}`, 60\)/)
+  assert.match(track, /limiter\.allow\(`vsl-track:\$\{ip\}`, 120\)/)
 })
 
 test('el heatmaps JOIN usa el índice compuesto (tenant_id, playback_id, …)', () => {

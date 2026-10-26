@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { sql, mergeConfig, slugify, DEFAULT_CONFIG } from '@/lib/vsl/db'
+import { sql, mergeConfig, slugify, jsonVsl } from '@/lib/vsl/db'
 import { requireTenant } from '@/lib/auth/requireTenant'
 
 export const dynamic = 'force-dynamic'
@@ -53,7 +53,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ tenant:
           source_url = ${source_url},
           poster_url = ${poster_url},
           duration_seconds = ${duration},
-          config = ${sql.json(config as any)},
+          config = ${jsonVsl(config)},
           updated_at = now()
         WHERE id = ${body.id} AND tenant_id = ${auth.tenantId}
         RETURNING id, slug, name, source_url, poster_url, duration_seconds, config, created_at, updated_at
@@ -74,7 +74,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ tenant:
 
     const [row] = await sql`
       INSERT INTO vsl_videos (tenant_id, slug, name, source_url, poster_url, duration_seconds, config)
-      VALUES (${auth.tenantId}, ${slug}, ${name}, ${source_url}, ${poster_url}, ${duration}, ${sql.json((config as any) ?? DEFAULT_CONFIG)})
+      VALUES (${auth.tenantId}, ${slug}, ${name}, ${source_url}, ${poster_url}, ${duration}, ${jsonVsl(config)})
       RETURNING id, slug, name, source_url, poster_url, duration_seconds, config, created_at, updated_at
     `
     return NextResponse.json({ video: { ...row, config: mergeConfig(row.config) } })

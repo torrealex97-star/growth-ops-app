@@ -3,12 +3,14 @@
 Regla: lo que esté listo y verde va a `main` sin preguntar. Aquí solo se listan cosas que **no** están en `main` o **no** están
 aplicadas en producción, con lo que hace falta para subirlas. Al fusionarse una, se borra su fila.
 
-Todo lo que depende de Alex, paso a paso: **[PASOS_ALEX.md](PASOS_ALEX.md)**.| Qué | Dónde está | Qué falta para subirlo |
-| ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+Todo lo que depende de Alex, paso a paso: **[PASOS_ALEX.md](PASOS_ALEX.md)**.
+
+| Qué | Dónde está | Qué falta para subirlo |
+| --- | --- | --- |
 | Registro de las 4 migraciones aplicadas por SQL Editor (26-oct): forms_csm_solo_alumnos, forms_hardening, lanzamientos, mcp_reader_conversaciones | Aplicadas y verificadas en producción; **no constan en `supabase_migrations.schema_migrations`** | No usar `supabase db push` (reaplicaría y fallaría por políticas duplicadas); seguir con `apply_migration` |
 | SDK `@anthropic-ai/sdk` 1.x | No migrado (Dependabot ya lo ignora; #649 cerrado) | Migrar a mano: el SDK 1.x quita `temperature` de `messages.create` y rompe `lib/ai/provider.ts` |
 | Copia de seguridad de la rama vieja `rescate/linaje-viejo-20260913` | Rama local borrada; copia en `~/rescate-linaje-viejo-20260913.bundle` (verificada) | Nada; recuperable con `git fetch <bundle> rescate/linaje-viejo-20260913` |
-| Code review VSL 26-oct: prueba social sin mezclar subcuentas, latido acotado y heatmap por índice | Rama `fix/vsl-live-tenant-y-acotados` (PR #661) | CI en verde y fusionar; luego verificar contadores con tráfico real |
+| Code review VSL 27-oct: revisión profunda de la superficie VSL (rutas públicas `/api/vsl`, rutas de tenant, lib y player) y fixes que salgan | Buffy, rama `fix/vsl-review-profundizar-27oct` | Futuro PR con `quality` en verde; sin tocar más carriles |
 
 # RELEVO (24-oct, tarde — Buffy) — estado del repo e hilos candidatos para el próximo agente
 

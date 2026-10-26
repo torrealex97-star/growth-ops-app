@@ -5,11 +5,14 @@ import { sql } from '@/lib/vsl/db'
 // Guarda siempre el MÁXIMO alcanzado (no baja) y marca vsl_watched_at. Nunca lanza:
 // si faltan las columnas vsl_* en algún entorno, se ignora y el tracking sigue.
 export async function syncContactWatchPct(sess?: {
+  tenant_id?: string | null
   lead_email?: string | null
   max_position?: number | string
   duration?: number | string
 }): Promise<void> {
-  if (!sess?.lead_email) return
+  // Sin subcuenta no se toca ningún contacto: actualizar por email a secas podía escribir el
+  // % visto de esta sesión sobre contactos de OTRA subcuenta que compartan email.
+  if (!sess?.tenant_id || !sess.lead_email) return
   const dur = Number(sess.duration) || 0
   const pos = Number(sess.max_position) || 0
   if (dur <= 0 || pos <= 0) return
@@ -19,7 +22,7 @@ export async function syncContactWatchPct(sess?: {
       UPDATE contacts SET
         vsl_watch_pct  = GREATEST(COALESCE(vsl_watch_pct, 0), ${pct}),
         vsl_watched_at = now()
-      WHERE lower(email) = ${sess.lead_email}
+      WHERE tenant_id = ${sess.tenant_id} AND lower(email) = ${sess.lead_email}
     `
   } catch {
     // columnas vsl_* pueden no existir en algún entorno -> se ignora

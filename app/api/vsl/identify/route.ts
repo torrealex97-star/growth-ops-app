@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server'
 import { sql } from '@/lib/vsl/db'
+import { MinuteRateLimiter } from '@/lib/tracking/ingest'
 import { syncContactWatchPct } from '@/lib/vsl/sync'
 
 export const dynamic = 'force-dynamic'
+
+// Rate limit (el mismo patrón de session/track): la ruta es pública y escribe filas.
+const limiter = new MinuteRateLimiter()
 
 // Asocia el email (del form de la landing) a la sesión de visionado.
 // Así el tracking deja de ser anónimo y se sabe DÓNDE se queda cada lead.
@@ -10,6 +14,10 @@ export async function POST(req: Request) {
   try {
     const { sessionId, email, name } = await req.json()
     if (!sessionId) return NextResponse.json({ error: 'sessionId requerido' }, { status: 400 })
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'desconocida'
+    if (!limiter.allow(`vsl-identify:${ip}`, 60)) {
+      return NextResponse.json({ error: 'Demasiadas peticiones' }, { status: 429 })
+    }
 
     // Descarta merge fields sin resolver (p.ej. GHL manda "{{contact.email}}" literal)
     // y valida que el email tenga pinta de email.

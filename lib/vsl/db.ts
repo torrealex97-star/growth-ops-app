@@ -34,3 +34,10 @@ export const sql = new Proxy((() => undefined) as unknown as ReturnType<typeof p
 
 // Re-export de los tipos/helpers puros para comodidad en el servidor.
 export { DEFAULT_CONFIG, mergeConfig, slugify } from './types'
+
+// postgres-js tipa sql.json para objetos con firma de índice (JSONValue) y las interfaces de
+// claves fijas (p.ej. VslConfig) no cumplen esa forma por sí solas. Cast centralizado aquí,
+// sobre el propio tipo del helper, para no dejar `as any` repartidos ni relajar la interfaz.
+export function jsonVsl(value: unknown): ReturnType<typeof sql.json> {
+  return sql.json(value as Parameters<typeof sql.json>[0])
+}
