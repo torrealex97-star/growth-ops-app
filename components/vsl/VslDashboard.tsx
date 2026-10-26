@@ -227,6 +227,8 @@ export function VslDashboard() {
         </div>
       </header>
 
+      <ComparativaHitos tenant={tenant} />
+
       {loading && (
         <div className="grid gap-5 lg:grid-cols-[248px_minmax(0,1fr)]" aria-label="Cargando vídeos">
           <Skeleton className="h-28 rounded-xl lg:h-[430px]" />
@@ -801,6 +803,125 @@ function EmptyAnalysis({ title, description }: { title: string; description: str
       <p className="font-medium text-foreground">{title}</p>
       <p className="mt-1 max-w-md text-sm leading-relaxed text-muted-foreground">{description}</p>
     </div>
+  )
+}
+
+// Comparativa semanal de hitos (25/50/95 %) entre vídeos de la subcuenta. Fue el SQL a mano de
+// docs/VSL_AB_OCT26.md; desde el 26-oct vive en la ruta `vsl/ab-comparativa` y aquí se lee cada
+// visita al panel. «—» no es cero: sin reproducciones el hito no tiene muestra.
+interface ComparativaFila {
+  slug: string
+  name: string
+  impresiones: number
+  plays: number
+  playRatePct: number | null
+  visto25Pct: number | null
+  visto50Pct: number | null
+  visto95Pct: number | null
+  pctMedio: number | null
+}
+
+function ComparativaHitos({ tenant }: { tenant: string }) {
+  const [filas, setFilas] = useState<ComparativaFila[] | null>(null)
+  const [error, setError] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(false)
+    try {
+      const r = await fetch(`/api/${tenant}/evergreen/vsl/ab-comparativa`)
+      if (!r.ok) throw new Error('No se pudo calcular la comparativa')
+      const d = await r.json()
+      setFilas(d.videos || [])
+    } catch {
+      setError(true)
+    } finally {
+      setLoading(false)
+    }
+  }, [tenant])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  return (
+    <details className="group rounded-xl border border-border/70 bg-card/20">
+      <summary className="cursor-pointer list-none px-5 py-4 text-sm font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
+        Comparativa de hitos entre vídeos{' '}
+        <span className="ml-2 text-xs font-normal text-muted-foreground">25 / 50 / 95 %</span>
+      </summary>
+      <div className="border-t border-border p-5">
+        {loading && <Skeleton className="h-24 w-full rounded-lg" />}
+
+        {error && (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">No se pudo calcular la comparativa ahora mismo.</p>
+            <Button variant="outline" size="sm" onClick={load}>
+              <RefreshCw className="mr-2 h-4 w-4" /> Reintentar
+            </Button>
+          </div>
+        )}
+
+        {filas && filas.length === 0 && (
+          <p className="text-sm text-muted-foreground">Aún no hay vídeos en la subcuenta.</p>
+        )}
+
+        {filas && filas.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[560px] text-sm">
+              <thead className="text-left text-xs text-muted-foreground">
+                <tr>
+                  <th className="pb-3 font-medium">Vídeo</th>
+                  <th className="pb-3 text-right font-medium">Impresiones</th>
+                  <th className="pb-3 text-right font-medium">Plays</th>
+                  <th className="pb-3 text-right font-medium">Play rate</th>
+                  <th className="pb-3 text-right font-medium">≥25 %</th>
+                  <th className="pb-3 text-right font-medium">≥50 %</th>
+                  <th className="pb-3 text-right font-medium">≥95 %</th>
+                  <th className="pb-3 text-right font-medium">Medio visto</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filas.map((fila) => (
+                  <tr
+                    key={fila.slug}
+                    className={`border-t border-border/60 ${fila.slug.includes('vsl-ab-') ? 'bg-brand-500/5' : ''}`}
+                  >
+                    <td className="py-3 pr-4">
+                      <p className="font-medium text-foreground">{fila.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {fila.slug}
+                        {fila.slug.includes('vsl-ab-') && (
+                          <span className="ml-2 rounded bg-brand-500/15 px-1.5 py-0.5 text-brand-400">experimento</span>
+                        )}
+                      </p>
+                    </td>
+                    <td className="py-3 text-right tabular-nums text-foreground">{fila.impresiones}</td>
+                    <td className="py-3 text-right tabular-nums text-foreground">{fila.plays}</td>
+                    <td className="py-3 text-right tabular-nums text-foreground">
+                      {fila.playRatePct === null ? '—' : `${fila.playRatePct}%`}
+                    </td>
+                    <td className="py-3 text-right tabular-nums text-foreground">
+                      {fila.visto25Pct === null ? '—' : `${fila.visto25Pct}%`}
+                    </td>
+                    <td className="py-3 text-right tabular-nums text-foreground">
+                      {fila.visto50Pct === null ? '—' : `${fila.visto50Pct}%`}
+                    </td>
+                    <td className="py-3 text-right tabular-nums text-foreground">
+                      {fila.visto95Pct === null ? '—' : `${fila.visto95Pct}%`}
+                    </td>
+                    <td className="py-3 text-right tabular-nums text-foreground">
+                      {fila.pctMedio === null ? '—' : `${fila.pctMedio}%`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </details>
   )
 }
 
