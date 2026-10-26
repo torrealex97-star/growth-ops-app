@@ -6,8 +6,9 @@ updates:
   - package-ecosystem: npm
     directory: /
     schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
+      # Mensual y con tope bajo: cada PR de Dependabot dispara CI completo y un preview; semanal x 5 era ruido.
+      interval: monthly
+    open-pull-requests-limit: 3
     groups:
       minor-and-patch:
         update-types: ['minor', 'patch']

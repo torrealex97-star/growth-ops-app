@@ -8,13 +8,16 @@ name: CI
 # ALCANCE (el repo es PÚBLICO: el objetivo es reducir tiempo, red y trabajo duplicado):
 #   · Los gates completos corren una sola vez en la PR. `main` está protegido y no acepta pushes
 #     directos, por lo que repetir el mismo build tras el merge no añade evidencia.
-#   · Todo PR crea el check final obligatorio. Si solo cambia docs/markdown/.freebuff, ejecuta
+#   · Todo PR crea el check final obligatorio. Si solo cambia docs/markdown/.freebuff/skills de agente, ejecuta
 #     gitleaks pero omite npm ci, typecheck, tests, dos builds y Playwright.
 #   · `workflow_dispatch` conserva una ejecución completa manual para diagnóstico.
 
 on:
   workflow_dispatch:
+  # `ready_for_review`: un PR en BORRADOR no ejecuta nada (ni gitleaks); al marcarlo como listo arranca el CI completo.
+  # Así los commits intermedios de trabajo en curso no gastan minutos. Un borrador no se puede fusionar.
   pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -23,6 +26,7 @@ concurrency:
 jobs:
   changes:
     name: Detectar cambios de aplicación
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
     runs-on: ubuntu-latest
     outputs:
       app: ${{ steps.scope.outputs.app }}
@@ -43,7 +47,7 @@ jobs:
             exit 0
           fi
           git fetch --no-tags --depth=1 origin "$BASE_SHA"
-          if git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- . ':!docs/**' ':!*.md' ':!.freebuff/**'; then
+          if git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- . ':!docs/**' ':!*.md' ':!.freebuff/**' ':!.agents/**' ':!.claude/skills/**'; then
             echo "app=false" >> "$GITHUB_OUTPUT"
           else
             echo "app=true" >> "$GITHUB_OUTPUT"
@@ -190,6 +194,7 @@ jobs:
   # (reglas por defecto + allowlist POR VALOR de los fixtures falsos de test).
   gitleaks:
     name: Secretos (gitleaks, historial completo)
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -205,7 +210,8 @@ jobs:
   gate:
     name: Release gate
     needs: [changes, quality, build, e2e, gitleaks]
-    if: always()
+    # En borrador no se evalúa (queda omitido y GitHub no deja fusionar borradores).
+    if: always() && (github.event_name != 'pull_request' || github.event.pull_request.draft != true)
     runs-on: ubuntu-latest
     steps:
       - name: Verificar checks requeridos según alcance
