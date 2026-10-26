@@ -61,6 +61,23 @@ test('session: una sesión por vídeo+anon, con device/country/UA capturados', (
   assert.match(route, /slug y anonId requeridos/, 'valida entrada mínima')
 })
 
+test('session: el INSERT lleva tenant_id del vídeo resuelto (regresión del 23502 que 500aba el tracking)', () => {
+  const route = lee('app/api/vsl/session/route.ts')
+  // Regresión 25-oct: la migración 20260911150000 declaró vsl_sessions.tenant_id NOT NULL sin
+  // trigger que lo rellene; sin este valor en el INSERT solo subía al error 23502 y el tracking
+  // VSL completo (sesiones, playbacks, latidos) llevaba semanas sin escribir una fila.
+  assert.match(
+    route,
+    /INSERT INTO vsl_sessions \(tenant_id, video_id, anon_id, referrer,/,
+    'la fila nace ya scoping al tenant del vídeo'
+  )
+  assert.match(
+    route,
+    /VALUES \(\$\{video\.tenant_id\}, \$\{video\.id\}, \$\{anonId\}/,
+    'tenant_id viene del vídeo canónico (resolvePublicVsl), nunca del cliente'
+  )
+})
+
 // ---------------------------------------------------------------------------
 // 4. TENANT ISOLATION: toda query tenant-side lleva filtro explícito
 // ---------------------------------------------------------------------------
@@ -158,4 +175,44 @@ test('config: mergeConfig completa los defaults de vídeos con config parcial/vi
   for (const clave of ['autoplay', 'muted', 'lockSeek', 'fakeProgress', 'loop', 'exitHook']) {
     assert.match(types, new RegExp(clave + ':'), `default ${clave} presente`)
   }
+})
+
+// ---------------------------------------------------------------------------
+// 9. MINIATURA DINÁMICA ELEGIBLE (24-oct): recorte Bunny o segmento a medida
+// ---------------------------------------------------------------------------
+test('config: el bucle dinámico a medida queda acotado en mergeConfig y PRESERVA el default bunny', () => {
+  const types = lee('lib/vsl/types.ts')
+  // Default V0-safe: un vídeo antiguo (o uno nuevo sin tocar) sigue viendo el webp de Bunny.
+  assert.match(
+    types,
+    /animationSource: c\.animationSource === 'custom' \? 'custom' : 'bunny'/,
+    'sin elección explícita, animación de Bunny (comportamiento anterior intacto)'
+  )
+  // Clamps: inicio saneado a >= 0 (cap 2 h) y duración del bucle 2-12 s enteros.
+  assert.match(types, /Math\.min\(7200, startSeg\)/, 'inicio del bucle capado')
+  assert.match(types, /Math\.min\(12, Math\.max\(2,/, 'duración del bucle 2-12 s')
+})
+
+test('player: la precarga gobernada y el bucle dinámico no tocan el tracking ni gastan red de más', () => {
+  const player = lee('components/vsl/VslPlayer.tsx')
+  // Precarga de la fuente solo por intención (viewport + idle), desactivada con saveData.
+  assert.match(player, /prefetchStartedRef/, 'la precarga es idempotente (una sola vez)')
+  assert.match(player, /startFragPrefetch: true/, 'hls.js pide el primer fragmento sin esperar el manifest')
+  assert.match(player, /hlsRef\.current\?\.startLoad\(\)/, 'el play de un HLS previamente precargado arranca caliente')
+  // El bucle a medida usa el vídeo REAL con buffer acotado al propio bucle (no descarga entera).
+  assert.match(player, /maxBufferLength: loopLen \+ 2/, 'buffer del bucle acotado a su duración')
+  assert.match(player, /loopVideoRef/, 'existe el elemento de bucle separado')
+  // El bucle vive en el elemento overlay: nunca un segundo sendBeat ni una segunda sesión.
+  assert.ok(!/loopVideoRef[\s\S].*sendBeat/.test(player), 'el bucle del póster no emite latidos de tracking')
+})
+
+test('biblioteca: el borrado deja de ser exclusivo del vídeo seleccionado y preserva la selección ajena', () => {
+  const dashboard = lee('components/vsl/VslDashboard.tsx')
+  // El borrado de otro vídeo no limpia la selección actual: solo se resetea si es el abierto.
+  assert.match(
+    dashboard,
+    /if \(selected === video\.slug\) setSelected\(null\)/,
+    'borrar otro vídeo conserva la selección actual'
+  )
+  assert.match(dashboard, /Borrar vídeo \$\{video\.name\}/, 'papelera accesible por ítem de la lista')
 })
