@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { requireTenant } from '@/lib/auth/requireTenant'
+import { puedeAccederAFila } from '@/lib/auth/acceso-por-propiedad'
 
 export const runtime = 'nodejs'
 
@@ -25,11 +26,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
 
     const { data: sale, error } = await sb
       .from('sales')
-      .select('payment_proof_path, payment_proof_url')
+      .select('payment_proof_path, payment_proof_url, setter_id, closer_id')
       .eq('id', saleId)
       .eq('tenant_id', t.tenantId)
       .maybeSingle()
     if (error || !sale) return NextResponse.json({ error: 'Venta no encontrada' }, { status: 404 })
+    // El service-role salta `sales_select_scope`: se repite aquí (liderazgo, visibilidad de equipo, o ser setter/closer de la venta).
+    const { data: urow } = await sb.from('users').select('data_scope').eq('id', t.userId).maybeSingle()
+    const dataScope = (urow as { data_scope?: string | null } | null)?.data_scope ?? null
+    if (!puedeAccederAFila({ userId: t.userId, role: t.role, isSuperAdmin: t.isSuperAdmin, dataScope }, sale)) {
+      return NextResponse.json({ error: 'Venta no encontrada' }, { status: 404 })
+    }
 
     if (sale.payment_proof_path) {
       const signed = await sb.storage.from(BUCKET).createSignedUrl(sale.payment_proof_path, SIGNED_URL_TTL_SECONDS)
