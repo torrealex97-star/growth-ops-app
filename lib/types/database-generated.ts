@@ -1800,6 +1800,44 @@ export type EsquemaPublico = {
         collaborator_attribution_blocked: boolean | undefined
       }
     }
+    ContactLaunches: {
+      Row: {
+        id: string
+        tenant_id: string
+        contact_id: string
+        launch_id: string
+        created_at: string
+        confirmed_at: string | null
+        confirm_source: string | null
+        invitado_at: string | null
+        invitado_por: string | null
+        utm: Json | null
+      }
+      Insert: {
+        id: string | undefined
+        tenant_id: string
+        contact_id: string
+        launch_id: string
+        created_at: string | undefined
+        confirmed_at: string | null
+        confirm_source: string | null
+        invitado_at: string | null
+        invitado_por: string | null
+        utm: Json | null
+      }
+      Update: {
+        id: string | undefined
+        tenant_id: string | undefined
+        contact_id: string | undefined
+        launch_id: string | undefined
+        created_at: string | undefined
+        confirmed_at: string | undefined
+        confirm_source: string | undefined
+        invitado_at: string | undefined
+        invitado_por: string | undefined
+        utm: Json | undefined
+      }
+    }
     ContactNotes: {
       Row: {
         id: string | null
@@ -4224,6 +4262,41 @@ export type EsquemaPublico = {
         created_at: string | undefined
         updated_at: string | undefined
         tenant_id: string | undefined
+      }
+    }
+    Launches: {
+      Row: {
+        id: string
+        tenant_id: string
+        slug: string
+        label: string
+        fecha: string
+        opened_at: string | null
+        opened_by: string | null
+        movidos: number | null
+        created_at: string
+      }
+      Insert: {
+        id: string | undefined
+        tenant_id: string
+        slug: string
+        label: string
+        fecha: string
+        opened_at: string | null
+        opened_by: string | null
+        movidos: number | null
+        created_at: string | undefined
+      }
+      Update: {
+        id: string | undefined
+        tenant_id: string | undefined
+        slug: string | undefined
+        label: string | undefined
+        fecha: string | undefined
+        opened_at: string | undefined
+        opened_by: string | undefined
+        movidos: number | undefined
+        created_at: string | undefined
       }
     }
     LinkTemplates: {
