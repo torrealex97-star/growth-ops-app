@@ -1,10 +1,12 @@
+// Tope de un vídeo razonable (24 h): comparten el saneado de seconds sueltos, posiciones y
+// duraciones que llegan del cliente. Cualquier cosa igual o mayor es basura, no visión.
+export const MAX_VIDEO_SECONDS = 86_400
+
 export interface VslWatchInterval {
   start: number
   end: number
   rate: number
 }
-
-const MAX_VIDEO_SECONDS = 86_400
 
 export function sanitizeWatchIntervals(input: unknown): VslWatchInterval[] {
   if (!Array.isArray(input)) return []

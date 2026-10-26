@@ -20,7 +20,11 @@ function detectDevice(ua: string): string {
 export async function POST(req: Request) {
   try {
     const { slug, tenant, anonId, referrer } = await req.json()
-    if (!slug || !anonId) {
+    // Los campos del payload son datos del cliente: se recortan a un límite razonable antes de
+    // entrar a las filas (el anonId es apenas un UUID; referrer/UA por saneado defensivo).
+    const localAnonId = typeof anonId === 'string' ? anonId.trim().slice(0, 200) : null
+    const referrerNormalized = typeof referrer === 'string' ? referrer.slice(0, 500) : null
+    if (!slug || !localAnonId) {
       return NextResponse.json({ error: 'slug y anonId requeridos' }, { status: 400 })
     }
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'desconocida'
@@ -28,7 +32,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Demasiadas peticiones' }, { status: 429 })
     }
 
-    const ua = req.headers.get('user-agent') || ''
+    const ua = (req.headers.get('user-agent') || '').slice(0, 400)
     const country = req.headers.get('x-vercel-ip-country') || req.headers.get('cf-ipcountry') || null
     const device = detectDevice(ua)
 
@@ -45,7 +49,7 @@ export async function POST(req: Request) {
     const result = await sql.begin(async (tx) => {
       const [row] = await tx`
         INSERT INTO vsl_sessions (tenant_id, video_id, anon_id, referrer, device, country, user_agent)
-        VALUES (${video.tenant_id}, ${video.id}, ${anonId}, ${referrer || null}, ${device}, ${country}, ${ua})
+        VALUES (${video.tenant_id}, ${video.id}, ${localAnonId}, ${referrerNormalized}, ${device}, ${country}, ${ua})
         ON CONFLICT (video_id, anon_id)
         DO UPDATE SET updated_at = now(), referrer = COALESCE(vsl_sessions.referrer, EXCLUDED.referrer)
         RETURNING id, tenant_id

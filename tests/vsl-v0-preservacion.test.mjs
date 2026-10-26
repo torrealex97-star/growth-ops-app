@@ -20,7 +20,14 @@ test('track: fusiona segundos vistos sin duplicados, acotados y saneados', () =>
   assert.match(route, /array_agg\(DISTINCT e ORDER BY e\)/, 'watched_seconds se fusiona sin duplicados')
   // Saneamiento antes de tocar DB: enteros >= 0, < 1 día, sin NaN.
   assert.match(route, /Number\.isFinite\(s\)/, 'descarta basura numérica')
-  assert.match(route, /s >= 0 && s < 86_400/, 'acota los segundos a un rango razonable')
+  assert.match(
+    route,
+    /s >= 0 && s < MAX_VIDEO_SECONDS/,
+    'acota los segundos a un rango razonable (tope compartido 24 h)'
+  )
+  // Nuevo en el code review 26-oct: el array entero y position/duration también quedan acotados.
+  assert.match(route, /\.slice\(0, 240\)/, 'seconds por latido acotado como los intervalos')
+  assert.match(route, /MAX_VIDEO_SECONDS\)/, 'position/duration acotadas al mismo tope')
   // max_position y duration solo suben (GREATEST): la retención nunca retrocede.
   assert.match(route, /GREATEST\(max_position/, 'max_position monótona creciente')
   assert.match(route, /GREATEST\(duration/, 'duration monótona creciente')
@@ -73,7 +80,7 @@ test('session: el INSERT lleva tenant_id del vídeo resuelto (regresión del 235
   )
   assert.match(
     route,
-    /VALUES \(\$\{video\.tenant_id\}, \$\{video\.id\}, \$\{anonId\}/,
+    /VALUES \(\$\{video\.tenant_id\}, \$\{video\.id\}, \$\{localAnonId\}/,
     'tenant_id viene del vídeo canónico (resolvePublicVsl), nunca del cliente'
   )
 })
