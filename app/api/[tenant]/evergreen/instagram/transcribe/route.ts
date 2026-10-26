@@ -6,6 +6,7 @@ import { getTenantConfigWithFallback } from '@/lib/config'
 import { getInstagramConfig, resolveIgUserId, refreshOwnMediaUrl, fetchBusinessDiscovery } from '@/lib/instagram/client'
 import { tenantAiEnv } from '@/lib/ai/provider'
 import { GROQ_LIMIT_BYTES, transcribeAudio } from '@/lib/ai/groq'
+import { esUrlPublicaSegura } from '@/lib/security/safe-url'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -233,13 +234,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
           )
         }
       }
+      // Anti-SSRF: la URL puede venir del cuerpo de la petición. Solo https a hosts públicos y SIN seguir redirecciones
+      // a ciegas (una redirección podría apuntar a la red interna), con el mismo helper que usan carruseles y webhooks.
+      if (!esUrlPublicaSegura(url)) {
+        await setStatus('error')
+        return NextResponse.json({ error: 'URL de vídeo no permitida' }, { status: 400 })
+      }
       await setStatus('procesando')
-      let r = await fetch(url)
+      let r = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(30_000) })
       if (!r.ok) {
         const refreshed = await tryRefresh()
         if (refreshed.url) {
           url = refreshed.url
-          r = await fetch(url)
+          if (!esUrlPublicaSegura(url)) {
+            await setStatus('error')
+            return NextResponse.json({ error: 'URL de vídeo no permitida' }, { status: 400 })
+          }
+          r = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(30_000) })
         } else {
           refreshReason = refreshed.reason
         }
@@ -250,6 +261,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
           ? refreshFailMessage(refreshReason)
           : 'El enlace del vídeo ha caducado y no se pudo renovar. Vuelve a sincronizar y reintenta.'
         return NextResponse.json({ error }, { status: 410 })
+      }
+      // Tope de tamaño ANTES de bufferizar: el límite de 25 MB se comprobaba con el cuerpo entero ya en memoria.
+      const declarado = Number(r.headers.get('content-length') ?? 0)
+      if (declarado > GROQ_LIMIT_BYTES) {
+        await setStatus('error')
+        return NextResponse.json(
+          { error: 'El vídeo supera el límite de 25MB de la transcripción gratuita.' },
+          { status: 413 }
+        )
       }
       const buf = Buffer.from(await r.arrayBuffer())
       const mime = r.headers.get('content-type') || 'video/mp4'
