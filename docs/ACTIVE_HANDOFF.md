@@ -13,6 +13,17 @@ aplicadas en producción, con lo que hace falta para subirlas. Al fusionarse una
 
 # RELEVO (24-oct, tarde — Buffy) — estado del repo e hilos candidatos para el próximo agente
 
+**Campaña A/B del segmento dinámico VSL LANZADA (26-oct tarde, Buffy):** PR #646 fusionado
+(`d6ab3e23`), deploy producción Ready y probado con 32 cargas: el reparto 50/50 (`?ab=slugA,slugB`
+en el embed) sirve ambas variantes y el control sin `ab` sigue sirviendo la v1. Variantes en BD:
+`vsl-ab-a-oct26` (bucle 25 s) y `vsl-ab-b-oct26` (bucle 0 s), byte-iguales a la v1 salvo el inicio
+del bucle. Fallo del dueño que arranca el reloj: pegar el snippet de [docs/VSL_AB_OCT26.md](VSL_AB_OCT26.md)
+en vibepreview (fila 0 de «PENDIENTES DEL DUEÑO»). La comparación semanal 25/50/95% va en ese doc.
+Precisión de fusión: se necesitó squash-admin tras 4 rebases seguidos — los nºcarriles paralelos
+(#630–#632, #644, #647) fusionaban `main` cada pocos minutos y la exigencia «rama al día» hacía
+perder la ventana; el contenido fusionado ES el rebaseado y los checks estaban en verde sobre el
+SHA empujado.
+
 **Estado verificado esta pasada:** `main` en `361b37c2` (25-oct: PR #640 VSL UI + PR #642 fix del
 500 de `/api/vsl/session`), locales limpios. **Fix #642 verificado END-TO-END en producción**:
 deploy `growth-ops-c8ijthcwu` Ready, dos POST sucesivos a `/api/vsl/session` devuelven 200 con el
@@ -451,6 +462,9 @@ después `20261020130000_forms_hardening.sql`. Solo endurecen políticas RLS.
 
 ## PENDIENTES DEL DUEÑO (por orden de impacto)
 
+0. **Pegar el snippet A/B en vibepreview** ([docs/VSL_AB_OCT26.md](VSL_AB_OCT26.md)): sustituir el
+   iframe del VSL por el que lleva `&ab=vsl-ab-a-oct26,vsl-ab-b-oct26`. La campaña visual con el
+   vídeo base cuando el experimento esté servido allí; critico el 2-nov.
 1. **Aplicar 2 migraciones de Formularios** (solo endurecen RLS; el código no depende de ellas):
    `supabase/migrations/20261020120000_forms_csm_solo_alumnos.sql` (csm solo ve feedback de alumnos) y
    `20261020130000_forms_hardening.sql` (borrar solo admin/director; respuestas solo revisión). SQL Editor de Supabase.
@@ -4393,7 +4407,7 @@ fusionar, bórrala.** Si lo que vas a tocar está aquí a nombre de otro, no lo 
 | Freebuff    | Cierre de dependabots: 3 PR abiertos — #630 grupo minor (checks verdes), #631 y #632 bumps mayores (revisar CI antes de fusionar). Fusionar por familias, no en lote                             | `main` + ramas dependabot    | `package.json`/lock y `dependabot.yml` (solo vía dependabot) | 23-oct |
 | Freebuff    | ~~Retirar el acta `audit_logs` de la limpieza E2E~~ HECHO (PR #638 fusionado 24-oct, CI verde, rama borrada); fila se retira al escribir el relevo                                               | `chore/e2e-cleanup-sin-acta` | —                                                            | 24-oct |
 | Freebuff    | VSL UI: ~~play instantáneo + miniatura dinámica con segmento elegible + borrado desde biblioteca~~ HECHO (PR #640 fusionado 24-oct, CI verde, rama borrada); fila retirada según regla de fusion |
-| Freebuff (Buffy) | Campaña A/B del segmento dinámico VSL (v1): variantes A (25 s) y B (0 s) en BD + reparto 50/50 por carga vía `?ab=slugA,slugB` en el embed + SQL comparativa de hitos 25/50/95% semana. NO aplica migraciones, solo `vsl_videos` | `feat/vsl-ab-experiment` | `app/embed/vsl/[slug]/page.tsx`, `lib/vsl/ab.ts` (nuevo), `tests/vsl-ab-embed.test.mjs`, `docs/ACTIVE_HANDOFF.md`; BD: INSERT en `vsl_videos` | 26-oct |
+| Freebuff (Buffy) | Comparativa semanal A/B VSL automatizada: ruta protegida `ab-comparativa` (SQL de hitos 25/50/95 por vídeo del tenant) + bloque en el panel VSL, para no lanzar SQL a mano cada lunes. Sin migraciones | `feat/vsl-ab-comparativa-semanal` | `app/api/[tenant]/evergreen/vsl/ab-comparativa/route.ts` (nuevo), `components/vsl/VslDashboard.tsx`, `tests/vsl-ab-comparativa.test.mjs`, `docs/VSL_AB_OCT26.md`, `docs/ACTIVE_HANDOFF.md` | 26-oct |
 | Claude Code | Plan: F01 (RLS colaborador, P0), F19; sin rama activa aún — fila sin relevo desde 3-oct, verificar antes de continuar                                                                            | —                            | `docs/plan/`, migraciones RLS                                | 3-oct  |
 
 ## Reglas de trabajo (2026-09-21)
