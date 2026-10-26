@@ -10,9 +10,24 @@ Todo lo que depende de Alex, paso a paso: **[PASOS_ALEX.md](PASOS_ALEX.md)**.
 | Registro de las 4 migraciones aplicadas por SQL Editor (26-oct): forms_csm_solo_alumnos, forms_hardening, lanzamientos, mcp_reader_conversaciones | Aplicadas y verificadas en producción; **no constan en `supabase_migrations.schema_migrations`** | No usar `supabase db push` (reaplicaría y fallaría por políticas duplicadas); seguir con `apply_migration` |
 | SDK `@anthropic-ai/sdk` 1.x | No migrado (Dependabot ya lo ignora; #649 cerrado) | Migrar a mano: el SDK 1.x quita `temperature` de `messages.create` y rompe `lib/ai/provider.ts` |
 | Copia de seguridad de la rama vieja `rescate/linaje-viejo-20260913` | Rama local borrada; copia en `~/rescate-linaje-viejo-20260913.bundle` (verificada) | Nada; recuperable con `git fetch <bundle> rescate/linaje-viejo-20260913` |
-| Code review VSL 27-oct: revisión profunda de la superficie VSL (rutas públicas `/api/vsl`, rutas de tenant, lib y player) y fixes que salgan | Buffy, rama `fix/vsl-review-profundizar-27oct` | Futuro PR con `quality` en verde; sin tocar más carriles |
+| Code review VSL 27-oct: fixes avalados listos — **[PR #664](https://github.com/torrealex97-star/growth-ops-app/pull/664)**, CI en verde (Quality Gate + Build + Smoke E2E); solo el deploy Vercel falla por rate limit de la cuenta (retry 24 h) | PR #664 sobre `fix/vsl-review-profundizar-27oct` | Fusionar (lo que el deploy de Vercel sube al tener hueco; nada del código depende de esa cola). Borra la fila al fusionar |
 
 # RELEVO (24-oct, tarde — Buffy) — estado del repo e hilos candidatos para el próximo agente
+
+**Code review VSL 27-oct, PR #664 LISTO (Buffy):** revisión profunda de la superficie VSL con la
+metodología de la skill security-audit (los agentes revisores externos no están disponibles en este
+entorno). Cuatro fixes aplicados y testados con regresiones en `tests/vsl-live-tenant.test.mjs`:
+(1) `syncContactWatchPct` filtraba `contacts` SOLO por email — un email compartido entre subcuentas
+recibía el % visto de la sesión del otro tenant (corrección: `tenant_id` obligatorio, y `track`
+devuelva `tenant_id` en su RETURNING); (2) el `viewer_id` del playback guardaba el anonId crudo en
+vez del saneado, rompiendo el enlace identify→contacto; (3) `identify` era la única ruta pública VSL
+sin rate limit; (4) `as any` del POST de vídeos sustituido por el helper tipado `jsonVsl`. Local:
+`quality` (789 tests) + `build` verdes; CI del SHA: Quality Gate + Build + Smoke E2E en verde (el
+deploy Vercel de ese push toca cola por rate limit de la cuenta, no por código). Hallazgos revisados
+y descartados: rate limit en `vsl/live` (GET de solo-lectura; lo pondera el backlog), DELETE sin
+feedback en el dashboard y métricas de `vsl_sync` (falsos positivos de knip; el uso lo ve la query
+de resumen). Los hallazgos mayores del player ya se corrigieron en el #661 del 26-oct: no hicieron
+falta re-fixes.
 
 **Comparativa semanal A/B VSL EN EL PANEL (26-oct tarde, Buffy):** PR #650 fusionado (`b0a86266`):
 el bloque desplegable «Comparativa de hitos entre vídeos» del panel VSL lee en cada visita la ruta
