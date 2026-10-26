@@ -86,7 +86,7 @@ export async function POST(req: Request) {
         last_beat_at  = now(),
         updated_at    = now()
       WHERE id = ${sessionId}
-      RETURNING lead_email, max_position, duration
+      RETURNING tenant_id, lead_email, max_position, duration
     `
 
     // Dual-write: la sesión legacy sigue alimentando los paneles existentes, mientras la capa
@@ -135,6 +135,7 @@ export async function POST(req: Request) {
 
     // Copia el % exacto visto al contacto (por email) para que el cold caller lo vea en Leads.
     // En try/catch aislado: si faltan las columnas vsl_* en algún entorno, el tracking NO debe fallar.
+    // El UPDATE necesita tenant_id: el match por email solo debe tocar contactos de ESTA subcuenta.
     await syncContactWatchPct(sess)
 
     return NextResponse.json({ ok: true })

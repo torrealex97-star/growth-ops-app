@@ -100,7 +100,7 @@ export async function POST(req: Request) {
         INSERT INTO vsl_playback_sessions (
           tenant_id, video_id, video_version_id, legacy_session_id, viewer_id, started_at, last_event_at
         ) VALUES (
-          ${row.tenant_id}, ${video.id}, ${version.id}, ${row.id}, ${anonId}, now(), now()
+          ${row.tenant_id}, ${video.id}, ${version.id}, ${row.id}, ${localAnonId}, now(), now()
         )
         RETURNING playback_id
       `
