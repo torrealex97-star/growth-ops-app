@@ -14,6 +14,7 @@ import { ESTADOS, ETIQUETA_ESTADO, esEstado, type Estado } from '@/lib/conversac
 import { estadoVentana } from '@/lib/conversaciones/ventana'
 import { ROLES_IA } from '@/lib/conversaciones/acciones'
 import { formatDateTime } from '@/lib/utils'
+import { rellenarRespuesta, type RespuestaRapida } from '@/lib/conversaciones/respuestas-rapidas'
 
 type Fila = {
   id: string
@@ -47,8 +48,41 @@ export default function BandejaTab() {
   const [borradores, setBorradores] = useState<Borrador[]>([])
   const [edicion, setEdicion] = useState<Record<string, string>>({})
   const [respuesta, setRespuesta] = useState('')
+  const [rapidas, setRapidas] = useState<RespuestaRapida[]>([])
+  const [puedeEditarRapidas, setPuedeEditarRapidas] = useState(false)
+  const [tituloNueva, setTituloNueva] = useState('')
+  const [etiquetaNueva, setEtiquetaNueva] = useState('')
 
   const puedeIA = !!sesion && (sesion.isSuperAdmin || (ROLES_IA as readonly string[]).includes(sesion.rol ?? ''))
+
+  useEffect(() => {
+    const ctrl = new AbortController()
+    fetch(`/api/${tenant}/evergreen/conversaciones/respuestas-rapidas`, { signal: ctrl.signal })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((b) => {
+        if (!b) return
+        setRapidas(Array.isArray(b.respuestas) ? b.respuestas : [])
+        setPuedeEditarRapidas(b.puedeEditar === true)
+      })
+      .catch(() => {})
+    return () => ctrl.abort()
+  }, [tenant])
+
+  async function guardarRapidas(nuevas: RespuestaRapida[], ok: string) {
+    try {
+      const res = await fetch(`/api/${tenant}/evergreen/conversaciones/respuestas-rapidas`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ respuestas: nuevas }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body.error ?? 'No se pudo guardar')
+      setRapidas(body.respuestas ?? nuevas)
+      toast.success(ok)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo guardar')
+    }
+  }
 
   const cargarLista = useCallback(async () => {
     const sb = createClient()
@@ -266,6 +300,47 @@ export default function BandejaTab() {
             <EmptyState icon={MessageSquare} title="Elige una conversación" className="py-16" />
           ) : (
             <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-1.5" aria-label="Etiquetas">
+                {actual.labels.map((et) => (
+                  <span
+                    key={et}
+                    className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5 text-xs text-foreground"
+                  >
+                    {et}
+                    <button
+                      type="button"
+                      aria-label={`Quitar la etiqueta ${et}`}
+                      disabled={trabajando}
+                      onClick={() =>
+                        accion(
+                          { accion: 'etiquetas', etiquetas: actual.labels.filter((x) => x !== et) },
+                          'Etiqueta quitada'
+                        )
+                      }
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+                <input
+                  value={etiquetaNueva}
+                  onChange={(e) => setEtiquetaNueva(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key !== 'Enter' || !etiquetaNueva.trim()) return
+                    e.preventDefault()
+                    const nueva = etiquetaNueva.trim().toLowerCase()
+                    setEtiquetaNueva('')
+                    if (!actual.labels.includes(nueva))
+                      accion({ accion: 'etiquetas', etiquetas: [...actual.labels, nueva] }, 'Etiqueta añadida')
+                  }}
+                  maxLength={30}
+                  placeholder="+ etiqueta"
+                  aria-label="Añadir etiqueta"
+                  className="w-28 rounded-full border border-dashed border-border bg-transparent px-2 py-0.5 text-xs text-foreground placeholder:text-muted-foreground"
+                />
+              </div>
+
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h2 className="text-sm font-semibold text-foreground">{nombreDe(actual.contacts)}</h2>
@@ -398,6 +473,75 @@ export default function BandejaTab() {
               ))}
 
               <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  {rapidas.length ? (
+                    <select
+                      aria-label="Respuestas rápidas"
+                      value=""
+                      disabled={!ventana?.abierta}
+                      onChange={(e) => {
+                        const r = rapidas.find((x) => x.id === e.target.value)
+                        if (r) setRespuesta(rellenarRespuesta(r.texto, nombreDe(actual.contacts)))
+                      }}
+                      className="rounded-lg border border-border bg-muted p-1.5 text-xs text-foreground"
+                    >
+                      <option value="">Respuesta rápida…</option>
+                      {rapidas.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.titulo}
+                        </option>
+                      ))}
+                    </select>
+                  ) : null}
+                  {puedeEditarRapidas && rapidas.length ? (
+                    <select
+                      aria-label="Quitar una respuesta rápida"
+                      value=""
+                      onChange={(e) => {
+                        const id = e.target.value
+                        if (id)
+                          guardarRapidas(
+                            rapidas.filter((x) => x.id !== id),
+                            'Respuesta rápida quitada'
+                          )
+                      }}
+                      className="rounded-lg border border-border bg-muted p-1.5 text-xs text-muted-foreground"
+                    >
+                      <option value="">Quitar…</option>
+                      {rapidas.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.titulo}
+                        </option>
+                      ))}
+                    </select>
+                  ) : null}
+                  {puedeEditarRapidas && respuesta.trim() ? (
+                    <span className="flex items-center gap-1">
+                      <input
+                        value={tituloNueva}
+                        onChange={(e) => setTituloNueva(e.target.value)}
+                        maxLength={40}
+                        placeholder="Título para guardar este texto"
+                        aria-label="Título de la respuesta rápida"
+                        className="w-48 rounded-lg border border-border bg-muted p-1.5 text-xs text-foreground"
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={!tituloNueva.trim()}
+                        onClick={async () => {
+                          await guardarRapidas(
+                            [...rapidas, { id: '', titulo: tituloNueva.trim(), texto: respuesta.trim() }],
+                            'Respuesta rápida guardada'
+                          )
+                          setTituloNueva('')
+                        }}
+                      >
+                        Guardar
+                      </Button>
+                    </span>
+                  ) : null}
+                </div>
                 <textarea
                   value={respuesta}
                   onChange={(e) => setRespuesta(e.target.value)}
