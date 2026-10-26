@@ -40,3 +40,10 @@ test('skills de agente y docs cuentan como cambio sin impacto en la app (CI y Ve
   for (const rama of ['dependabot/**', 'docs/**', 'claude/**'])
     assert.equal(cfg.git.deploymentEnabled[rama], false, rama)
 })
+
+test('Vercel compara contra el último despliegue y no solo contra el commit anterior', () => {
+  const cfg = JSON.parse(readFileSync(join(root, 'vercel.json'), 'utf8'))
+  // Con varios commits en un push, `HEAD^` solo miraba el último: si era de docs, se saltaba el código anterior.
+  assert.match(cfg.ignoreCommand, /VERCEL_GIT_PREVIOUS_SHA:-HEAD\^/)
+  assert.match(cfg.ignoreCommand, /git diff --quiet \$BASE HEAD/)
+})

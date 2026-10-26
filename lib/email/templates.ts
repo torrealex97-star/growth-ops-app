@@ -47,7 +47,7 @@ export const DEFAULT_SUBJECTS: Record<EmailTemplateKey, (v: EmailVars) => string
   recovery: (v) => `${v.company.name} · Restablecer contraseña`,
   contract: (v) => `${v.company.name} · Contrato para firmar`,
   contract_signed: (v) => `${v.company.name} · Copia de tu contrato firmado`,
-  student_contract: (v) => `${v.company.name} · ¡Bienvenida! Acepta tus condiciones`,
+  student_contract: (v) => `${v.company.name} · ¡Te damos la bienvenida! Acepta tus condiciones`,
   student_onboarding: (v) => `${v.company.name} · Tus accesos están listos — empieza aquí`,
   student_contract_signed: (v) => `${v.company.name} · Copia de tu contrato firmado`,
   task_assigned: (v) => `${v.company.name} · Nueva tarea: ${v.taskTitle ?? ''}`,
@@ -152,7 +152,7 @@ export const TEMPLATE_SKELETONS: Record<EmailTemplateKey, { subject: string; bod
   contract: { subject: '{{empresa}} · Contrato para firmar', body: PLANTILLAS_HTML.contract },
   contract_signed: { subject: '{{empresa}} · Copia de tu contrato firmado', body: PLANTILLAS_HTML.contract_signed },
   student_contract: {
-    subject: '{{empresa}} · ¡Bienvenida! Acepta tus condiciones',
+    subject: '{{empresa}} · ¡Te damos la bienvenida! Acepta tus condiciones',
     body: PLANTILLAS_HTML.student_contract,
   },
   student_onboarding: {
