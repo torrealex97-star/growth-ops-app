@@ -374,7 +374,7 @@ export default function PlantillasPage() {
                     value={welcome}
                     onChange={(e) => setWelcome(e.target.value)}
                     className="bg-muted border-border min-h-[70px] text-sm"
-                    placeholder="¡Bienvenido Winner! Revisa y acepta las condiciones…"
+                    placeholder="¡Te damos la bienvenida! Revisa y acepta las condiciones…"
                   />
                 </div>
               </div>

@@ -235,7 +235,7 @@ export async function sendTaskAssignedEmail(opts: {
 
 // ==================== ALUMNOS ====================
 
-// Envía al ALUMNO el contrato para aceptar ("Bienvenido Winner…" + enlace cortafuegos).
+// Envía al ALUMNO el contrato para aceptar (mensaje de bienvenida de la subcuenta + enlace cortafuegos).
 export async function sendStudentContractEmail(opts: {
   /** Credenciales de la subcuenta; si no se pasan, se usa el entorno del despliegue. */
   mail?: MailEnv
