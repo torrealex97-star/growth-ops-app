@@ -1,6 +1,7 @@
 // Agregaciones puras para el centro de mando (dashboard, ranking, atribución, objetivos).
 // Sin I/O: reciben filas crudas de Supabase y devuelven datos listos para pintar.
 
+import { normalizarCanal } from '@/lib/contacts/canal-alias'
 import { isAttended, isCancelled, isNoShow } from '@/lib/appointments/status'
 import { esReservaAbierta } from '@/lib/metrics/agregados'
 import { inPeriod, type PeriodRange } from '@/lib/filters/period'
@@ -120,8 +121,10 @@ const dayOf = (d: string | null | undefined) => (d ? String(d).slice(0, 10) : ''
 
 const SOURCE_FALLBACK = 'Directo / Sin atribuir'
 const labelSource = (a?: { source: string | null; utm_source: string | null }) =>
-  [a?.source, a?.utm_source].find((value) => value && !['ghl', 'ghl_import'].includes(value.trim().toLowerCase())) ||
-  SOURCE_FALLBACK
+  normalizarCanal(
+    [a?.source, a?.utm_source].find((value) => value && !['ghl', 'ghl_import'].includes(value.trim().toLowerCase())) ||
+      SOURCE_FALLBACK
+  ) as string
 
 /**
  * Etiqueta de la fuente que pintan las métricas (Actividad por fuente, embudo por fuente).

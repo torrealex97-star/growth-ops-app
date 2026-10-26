@@ -497,7 +497,7 @@ después `20261020130000_forms_hardening.sql`. Solo endurecen políticas RLS.
 
 - Recaptura completa del fixture de esquema (`esquema-produccion-20260923.json`) cuando haya conectividad al pooler.
 - TanStack Query en pantallas pesadas y round-robin/enrutamiento (ideas de Cal.diy): opcionales.
-- Normalizar alias de canal («ig»/«instagram») en el modelo de último toque.
+- ~~Normalizar alias de canal («ig»/«instagram»)~~ HECHO: `lib/contacts/canal-alias.ts` aplicado en `labelSource` (analytics).
 - Revisar con calma el módulo de Formularios en producción (se fusionó con CI verde y tests, sin revisión manual).
 
 # COMPLETADO — barrido de errores: drift del artefacto de tipos BD (20-oct, Buffy) · `fix/platform-settings-invariante` (PR #586, squash `509c0405`)

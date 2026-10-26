@@ -114,3 +114,14 @@ usuario `member` (1 subcuenta, 1 contacto, 0 ventas) frente al super admin (4 su
   encontrado» no distingue entre «no existe» y «no tienes permiso».
 - **Errores de herramienta** como resultado con `isError: true` (el modelo los lee y se corrige), no como error de protocolo.
 - El servidor sigue siendo **solo lectura**: ChatGPT no puede crear ni modificar nada.
+
+## Listados de agendas y ventas
+
+- `list_appointments` y `list_sales`: filtran por `desde`/`hasta` (AAAA-MM-DD), `estado` y `limite` (1-100, 50 por defecto).
+  Argumentos validados en `lib/mcp/consultas.ts`; el SQL devuelve columnas acotadas (sin transcripciones, análisis de IA,
+  payloads, comprobantes ni documentos del alumno) y pasa por el RLS del usuario.
+- **Dinero** (`docs/MONEY.md`): no calculan totales. `gross_amount` es lo pactado, no lo cobrado; una reserva sin completar
+  (`reservation_completed_at` nulo) no es venta (D8). Para cobros, `query_db` sobre `collections`.
+- Verificado en producción con RLS: un usuario `member` ve 1 cita de 1 subcuenta y 0 ventas; el super admin ve todas.
+- Pendiente: un `list_conversations` necesita `GRANT SELECT` de `mcp_reader` sobre `conversations` (migración nueva,
+  tabla fuera de la whitelist actual).
