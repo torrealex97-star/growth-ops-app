@@ -3,6 +3,8 @@
 Regla: lo que esté listo y verde va a `main` sin preguntar. Aquí solo se listan cosas que **no** están en `main` o **no** están
 aplicadas en producción, con lo que hace falta para subirlas. Al fusionarse una, se borra su fila.
 
+Todo lo que depende de Alex, paso a paso: **[PASOS_ALEX.md](PASOS_ALEX.md)**.
+
 | Qué                                                                                 | Dónde está                                                                         | Qué falta para subirlo                                                                          |
 | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | Migración `20261020120000_forms_csm_solo_alumnos.sql`                               | En `main` (fichero), **sin aplicar en producción**                                 | Aplicarla (SQL Editor de Supabase o permiso de `apply_migration`)                               |
