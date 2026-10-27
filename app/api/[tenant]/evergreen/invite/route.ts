@@ -86,7 +86,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       gen = await supabase.auth.admin.generateLink({ type: 'recovery', email, options: { redirectTo } })
     }
     if (gen.error) {
-      console.error(`[invite] generateLink(${linkType}) falló para ${email}: ${gen.error.message}`)
+      // Sin el email del invitado: los logs de la plataforma no están cubiertos por ningún borrado de datos personales.
+      console.error(`[invite] generateLink(${linkType}) falló: ${gen.error.message}`)
       return NextResponse.json({ error: gen.error.message }, { status: 400 })
     }
 

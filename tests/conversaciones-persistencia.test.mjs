@@ -181,3 +181,62 @@ test('los tipos generados incluyen las tablas de conversaciones', () => {
   for (const n of ['Conversations', 'ConversationMessages', 'ConversationEvents'])
     assert.match(t, new RegExp(`    ${n}: \\{`))
 })
+
+// ── Revisión 27-oct: reintento tras un fallo parcial
+import { cliente as clienteMem } from './fixtures/supabase-memoria.mjs'
+import { registrarMensaje as registrar } from '../lib/conversaciones/persistir.ts'
+
+test('reintento de GHL tras fallar la actualización de la conversación: el efecto se aplica y se reactiva al agente', async () => {
+  const db = {
+    conversations: [
+      {
+        id: 'C1',
+        tenant_id: 'T',
+        source: 'ghl',
+        external_id: 'g1',
+        channel: 'instagram',
+        status: 'abierta',
+        last_inbound_at: null,
+        last_message_at: null,
+        first_reply_at: null,
+        unread_count: 0,
+        snoozed_until: null,
+        labels: [],
+      },
+    ],
+    // El mensaje ya se insertó en la primera entrega…
+    conversation_messages: [
+      {
+        id: 'M1',
+        tenant_id: 'T',
+        conversation_id: 'C1',
+        external_id: 'm1',
+        direction: 'entrante',
+        author: 'lead',
+        body: 'hola',
+        sent_at: '2026-10-27T10:00:00.000Z',
+      },
+    ],
+    conversation_events: [],
+    contacts: [],
+  }
+  const msg = {
+    externalId: 'm1',
+    conversationExternalId: 'g1',
+    contactExternalId: 'k1',
+    canal: 'instagram',
+    direccion: 'entrante',
+    autor: 'lead',
+    texto: 'hola',
+    enviadoEn: '2026-10-27T10:00:00.000Z',
+  }
+  // …pero la conversación no avanzó: el reintento debe aplicarla y devolver `nuevo` para que el agente actúe.
+  const r1 = await registrar(clienteMem(db), 'T', msg)
+  assert.deepEqual(r1, { ok: true, nuevo: true, conversationId: 'C1' })
+  assert.equal(db.conversations[0].last_inbound_at, '2026-10-27T10:00:00.000Z')
+  assert.equal(db.conversations[0].unread_count, 1)
+  // Un segundo reintento ya no cambia nada ni vuelve a contar el mensaje.
+  const r2 = await registrar(clienteMem(db), 'T', msg)
+  assert.equal(r2.nuevo, false)
+  assert.equal(db.conversations[0].unread_count, 1)
+})
