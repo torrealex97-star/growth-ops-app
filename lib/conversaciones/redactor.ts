@@ -82,11 +82,25 @@ export function construirPrompt(
 
 export type ResultadoValidacion = { ok: true; texto: string } | { ok: false; traspasar: true; motivo: string }
 
+// Los patrones se aplican sobre el texto SIN tildes (ver `sinTildes`): antes «garantía» (correcto en español) no
+// coincidía con la raíz «garantia» y llegaba al lead; «plazos» ni siquiera estaba en la lista.
 const PRECIO =
-  /(\d+\s?(€|eur|euros|usd|\$|dolares)|\b(precio|descuento|rebaja|financiaci|cuotas|garantia|reembols|devoluci)\w*)/i
-const PAGO = /\b(iban|tarjeta|cvv|dni|contrasena|contraseña|password|transferencia)\b/i
-const URL = /https?:\/\/[^\s)]+/gi
+  /(\d+\s?(€|eur|euros|usd|\$|dolares)|\b(precio|descuento|rebaja|financiaci|cuotas?|plazos?|garanti|reembols|devoluci)\w*)/i
+const PAGO = /\b(iban|tarjeta|cvv|dni|contrasena|password|transferencia)\b/i
+const ENLACE = /https?:\/\/[^\s)]+/gi
+// Dominios SIN esquema («www.otro.com», «calendly.com/otro»): también son enlaces. TLD comunes para no confundir con
+// el final de una frase («fin.Luego»).
+const DOMINIO =
+  /\b(?:www\.)?(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+(?:com|es|net|org|io|co|me|ly|link|app|xyz|info|dev|ai|tv|shop|store|site|online|biz|cc|gl|to|bio|page|eu|mx|ar|cl|pe|uk|us)\b(?:\/[^\s)]*)?/gi
 const SOY_PERSONA = /\b(soy (una )?persona|no soy (un )?(bot|robot|ia)|soy humano)\b/i
+const sinTildes = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+const host = (u: string) => {
+  try {
+    return new URL(/^[a-z][a-z0-9+.-]*:/i.test(u) ? u : `https://${u}`).hostname.replace(/^www\./, '').toLowerCase()
+  } catch {
+    return u.toLowerCase()
+  }
+}
 const MAX_CARACTERES = 900
 
 /**
@@ -99,12 +113,18 @@ export function validarBorrador(textoModelo: string, enlaceAgenda: string | null
   if (!texto) return rechazo('respuesta vacía')
   if (/^traspaso\b/i.test(texto)) return rechazo('el modelo pidió traspaso')
   if (texto.length > MAX_CARACTERES) return rechazo('respuesta demasiado larga')
-  if (PRECIO.test(texto)) return rechazo('menciona precio o condiciones')
-  if (PAGO.test(texto)) return rechazo('menciona datos de pago')
-  if (SOY_PERSONA.test(texto)) return rechazo('afirma ser una persona')
-  for (const u of texto.match(URL) ?? []) {
+  const plano = sinTildes(texto)
+  if (PRECIO.test(plano)) return rechazo('menciona precio o condiciones')
+  if (PAGO.test(plano)) return rechazo('menciona datos de pago')
+  if (SOY_PERSONA.test(plano)) return rechazo('afirma ser una persona')
+  for (const u of texto.match(ENLACE) ?? []) {
     const limpia = u.replace(/[.,;!?]+$/, '')
     if (!enlaceAgenda || limpia !== enlaceAgenda) return rechazo('incluye un enlace no autorizado')
+  }
+  // Dominios sin esquema: solo se admite el del enlace de agenda configurado (mismo host).
+  const sinUrls = texto.replace(ENLACE, ' ')
+  for (const d of sinUrls.match(DOMINIO) ?? []) {
+    if (!enlaceAgenda || host(d) !== host(enlaceAgenda)) return rechazo('incluye un enlace no autorizado')
   }
   return { ok: true, texto }
 }
