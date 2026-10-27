@@ -201,10 +201,17 @@ export default function FirmarPage() {
         ) : (
           <div className="mt-6 bg-white border border-zinc-200 rounded-xl p-6 shadow-sm">
             <h3 className="font-semibold text-zinc-900 mb-4">Completa tus datos y firma</h3>
-            {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
+            {error && (
+              <p role="alert" className="text-sm text-red-600 mb-3">
+                {error}
+              </p>
+            )}
 
-            <label className="block text-sm text-zinc-600 mb-1">Nombre y apellidos completos</label>
+            <label htmlFor="firma-nombre" className="block text-sm text-zinc-600 mb-1">
+              Nombre y apellidos completos
+            </label>
             <input
+              id="firma-nombre"
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-400 mb-4"
@@ -214,11 +221,13 @@ export default function FirmarPage() {
             <div className="grid grid-cols-2 gap-3">
               {data.signerFields.map((f) => (
                 <div key={f.key} className={f.key === 'address' ? 'col-span-2' : ''}>
-                  <label className="block text-sm text-zinc-600 mb-1">
+                  <label htmlFor={`firma-${f.key}`} className="block text-sm text-zinc-600 mb-1">
                     {f.label}
                     {f.required && <span className="text-red-500"> *</span>}
                   </label>
                   <input
+                    id={`firma-${f.key}`}
+                    required={f.required}
                     value={sd[f.key] ?? ''}
                     onChange={(e) => setField(f.key, e.target.value)}
                     className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-400"
@@ -240,7 +249,7 @@ export default function FirmarPage() {
             </label>
 
             {missingRequired.length > 0 && (
-              <p className="mt-3 text-xs text-amber-600">Faltan por completar: {missingRequired.join(', ')}</p>
+              <p className="mt-3 text-xs text-amber-700">Faltan por completar: {missingRequired.join(', ')}</p>
             )}
 
             <button
@@ -250,7 +259,7 @@ export default function FirmarPage() {
             >
               {submitting ? 'Firmando…' : 'Firmar y aceptar'}
             </button>
-            <p className="mt-3 text-xs text-zinc-400 text-center">
+            <p className="mt-3 text-xs text-zinc-500 text-center">
               Firma electrónica simple (eIDAS). Se registrarán fecha, IP y un hash del documento como evidencia.
             </p>
           </div>

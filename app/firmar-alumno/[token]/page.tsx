@@ -142,10 +142,17 @@ export default function FirmarAlumnoPage() {
 
         {/* Formulario */}
         <div className="mt-5 bg-card border border-border rounded-2xl p-6 shadow-sm">
-          {error && <p className="text-sm text-red-400 mb-3">{error}</p>}
+          {error && (
+            <p role="alert" className="text-sm text-red-400 mb-3">
+              {error}
+            </p>
+          )}
 
-          <label className="block text-sm text-muted-foreground mb-1">Nombre y apellidos</label>
+          <label htmlFor="firma-nombre" className="block text-sm text-muted-foreground mb-1">
+            Nombre y apellidos
+          </label>
           <input
+            id="firma-nombre"
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-brand-500 mb-4"
@@ -160,12 +167,13 @@ export default function FirmarAlumnoPage() {
               const isRequired = f.key === 'id_country' ? isInternational : f.required
               return (
                 <div key={f.key} className={['address', 'id_country'].includes(f.key) ? 'col-span-2' : ''}>
-                  <label className="block text-sm text-muted-foreground mb-1">
+                  <label htmlFor={`firma-${f.key}`} className="block text-sm text-muted-foreground mb-1">
                     {f.label}
                     {isRequired && <span className="text-red-400"> *</span>}
                   </label>
                   {f.type === 'select' ? (
                     <select
+                      id={`firma-${f.key}`}
                       value={sd[f.key] ?? ''}
                       onChange={(e) => setField(f.key, e.target.value)}
                       className="w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-brand-500"
@@ -178,6 +186,7 @@ export default function FirmarAlumnoPage() {
                     </select>
                   ) : (
                     <input
+                      id={`firma-${f.key}`}
                       value={sd[f.key] ?? ''}
                       onChange={(e) => setField(f.key, e.target.value)}
                       placeholder={f.placeholder}

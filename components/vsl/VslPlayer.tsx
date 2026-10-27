@@ -837,6 +837,16 @@ export function VslPlayer({
         preload={cfg.autoplay ? 'auto' : 'none'}
         className="h-full w-full object-contain"
         onClick={togglePlay}
+        // Teclado: el vídeo no tiene `controls`; sin esto, con audio en autoplay una persona que no usa ratón no podía pausarlo.
+        tabIndex={0}
+        role="button"
+        aria-label={playing ? 'Pausar vídeo' : 'Reproducir vídeo'}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            togglePlay()
+          }
+        }}
         onTimeUpdate={onTimeUpdate}
         onLoadedMetadata={onLoadedMetadata}
         onSeeking={onSeeking}
@@ -1070,7 +1080,11 @@ export function VslPlayer({
 
       {/* Botón play central cuando está pausado y con sonido (customizable, paridad Wistia) */}
       {cfg.showCentralPlay !== false && !playing && !muted && resumeSec === null && !showExitHook && (
-        <button onClick={togglePlay} className="absolute inset-0 flex items-center justify-center bg-black/20">
+        <button
+          onClick={togglePlay}
+          aria-label="Reproducir"
+          className="absolute inset-0 flex items-center justify-center bg-black/20"
+        >
           <span
             className="flex h-16 w-16 items-center justify-center rounded-full shadow-lg"
             style={{ backgroundColor: cfg.primaryColor }}

@@ -34,6 +34,10 @@ function sbFalso({
         registro.filtros[col] = val
         return q
       },
+      in(col, vals) {
+        registro.filtros[col] = vals
+        return q
+      },
       or(expr) {
         registro.or = expr
         return q
@@ -202,7 +206,7 @@ test('el contacto se anonimiza y se marca, en la misma operación', async () => 
 test('el audit guarda el hecho, nunca la PII que se acaba de borrar', async () => {
   const sb = sbFalso()
   const informe = await correr(sb)
-  const audit = sb.ops.find((o) => o.tabla === 'audit_logs')
+  const audit = sb.ops.find((o) => o.tabla === 'audit_logs' && o.fila)
   assert.equal(audit.fila.action, 'erase_person')
   // entity_id es NOT NULL (no puede ir null): lleva el hash no reversible, nunca el contact_id.
   assert.equal(audit.fila.entity_id, informe.personaHash, 'entity_id debe ser el hash, no el id real ni null')
@@ -234,4 +238,33 @@ test('el informe enumera lo que queda pendiente en proveedores externos', async 
   const informe = await correr(sbFalso())
   const nombres = informe.pendienteEnProveedores.map((p) => p.nombre)
   for (const esperado of ['GHL', 'Stripe', 'Fathom']) assert.ok(nombres.includes(esperado))
+})
+
+test('audit_logs: se anonimizan los valores personales de las altas/ediciones del contacto (conservando la fila)', async () => {
+  const sb = sbFalso()
+  await correr(sb)
+  const op = sb.ops.find((o) => o.tabla === 'audit_logs' && o.tipo === 'update')
+  assert.ok(op, 'debe haber un update sobre audit_logs')
+  assert.equal(op.valores.old_values, null)
+  assert.equal(op.valores.new_values, null)
+  assert.deepEqual(op.filtros.entity_type, ['contact', 'contacts'])
+  assert.equal(op.filtros.entity_id, CONTACTO.id)
+})
+
+test('ventas: con política de conservación se vacían también el DNI y los datos del pagador', async () => {
+  const sb = sbFalso()
+  await correr(sb)
+  const op = sb.ops.find((o) => o.tabla === 'sales' && o.tipo === 'update')
+  for (const col of ['access_email', 'notes', 'payer_data', 'student_document_number', 'student_document_type'])
+    assert.equal(op.valores[col], null, col)
+})
+
+test('contratos: se quitan DNI, dirección, IP y user-agent del firmante; el contrato se conserva', async () => {
+  const sb = sbFalso()
+  await correr(sb)
+  const op = sb.ops.find((o) => o.tabla === 'contracts' && o.tipo === 'update')
+  assert.ok(op)
+  for (const col of ['signer_data', 'signer_ip', 'signer_user_agent']) assert.equal(op.valores[col], null, col)
+  assert.equal(op.valores.body_snapshot, undefined, 'el texto del contrato no se toca')
+  assert.equal(op.filtros.contact_id, CONTACTO.id)
 })

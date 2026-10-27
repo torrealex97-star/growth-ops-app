@@ -113,6 +113,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
 
     return NextResponse.json({ ok: true, contractId: targetId, status: 'firmado' })
   } catch (err) {
+    console.error('[contract] 500 al procesar el webhook:', err instanceof Error ? err.message : err)
     return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 })
   }
 }

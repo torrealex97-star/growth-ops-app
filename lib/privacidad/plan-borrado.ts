@@ -86,6 +86,15 @@ export function planificarBorrado(politica: PoliticaRetencion): PasoBorrado[] {
         'llegaron a enlazarse con el contacto y solo conservan su identificador de GHL',
     },
     {
+      store: 'audit_logs',
+      tratamiento: 'anonimizar',
+      columnas: ['old_values', 'new_values'],
+      motivo:
+        'las rutas de alta y edición de contactos guardan nombre, email y teléfono en claro en old_values/new_values ' +
+        '(entity_type contact, entity_id = el contacto). La fila del registro se conserva —es auditoría— pero sin ' +
+        'los valores personales',
+    },
+    {
       store: 'fathom_match_review',
       tratamiento: 'borrar',
       motivo:
@@ -158,14 +167,39 @@ export function planificarBorrado(politica: PoliticaRetencion): PasoBorrado[] {
         ? {
             store: 'sales / collections',
             tratamiento: 'anonimizar',
-            columnas: ['access_email', 'notes'],
-            motivo: 'se conservan como hecho contable, sin PII directa',
+            // payer_data guarda nombre, DNI, email, teléfono y dirección del pagador; student_document_* el documento del
+            // alumno: son los identificadores más sensibles y NO hacen falta para sostener el hecho contable.
+            columnas: ['access_email', 'notes', 'payer_data', 'student_document_number', 'student_document_type'],
+            motivo: 'se conservan como hecho contable, sin PII directa (ni DNI ni datos del pagador)',
           }
         : {
             store: 'sales / collections',
             tratamiento: 'borrar',
             motivo: 'retención decidida: no hay obligación de conservarlos',
           }
+  )
+
+  // Contratos firmados: el documento (texto y hash) es evidencia legal y se conserva, pero `signer_data` lleva DNI,
+  // dirección, ciudad y teléfono del firmante, y se guardan su IP y su user-agent. Mismo criterio de retención que los
+  // hechos financieros (una obligación legal), de ahí que dependa de la misma decisión.
+  pasos.push(
+    politica.hechosFinancieros === null
+      ? {
+          store: 'contracts',
+          tratamiento: 'bloqueado',
+          motivo:
+            'los contratos firmados son evidencia legal y su plazo de conservación no está decidido (mismo criterio que ' +
+            'ventas y cobros). Llevan DNI, dirección, IP y user-agent del firmante en signer_data/signer_ip/' +
+            'signer_user_agent: no se tocan hasta que un asesor fije el plazo',
+        }
+      : {
+          store: 'contracts',
+          tratamiento: 'anonimizar',
+          columnas: ['signer_data', 'signer_ip', 'signer_user_agent'],
+          motivo:
+            'se conserva el contrato (texto y hash) como evidencia; se quitan los datos personales del firmante. El PDF ' +
+            'firmado del bucket `contratos` sigue conteniéndolos y debe tratarse aparte (ver docs/F6-MAPA-PII.md)',
+        }
   )
 
   // Siempre el último: si la ejecución se corta antes, queda una persona aún marcada como viva con
