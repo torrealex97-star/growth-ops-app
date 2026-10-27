@@ -1,3 +1,16 @@
+## Hallazgo de arquitectura — patrón de acceso a `appointments` (27-oct, medición del bucle EXPLAIN del #635)
+
+Cerrado el bucle del InitPlan RLS (#635): los helpers de Auth ya se resuelven una vez por
+statement (verificado por EXPLAIN ANALYZE y `pg_policies` limpio), pero las lecturas de
+`appointments` siguen concentrando el 28,15 % del tiempo de ejecución acumulado de la BD. Causa
+restante: los listados de agenda hacen seq scan completo (quals con OR entre
+`is_admin_or_director()`, `is_team_scheduling_scope_allowed()`, `setter_id`/`closer_id` y
+`is_my_collaborator_row()` impiden índice para `ORDER BY appointment_datetime DESC LIMIT 25`).
+Hoy cuesta 10–17 ms con ~800 filas (7,7 MB): no urgente. **Actuar cuando la tabla crezca** (o si
+las medias por listado suben de ~50 ms): la solución es rediseñar el shape (policy con cajas de
+acceso por rol via UNION, o función de visibilidad indexable), no añadir un índice. Detalle y
+cifras en `docs/ACTIVE_HANDOFF.md` y `docs/FREE_TIER_OPERATIONS.md`.
+
 ## ACCIÓN REQUERIDA — probar el botón "Activar tiempo real" de Calendly en producción (19-oct)
 
 Causa real de "hay más de uno que ya agendaron y no sale": Calendly nunca tuvo una suscripción de

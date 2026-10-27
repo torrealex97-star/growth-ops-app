@@ -137,8 +137,18 @@ migración `20261006090000_optimize_rls_and_foreign_key_indexes.sql` aplica la c
 reglas de acceso ni datos: convierte esos helpers en InitPlans, elimina un índice duplicado y añade
 índices selectivos. Aplicada en producción el 24-oct-2026 en dos lotes con dry-run, sondas JWT
 pre/post idénticas (911 contactos / 786 citas / 53 ventas / 0 calendarios / 10 actividades) y advisor
-limpio; registrada en `supabase_migrations.schema_migrations`. Queda pendiente medir el efecto real
-en `pg_stat_statements` y revisar el plan de ejecución del top de consultas.
+limpio; registrada en `supabase_migrations.schema_migrations`.
+
+Medición de cierre (27-oct-2026, ver detalles en `ACTIVE_HANDOFF.md`, sección «Efecto medido del
+InitPlan RLS (#635)»): las lecturas de `appointments` concentran el **28,15 %** del tiempo de
+ejecución acumulado de la BD (1203 s de 4273 s); el peso ya no está en los helpers de Auth —
+ninguna policy los evalúa por fila (`pg_policies` limpio, advisor `auth_rls_initplan` vacío) y el
+plan real los resuelve una vez por statement (InitPlan + hashed SubPlan)— sino en los listados
+PostgREST de la agenda (12.7k+ llamadas × 10–17 ms, seq scan con quals OR) y en dos lecturas de
+detalle a 212–572 ms. No hay medida pre/post por ventana (las stats no conservan el estado previo
+a la migración), así que el beneficio queda afirmado por forma de plan, no por ms ahorrados. El
+patrón de acceso (seq scan a medida que `appointments` crezca) está en `PENDIENTES.md` como
+hallazgo de arquitectura, sin índice propuesto.
 
 Vigilar especialmente `raw_events`, `canonical_events`, `event_delivery_attempts`,
 `contact_attributions`, transcripciones y archivos de VSL/testimonios. Umbral operativo: al 70% del
