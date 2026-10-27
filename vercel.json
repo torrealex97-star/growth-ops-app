@@ -10,7 +10,10 @@
     "deploymentEnabled": {
       "dependabot/**": false,
       "docs/**": false,
-      "claude/**": false
+      "claude/**": false,
+      "feat/**": false,
+      "fix/**": false,
+      "chore/**": false
     }
   },
   "ignoreCommand": "BASE=${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}; if git diff --quiet $BASE HEAD -- . ':!docs/**' ':!*.md' ':!.agents/**' ':!.claude/skills/**'; then exit 0; else exit 1; fi",
