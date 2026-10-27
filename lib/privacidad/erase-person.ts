@@ -131,6 +131,22 @@ async function aplicarPaso(paso: PasoBorrado, ctx: Ctx): Promise<ResultadoStore>
         return base('conversations').or(filtro)
       })
 
+    case 'audit_logs':
+      // Registro de auditoría de alta/edición del contacto: se conserva la fila, se vacían los valores personales.
+      return ejecutar(paso.store, paso.motivo, simulacion, () =>
+        vaciar('audit_logs', paso.columnas ?? ['old_values', 'new_values'])
+          .in('entity_type', ['contact', 'contacts'])
+          .eq('entity_id', contactId)
+      )
+
+    case 'contracts':
+      return ejecutar(paso.store, paso.motivo, simulacion, () =>
+        vaciar('contracts', paso.columnas ?? ['signer_data', 'signer_ip', 'signer_user_agent']).eq(
+          'contact_id',
+          contactId
+        )
+      )
+
     case 'fathom_match_review':
       // Por contacto Y por correo: 108 de sus 177 filas nunca llegaron a tener contacto asociado,
       // así que borrar solo por contact_id dejaría la PII de esas personas intacta.

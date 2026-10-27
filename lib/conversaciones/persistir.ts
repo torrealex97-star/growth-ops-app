@@ -127,7 +127,11 @@ export async function registrarMensaje(
     .select('id')
     .maybeSingle()
   if (errMsg) return { ok: false, error: errMsg.message }
-  if (!insertado) return { ok: true, nuevo: false, conversationId: conv.id }
+  // El mensaje YA existía. Si es un entrante cuyo efecto sobre la conversación no llegó a aplicarse (la primera entrega
+  // insertó el mensaje y falló la actualización → 500 → reintento de GHL), se aplica ahora: antes el reintento veía
+  // «ya existe», no avanzaba last_inbound_at ni despertaba al agente, y el lead se quedaba sin respuesta.
+  const efectoPendiente = m.direccion === 'entrante' && (conv.last_inbound_at ?? '') < m.enviadoEn
+  if (!insertado && !efectoPendiente) return { ok: true, nuevo: false, conversationId: conv.id }
 
   // 3) Efecto sobre la conversación y auditoría (solo para mensajes nuevos).
   const estadoAnterior = conv.status
