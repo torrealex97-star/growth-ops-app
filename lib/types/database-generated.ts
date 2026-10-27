@@ -1,4 +1,4 @@
-// GENERADO — no editar a mano. Fuente: OpenAPI de PostgREST (2026-10-20T16:25:27.132Z).
+// GENERADO — no editar a mano. Fuente: OpenAPI de PostgREST (2026-10-27T16:45:13.723Z).
 // Regenerar con: npm run tipos:bd  (y commitear). El test tests/esquema-tenant-invariante.test.mjs
 // comprueba que este artefacto sigue fresco respecto al esquema vivo.
 // Espejo exacto del esquema public de Supabase; los tipos de APP siguen en lib/types/database.ts.
@@ -9,32 +9,32 @@ export type EsquemaPublico = {
   Tables: {
     Activities: {
       Row: {
-        id: string | null
-        contact_id: string | null
+        id: string
+        contact_id: string
         person_id: string | null
-        type: string | null
-        activity_datetime: string | null
-        direction: string | null
+        type: string
+        activity_datetime: string
+        direction: string
         result: string | null
         duration_min: number | string | null
         notes: string | null
-        created_at: string | null
-        updated_at: string | null
-        tenant_id: string | null
+        created_at: string
+        updated_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        contact_id: string | null | undefined
+        id: string | undefined
+        contact_id: string
         person_id: string | null | undefined
-        type: string | null | undefined
-        activity_datetime: string | null | undefined
-        direction: string | null | undefined
+        type: string | undefined
+        activity_datetime: string | undefined
+        direction: string | undefined
         result: string | null | undefined
         duration_min: number | string | null | undefined
         notes: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
-        tenant_id: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -53,20 +53,20 @@ export type EsquemaPublico = {
     }
     AffiliateCampaignMembers: {
       Row: {
-        id: string | null
-        campaign_id: string | null
-        affiliate_id: string | null
+        id: string
+        campaign_id: string
+        affiliate_id: string
         created_by: string | null
-        created_at: string | null
-        tenant_id: string | null
+        created_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        campaign_id: string | null | undefined
-        affiliate_id: string | null | undefined
+        id: string | undefined
+        campaign_id: string
+        affiliate_id: string
         created_by: string | null | undefined
-        created_at: string | null | undefined
-        tenant_id: string | null | undefined
+        created_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -79,28 +79,28 @@ export type EsquemaPublico = {
     }
     AffiliateCampaigns: {
       Row: {
-        id: string | null
-        name: string | null
-        type: string | null
-        base_url: string | null
-        is_active: boolean | null
+        id: string
+        name: string
+        type: string
+        base_url: string
+        is_active: boolean
         created_by: string | null
-        created_at: string | null
-        updated_at: string | null
+        created_at: string
+        updated_at: string
         registration_slug: string | null
-        tenant_id: string | null
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        name: string | null | undefined
-        type: string | null | undefined
-        base_url: string | null | undefined
-        is_active: boolean | null | undefined
+        id: string | undefined
+        name: string
+        type: string | undefined
+        base_url: string
+        is_active: boolean | undefined
         created_by: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
         registration_slug: string | null | undefined
-        tenant_id: string | null | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -117,28 +117,28 @@ export type EsquemaPublico = {
     }
     AffiliateProfiles: {
       Row: {
-        user_id: string | null
+        user_id: string
         instagram: string | null
         audience_size: string | null
         niche: string | null
         source: string | null
         motivation: string | null
         extra: Json | null
-        created_at: string | null
-        updated_at: string | null
-        tenant_id: string | null
+        created_at: string
+        updated_at: string
+        tenant_id: string
       }
       Insert: {
-        user_id: string | null | undefined
+        user_id: string
         instagram: string | null | undefined
         audience_size: string | null | undefined
         niche: string | null | undefined
         source: string | null | undefined
         motivation: string | null | undefined
         extra: Json | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
-        tenant_id: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+        tenant_id: string
       }
       Update: {
         user_id: string | undefined
@@ -155,24 +155,24 @@ export type EsquemaPublico = {
     }
     AffiliateProgramSettings: {
       Row: {
-        id: number | null
-        default_commission_percent: number | string | null
-        program_name: string | null
-        intro: string | null
-        success_message: string | null
-        form_fields: Json | null
-        updated_at: string | null
-        tenant_id: string | null
+        id: number
+        default_commission_percent: number | string
+        program_name: string
+        intro: string
+        success_message: string
+        form_fields: Json
+        updated_at: string
+        tenant_id: string
       }
       Insert: {
-        id: number | null | undefined
-        default_commission_percent: number | string | null | undefined
-        program_name: string | null | undefined
-        intro: string | null | undefined
-        success_message: string | null | undefined
-        form_fields: Json | null | undefined
-        updated_at: string | null | undefined
-        tenant_id: string | null | undefined
+        id: number | undefined
+        default_commission_percent: number | string | undefined
+        program_name: string | undefined
+        intro: string | undefined
+        success_message: string | undefined
+        form_fields: Json
+        updated_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: number | undefined
@@ -187,24 +187,24 @@ export type EsquemaPublico = {
     }
     AiBusinessFacts: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        type: string | null
-        content: string | null
+        id: string
+        tenant_id: string
+        type: string
+        content: string
         evidence: Json | null
         outcome_of: string | null
-        created_by: string | null
-        created_at: string | null
+        created_by: string
+        created_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        type: string | null | undefined
-        content: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        type: string
+        content: string
         evidence: Json | null | undefined
         outcome_of: string | null | undefined
-        created_by: string | null | undefined
-        created_at: string | null | undefined
+        created_by: string
+        created_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -219,22 +219,22 @@ export type EsquemaPublico = {
     }
     AiConversations: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        user_id: string | null
+        id: string
+        tenant_id: string
+        user_id: string
         title: string | null
         screen: string | null
-        created_at: string | null
-        updated_at: string | null
+        created_at: string
+        updated_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        user_id: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        user_id: string
         title: string | null | undefined
         screen: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -248,32 +248,32 @@ export type EsquemaPublico = {
     }
     AiInsights: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        type: string | null
-        severity: string | null
-        title: string | null
-        summary: string | null
-        evidence: Json | null
-        status: string | null
-        fingerprint: string | null
+        id: string
+        tenant_id: string
+        type: string
+        severity: string
+        title: string
+        summary: string
+        evidence: Json
+        status: string
+        fingerprint: string
         period_start: string | null
         period_end: string | null
-        generated_at: string | null
+        generated_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        type: string | null | undefined
-        severity: string | null | undefined
-        title: string | null | undefined
-        summary: string | null | undefined
-        evidence: Json | null | undefined
-        status: string | null | undefined
-        fingerprint: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        type: string
+        severity: string
+        title: string
+        summary: string
+        evidence: Json
+        status: string | undefined
+        fingerprint: string
         period_start: string | null | undefined
         period_end: string | null | undefined
-        generated_at: string | null | undefined
+        generated_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -292,13 +292,13 @@ export type EsquemaPublico = {
     }
     AiMessages: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        conversation_id: string | null
-        role: string | null
-        content: string | null
+        id: string
+        tenant_id: string
+        conversation_id: string
+        role: string
+        content: string
         evidence: Json | null
-        created_at: string | null
+        created_at: string
         model: string | null
         input_tokens: number | null
         output_tokens: number | null
@@ -308,13 +308,13 @@ export type EsquemaPublico = {
         latency_ms: number | null
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        conversation_id: string | null | undefined
-        role: string | null | undefined
-        content: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        conversation_id: string
+        role: string
+        content: string
         evidence: Json | null | undefined
-        created_at: string | null | undefined
+        created_at: string | undefined
         model: string | null | undefined
         input_tokens: number | null | undefined
         output_tokens: number | null | undefined
@@ -342,28 +342,28 @@ export type EsquemaPublico = {
     }
     AiToolCalls: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        conversation_id: string | null
+        id: string
+        tenant_id: string
+        conversation_id: string
         message_id: string | null
-        tool_name: string | null
-        input: Json | null
+        tool_name: string
+        input: Json
         result_summary: string | null
-        success: boolean | null
+        success: boolean
         latency_ms: number | null
-        created_at: string | null
+        created_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        conversation_id: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        conversation_id: string
         message_id: string | null | undefined
-        tool_name: string | null | undefined
-        input: Json | null | undefined
+        tool_name: string
+        input: Json
         result_summary: string | null | undefined
-        success: boolean | null | undefined
+        success: boolean | undefined
         latency_ms: number | null | undefined
-        created_at: string | null | undefined
+        created_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -380,10 +380,10 @@ export type EsquemaPublico = {
     }
     AnalyticsSessions: {
       Row: {
-        id: string | null
+        id: string
         visitor_id: string | null
         external_session_id: string | null
-        started_at: string | null
+        started_at: string
         ended_at: string | null
         landing_url: string | null
         referrer: string | null
@@ -395,15 +395,15 @@ export type EsquemaPublico = {
         gclid: string | null
         fbclid: string | null
         ttclid: string | null
-        raw_parameters: Json | null
-        created_at: string | null
-        tenant_id: string | null
+        raw_parameters: Json
+        created_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
+        id: string | undefined
         visitor_id: string | null | undefined
         external_session_id: string | null | undefined
-        started_at: string | null | undefined
+        started_at: string
         ended_at: string | null | undefined
         landing_url: string | null | undefined
         referrer: string | null | undefined
@@ -415,9 +415,9 @@ export type EsquemaPublico = {
         gclid: string | null | undefined
         fbclid: string | null | undefined
         ttclid: string | null | undefined
-        raw_parameters: Json | null | undefined
-        created_at: string | null | undefined
-        tenant_id: string | null | undefined
+        raw_parameters: Json
+        created_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -442,12 +442,12 @@ export type EsquemaPublico = {
     }
     AnalyticsTouchpoints: {
       Row: {
-        id: string | null
+        id: string
         visitor_id: string | null
         session_id: string | null
         contact_id: string | null
-        occurred_at: string | null
-        channel: string | null
+        occurred_at: string
+        channel: string
         source: string | null
         medium: string | null
         campaign: string | null
@@ -458,20 +458,20 @@ export type EsquemaPublico = {
         referrer: string | null
         click_id_type: string | null
         click_id: string | null
-        capture_method: string | null
-        observation_type: string | null
-        consent_snapshot: Json | null
-        raw_payload: Json | null
-        created_at: string | null
-        tenant_id: string | null
+        capture_method: string
+        observation_type: string
+        consent_snapshot: Json
+        raw_payload: Json
+        created_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
+        id: string | undefined
         visitor_id: string | null | undefined
         session_id: string | null | undefined
         contact_id: string | null | undefined
-        occurred_at: string | null | undefined
-        channel: string | null | undefined
+        occurred_at: string
+        channel: string | undefined
         source: string | null | undefined
         medium: string | null | undefined
         campaign: string | null | undefined
@@ -482,12 +482,12 @@ export type EsquemaPublico = {
         referrer: string | null | undefined
         click_id_type: string | null | undefined
         click_id: string | null | undefined
-        capture_method: string | null | undefined
-        observation_type: string | null | undefined
-        consent_snapshot: Json | null | undefined
-        raw_payload: Json | null | undefined
-        created_at: string | null | undefined
-        tenant_id: string | null | undefined
+        capture_method: string | undefined
+        observation_type: string | undefined
+        consent_snapshot: Json
+        raw_payload: Json
+        created_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -516,22 +516,22 @@ export type EsquemaPublico = {
     }
     AnalyticsVisitors: {
       Row: {
-        id: string | null
+        id: string
         anonymous_id: string | null
         contact_id: string | null
-        first_seen_at: string | null
-        last_seen_at: string | null
-        created_at: string | null
-        tenant_id: string | null
+        first_seen_at: string
+        last_seen_at: string
+        created_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
+        id: string | undefined
         anonymous_id: string | null | undefined
         contact_id: string | null | undefined
-        first_seen_at: string | null | undefined
-        last_seen_at: string | null | undefined
-        created_at: string | null | undefined
-        tenant_id: string | null | undefined
+        first_seen_at: string | undefined
+        last_seen_at: string | undefined
+        created_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -545,24 +545,24 @@ export type EsquemaPublico = {
     }
     Annotations: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        date: string | null
-        title: string | null
+        id: string
+        tenant_id: string
+        date: string
+        title: string
         description: string | null
         category: string | null
-        created_by: string | null
-        created_at: string | null
+        created_by: string
+        created_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        date: string | null | undefined
-        title: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        date: string
+        title: string
         description: string | null | undefined
         category: string | null | undefined
-        created_by: string | null | undefined
-        created_at: string | null | undefined
+        created_by: string
+        created_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -577,16 +577,16 @@ export type EsquemaPublico = {
     }
     AppSettings: {
       Row: {
-        key: string | null
-        value: Json | null
-        updated_at: string | null
-        tenant_id: string | null
+        key: string
+        value: Json
+        updated_at: string
+        tenant_id: string
       }
       Insert: {
-        key: string | null | undefined
-        value: Json | null | undefined
-        updated_at: string | null | undefined
-        tenant_id: string | null | undefined
+        key: string
+        value: Json
+        updated_at: string | undefined
+        tenant_id: string
       }
       Update: {
         key: string | undefined
@@ -597,12 +597,12 @@ export type EsquemaPublico = {
     }
     Appointments: {
       Row: {
-        id: string | null
-        external_source: string | null
+        id: string
+        external_source: string
         external_id: string | null
-        contact_id: string | null
-        appointment_datetime: string | null
-        status: string | null
+        contact_id: string
+        appointment_datetime: string
+        status: string
         setter_id: string | null
         closer_id: string | null
         source: string | null
@@ -616,8 +616,8 @@ export type EsquemaPublico = {
         utm_term: string | null
         raw_payload: Json | null
         notes: string | null
-        created_at: string | null
-        updated_at: string | null
+        created_at: string
+        updated_at: string
         recording_url: string | null
         result: string | null
         appointment_type: string | null
@@ -644,14 +644,14 @@ export type EsquemaPublico = {
         meeting_url: string | null
         reschedule_url: string | null
         calendly_event_uuid: string | null
-        needs_followup: boolean | null
+        needs_followup: boolean
         calendly_cleanup_pending: boolean | null
         calendly_cleanup_event_uuid: string | null
         followup_stage: string | null
         last_contacted_at: string | null
         rescheduled_from_status: string | null
-        library_shared: boolean | null
-        tenant_id: string | null
+        library_shared: boolean
+        tenant_id: string
         fathom_meeting_id: string | null
         offered_by: string | null
         offered_at: string | null
@@ -660,15 +660,15 @@ export type EsquemaPublico = {
         attribution_second: Json | null
         attribution_last: Json | null
         attribution_booking: Json | null
-        attribution_status: string | null
+        attribution_status: string
       }
       Insert: {
-        id: string | null | undefined
-        external_source: string | null | undefined
+        id: string | undefined
+        external_source: string | undefined
         external_id: string | null | undefined
-        contact_id: string | null | undefined
-        appointment_datetime: string | null | undefined
-        status: string | null | undefined
+        contact_id: string
+        appointment_datetime: string
+        status: string | undefined
         setter_id: string | null | undefined
         closer_id: string | null | undefined
         source: string | null | undefined
@@ -682,8 +682,8 @@ export type EsquemaPublico = {
         utm_term: string | null | undefined
         raw_payload: Json | null | undefined
         notes: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
         recording_url: string | null | undefined
         result: string | null | undefined
         appointment_type: string | null | undefined
@@ -710,14 +710,14 @@ export type EsquemaPublico = {
         meeting_url: string | null | undefined
         reschedule_url: string | null | undefined
         calendly_event_uuid: string | null | undefined
-        needs_followup: boolean | null | undefined
+        needs_followup: boolean | undefined
         calendly_cleanup_pending: boolean | null | undefined
         calendly_cleanup_event_uuid: string | null | undefined
         followup_stage: string | null | undefined
         last_contacted_at: string | null | undefined
         rescheduled_from_status: string | null | undefined
-        library_shared: boolean | null | undefined
-        tenant_id: string | null | undefined
+        library_shared: boolean | undefined
+        tenant_id: string
         fathom_meeting_id: string | null | undefined
         offered_by: string | null | undefined
         offered_at: string | null | undefined
@@ -726,7 +726,7 @@ export type EsquemaPublico = {
         attribution_second: Json | null | undefined
         attribution_last: Json | null | undefined
         attribution_booking: Json | null | undefined
-        attribution_status: string | null | undefined
+        attribution_status: string | undefined
       }
       Update: {
         id: string | undefined
@@ -797,26 +797,26 @@ export type EsquemaPublico = {
     }
     AuditLogs: {
       Row: {
-        id: string | null
+        id: string
         actor_user_id: string | null
-        entity_type: string | null
-        entity_id: string | null
-        action: string | null
+        entity_type: string
+        entity_id: string
+        action: string
         old_values: Json | null
         new_values: Json | null
-        created_at: string | null
-        tenant_id: string | null
+        created_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
+        id: string | undefined
         actor_user_id: string | null | undefined
-        entity_type: string | null | undefined
-        entity_id: string | null | undefined
-        action: string | null | undefined
+        entity_type: string
+        entity_id: string
+        action: string
         old_values: Json | null | undefined
         new_values: Json | null | undefined
-        created_at: string | null | undefined
-        tenant_id: string | null | undefined
+        created_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -832,40 +832,40 @@ export type EsquemaPublico = {
     }
     CallRecordings: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        storage_path: string | null
-        file_name: string | null
-        mime_type: string | null
-        size_bytes: number | string | null
-        sha256: string | null
-        category: string | null
-        status: string | null
+        id: string
+        tenant_id: string
+        storage_path: string
+        file_name: string
+        mime_type: string
+        size_bytes: number | string
+        sha256: string
+        category: string
+        status: string
         appointment_id: string | null
         notes: string | null
         uploaded_by: string | null
         reviewed_by: string | null
         reviewed_at: string | null
-        created_at: string | null
-        updated_at: string | null
+        created_at: string
+        updated_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        storage_path: string | null | undefined
-        file_name: string | null | undefined
-        mime_type: string | null | undefined
-        size_bytes: number | string | null | undefined
-        sha256: string | null | undefined
-        category: string | null | undefined
-        status: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        storage_path: string
+        file_name: string
+        mime_type: string
+        size_bytes: number | string
+        sha256: string
+        category: string
+        status: string | undefined
         appointment_id: string | null | undefined
         notes: string | null | undefined
         uploaded_by: string | null | undefined
         reviewed_by: string | null | undefined
         reviewed_at: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -888,13 +888,13 @@ export type EsquemaPublico = {
     }
     CampaignAds: {
       Row: {
-        id: string | null
-        external_id: string | null
+        id: string
+        external_id: string
         campaign_external_id: string | null
         campaign_id: string | null
         account_id: string | null
         account_name: string | null
-        name: string | null
+        name: string
         adset_name: string | null
         status: string | null
         spend: number | string | null
@@ -907,16 +907,16 @@ export type EsquemaPublico = {
         followers: number | null
         synced_at: string | null
         created_at: string | null
-        tenant_id: string | null
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        external_id: string | null | undefined
+        id: string | undefined
+        external_id: string
         campaign_external_id: string | null | undefined
         campaign_id: string | null | undefined
         account_id: string | null | undefined
         account_name: string | null | undefined
-        name: string | null | undefined
+        name: string
         adset_name: string | null | undefined
         status: string | null | undefined
         spend: number | string | null | undefined
@@ -929,7 +929,7 @@ export type EsquemaPublico = {
         followers: number | null | undefined
         synced_at: string | null | undefined
         created_at: string | null | undefined
-        tenant_id: string | null | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -956,38 +956,38 @@ export type EsquemaPublico = {
     }
     CampaignDaily: {
       Row: {
-        id: string | null
-        campaign_id: string | null
+        id: string
+        campaign_id: string
         external_id: string | null
         account_id: string | null
-        date: string | null
-        spend: number | string | null
-        impressions: number | string | null
-        clicks: number | string | null
-        leads: number | null
-        reach: number | string | null
-        updated_at: string | null
-        link_clicks: number | string | null
-        landing_views: number | string | null
-        tenant_id: string | null
+        date: string
+        spend: number | string
+        impressions: number | string
+        clicks: number | string
+        leads: number
+        reach: number | string
+        updated_at: string
+        link_clicks: number | string
+        landing_views: number | string
+        tenant_id: string
         meta_actions: Json | null
         meta_action_values: Json | null
       }
       Insert: {
-        id: string | null | undefined
-        campaign_id: string | null | undefined
+        id: string | undefined
+        campaign_id: string
         external_id: string | null | undefined
         account_id: string | null | undefined
-        date: string | null | undefined
-        spend: number | string | null | undefined
-        impressions: number | string | null | undefined
-        clicks: number | string | null | undefined
-        leads: number | null | undefined
-        reach: number | string | null | undefined
-        updated_at: string | null | undefined
-        link_clicks: number | string | null | undefined
-        landing_views: number | string | null | undefined
-        tenant_id: string | null | undefined
+        date: string
+        spend: number | string | undefined
+        impressions: number | string | undefined
+        clicks: number | string | undefined
+        leads: number | undefined
+        reach: number | string | undefined
+        updated_at: string | undefined
+        link_clicks: number | string | undefined
+        landing_views: number | string | undefined
+        tenant_id: string
         meta_actions: Json | null | undefined
         meta_action_values: Json | null | undefined
       }
@@ -1012,22 +1012,22 @@ export type EsquemaPublico = {
     }
     CampaignFunnelAssignments: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        campaign_id: string | null
-        funnel_type: string | null
+        id: string
+        tenant_id: string
+        campaign_id: string
+        funnel_type: string
         custom_funnel_id: string | null
         assigned_by: string | null
-        assigned_at: string | null
+        assigned_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        campaign_id: string | null | undefined
-        funnel_type: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        campaign_id: string
+        funnel_type: string
         custom_funnel_id: string | null | undefined
         assigned_by: string | null | undefined
-        assigned_at: string | null | undefined
+        assigned_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -1041,24 +1041,24 @@ export type EsquemaPublico = {
     }
     CampaignTargets: {
       Row: {
-        id: string | null
-        tenant_id: string | null
+        id: string
+        tenant_id: string
         target_roas: number | string | null
         target_cac: number | string | null
         target_cpl: number | string | null
         updated_by: string | null
-        created_at: string | null
-        updated_at: string | null
+        created_at: string
+        updated_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
+        id: string | undefined
+        tenant_id: string
         target_roas: number | string | null | undefined
         target_cac: number | string | null | undefined
         target_cpl: number | string | null | undefined
         updated_by: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -1073,74 +1073,74 @@ export type EsquemaPublico = {
     }
     Campaigns: {
       Row: {
-        id: string | null
-        name: string | null
-        channel: string | null
+        id: string
+        name: string
+        channel: string
         type: string | null
         start_date: string | null
         end_date: string | null
-        budget: number | string | null
-        adspend: number | string | null
-        impressions: number | string | null
-        clicks: number | string | null
-        leads_generated: number | null
-        status: string | null
+        budget: number | string
+        adspend: number | string
+        impressions: number | string
+        clicks: number | string
+        leads_generated: number
+        status: string
         ad_source: string | null
         notes: string | null
         created_by: string | null
-        created_at: string | null
-        updated_at: string | null
+        created_at: string
+        updated_at: string
         provider: string | null
         external_id: string | null
-        reach: number | null
-        meta_leads: number | null
-        funnel_leads: number | null
+        reach: number
+        meta_leads: number
+        funnel_leads: number
         synced_at: string | null
         account_id: string | null
-        link_clicks: number | string | null
-        landing_views: number | string | null
-        appointments_count: number | null
-        shows_count: number | null
-        sales_count: number | null
-        sales_revenue: number | string | null
+        link_clicks: number | string
+        landing_views: number | string
+        appointments_count: number
+        shows_count: number
+        sales_count: number
+        sales_revenue: number | string
         account_name: string | null
         followers: number | null
-        tenant_id: string | null
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        name: string | null | undefined
-        channel: string | null | undefined
+        id: string | undefined
+        name: string
+        channel: string | undefined
         type: string | null | undefined
         start_date: string | null | undefined
         end_date: string | null | undefined
-        budget: number | string | null | undefined
-        adspend: number | string | null | undefined
-        impressions: number | string | null | undefined
-        clicks: number | string | null | undefined
-        leads_generated: number | null | undefined
-        status: string | null | undefined
+        budget: number | string | undefined
+        adspend: number | string | undefined
+        impressions: number | string | undefined
+        clicks: number | string | undefined
+        leads_generated: number | undefined
+        status: string | undefined
         ad_source: string | null | undefined
         notes: string | null | undefined
         created_by: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
         provider: string | null | undefined
         external_id: string | null | undefined
-        reach: number | null | undefined
-        meta_leads: number | null | undefined
-        funnel_leads: number | null | undefined
+        reach: number | undefined
+        meta_leads: number | undefined
+        funnel_leads: number | undefined
         synced_at: string | null | undefined
         account_id: string | null | undefined
-        link_clicks: number | string | null | undefined
-        landing_views: number | string | null | undefined
-        appointments_count: number | null | undefined
-        shows_count: number | null | undefined
-        sales_count: number | null | undefined
-        sales_revenue: number | string | null | undefined
+        link_clicks: number | string | undefined
+        landing_views: number | string | undefined
+        appointments_count: number | undefined
+        shows_count: number | undefined
+        sales_count: number | undefined
+        sales_revenue: number | string | undefined
         account_name: string | null | undefined
         followers: number | null | undefined
-        tenant_id: string | null | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -1180,14 +1180,14 @@ export type EsquemaPublico = {
     }
     CanonicalEvents: {
       Row: {
-        id: string | null
-        event_id: string | null
-        event_name: string | null
-        occurred_at: string | null
-        received_at: string | null
-        source: string | null
-        schema_version: string | null
-        idempotency_key: string | null
+        id: string
+        event_id: string
+        event_name: string
+        occurred_at: string
+        received_at: string
+        source: string
+        schema_version: string
+        idempotency_key: string
         visitor_id: string | null
         session_id: string | null
         touchpoint_id: string | null
@@ -1196,26 +1196,26 @@ export type EsquemaPublico = {
         sale_id: string | null
         revenue: number | string | null
         currency: string | null
-        consent_snapshot: Json | null
-        properties: Json | null
-        processing_status: string | null
+        consent_snapshot: Json
+        properties: Json
+        processing_status: string
         rejection_reason: string | null
-        created_at: string | null
-        tenant_id: string | null
+        created_at: string
+        tenant_id: string
         site_id: string | null
         raw_event_id: string | null
         source_event_id: string | null
         processed_at: string | null
       }
       Insert: {
-        id: string | null | undefined
-        event_id: string | null | undefined
-        event_name: string | null | undefined
-        occurred_at: string | null | undefined
-        received_at: string | null | undefined
-        source: string | null | undefined
-        schema_version: string | null | undefined
-        idempotency_key: string | null | undefined
+        id: string | undefined
+        event_id: string
+        event_name: string
+        occurred_at: string
+        received_at: string | undefined
+        source: string
+        schema_version: string | undefined
+        idempotency_key: string
         visitor_id: string | null | undefined
         session_id: string | null | undefined
         touchpoint_id: string | null | undefined
@@ -1224,12 +1224,12 @@ export type EsquemaPublico = {
         sale_id: string | null | undefined
         revenue: number | string | null | undefined
         currency: string | null | undefined
-        consent_snapshot: Json | null | undefined
-        properties: Json | null | undefined
-        processing_status: string | null | undefined
+        consent_snapshot: Json
+        properties: Json
+        processing_status: string | undefined
         rejection_reason: string | null | undefined
-        created_at: string | null | undefined
-        tenant_id: string | null | undefined
+        created_at: string | undefined
+        tenant_id: string
         site_id: string | null | undefined
         raw_event_id: string | null | undefined
         source_event_id: string | null | undefined
@@ -1266,24 +1266,24 @@ export type EsquemaPublico = {
     }
     CarruselBrand: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        name: string | null
-        colors: Json | null
-        fonts: Json | null
+        id: string
+        tenant_id: string
+        name: string
+        colors: Json
+        fonts: Json
         logo_url: string | null
-        style_keywords: Json | null
-        updated_at: string | null
+        style_keywords: Json
+        updated_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        name: string | null | undefined
-        colors: Json | null | undefined
-        fonts: Json | null | undefined
+        id: string | undefined
+        tenant_id: string
+        name: string | undefined
+        colors: Json
+        fonts: Json
         logo_url: string | null | undefined
-        style_keywords: Json | null | undefined
-        updated_at: string | null | undefined
+        style_keywords: Json
+        updated_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -1298,34 +1298,34 @@ export type EsquemaPublico = {
     }
     CarruselProjects: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        title: string | null
-        kind: string | null
-        aspect_ratio: string | null
-        slides: Json | null
-        reference_images: Json | null
+        id: string
+        tenant_id: string
+        title: string
+        kind: string
+        aspect_ratio: string
+        slides: Json
+        reference_images: Json
         caption: string | null
-        hashtags: Json | null
-        is_template: boolean | null
+        hashtags: Json
+        is_template: boolean
         created_by: string | null
-        created_at: string | null
-        updated_at: string | null
+        created_at: string
+        updated_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        title: string | null | undefined
-        kind: string | null | undefined
-        aspect_ratio: string | null | undefined
-        slides: Json | null | undefined
-        reference_images: Json | null | undefined
+        id: string | undefined
+        tenant_id: string
+        title: string
+        kind: string | undefined
+        aspect_ratio: string | undefined
+        slides: Json
+        reference_images: Json
         caption: string | null | undefined
-        hashtags: Json | null | undefined
-        is_template: boolean | null | undefined
+        hashtags: Json
+        is_template: boolean | undefined
         created_by: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -1345,22 +1345,22 @@ export type EsquemaPublico = {
     }
     CarruselTemplates: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        title: string | null
-        kind: string | null
-        aspect_ratio: string | null
-        slides: Json | null
-        created_at: string | null
+        id: string
+        tenant_id: string
+        title: string
+        kind: string
+        aspect_ratio: string
+        slides: Json
+        created_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        title: string | null | undefined
-        kind: string | null | undefined
-        aspect_ratio: string | null | undefined
-        slides: Json | null | undefined
-        created_at: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        title: string
+        kind: string | undefined
+        aspect_ratio: string | undefined
+        slides: Json
+        created_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -1374,34 +1374,34 @@ export type EsquemaPublico = {
     }
     CollaboratorProfiles: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        user_id: string | null
-        code: string | null
+        id: string
+        tenant_id: string
+        user_id: string
+        code: string
         name: string | null
-        status: string | null
+        status: string
         contract_id: string | null
         contract_version: string | null
         contract_signed_at: string | null
         default_commission_percent: number | string | null
         notes: string | null
-        created_at: string | null
-        updated_at: string | null
+        created_at: string
+        updated_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        user_id: string | null | undefined
-        code: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        user_id: string
+        code: string
         name: string | null | undefined
-        status: string | null | undefined
+        status: string | undefined
         contract_id: string | null | undefined
         contract_version: string | null | undefined
         contract_signed_at: string | null | undefined
         default_commission_percent: number | string | null | undefined
         notes: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -1421,62 +1421,62 @@ export type EsquemaPublico = {
     }
     Collections: {
       Row: {
-        id: string | null
-        sale_id: string | null
+        id: string
+        sale_id: string
         expected_installment_id: string | null
-        collected_at: string | null
-        gross_amount: number | string | null
-        commissionable_amount: number | string | null
+        collected_at: string
+        gross_amount: number | string
+        commissionable_amount: number | string
         payment_method: string | null
         payment_provider: string | null
         payment_reference: string | null
-        is_confirmed: boolean | null
-        is_eligible_for_commission: boolean | null
+        is_confirmed: boolean
+        is_eligible_for_commission: boolean
         eligible_at: string | null
-        status: string | null
+        status: string
         notes: string | null
-        created_at: string | null
-        updated_at: string | null
-        recovered: boolean | null
+        created_at: string
+        updated_at: string
+        recovered: boolean
         recovered_at: string | null
-        processing_fee: number | string | null
-        extra_fee: number | string | null
+        processing_fee: number | string
+        extra_fee: number | string
         payment_channel: string | null
-        from_follow_up: boolean | null
-        vat: number | string | null
+        from_follow_up: boolean
+        vat: number | string
         invoice_link: string | null
         billing_info: string | null
-        needs_commission_review: boolean | null
-        tenant_id: string | null
+        needs_commission_review: boolean
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        sale_id: string | null | undefined
+        id: string | undefined
+        sale_id: string
         expected_installment_id: string | null | undefined
-        collected_at: string | null | undefined
-        gross_amount: number | string | null | undefined
-        commissionable_amount: number | string | null | undefined
+        collected_at: string
+        gross_amount: number | string
+        commissionable_amount: number | string
         payment_method: string | null | undefined
         payment_provider: string | null | undefined
         payment_reference: string | null | undefined
-        is_confirmed: boolean | null | undefined
-        is_eligible_for_commission: boolean | null | undefined
+        is_confirmed: boolean | undefined
+        is_eligible_for_commission: boolean | undefined
         eligible_at: string | null | undefined
-        status: string | null | undefined
+        status: string | undefined
         notes: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
-        recovered: boolean | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+        recovered: boolean | undefined
         recovered_at: string | null | undefined
-        processing_fee: number | string | null | undefined
-        extra_fee: number | string | null | undefined
+        processing_fee: number | string | undefined
+        extra_fee: number | string | undefined
         payment_channel: string | null | undefined
-        from_follow_up: boolean | null | undefined
-        vat: number | string | null | undefined
+        from_follow_up: boolean | undefined
+        vat: number | string | undefined
         invoice_link: string | null | undefined
         billing_info: string | null | undefined
-        needs_commission_review: boolean | null | undefined
-        tenant_id: string | null | undefined
+        needs_commission_review: boolean | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -1510,28 +1510,28 @@ export type EsquemaPublico = {
     }
     CommissionInvoices: {
       Row: {
-        id: string | null
-        user_id: string | null
-        period_month: string | null
+        id: string
+        user_id: string
+        period_month: string
         invoice_url: string | null
         amount: number | string | null
-        status: string | null
+        status: string
         notes: string | null
-        created_at: string | null
-        updated_at: string | null
-        tenant_id: string | null
+        created_at: string
+        updated_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        user_id: string | null | undefined
-        period_month: string | null | undefined
+        id: string | undefined
+        user_id: string
+        period_month: string
         invoice_url: string | null | undefined
         amount: number | string | null | undefined
-        status: string | null | undefined
+        status: string | undefined
         notes: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
-        tenant_id: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -1548,36 +1548,36 @@ export type EsquemaPublico = {
     }
     CommissionRules: {
       Row: {
-        id: string | null
-        participant_type: string | null
-        percent: number | string | null
-        active_from: string | null
+        id: string
+        participant_type: string
+        percent: number | string
+        active_from: string
         active_to: string | null
-        is_active: boolean | null
-        created_at: string | null
-        updated_at: string | null
+        is_active: boolean
+        created_at: string
+        updated_at: string
         user_id: string | null
-        min_cash: number | string | null
+        min_cash: number | string
         max_cash: number | string | null
         label: string | null
         tramo_id: string | null
-        tenant_id: string | null
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        participant_type: string | null | undefined
-        percent: number | string | null | undefined
-        active_from: string | null | undefined
+        id: string | undefined
+        participant_type: string
+        percent: number | string
+        active_from: string
         active_to: string | null | undefined
-        is_active: boolean | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        is_active: boolean | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
         user_id: string | null | undefined
-        min_cash: number | string | null | undefined
+        min_cash: number | string | undefined
         max_cash: number | string | null | undefined
         label: string | null | undefined
         tramo_id: string | null | undefined
-        tenant_id: string | null | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -1598,42 +1598,42 @@ export type EsquemaPublico = {
     }
     Commissions: {
       Row: {
-        id: string | null
-        sale_id: string | null
+        id: string
+        sale_id: string
         collection_id: string | null
         refund_id: string | null
-        user_id: string | null
-        participant_type: string | null
-        percent: number | string | null
-        base_amount: number | string | null
-        commission_amount: number | string | null
-        direction: string | null
-        status: string | null
-        liquidation_month: string | null
+        user_id: string
+        participant_type: string
+        percent: number | string
+        base_amount: number | string
+        commission_amount: number | string
+        direction: string
+        status: string
+        liquidation_month: string
         approved_by: string | null
         notes: string | null
-        created_at: string | null
-        updated_at: string | null
-        tenant_id: string | null
+        created_at: string
+        updated_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        sale_id: string | null | undefined
+        id: string | undefined
+        sale_id: string
         collection_id: string | null | undefined
         refund_id: string | null | undefined
-        user_id: string | null | undefined
-        participant_type: string | null | undefined
-        percent: number | string | null | undefined
-        base_amount: number | string | null | undefined
-        commission_amount: number | string | null | undefined
-        direction: string | null | undefined
-        status: string | null | undefined
-        liquidation_month: string | null | undefined
+        user_id: string
+        participant_type: string
+        percent: number | string
+        base_amount: number | string
+        commission_amount: number | string
+        direction: string | undefined
+        status: string | undefined
+        liquidation_month: string
         approved_by: string | null | undefined
         notes: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
-        tenant_id: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -1657,8 +1657,8 @@ export type EsquemaPublico = {
     }
     CompanyProfile: {
       Row: {
-        id: number | null
-        name: string | null
+        id: number
+        name: string
         legal_name: string | null
         cif: string | null
         address: string | null
@@ -1670,12 +1670,12 @@ export type EsquemaPublico = {
         phone: string | null
         logo_url: string | null
         email_signature: string | null
-        updated_at: string | null
-        tenant_id: string | null
+        updated_at: string
+        tenant_id: string
       }
       Insert: {
-        id: number | null | undefined
-        name: string | null | undefined
+        id: number | undefined
+        name: string | undefined
         legal_name: string | null | undefined
         cif: string | null | undefined
         address: string | null | undefined
@@ -1687,8 +1687,8 @@ export type EsquemaPublico = {
         phone: string | null | undefined
         logo_url: string | null | undefined
         email_signature: string | null | undefined
-        updated_at: string | null | undefined
-        tenant_id: string | null | undefined
+        updated_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: number | undefined
@@ -1710,8 +1710,8 @@ export type EsquemaPublico = {
     }
     ContactAttributions: {
       Row: {
-        id: string | null
-        contact_id: string | null
+        id: string
+        contact_id: string
         source: string | null
         funnel: string | null
         landing_url: string | null
@@ -1722,9 +1722,9 @@ export type EsquemaPublico = {
         utm_term: string | null
         first_touch_at: string | null
         last_touch_at: string | null
-        is_primary: boolean | null
-        created_at: string | null
-        updated_at: string | null
+        is_primary: boolean
+        created_at: string
+        updated_at: string
         first_utm_source: string | null
         first_utm_medium: string | null
         first_utm_campaign: string | null
@@ -1735,13 +1735,13 @@ export type EsquemaPublico = {
         last_utm_campaign: string | null
         last_utm_content: string | null
         last_utm_term: string | null
-        tenant_id: string | null
+        tenant_id: string
         collaborator_id: string | null
-        collaborator_attribution_blocked: boolean | null
+        collaborator_attribution_blocked: boolean
       }
       Insert: {
-        id: string | null | undefined
-        contact_id: string | null | undefined
+        id: string | undefined
+        contact_id: string
         source: string | null | undefined
         funnel: string | null | undefined
         landing_url: string | null | undefined
@@ -1752,9 +1752,9 @@ export type EsquemaPublico = {
         utm_term: string | null | undefined
         first_touch_at: string | null | undefined
         last_touch_at: string | null | undefined
-        is_primary: boolean | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        is_primary: boolean | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
         first_utm_source: string | null | undefined
         first_utm_medium: string | null | undefined
         first_utm_campaign: string | null | undefined
@@ -1765,9 +1765,9 @@ export type EsquemaPublico = {
         last_utm_campaign: string | null | undefined
         last_utm_content: string | null | undefined
         last_utm_term: string | null | undefined
-        tenant_id: string | null | undefined
+        tenant_id: string
         collaborator_id: string | null | undefined
-        collaborator_attribution_blocked: boolean | null | undefined
+        collaborator_attribution_blocked: boolean | undefined
       }
       Update: {
         id: string | undefined
@@ -1819,11 +1819,11 @@ export type EsquemaPublico = {
         contact_id: string
         launch_id: string
         created_at: string | undefined
-        confirmed_at: string | null
-        confirm_source: string | null
-        invitado_at: string | null
-        invitado_por: string | null
-        utm: Json | null
+        confirmed_at: string | null | undefined
+        confirm_source: string | null | undefined
+        invitado_at: string | null | undefined
+        invitado_por: string | null | undefined
+        utm: Json | null | undefined
       }
       Update: {
         id: string | undefined
@@ -1840,22 +1840,22 @@ export type EsquemaPublico = {
     }
     ContactNotes: {
       Row: {
-        id: string | null
-        contact_id: string | null
+        id: string
+        contact_id: string
         author_id: string | null
-        note: string | null
-        pinned: boolean | null
-        created_at: string | null
-        tenant_id: string | null
+        note: string
+        pinned: boolean
+        created_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        contact_id: string | null | undefined
+        id: string | undefined
+        contact_id: string
         author_id: string | null | undefined
-        note: string | null | undefined
-        pinned: boolean | null | undefined
-        created_at: string | null | undefined
-        tenant_id: string | null | undefined
+        note: string
+        pinned: boolean | undefined
+        created_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -1869,10 +1869,10 @@ export type EsquemaPublico = {
     }
     Contacts: {
       Row: {
-        id: string | null
+        id: string
         first_name: string | null
         last_name: string | null
-        full_name: string | null
+        full_name: string
         email: string | null
         phone: string | null
         country: string | null
@@ -1880,16 +1880,16 @@ export type EsquemaPublico = {
         notes: string | null
         first_seen_at: string | null
         last_seen_at: string | null
-        created_at: string | null
-        updated_at: string | null
+        created_at: string
+        updated_at: string
         instagram: string | null
         lead_channel: string | null
-        lead_status: string | null
+        lead_status: string
         vsl_watch_pct: number | string | null
         vsl_watched_at: string | null
         lead_score: number | null
         first_contact_at: string | null
-        contact_attempts: number | null
+        contact_attempts: number
         discard_reason: string | null
         referred_by: string | null
         campaign_id: string | null
@@ -1905,18 +1905,18 @@ export type EsquemaPublico = {
         ghl_contact_id: string | null
         qualification: Json | null
         qualification_updated_at: string | null
-        tenant_id: string | null
+        tenant_id: string
         merged_into: string | null
         email_normalized: string | null
         phone_normalized: string | null
         lifecycle: string | null
-        custom_fields: Json | null
+        custom_fields: Json
       }
       Insert: {
-        id: string | null | undefined
+        id: string | undefined
         first_name: string | null | undefined
         last_name: string | null | undefined
-        full_name: string | null | undefined
+        full_name: string
         email: string | null | undefined
         phone: string | null | undefined
         country: string | null | undefined
@@ -1924,16 +1924,16 @@ export type EsquemaPublico = {
         notes: string | null | undefined
         first_seen_at: string | null | undefined
         last_seen_at: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
         instagram: string | null | undefined
         lead_channel: string | null | undefined
-        lead_status: string | null | undefined
+        lead_status: string | undefined
         vsl_watch_pct: number | string | null | undefined
         vsl_watched_at: string | null | undefined
         lead_score: number | null | undefined
         first_contact_at: string | null | undefined
-        contact_attempts: number | null | undefined
+        contact_attempts: number | undefined
         discard_reason: string | null | undefined
         referred_by: string | null | undefined
         campaign_id: string | null | undefined
@@ -1949,12 +1949,12 @@ export type EsquemaPublico = {
         ghl_contact_id: string | null | undefined
         qualification: Json | null | undefined
         qualification_updated_at: string | null | undefined
-        tenant_id: string | null | undefined
+        tenant_id: string
         merged_into: string | null | undefined
         email_normalized: string | null | undefined
         phone_normalized: string | null | undefined
         lifecycle: string | null | undefined
-        custom_fields: Json | null | undefined
+        custom_fields: Json
       }
       Update: {
         id: string | undefined
@@ -2003,17 +2003,17 @@ export type EsquemaPublico = {
     }
     ContentItems: {
       Row: {
-        id: string | null
-        title: string | null
-        content_type: string | null
-        status: string | null
+        id: string
+        title: string
+        content_type: string
+        status: string
         link_url: string | null
         publish_date: string | null
         assigned_to: string | null
         notes: string | null
         created_by: string | null
-        created_at: string | null
-        updated_at: string | null
+        created_at: string
+        updated_at: string
         solution_explanation: string | null
         solution_link: string | null
         reference_reel_url: string | null
@@ -2023,20 +2023,20 @@ export type EsquemaPublico = {
         testimonio_id: string | null
         sort_order: number | null
         price: number | string | null
-        tenant_id: string | null
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        title: string | null | undefined
-        content_type: string | null | undefined
-        status: string | null | undefined
+        id: string | undefined
+        title: string
+        content_type: string | undefined
+        status: string | undefined
         link_url: string | null | undefined
         publish_date: string | null | undefined
         assigned_to: string | null | undefined
         notes: string | null | undefined
         created_by: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
         solution_explanation: string | null | undefined
         solution_link: string | null | undefined
         reference_reel_url: string | null | undefined
@@ -2046,7 +2046,7 @@ export type EsquemaPublico = {
         testimonio_id: string | null | undefined
         sort_order: number | null | undefined
         price: number | string | null | undefined
-        tenant_id: string | null | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -2074,32 +2074,32 @@ export type EsquemaPublico = {
     }
     ContractTemplates: {
       Row: {
-        id: string | null
-        name: string | null
+        id: string
+        name: string
         role_key: string | null
-        body: string | null
-        is_active: boolean | null
+        body: string
+        is_active: boolean
         created_by: string | null
-        created_at: string | null
-        updated_at: string | null
-        kind: string | null
+        created_at: string
+        updated_at: string
+        kind: string
         welcome_message: string | null
         payment_method: string | null
-        tenant_id: string | null
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        name: string | null | undefined
+        id: string | undefined
+        name: string
         role_key: string | null | undefined
-        body: string | null | undefined
-        is_active: boolean | null | undefined
+        body: string
+        is_active: boolean | undefined
         created_by: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
-        kind: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+        kind: string | undefined
         welcome_message: string | null | undefined
         payment_method: string | null | undefined
-        tenant_id: string | null | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -2118,20 +2118,20 @@ export type EsquemaPublico = {
     }
     Contracts: {
       Row: {
-        id: string | null
+        id: string
         sale_id: string | null
         contact_id: string | null
         title: string | null
         url: string | null
-        status: string | null
+        status: string
         signed_at: string | null
         notes: string | null
         created_by: string | null
-        created_at: string | null
-        updated_at: string | null
+        created_at: string
+        updated_at: string
         user_id: string | null
         template_id: string | null
-        kind: string | null
+        kind: string
         signing_token: string | null
         terms: Json | null
         body_snapshot: string | null
@@ -2148,25 +2148,25 @@ export type EsquemaPublico = {
         accesos_enviados_at: string | null
         accesos_abiertos_at: string | null
         onboarding_webhook_ok: boolean | null
-        is_reservation: boolean | null
-        contract_party: string | null
-        tenant_id: string | null
+        is_reservation: boolean
+        contract_party: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
+        id: string | undefined
         sale_id: string | null | undefined
         contact_id: string | null | undefined
         title: string | null | undefined
         url: string | null | undefined
-        status: string | null | undefined
+        status: string | undefined
         signed_at: string | null | undefined
         notes: string | null | undefined
         created_by: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
         user_id: string | null | undefined
         template_id: string | null | undefined
-        kind: string | null | undefined
+        kind: string | undefined
         signing_token: string | null | undefined
         terms: Json | null | undefined
         body_snapshot: string | null | undefined
@@ -2183,9 +2183,9 @@ export type EsquemaPublico = {
         accesos_enviados_at: string | null | undefined
         accesos_abiertos_at: string | null | undefined
         onboarding_webhook_ok: boolean | null | undefined
-        is_reservation: boolean | null | undefined
-        contract_party: string | null | undefined
-        tenant_id: string | null | undefined
+        is_reservation: boolean | undefined
+        contract_party: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -2237,9 +2237,9 @@ export type EsquemaPublico = {
         id: string | undefined
         tenant_id: string
         conversation_id: string
-        actor_user_id: string | null
+        actor_user_id: string | null | undefined
         kind: string
-        data: Json | undefined
+        data: Json
         created_at: string | undefined
       }
       Update: {
@@ -2315,18 +2315,18 @@ export type EsquemaPublico = {
         external_id: string
         source: string | undefined
         channel: string | undefined
-        contact_id: string | null
-        contact_external_id: string | null
+        contact_id: string | null | undefined
+        contact_external_id: string | null | undefined
         status: string | undefined
-        snoozed_until: string | null
-        assignee_id: string | null
+        snoozed_until: string | null | undefined
+        assignee_id: string | null | undefined
         ai_mode: string | undefined
-        labels: string[] | undefined
-        last_inbound_at: string | null
-        last_message_at: string | null
-        first_reply_at: string | null
+        labels: string[]
+        last_inbound_at: string | null | undefined
+        last_message_at: string | null | undefined
+        first_reply_at: string | null | undefined
         unread_count: number | undefined
-        summary: string | null
+        summary: string | null | undefined
         created_at: string | undefined
         updated_at: string | undefined
       }
@@ -2354,40 +2354,40 @@ export type EsquemaPublico = {
     }
     CsmEvents: {
       Row: {
-        id: string | null
-        contact_id: string | null
+        id: string
+        contact_id: string
         sale_id: string | null
         csm_id: string | null
-        type: string | null
-        event_datetime: string | null
-        status: string | null
+        type: string
+        event_datetime: string
+        status: string
         grade: number | null
         success: string | null
         reminder: string | null
         recording_url: string | null
         notes: string | null
         created_by: string | null
-        created_at: string | null
-        updated_at: string | null
-        tenant_id: string | null
+        created_at: string
+        updated_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        contact_id: string | null | undefined
+        id: string | undefined
+        contact_id: string
         sale_id: string | null | undefined
         csm_id: string | null | undefined
-        type: string | null | undefined
-        event_datetime: string | null | undefined
-        status: string | null | undefined
+        type: string | undefined
+        event_datetime: string | undefined
+        status: string | undefined
         grade: number | null | undefined
         success: string | null | undefined
         reminder: string | null | undefined
         recording_url: string | null | undefined
         notes: string | null | undefined
         created_by: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
-        tenant_id: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -2410,24 +2410,24 @@ export type EsquemaPublico = {
     }
     CustomFieldDefs: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        field_key: string | null
-        label: string | null
-        field_type: string | null
-        sort_order: number | null
-        created_at: string | null
-        updated_at: string | null
+        id: string
+        tenant_id: string
+        field_key: string
+        label: string
+        field_type: string
+        sort_order: number
+        created_at: string
+        updated_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        field_key: string | null | undefined
-        label: string | null | undefined
-        field_type: string | null | undefined
-        sort_order: number | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        field_key: string
+        label: string
+        field_type: string | undefined
+        sort_order: number | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -2442,24 +2442,24 @@ export type EsquemaPublico = {
     }
     DeletedAppointmentsLog: {
       Row: {
-        id: string | null
-        appointment_id: string | null
+        id: string
+        appointment_id: string
         contact_id: string | null
-        snapshot: Json | null
+        snapshot: Json
         reason: string | null
         deleted_by: string | null
-        deleted_at: string | null
-        tenant_id: string | null
+        deleted_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        appointment_id: string | null | undefined
+        id: string | undefined
+        appointment_id: string
         contact_id: string | null | undefined
-        snapshot: Json | null | undefined
+        snapshot: Json
         reason: string | null | undefined
         deleted_by: string | null | undefined
-        deleted_at: string | null | undefined
-        tenant_id: string | null | undefined
+        deleted_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -2474,34 +2474,34 @@ export type EsquemaPublico = {
     }
     DeliveryAttempts: {
       Row: {
-        id: string | null
-        event_id: string | null
-        destination: string | null
-        status: string | null
+        id: string
+        event_id: string
+        destination: string
+        status: string
         http_status: number | null
         latency_ms: number | null
-        attempt_number: number | null
+        attempt_number: number
         last_error: string | null
         next_retry_at: string | null
-        response_summary: Json | null
+        response_summary: Json
         sent_at: string | null
-        created_at: string | null
-        tenant_id: string | null
+        created_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        event_id: string | null | undefined
-        destination: string | null | undefined
-        status: string | null | undefined
+        id: string | undefined
+        event_id: string
+        destination: string
+        status: string | undefined
         http_status: number | null | undefined
         latency_ms: number | null | undefined
-        attempt_number: number | null | undefined
+        attempt_number: number | undefined
         last_error: string | null | undefined
         next_retry_at: string | null | undefined
-        response_summary: Json | null | undefined
+        response_summary: Json
         sent_at: string | null | undefined
-        created_at: string | null | undefined
-        tenant_id: string | null | undefined
+        created_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -2521,34 +2521,34 @@ export type EsquemaPublico = {
     }
     DocumentVerifications: {
       Row: {
-        id: string | null
-        sale_id: string | null
-        contact_id: string | null
+        id: string
+        sale_id: string
+        contact_id: string
         country_code: string | null
         document_type: string | null
-        document_url: string | null
+        document_url: string
         verified_at: string | null
         verified_by: string | null
-        status: string | null
+        status: string
         rejection_reason: string | null
-        created_at: string | null
-        updated_at: string | null
-        tenant_id: string | null
+        created_at: string
+        updated_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        sale_id: string | null | undefined
-        contact_id: string | null | undefined
+        id: string | undefined
+        sale_id: string
+        contact_id: string
         country_code: string | null | undefined
         document_type: string | null | undefined
-        document_url: string | null | undefined
+        document_url: string
         verified_at: string | null | undefined
         verified_by: string | null | undefined
-        status: string | null | undefined
+        status: string | undefined
         rejection_reason: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
-        tenant_id: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -2568,42 +2568,42 @@ export type EsquemaPublico = {
     }
     Drops: {
       Row: {
-        id: string | null
+        id: string
         sale_id: string | null
-        contact_id: string | null
+        contact_id: string
         request_date: string | null
         effective_date: string | null
         reason: string | null
         reason_detail: string | null
-        type: string | null
+        type: string
         handled_by: string | null
         retention_action: string | null
-        result: string | null
-        refund_amount: number | string | null
+        result: string
+        refund_amount: number | string
         notes: string | null
         created_by: string | null
-        created_at: string | null
-        updated_at: string | null
-        tenant_id: string | null
+        created_at: string
+        updated_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
+        id: string | undefined
         sale_id: string | null | undefined
-        contact_id: string | null | undefined
+        contact_id: string
         request_date: string | null | undefined
         effective_date: string | null | undefined
         reason: string | null | undefined
         reason_detail: string | null | undefined
-        type: string | null | undefined
+        type: string | undefined
         handled_by: string | null | undefined
         retention_action: string | null | undefined
-        result: string | null | undefined
-        refund_amount: number | string | null | undefined
+        result: string | undefined
+        refund_amount: number | string | undefined
         notes: string | null | undefined
         created_by: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
-        tenant_id: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -2627,26 +2627,26 @@ export type EsquemaPublico = {
     }
     EmailEvents: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        email_message_id: string | null
-        provider: string | null
-        provider_event_id: string | null
-        event_type: string | null
+        id: string
+        tenant_id: string
+        email_message_id: string
+        provider: string
+        provider_event_id: string
+        event_type: string
         event_payload: Json | null
         event_timestamp: string | null
-        created_at: string | null
+        created_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        email_message_id: string | null | undefined
-        provider: string | null | undefined
-        provider_event_id: string | null | undefined
-        event_type: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        email_message_id: string
+        provider: string | undefined
+        provider_event_id: string
+        event_type: string
         event_payload: Json | null | undefined
         event_timestamp: string | null | undefined
-        created_at: string | null | undefined
+        created_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -2662,48 +2662,48 @@ export type EsquemaPublico = {
     }
     EmailInvoices: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        provider: string | null
-        message_id: string | null
-        attachment_id: string | null
-        sha256: string | null
+        id: string
+        tenant_id: string
+        provider: string
+        message_id: string
+        attachment_id: string
+        sha256: string
         from_email: string | null
         subject: string | null
         received_at: string | null
-        file_name: string | null
-        mime_type: string | null
-        size_bytes: number | string | null
-        storage_path: string | null
-        status: string | null
+        file_name: string
+        mime_type: string
+        size_bytes: number | string
+        storage_path: string
+        status: string
         expense_id: string | null
         notes: string | null
         validated_by: string | null
         validated_at: string | null
-        created_at: string | null
-        updated_at: string | null
+        created_at: string
+        updated_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        provider: string | null | undefined
-        message_id: string | null | undefined
-        attachment_id: string | null | undefined
-        sha256: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        provider: string | undefined
+        message_id: string
+        attachment_id: string
+        sha256: string
         from_email: string | null | undefined
         subject: string | null | undefined
         received_at: string | null | undefined
-        file_name: string | null | undefined
-        mime_type: string | null | undefined
-        size_bytes: number | string | null | undefined
-        storage_path: string | null | undefined
-        status: string | null | undefined
+        file_name: string
+        mime_type: string
+        size_bytes: number | string
+        storage_path: string
+        status: string | undefined
         expense_id: string | null | undefined
         notes: string | null | undefined
         validated_by: string | null | undefined
         validated_at: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -2730,19 +2730,19 @@ export type EsquemaPublico = {
     }
     EmailMessages: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        provider: string | null
+        id: string
+        tenant_id: string
+        provider: string
         provider_message_id: string | null
-        template_key: string | null
-        to_email: string | null
+        template_key: string
+        to_email: string
         cc_json: Json | null
         bcc_json: Json | null
-        from_email: string | null
+        from_email: string
         reply_to_email: string | null
-        subject: string | null
-        status: string | null
-        is_test: boolean | null
+        subject: string
+        status: string
+        is_test: boolean
         related_entity_type: string | null
         related_entity_id: string | null
         error_message: string | null
@@ -2751,23 +2751,23 @@ export type EsquemaPublico = {
         opened_at: string | null
         clicked_at: string | null
         bounced_at: string | null
-        created_at: string | null
-        updated_at: string | null
+        created_at: string
+        updated_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        provider: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        provider: string | undefined
         provider_message_id: string | null | undefined
-        template_key: string | null | undefined
-        to_email: string | null | undefined
+        template_key: string
+        to_email: string
         cc_json: Json | null | undefined
         bcc_json: Json | null | undefined
-        from_email: string | null | undefined
+        from_email: string
         reply_to_email: string | null | undefined
-        subject: string | null | undefined
-        status: string | null | undefined
-        is_test: boolean | null | undefined
+        subject: string
+        status: string | undefined
+        is_test: boolean | undefined
         related_entity_type: string | null | undefined
         related_entity_id: string | null | undefined
         error_message: string | null | undefined
@@ -2776,8 +2776,8 @@ export type EsquemaPublico = {
         opened_at: string | null | undefined
         clicked_at: string | null | undefined
         bounced_at: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -2807,30 +2807,30 @@ export type EsquemaPublico = {
     }
     EmailTemplates: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        template_key: string | null
-        subject: string | null
-        body_html: string | null
+        id: string
+        tenant_id: string
+        template_key: string
+        subject: string
+        body_html: string
         updated_by: string | null
-        created_at: string | null
-        updated_at: string | null
+        created_at: string
+        updated_at: string
         name: string | null
         description: string | null
-        enabled: boolean | null
+        enabled: boolean
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        template_key: string | null | undefined
-        subject: string | null | undefined
-        body_html: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        template_key: string
+        subject: string
+        body_html: string
         updated_by: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
         name: string | null | undefined
         description: string | null | undefined
-        enabled: boolean | null | undefined
+        enabled: boolean | undefined
       }
       Update: {
         id: string | undefined
@@ -2848,18 +2848,18 @@ export type EsquemaPublico = {
     }
     EventTypes: {
       Row: {
-        name: string | null
-        description: string | null
+        name: string
+        description: string
         source: string | null
-        is_active: boolean | null
-        created_at: string | null
+        is_active: boolean
+        created_at: string
       }
       Insert: {
-        name: string | null | undefined
-        description: string | null | undefined
+        name: string
+        description: string
         source: string | null | undefined
-        is_active: boolean | null | undefined
-        created_at: string | null | undefined
+        is_active: boolean | undefined
+        created_at: string | undefined
       }
       Update: {
         name: string | undefined
@@ -2871,28 +2871,28 @@ export type EsquemaPublico = {
     }
     Expenses: {
       Row: {
-        id: string | null
-        concept: string | null
-        category: string | null
+        id: string
+        concept: string
+        category: string
         subcategory: string | null
-        amount: number | string | null
-        expense_date: string | null
-        recurring: boolean | null
+        amount: number | string
+        expense_date: string
+        recurring: boolean
         frequency: string | null
         payment_method: string | null
-        status: string | null
+        status: string
         counterparty: string | null
         person_id: string | null
         notes: string | null
         created_by: string | null
-        created_at: string | null
-        updated_at: string | null
+        created_at: string
+        updated_at: string
         invoice_url: string | null
-        needs_review: boolean | null
+        needs_review: boolean
         ai_extracted: Json | null
         auto_source: string | null
         period: string | null
-        tenant_id: string | null
+        tenant_id: string
         invoice_number: string | null
         invoice_due_date: string | null
         counterparty_tax_id: string | null
@@ -2904,28 +2904,28 @@ export type EsquemaPublico = {
         payment_reference: string | null
       }
       Insert: {
-        id: string | null | undefined
-        concept: string | null | undefined
-        category: string | null | undefined
+        id: string | undefined
+        concept: string
+        category: string | undefined
         subcategory: string | null | undefined
-        amount: number | string | null | undefined
-        expense_date: string | null | undefined
-        recurring: boolean | null | undefined
+        amount: number | string | undefined
+        expense_date: string
+        recurring: boolean | undefined
         frequency: string | null | undefined
         payment_method: string | null | undefined
-        status: string | null | undefined
+        status: string | undefined
         counterparty: string | null | undefined
         person_id: string | null | undefined
         notes: string | null | undefined
         created_by: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
         invoice_url: string | null | undefined
-        needs_review: boolean | null | undefined
+        needs_review: boolean | undefined
         ai_extracted: Json | null | undefined
         auto_source: string | null | undefined
         period: string | null | undefined
-        tenant_id: string | null | undefined
+        tenant_id: string
         invoice_number: string | null | undefined
         invoice_due_date: string | null | undefined
         counterparty_tax_id: string | null | undefined
@@ -2972,38 +2972,38 @@ export type EsquemaPublico = {
     }
     FathomMatchReview: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        fathom_meeting_id: string | null
+        id: string
+        tenant_id: string
+        fathom_meeting_id: string
         meeting_started_at: string | null
         invitee_email: string | null
         recording_url: string | null
-        candidate_appointment_ids: string | null
-        reason_kind: string | null
-        reason: string | null
-        status: string | null
+        candidate_appointment_ids: string[]
+        reason_kind: string
+        reason: string
+        status: string
         resolved_appointment_id: string | null
         resolved_by: string | null
         resolved_at: string | null
-        created_at: string | null
-        updated_at: string | null
+        created_at: string
+        updated_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        fathom_meeting_id: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        fathom_meeting_id: string
         meeting_started_at: string | null | undefined
         invitee_email: string | null | undefined
         recording_url: string | null | undefined
-        candidate_appointment_ids: string | null | undefined
-        reason_kind: string | null | undefined
-        reason: string | null | undefined
-        status: string | null | undefined
+        candidate_appointment_ids: string[]
+        reason_kind: string
+        reason: string
+        status: string | undefined
         resolved_appointment_id: string | null | undefined
         resolved_by: string | null | undefined
         resolved_at: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -3012,7 +3012,7 @@ export type EsquemaPublico = {
         meeting_started_at: string | undefined
         invitee_email: string | undefined
         recording_url: string | undefined
-        candidate_appointment_ids: string | undefined
+        candidate_appointment_ids: string[] | undefined
         reason_kind: string | undefined
         reason: string | undefined
         status: string | undefined
@@ -3025,30 +3025,30 @@ export type EsquemaPublico = {
     }
     FbMedia: {
       Row: {
-        id: string | null
-        external_id: string | null
+        id: string
+        external_id: string
         description: string | null
         permalink: string | null
         created_time: string | null
-        views: number | null
-        likes: number | null
-        comments: number | null
+        views: number
+        likes: number
+        comments: number
         synced_at: string | null
-        created_at: string | null
-        tenant_id: string | null
+        created_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        external_id: string | null | undefined
+        id: string | undefined
+        external_id: string
         description: string | null | undefined
         permalink: string | null | undefined
         created_time: string | null | undefined
-        views: number | null | undefined
-        likes: number | null | undefined
-        comments: number | null | undefined
+        views: number | undefined
+        likes: number | undefined
+        comments: number | undefined
         synced_at: string | null | undefined
-        created_at: string | null | undefined
-        tenant_id: string | null | undefined
+        created_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -3066,17 +3066,17 @@ export type EsquemaPublico = {
     }
     FormResponses: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        form_id: string | null
-        version_id: string | null
-        submission_id: string | null
-        status: string | null
-        answers: Json | null
-        hidden: Json | null
+        id: string
+        tenant_id: string
+        form_id: string
+        version_id: string
+        submission_id: string
+        status: string
+        answers: Json
+        hidden: Json
         score: number | null
         temperature: string | null
-        tags: string | null
+        tags: string[]
         rating: number | null
         nps: number | null
         teacher: string | null
@@ -3085,27 +3085,27 @@ export type EsquemaPublico = {
         outcome: string | null
         variant: string | null
         contact_id: string | null
-        review_status: string | null
+        review_status: string
         review_notes: string | null
         device: string | null
         duration_ms: number | null
         ip_hash: string | null
-        created_at: string | null
+        created_at: string
         completed_at: string | null
-        updated_at: string | null
+        updated_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        form_id: string | null | undefined
-        version_id: string | null | undefined
-        submission_id: string | null | undefined
-        status: string | null | undefined
-        answers: Json | null | undefined
-        hidden: Json | null | undefined
+        id: string | undefined
+        tenant_id: string
+        form_id: string
+        version_id: string
+        submission_id: string
+        status: string | undefined
+        answers: Json
+        hidden: Json
         score: number | null | undefined
         temperature: string | null | undefined
-        tags: string | null | undefined
+        tags: string[]
         rating: number | null | undefined
         nps: number | null | undefined
         teacher: string | null | undefined
@@ -3114,14 +3114,14 @@ export type EsquemaPublico = {
         outcome: string | null | undefined
         variant: string | null | undefined
         contact_id: string | null | undefined
-        review_status: string | null | undefined
+        review_status: string | undefined
         review_notes: string | null | undefined
         device: string | null | undefined
         duration_ms: number | null | undefined
         ip_hash: string | null | undefined
-        created_at: string | null | undefined
+        created_at: string | undefined
         completed_at: string | null | undefined
-        updated_at: string | null | undefined
+        updated_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -3134,7 +3134,7 @@ export type EsquemaPublico = {
         hidden: Json | undefined
         score: number | undefined
         temperature: string | undefined
-        tags: string | undefined
+        tags: string[] | undefined
         rating: number | undefined
         nps: number | undefined
         teacher: string | undefined
@@ -3155,42 +3155,42 @@ export type EsquemaPublico = {
     }
     FormSessions: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        form_id: string | null
+        id: string
+        tenant_id: string
+        form_id: string
         version_id: string | null
-        session_id: string | null
-        status: string | null
+        session_id: string
+        status: string
         device: string | null
         variant: string | null
-        utm: Json | null
+        utm: Json
         referrer_host: string | null
         last_question: string | null
-        max_question_index: number | null
-        question_times: Json | null
+        max_question_index: number
+        question_times: Json
         started_at: string | null
         completed_at: string | null
-        created_at: string | null
-        last_active_at: string | null
+        created_at: string
+        last_active_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        form_id: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        form_id: string
         version_id: string | null | undefined
-        session_id: string | null | undefined
-        status: string | null | undefined
+        session_id: string
+        status: string | undefined
         device: string | null | undefined
         variant: string | null | undefined
-        utm: Json | null | undefined
+        utm: Json
         referrer_host: string | null | undefined
         last_question: string | null | undefined
-        max_question_index: number | null | undefined
-        question_times: Json | null | undefined
+        max_question_index: number | undefined
+        question_times: Json
         started_at: string | null | undefined
         completed_at: string | null | undefined
-        created_at: string | null | undefined
-        last_active_at: string | null | undefined
+        created_at: string | undefined
+        last_active_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -3214,22 +3214,22 @@ export type EsquemaPublico = {
     }
     FormVersions: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        form_id: string | null
-        version: number | null
-        config: Json | null
+        id: string
+        tenant_id: string
+        form_id: string
+        version: number
+        config: Json
         published_by: string | null
-        published_at: string | null
+        published_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        form_id: string | null | undefined
-        version: number | null | undefined
-        config: Json | null | undefined
+        id: string | undefined
+        tenant_id: string
+        form_id: string
+        version: number
+        config: Json
         published_by: string | null | undefined
-        published_at: string | null | undefined
+        published_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -3243,29 +3243,29 @@ export type EsquemaPublico = {
     }
     FormWebhookDeliveries: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        webhook_id: string | null
-        response_id: string | null
-        status: string | null
-        attempts: number | null
+        id: string
+        tenant_id: string
+        webhook_id: string
+        response_id: string
+        status: string
+        attempts: number
         last_status_code: number | null
         last_error: string | null
         next_attempt_at: string | null
-        created_at: string | null
+        created_at: string
         delivered_at: string | null
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        webhook_id: string | null | undefined
-        response_id: string | null | undefined
-        status: string | null | undefined
-        attempts: number | null | undefined
+        id: string | undefined
+        tenant_id: string
+        webhook_id: string
+        response_id: string
+        status: string | undefined
+        attempts: number | undefined
         last_status_code: number | null | undefined
         last_error: string | null | undefined
         next_attempt_at: string | null | undefined
-        created_at: string | null | undefined
+        created_at: string | undefined
         delivered_at: string | null | undefined
       }
       Update: {
@@ -3284,22 +3284,22 @@ export type EsquemaPublico = {
     }
     FormWebhooks: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        form_id: string | null
-        url: string | null
-        secret_enc: string | null
-        active: boolean | null
-        created_at: string | null
+        id: string
+        tenant_id: string
+        form_id: string
+        url: string
+        secret_enc: string
+        active: boolean
+        created_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        form_id: string | null | undefined
-        url: string | null | undefined
-        secret_enc: string | null | undefined
-        active: boolean | null | undefined
-        created_at: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        form_id: string
+        url: string
+        secret_enc: string
+        active: boolean | undefined
+        created_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -3313,34 +3313,34 @@ export type EsquemaPublico = {
     }
     Forms: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        slug: string | null
-        name: string | null
-        category: string | null
-        audience: string | null
-        status: string | null
-        draft_config: Json | null
+        id: string
+        tenant_id: string
+        slug: string
+        name: string
+        category: string
+        audience: string
+        status: string
+        draft_config: Json
         published_version_id: string | null
-        settings: Json | null
+        settings: Json
         created_by: string | null
-        created_at: string | null
-        updated_at: string | null
+        created_at: string
+        updated_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        slug: string | null | undefined
-        name: string | null | undefined
-        category: string | null | undefined
-        audience: string | null | undefined
-        status: string | null | undefined
-        draft_config: Json | null | undefined
+        id: string | undefined
+        tenant_id: string
+        slug: string
+        name: string
+        category: string | undefined
+        audience: string | undefined
+        status: string | undefined
+        draft_config: Json
         published_version_id: string | null | undefined
-        settings: Json | null | undefined
+        settings: Json
         created_by: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -3360,40 +3360,40 @@ export type EsquemaPublico = {
     }
     Ga4Daily: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        date: string | null
-        source: string | null
-        medium: string | null
-        campaign: string | null
-        landing_page: string | null
-        device: string | null
-        sessions: number | null
-        active_users: number | null
-        new_users: number | null
-        conversions: number | string | null
-        engaged_sessions: number | null
-        synced_at: string | null
-        created_at: string | null
-        updated_at: string | null
+        id: string
+        tenant_id: string
+        date: string
+        source: string
+        medium: string
+        campaign: string
+        landing_page: string
+        device: string
+        sessions: number
+        active_users: number
+        new_users: number
+        conversions: number | string
+        engaged_sessions: number
+        synced_at: string
+        created_at: string
+        updated_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        date: string | null | undefined
-        source: string | null | undefined
-        medium: string | null | undefined
-        campaign: string | null | undefined
-        landing_page: string | null | undefined
-        device: string | null | undefined
-        sessions: number | null | undefined
-        active_users: number | null | undefined
-        new_users: number | null | undefined
-        conversions: number | string | null | undefined
-        engaged_sessions: number | null | undefined
-        synced_at: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        date: string
+        source: string | undefined
+        medium: string | undefined
+        campaign: string | undefined
+        landing_page: string | undefined
+        device: string | undefined
+        sessions: number | undefined
+        active_users: number | undefined
+        new_users: number | undefined
+        conversions: number | string | undefined
+        engaged_sessions: number | undefined
+        synced_at: string | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -3416,57 +3416,57 @@ export type EsquemaPublico = {
     }
     GoogleCalendarEvents: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        connected_calendar_id: string | null
-        owner_user_id: string | null
-        provider_event_id: string | null
+        id: string
+        tenant_id: string
+        connected_calendar_id: string
+        owner_user_id: string
+        provider_event_id: string
         ical_uid: string | null
         recurring_event_id: string | null
         original_start_at: string | null
         event_start_at: string | null
         event_end_at: string | null
         time_zone: string | null
-        status: string | null
+        status: string
         visibility: string | null
         transparency: string | null
-        attendee_fingerprints: string | null
-        has_external_attendee: boolean | null
-        is_all_day: boolean | null
+        attendee_fingerprints: string[]
+        has_external_attendee: boolean
+        is_all_day: boolean
         external_updated_at: string | null
-        last_seen_at: string | null
-        created_at: string | null
-        updated_at: string | null
+        last_seen_at: string
+        created_at: string
+        updated_at: string
         appointment_id: string | null
-        reconciliation_status: string | null
+        reconciliation_status: string
         match_method: string | null
         reconciliation_reason: string | null
         reconciled_at: string | null
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        connected_calendar_id: string | null | undefined
-        owner_user_id: string | null | undefined
-        provider_event_id: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        connected_calendar_id: string
+        owner_user_id: string
+        provider_event_id: string
         ical_uid: string | null | undefined
         recurring_event_id: string | null | undefined
         original_start_at: string | null | undefined
         event_start_at: string | null | undefined
         event_end_at: string | null | undefined
         time_zone: string | null | undefined
-        status: string | null | undefined
+        status: string
         visibility: string | null | undefined
         transparency: string | null | undefined
-        attendee_fingerprints: string | null | undefined
-        has_external_attendee: boolean | null | undefined
-        is_all_day: boolean | null | undefined
+        attendee_fingerprints: string[]
+        has_external_attendee: boolean | undefined
+        is_all_day: boolean | undefined
         external_updated_at: string | null | undefined
-        last_seen_at: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        last_seen_at: string | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
         appointment_id: string | null | undefined
-        reconciliation_status: string | null | undefined
+        reconciliation_status: string | undefined
         match_method: string | null | undefined
         reconciliation_reason: string | null | undefined
         reconciled_at: string | null | undefined
@@ -3486,7 +3486,7 @@ export type EsquemaPublico = {
         status: string | undefined
         visibility: string | undefined
         transparency: string | undefined
-        attendee_fingerprints: string | undefined
+        attendee_fingerprints: string[] | undefined
         has_external_attendee: boolean | undefined
         is_all_day: boolean | undefined
         external_updated_at: string | undefined
@@ -3502,37 +3502,37 @@ export type EsquemaPublico = {
     }
     GoogleConnectedCalendars: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        connection_id: string | null
-        owner_user_id: string | null
-        external_calendar_id: string | null
-        calendar_name: string | null
-        role: string | null
+        id: string
+        tenant_id: string
+        connection_id: string
+        owner_user_id: string
+        external_calendar_id: string
+        calendar_name: string
+        role: string
         time_zone: string | null
-        is_enabled: boolean | null
+        is_enabled: boolean
         last_sync_at: string | null
         last_error_code: string | null
-        created_at: string | null
-        updated_at: string | null
+        created_at: string
+        updated_at: string
         sync_token: string | null
         last_full_sync_at: string | null
         last_incremental_sync_at: string | null
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        connection_id: string | null | undefined
-        owner_user_id: string | null | undefined
-        external_calendar_id: string | null | undefined
-        calendar_name: string | null | undefined
-        role: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        connection_id: string
+        owner_user_id: string
+        external_calendar_id: string
+        calendar_name: string
+        role: string
         time_zone: string | null | undefined
-        is_enabled: boolean | null | undefined
+        is_enabled: boolean | undefined
         last_sync_at: string | null | undefined
         last_error_code: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
         sync_token: string | null | undefined
         last_full_sync_at: string | null | undefined
         last_incremental_sync_at: string | null | undefined
@@ -3558,19 +3558,19 @@ export type EsquemaPublico = {
     }
     GoogleOauthConnections: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        provider: string | null
+        id: string
+        tenant_id: string
+        provider: string
         google_email: string | null
-        refresh_token: string | null
-        scopes: string | null
+        refresh_token: string
+        scopes: string[]
         ga4_property_id: string | null
-        status: string | null
+        status: string
         last_sync_at: string | null
         last_error: string | null
         connected_by: string | null
-        created_at: string | null
-        updated_at: string | null
+        created_at: string
+        updated_at: string
         owner_user_id: string | null
         access_token: string | null
         access_token_expires_at: string | null
@@ -3578,19 +3578,19 @@ export type EsquemaPublico = {
         reauth_required_at: string | null
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        provider: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        provider: string
         google_email: string | null | undefined
-        refresh_token: string | null | undefined
-        scopes: string | null | undefined
+        refresh_token: string
+        scopes: string[]
         ga4_property_id: string | null | undefined
-        status: string | null | undefined
+        status: string | undefined
         last_sync_at: string | null | undefined
         last_error: string | null | undefined
         connected_by: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
         owner_user_id: string | null | undefined
         access_token: string | null | undefined
         access_token_expires_at: string | null | undefined
@@ -3603,7 +3603,7 @@ export type EsquemaPublico = {
         provider: string | undefined
         google_email: string | undefined
         refresh_token: string | undefined
-        scopes: string | undefined
+        scopes: string[] | undefined
         ga4_property_id: string | undefined
         status: string | undefined
         last_sync_at: string | undefined
@@ -3620,7 +3620,7 @@ export type EsquemaPublico = {
     }
     GrowthContext: {
       Row: {
-        tenant_id: string | null
+        tenant_id: string
         business_type: string | null
         offer_name: string | null
         offer_price_eur: number | string | null
@@ -3632,12 +3632,12 @@ export type EsquemaPublico = {
         capacity_active_clients: number | null
         notes: string | null
         updated_by: string | null
-        created_at: string | null
-        updated_at: string | null
+        created_at: string
+        updated_at: string
         avg_delivery_cost_eur: number | string | null
       }
       Insert: {
-        tenant_id: string | null | undefined
+        tenant_id: string
         business_type: string | null | undefined
         offer_name: string | null | undefined
         offer_price_eur: number | string | null | undefined
@@ -3649,8 +3649,8 @@ export type EsquemaPublico = {
         capacity_active_clients: number | null | undefined
         notes: string | null | undefined
         updated_by: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
         avg_delivery_cost_eur: number | string | null | undefined
       }
       Update: {
@@ -3673,32 +3673,32 @@ export type EsquemaPublico = {
     }
     IdentityMatches: {
       Row: {
-        id: string | null
+        id: string
         event_id: string | null
         contact_id: string | null
-        method: string | null
-        confidence: number | string | null
-        reason: string | null
-        status: string | null
-        evidence: Json | null
+        method: string
+        confidence: number | string
+        reason: string
+        status: string
+        evidence: Json
         reviewed_by: string | null
         reviewed_at: string | null
-        created_at: string | null
-        tenant_id: string | null
+        created_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
+        id: string | undefined
         event_id: string | null | undefined
         contact_id: string | null | undefined
-        method: string | null | undefined
-        confidence: number | string | null | undefined
-        reason: string | null | undefined
-        status: string | null | undefined
-        evidence: Json | null | undefined
+        method: string
+        confidence: number | string
+        reason: string
+        status: string | undefined
+        evidence: Json
         reviewed_by: string | null | undefined
         reviewed_at: string | null | undefined
-        created_at: string | null | undefined
-        tenant_id: string | null | undefined
+        created_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -3717,34 +3717,34 @@ export type EsquemaPublico = {
     }
     IgAccountDaily: {
       Row: {
-        id: string | null
-        snapshot_date: string | null
-        followers_count: number | null
-        media_count: number | null
-        reach: number | null
-        profile_views: number | null
-        new_follows: number | null
-        unfollows: number | null
-        reach_followers: number | null
-        reach_non_followers: number | null
+        id: string
+        snapshot_date: string
+        followers_count: number
+        media_count: number
+        reach: number
+        profile_views: number
+        new_follows: number
+        unfollows: number
+        reach_followers: number
+        reach_non_followers: number
         synced_at: string | null
-        created_at: string | null
-        tenant_id: string | null
+        created_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        snapshot_date: string | null | undefined
-        followers_count: number | null | undefined
-        media_count: number | null | undefined
-        reach: number | null | undefined
-        profile_views: number | null | undefined
-        new_follows: number | null | undefined
-        unfollows: number | null | undefined
-        reach_followers: number | null | undefined
-        reach_non_followers: number | null | undefined
+        id: string | undefined
+        snapshot_date: string
+        followers_count: number | undefined
+        media_count: number | undefined
+        reach: number | undefined
+        profile_views: number | undefined
+        new_follows: number | undefined
+        unfollows: number | undefined
+        reach_followers: number | undefined
+        reach_non_followers: number | undefined
         synced_at: string | null | undefined
-        created_at: string | null | undefined
-        tenant_id: string | null | undefined
+        created_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -3764,20 +3764,20 @@ export type EsquemaPublico = {
     }
     IgAudience: {
       Row: {
-        id: string | null
-        dimension: string | null
-        bucket: string | null
-        value: number | null
-        captured_at: string | null
-        tenant_id: string | null
+        id: string
+        dimension: string
+        bucket: string
+        value: number
+        captured_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        dimension: string | null | undefined
-        bucket: string | null | undefined
-        value: number | null | undefined
-        captured_at: string | null | undefined
-        tenant_id: string | null | undefined
+        id: string | undefined
+        dimension: string
+        bucket: string
+        value: number | undefined
+        captured_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -3790,28 +3790,28 @@ export type EsquemaPublico = {
     }
     IgComments: {
       Row: {
-        id: string | null
-        external_id: string | null
+        id: string
+        external_id: string
         media_external_id: string | null
         username: string | null
         text: string | null
-        like_count: number | null
+        like_count: number
         commented_at: string | null
         synced_at: string | null
-        created_at: string | null
-        tenant_id: string | null
+        created_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        external_id: string | null | undefined
+        id: string | undefined
+        external_id: string
         media_external_id: string | null | undefined
         username: string | null | undefined
         text: string | null | undefined
-        like_count: number | null | undefined
+        like_count: number | undefined
         commented_at: string | null | undefined
         synced_at: string | null | undefined
-        created_at: string | null | undefined
-        tenant_id: string | null | undefined
+        created_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -3828,15 +3828,15 @@ export type EsquemaPublico = {
     }
     IgCompetitorMedia: {
       Row: {
-        id: string | null
-        competitor_id: string | null
-        external_id: string | null
+        id: string
+        competitor_id: string
+        external_id: string
         caption: string | null
         media_type: string | null
         media_product_type: string | null
-        like_count: number | null
-        comments_count: number | null
-        engagement_proxy: number | null
+        like_count: number
+        comments_count: number
+        engagement_proxy: number
         permalink: string | null
         media_url: string | null
         thumbnail_url: string | null
@@ -3844,19 +3844,19 @@ export type EsquemaPublico = {
         transcript: string | null
         ai_analysis: Json | null
         synced_at: string | null
-        created_at: string | null
-        tenant_id: string | null
+        created_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        competitor_id: string | null | undefined
-        external_id: string | null | undefined
+        id: string | undefined
+        competitor_id: string
+        external_id: string
         caption: string | null | undefined
         media_type: string | null | undefined
         media_product_type: string | null | undefined
-        like_count: number | null | undefined
-        comments_count: number | null | undefined
-        engagement_proxy: number | null | undefined
+        like_count: number | undefined
+        comments_count: number | undefined
+        engagement_proxy: number | undefined
         permalink: string | null | undefined
         media_url: string | null | undefined
         thumbnail_url: string | null | undefined
@@ -3864,8 +3864,8 @@ export type EsquemaPublico = {
         transcript: string | null | undefined
         ai_analysis: Json | null | undefined
         synced_at: string | null | undefined
-        created_at: string | null | undefined
-        tenant_id: string | null | undefined
+        created_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -3890,26 +3890,26 @@ export type EsquemaPublico = {
     }
     IgCompetitors: {
       Row: {
-        id: string | null
-        username: string | null
-        followers_count: number | null
-        media_count: number | null
+        id: string
+        username: string
+        followers_count: number
+        media_count: number
         note: string | null
         last_synced_at: string | null
         created_by: string | null
-        created_at: string | null
-        tenant_id: string | null
+        created_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        username: string | null | undefined
-        followers_count: number | null | undefined
-        media_count: number | null | undefined
+        id: string | undefined
+        username: string
+        followers_count: number | undefined
+        media_count: number | undefined
         note: string | null | undefined
         last_synced_at: string | null | undefined
         created_by: string | null | undefined
-        created_at: string | null | undefined
-        tenant_id: string | null | undefined
+        created_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -3925,26 +3925,26 @@ export type EsquemaPublico = {
     }
     IgConversationsDaily: {
       Row: {
-        id: string | null
-        snapshot_date: string | null
-        total_conversations: number | null
-        unread_conversations: number | null
-        total_messages: number | null
-        unique_people: number | null
+        id: string
+        snapshot_date: string
+        total_conversations: number
+        unread_conversations: number
+        total_messages: number
+        unique_people: number
         synced_at: string | null
-        created_at: string | null
-        tenant_id: string | null
+        created_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        snapshot_date: string | null | undefined
-        total_conversations: number | null | undefined
-        unread_conversations: number | null | undefined
-        total_messages: number | null | undefined
-        unique_people: number | null | undefined
+        id: string | undefined
+        snapshot_date: string
+        total_conversations: number | undefined
+        unread_conversations: number | undefined
+        total_messages: number | undefined
+        unique_people: number | undefined
         synced_at: string | null | undefined
-        created_at: string | null | undefined
-        tenant_id: string | null | undefined
+        created_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -3960,8 +3960,8 @@ export type EsquemaPublico = {
     }
     IgMedia: {
       Row: {
-        id: string | null
-        external_id: string | null
+        id: string
+        external_id: string
         media_type: string | null
         media_product_type: string | null
         caption: string | null
@@ -3969,29 +3969,29 @@ export type EsquemaPublico = {
         thumbnail_url: string | null
         media_url: string | null
         published_at: string | null
-        reach: number | null
-        views: number | null
-        likes: number | null
-        comments: number | null
-        shares: number | null
-        saved: number | null
-        total_interactions: number | null
-        avg_watch_time: number | string | null
-        reach_followers: number | null
-        reach_non_followers: number | null
-        follows: number | null
-        engagement_rate: number | string | null
+        reach: number
+        views: number
+        likes: number
+        comments: number
+        shares: number
+        saved: number
+        total_interactions: number
+        avg_watch_time: number | string
+        reach_followers: number
+        reach_non_followers: number
+        follows: number
+        engagement_rate: number | string
         transcript: string | null
-        transcript_status: string | null
+        transcript_status: string
         ai_analysis: Json | null
         ai_analyzed_at: string | null
         synced_at: string | null
-        created_at: string | null
-        tenant_id: string | null
+        created_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        external_id: string | null | undefined
+        id: string | undefined
+        external_id: string
         media_type: string | null | undefined
         media_product_type: string | null | undefined
         caption: string | null | undefined
@@ -3999,25 +3999,25 @@ export type EsquemaPublico = {
         thumbnail_url: string | null | undefined
         media_url: string | null | undefined
         published_at: string | null | undefined
-        reach: number | null | undefined
-        views: number | null | undefined
-        likes: number | null | undefined
-        comments: number | null | undefined
-        shares: number | null | undefined
-        saved: number | null | undefined
-        total_interactions: number | null | undefined
-        avg_watch_time: number | string | null | undefined
-        reach_followers: number | null | undefined
-        reach_non_followers: number | null | undefined
-        follows: number | null | undefined
-        engagement_rate: number | string | null | undefined
+        reach: number | undefined
+        views: number | undefined
+        likes: number | undefined
+        comments: number | undefined
+        shares: number | undefined
+        saved: number | undefined
+        total_interactions: number | undefined
+        avg_watch_time: number | string | undefined
+        reach_followers: number | undefined
+        reach_non_followers: number | undefined
+        follows: number | undefined
+        engagement_rate: number | string | undefined
         transcript: string | null | undefined
-        transcript_status: string | null | undefined
+        transcript_status: string | undefined
         ai_analysis: Json | null | undefined
         ai_analyzed_at: string | null | undefined
         synced_at: string | null | undefined
-        created_at: string | null | undefined
-        tenant_id: string | null | undefined
+        created_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -4052,23 +4052,23 @@ export type EsquemaPublico = {
     }
     IntegrationSettings: {
       Row: {
-        key: string | null
+        key: string
         value: string | null
-        is_secret: boolean | null
+        is_secret: boolean
         label: string | null
-        updated_at: string | null
+        updated_at: string
         updated_by: string | null
-        tenant_id: string | null
+        tenant_id: string
         key_fingerprint: string | null
       }
       Insert: {
-        key: string | null | undefined
+        key: string
         value: string | null | undefined
-        is_secret: boolean | null | undefined
+        is_secret: boolean | undefined
         label: string | null | undefined
-        updated_at: string | null | undefined
+        updated_at: string | undefined
         updated_by: string | null | undefined
-        tenant_id: string | null | undefined
+        tenant_id: string
         key_fingerprint: string | null | undefined
       }
       Update: {
@@ -4084,34 +4084,34 @@ export type EsquemaPublico = {
     }
     IntegrationSyncRuns: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        provider: string | null
-        job: string | null
-        status: string | null
-        trigger: string | null
-        started_at: string | null
+        id: string
+        tenant_id: string
+        provider: string
+        job: string
+        status: string
+        trigger: string
+        started_at: string
         finished_at: string | null
         rows_written: number | null
         error_code: string | null
         error_message: string | null
         detail: Json | null
-        created_at: string | null
+        created_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        provider: string | null | undefined
-        job: string | null | undefined
-        status: string | null | undefined
-        trigger: string | null | undefined
-        started_at: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        provider: string
+        job: string
+        status: string
+        trigger: string
+        started_at: string | undefined
         finished_at: string | null | undefined
         rows_written: number | null | undefined
         error_code: string | null | undefined
         error_message: string | null | undefined
         detail: Json | null | undefined
-        created_at: string | null | undefined
+        created_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -4131,33 +4131,33 @@ export type EsquemaPublico = {
     }
     KnowledgeChunks: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        source: string | null
-        module: number | null
-        section: string | null
-        category: string | null
-        title: string | null
-        content: string | null
-        metadata: Json | null
-        is_active: boolean | null
-        created_at: string | null
-        updated_at: string | null
+        id: string
+        tenant_id: string
+        source: string
+        module: number
+        section: string
+        category: string
+        title: string
+        content: string
+        metadata: Json
+        is_active: boolean
+        created_at: string
+        updated_at: string
         embedding: string | null
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        source: string | null | undefined
-        module: number | null | undefined
-        section: string | null | undefined
-        category: string | null | undefined
-        title: string | null | undefined
-        content: string | null | undefined
-        metadata: Json | null | undefined
-        is_active: boolean | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        source: string
+        module: number
+        section: string
+        category: string
+        title: string
+        content: string
+        metadata: Json
+        is_active: boolean | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
         embedding: string | null | undefined
       }
       Update: {
@@ -4178,26 +4178,26 @@ export type EsquemaPublico = {
     }
     KpiDailyReports: {
       Row: {
-        id: string | null
-        user_id: string | null
-        role_key: string | null
-        report_date: string | null
-        data: Json | null
+        id: string
+        user_id: string
+        role_key: string
+        report_date: string
+        data: Json
         submitted_at: string | null
-        created_at: string | null
-        updated_at: string | null
-        tenant_id: string | null
+        created_at: string
+        updated_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        user_id: string | null | undefined
-        role_key: string | null | undefined
-        report_date: string | null | undefined
-        data: Json | null | undefined
+        id: string | undefined
+        user_id: string
+        role_key: string
+        report_date: string
+        data: Json
         submitted_at: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
-        tenant_id: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -4213,38 +4213,38 @@ export type EsquemaPublico = {
     }
     KpiFormTemplates: {
       Row: {
-        id: string | null
-        role_key: string | null
-        field_key: string | null
-        field_label: string | null
-        field_type: string | null
+        id: string
+        role_key: string
+        field_key: string
+        field_label: string
+        field_type: string
         placeholder: string | null
         help_text: string | null
-        is_required: boolean | null
-        is_active: boolean | null
-        sort_order: number | null
+        is_required: boolean
+        is_active: boolean
+        sort_order: number
         select_options: Json | null
         default_value: Json | null
-        created_at: string | null
-        updated_at: string | null
-        tenant_id: string | null
+        created_at: string
+        updated_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        role_key: string | null | undefined
-        field_key: string | null | undefined
-        field_label: string | null | undefined
-        field_type: string | null | undefined
+        id: string | undefined
+        role_key: string
+        field_key: string
+        field_label: string
+        field_type: string | undefined
         placeholder: string | null | undefined
         help_text: string | null | undefined
-        is_required: boolean | null | undefined
-        is_active: boolean | null | undefined
-        sort_order: number | null | undefined
+        is_required: boolean | undefined
+        is_active: boolean | undefined
+        sort_order: number | undefined
         select_options: Json | null | undefined
         default_value: Json | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
-        tenant_id: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -4282,9 +4282,9 @@ export type EsquemaPublico = {
         slug: string
         label: string
         fecha: string
-        opened_at: string | null
-        opened_by: string | null
-        movidos: number | null
+        opened_at: string | null | undefined
+        opened_by: string | null | undefined
+        movidos: number | null | undefined
         created_at: string | undefined
       }
       Update: {
@@ -4301,32 +4301,32 @@ export type EsquemaPublico = {
     }
     LinkTemplates: {
       Row: {
-        id: string | null
-        name: string | null
-        base_url: string | null
-        applies_to: string | null
-        is_active: boolean | null
+        id: string
+        name: string
+        base_url: string
+        applies_to: string[]
+        is_active: boolean
         created_by: string | null
-        created_at: string | null
-        updated_at: string | null
-        tenant_id: string | null
+        created_at: string
+        updated_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        name: string | null | undefined
-        base_url: string | null | undefined
-        applies_to: string | null | undefined
-        is_active: boolean | null | undefined
+        id: string | undefined
+        name: string
+        base_url: string
+        applies_to: string[]
+        is_active: boolean | undefined
         created_by: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
-        tenant_id: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
         name: string | undefined
         base_url: string | undefined
-        applies_to: string | undefined
+        applies_to: string[] | undefined
         is_active: boolean | undefined
         created_by: string | undefined
         created_at: string | undefined
@@ -4336,28 +4336,28 @@ export type EsquemaPublico = {
     }
     ManualPlatformRecords: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        platform: string | null
+        id: string
+        tenant_id: string
+        platform: string
         reference: string | null
-        amount: number | string | null
-        transacted_at: string | null
+        amount: number | string
+        transacted_at: string
         notes: string | null
         matched_collection_id: string | null
         created_by: string | null
-        created_at: string | null
+        created_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        platform: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        platform: string
         reference: string | null | undefined
-        amount: number | string | null | undefined
-        transacted_at: string | null | undefined
+        amount: number | string
+        transacted_at: string
         notes: string | null | undefined
         matched_collection_id: string | null | undefined
         created_by: string | null | undefined
-        created_at: string | null | undefined
+        created_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -4374,22 +4374,22 @@ export type EsquemaPublico = {
     }
     McpOauthClients: {
       Row: {
-        id: string | null
-        client_id: string | null
-        client_secret_hash: string | null
-        name: string | null
+        id: string
+        client_id: string
+        client_secret_hash: string
+        name: string
         owner_user_id: string | null
-        redirect_uris: string | null
-        created_at: string | null
+        redirect_uris: string[]
+        created_at: string
       }
       Insert: {
-        id: string | null | undefined
-        client_id: string | null | undefined
-        client_secret_hash: string | null | undefined
-        name: string | null | undefined
+        id: string | undefined
+        client_id: string
+        client_secret_hash: string
+        name: string
         owner_user_id: string | null | undefined
-        redirect_uris: string | null | undefined
-        created_at: string | null | undefined
+        redirect_uris: string[]
+        created_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -4397,36 +4397,36 @@ export type EsquemaPublico = {
         client_secret_hash: string | undefined
         name: string | undefined
         owner_user_id: string | undefined
-        redirect_uris: string | undefined
+        redirect_uris: string[] | undefined
         created_at: string | undefined
       }
     }
     McpOauthCodes: {
       Row: {
-        id: string | null
-        code_hash: string | null
-        client_id: string | null
-        user_id: string | null
-        redirect_uri: string | null
-        scope: string | null
-        code_challenge: string | null
-        code_challenge_method: string | null
-        expires_at: string | null
+        id: string
+        code_hash: string
+        client_id: string
+        user_id: string
+        redirect_uri: string
+        scope: string
+        code_challenge: string
+        code_challenge_method: string
+        expires_at: string
         used_at: string | null
-        created_at: string | null
+        created_at: string
       }
       Insert: {
-        id: string | null | undefined
-        code_hash: string | null | undefined
-        client_id: string | null | undefined
-        user_id: string | null | undefined
-        redirect_uri: string | null | undefined
-        scope: string | null | undefined
-        code_challenge: string | null | undefined
-        code_challenge_method: string | null | undefined
-        expires_at: string | null | undefined
+        id: string | undefined
+        code_hash: string
+        client_id: string
+        user_id: string
+        redirect_uri: string
+        scope: string | undefined
+        code_challenge: string
+        code_challenge_method: string | undefined
+        expires_at: string
         used_at: string | null | undefined
-        created_at: string | null | undefined
+        created_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -4444,28 +4444,28 @@ export type EsquemaPublico = {
     }
     McpOauthTokens: {
       Row: {
-        id: string | null
-        token_hash: string | null
+        id: string
+        token_hash: string
         refresh_hash: string | null
-        client_id: string | null
-        user_id: string | null
-        scope: string | null
-        expires_at: string | null
+        client_id: string
+        user_id: string
+        scope: string
+        expires_at: string
         revoked_at: string | null
         refresh_expires_at: string | null
-        created_at: string | null
+        created_at: string
       }
       Insert: {
-        id: string | null | undefined
-        token_hash: string | null | undefined
+        id: string | undefined
+        token_hash: string
         refresh_hash: string | null | undefined
-        client_id: string | null | undefined
-        user_id: string | null | undefined
-        scope: string | null | undefined
-        expires_at: string | null | undefined
+        client_id: string
+        user_id: string
+        scope: string | undefined
+        expires_at: string
         revoked_at: string | null | undefined
         refresh_expires_at: string | null | undefined
-        created_at: string | null | undefined
+        created_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -4482,22 +4482,22 @@ export type EsquemaPublico = {
     }
     MetaCustomFunnels: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        name: string | null
-        stages: Json | null
+        id: string
+        tenant_id: string
+        name: string
+        stages: Json
         created_by: string | null
-        created_at: string | null
-        updated_at: string | null
+        created_at: string
+        updated_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        name: string | null | undefined
-        stages: Json | null | undefined
+        id: string | undefined
+        tenant_id: string
+        name: string
+        stages: Json
         created_by: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -4511,25 +4511,25 @@ export type EsquemaPublico = {
     }
     Partners: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        name: string | null
-        profit_percent: number | string | null
+        id: string
+        tenant_id: string
+        name: string
+        profit_percent: number | string
         notes: string | null
-        is_active: boolean | null
-        created_at: string | null
-        updated_at: string | null
+        is_active: boolean
+        created_at: string
+        updated_at: string
         user_id: string | null
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        name: string | null | undefined
-        profit_percent: number | string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        name: string
+        profit_percent: number | string
         notes: string | null | undefined
-        is_active: boolean | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        is_active: boolean | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
         user_id: string | null | undefined
       }
       Update: {
@@ -4546,20 +4546,20 @@ export type EsquemaPublico = {
     }
     PaymentFollowUps: {
       Row: {
-        id: string | null
-        sale_id: string | null
-        note: string | null
+        id: string
+        sale_id: string
+        note: string
         created_by: string | null
-        created_at: string | null
-        tenant_id: string | null
+        created_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        sale_id: string | null | undefined
-        note: string | null | undefined
+        id: string | undefined
+        sale_id: string
+        note: string
         created_by: string | null | undefined
-        created_at: string | null | undefined
-        tenant_id: string | null | undefined
+        created_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -4572,40 +4572,40 @@ export type EsquemaPublico = {
     }
     PaymentPlans: {
       Row: {
-        id: string | null
-        product_id: string | null
-        name: string | null
+        id: string
+        product_id: string
+        name: string
         code: string | null
-        gross_price: number | string | null
-        number_of_payments: number | null
+        gross_price: number | string
+        number_of_payments: number
         financing_provider: string | null
-        cash_collection_ratio: number | string | null
-        is_active: boolean | null
-        sort_order: number | null
-        created_at: string | null
-        updated_at: string | null
+        cash_collection_ratio: number | string
+        is_active: boolean
+        sort_order: number
+        created_at: string
+        updated_at: string
         method: string | null
-        fee_percent: number | string | null
-        financing_surcharge_percent: number | string | null
-        tenant_id: string | null
+        fee_percent: number | string
+        financing_surcharge_percent: number | string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        product_id: string | null | undefined
-        name: string | null | undefined
+        id: string | undefined
+        product_id: string
+        name: string
         code: string | null | undefined
-        gross_price: number | string | null | undefined
-        number_of_payments: number | null | undefined
+        gross_price: number | string
+        number_of_payments: number | undefined
         financing_provider: string | null | undefined
-        cash_collection_ratio: number | string | null | undefined
-        is_active: boolean | null | undefined
-        sort_order: number | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        cash_collection_ratio: number | string | undefined
+        is_active: boolean | undefined
+        sort_order: number | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
         method: string | null | undefined
-        fee_percent: number | string | null | undefined
-        financing_surcharge_percent: number | string | null | undefined
-        tenant_id: string | null | undefined
+        fee_percent: number | string | undefined
+        financing_surcharge_percent: number | string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -4626,22 +4626,74 @@ export type EsquemaPublico = {
         tenant_id: string | undefined
       }
     }
-    PlatformSettings: {
+    PgssSnapshotStatements: {
       Row: {
-        key: string | null
-        value: string | null
-        is_secret: boolean | null
-        key_fingerprint: string | null
-        updated_by: string | null
-        updated_at: string | null
+        snapshot_id: string
+        queryid: number | string
+        query_left: string
+        calls: number | string
+        total_ms: number | string
+        rows_count: number | string
+        mean_ms: number | string
       }
       Insert: {
-        key: string | null | undefined
-        value: string | null | undefined
-        is_secret: boolean | null | undefined
+        snapshot_id: string
+        queryid: number | string
+        query_left: string
+        calls: number | string
+        total_ms: number | string
+        rows_count: number | string
+        mean_ms: number | string
+      }
+      Update: {
+        snapshot_id: string | undefined
+        queryid: number | string | undefined
+        query_left: string | undefined
+        calls: number | string | undefined
+        total_ms: number | string | undefined
+        rows_count: number | string | undefined
+        mean_ms: number | string | undefined
+      }
+    }
+    PgssSnapshots: {
+      Row: {
+        id: string
+        captured_at: string
+        stats_reset_at: string
+        note: string | null
+        created_by: string
+      }
+      Insert: {
+        id: string | undefined
+        captured_at: string | undefined
+        stats_reset_at: string
+        note: string | null | undefined
+        created_by: string | undefined
+      }
+      Update: {
+        id: string | undefined
+        captured_at: string | undefined
+        stats_reset_at: string | undefined
+        note: string | undefined
+        created_by: string | undefined
+      }
+    }
+    PlatformSettings: {
+      Row: {
+        key: string
+        value: string
+        is_secret: boolean
+        key_fingerprint: string | null
+        updated_by: string | null
+        updated_at: string
+      }
+      Insert: {
+        key: string
+        value: string
+        is_secret: boolean | undefined
         key_fingerprint: string | null | undefined
         updated_by: string | null | undefined
-        updated_at: string | null | undefined
+        updated_at: string | undefined
       }
       Update: {
         key: string | undefined
@@ -4654,26 +4706,26 @@ export type EsquemaPublico = {
     }
     PositiveNotes: {
       Row: {
-        id: string | null
-        user_id: string | null
-        period_type: string | null
-        period_key: string | null
-        content: string | null
-        is_shared: boolean | null
-        created_at: string | null
-        updated_at: string | null
-        tenant_id: string | null
+        id: string
+        user_id: string
+        period_type: string
+        period_key: string
+        content: string
+        is_shared: boolean
+        created_at: string
+        updated_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        user_id: string | null | undefined
-        period_type: string | null | undefined
-        period_key: string | null | undefined
-        content: string | null | undefined
-        is_shared: boolean | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
-        tenant_id: string | null | undefined
+        id: string | undefined
+        user_id: string
+        period_type: string
+        period_key: string
+        content: string
+        is_shared: boolean | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -4689,24 +4741,24 @@ export type EsquemaPublico = {
     }
     ProductExtras: {
       Row: {
-        id: string | null
-        name: string | null
+        id: string
+        name: string
         description: string | null
-        is_active: boolean | null
-        sort_order: number | null
-        created_at: string | null
-        updated_at: string | null
-        tenant_id: string | null
+        is_active: boolean
+        sort_order: number
+        created_at: string
+        updated_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        name: string | null | undefined
+        id: string | undefined
+        name: string
         description: string | null | undefined
-        is_active: boolean | null | undefined
-        sort_order: number | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
-        tenant_id: string | null | undefined
+        is_active: boolean | undefined
+        sort_order: number | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -4721,30 +4773,30 @@ export type EsquemaPublico = {
     }
     Products: {
       Row: {
-        id: string | null
-        name: string | null
+        id: string
+        name: string
         description: string | null
-        is_active: boolean | null
-        created_at: string | null
-        updated_at: string | null
+        is_active: boolean
+        created_at: string
+        updated_at: string
         level: number | null
         next_product_id: string | null
         max_capacity: number | null
         duration_months: number | null
-        tenant_id: string | null
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        name: string | null | undefined
+        id: string | undefined
+        name: string
         description: string | null | undefined
-        is_active: boolean | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        is_active: boolean | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
         level: number | null | undefined
         next_product_id: string | null | undefined
         max_capacity: number | null | undefined
         duration_months: number | null | undefined
-        tenant_id: string | null | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -4762,20 +4814,20 @@ export type EsquemaPublico = {
     }
     QualificationQuestions: {
       Row: {
-        id: string | null
-        slug: string | null
+        id: string
+        slug: string
         question_text: string | null
         field_key: string | null
-        first_seen_at: string | null
-        tenant_id: string | null
+        first_seen_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        slug: string | null | undefined
+        id: string | undefined
+        slug: string
         question_text: string | null | undefined
         field_key: string | null | undefined
-        first_seen_at: string | null | undefined
-        tenant_id: string | null | undefined
+        first_seen_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -4788,50 +4840,50 @@ export type EsquemaPublico = {
     }
     RawEvents: {
       Row: {
-        id: string | null
-        tenant_id: string | null
+        id: string
+        tenant_id: string
         site_id: string | null
-        source: string | null
+        source: string
         source_event_id: string | null
         source_schema_version: string | null
         normalizer_version: string | null
-        received_at: string | null
+        received_at: string
         processed_at: string | null
-        payload: Json | null
-        payload_bytes: number | null
-        processing_status: string | null
+        payload: Json
+        payload_bytes: number
+        processing_status: string
         rejection_reason: string | null
         canonical_event_id: string | null
         request_origin: string | null
         user_agent: string | null
         ip_hash: string | null
-        bot_classification: string | null
+        bot_classification: string
         bot_reason: string | null
         correlation_id: string | null
-        created_at: string | null
+        created_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
+        id: string | undefined
+        tenant_id: string
         site_id: string | null | undefined
-        source: string | null | undefined
+        source: string
         source_event_id: string | null | undefined
         source_schema_version: string | null | undefined
         normalizer_version: string | null | undefined
-        received_at: string | null | undefined
+        received_at: string | undefined
         processed_at: string | null | undefined
-        payload: Json | null | undefined
-        payload_bytes: number | null | undefined
-        processing_status: string | null | undefined
+        payload: Json
+        payload_bytes: number
+        processing_status: string | undefined
         rejection_reason: string | null | undefined
         canonical_event_id: string | null | undefined
         request_origin: string | null | undefined
         user_agent: string | null | undefined
         ip_hash: string | null | undefined
-        bot_classification: string | null | undefined
+        bot_classification: string | undefined
         bot_reason: string | null | undefined
         correlation_id: string | null | undefined
-        created_at: string | null | undefined
+        created_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -4859,7 +4911,7 @@ export type EsquemaPublico = {
     }
     ReelDrafts: {
       Row: {
-        id: string | null
+        id: string
         source_media_id: string | null
         source_permalink: string | null
         source_account: string | null
@@ -4868,16 +4920,16 @@ export type EsquemaPublico = {
         transcript: string | null
         adapted_script: string | null
         carousel_idea: string | null
-        status: string | null
+        status: string
         gen_error: string | null
-        created_at: string | null
-        draft_day: string | null
+        created_at: string
+        draft_day: string
         created_by: string | null
         testimonio_id: string | null
-        tenant_id: string | null
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
+        id: string | undefined
         source_media_id: string | null | undefined
         source_permalink: string | null | undefined
         source_account: string | null | undefined
@@ -4886,13 +4938,13 @@ export type EsquemaPublico = {
         transcript: string | null | undefined
         adapted_script: string | null | undefined
         carousel_idea: string | null | undefined
-        status: string | null | undefined
+        status: string | undefined
         gen_error: string | null | undefined
-        created_at: string | null | undefined
-        draft_day: string | null | undefined
+        created_at: string | undefined
+        draft_day: string | undefined
         created_by: string | null | undefined
         testimonio_id: string | null | undefined
-        tenant_id: string | null | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -4915,34 +4967,34 @@ export type EsquemaPublico = {
     }
     Refunds: {
       Row: {
-        id: string | null
-        sale_id: string | null
+        id: string
+        sale_id: string
         collection_id: string | null
-        refund_date: string | null
-        gross_refund_amount: number | string | null
-        commissionable_refund_amount: number | string | null
+        refund_date: string
+        gross_refund_amount: number | string
+        commissionable_refund_amount: number | string
         reason: string | null
-        status: string | null
-        created_by: string | null
+        status: string
+        created_by: string
         notes: string | null
-        created_at: string | null
-        updated_at: string | null
-        tenant_id: string | null
+        created_at: string
+        updated_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        sale_id: string | null | undefined
+        id: string | undefined
+        sale_id: string
         collection_id: string | null | undefined
-        refund_date: string | null | undefined
-        gross_refund_amount: number | string | null | undefined
-        commissionable_refund_amount: number | string | null | undefined
+        refund_date: string
+        gross_refund_amount: number | string
+        commissionable_refund_amount: number | string
         reason: string | null | undefined
-        status: string | null | undefined
-        created_by: string | null | undefined
+        status: string | undefined
+        created_by: string
         notes: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
-        tenant_id: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -4962,34 +5014,34 @@ export type EsquemaPublico = {
     }
     ReservationRefundRequests: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        sale_id: string | null
-        collection_id: string | null
-        charge_id: string | null
-        stripe_account_id: string | null
-        amount_cents: number | string | null
-        requested_by: string | null
-        status: string | null
+        id: string
+        tenant_id: string
+        sale_id: string
+        collection_id: string
+        charge_id: string
+        stripe_account_id: string
+        amount_cents: number | string
+        requested_by: string
+        status: string
         stripe_refund_id: string | null
         refund_id: string | null
-        created_at: string | null
-        updated_at: string | null
+        created_at: string
+        updated_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        sale_id: string | null | undefined
-        collection_id: string | null | undefined
-        charge_id: string | null | undefined
-        stripe_account_id: string | null | undefined
-        amount_cents: number | string | null | undefined
-        requested_by: string | null | undefined
-        status: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        sale_id: string
+        collection_id: string
+        charge_id: string
+        stripe_account_id: string
+        amount_cents: number | string
+        requested_by: string
+        status: string | undefined
         stripe_refund_id: string | null | undefined
         refund_id: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -5009,20 +5061,20 @@ export type EsquemaPublico = {
     }
     ResourceLinkDivisions: {
       Row: {
-        id: string | null
-        name: string | null
-        sort_order: number | null
+        id: string
+        name: string
+        sort_order: number
         created_by: string | null
-        created_at: string | null
-        updated_at: string | null
+        created_at: string
+        updated_at: string
       }
       Insert: {
-        id: string | null | undefined
-        name: string | null | undefined
-        sort_order: number | null | undefined
+        id: string | undefined
+        name: string
+        sort_order: number | undefined
         created_by: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -5035,31 +5087,31 @@ export type EsquemaPublico = {
     }
     ResourceLinks: {
       Row: {
-        id: string | null
-        category: string | null
-        name: string | null
-        url: string | null
+        id: string
+        category: string
+        name: string
+        url: string
         description: string | null
-        applies_to: string | null
-        is_active: boolean | null
-        sort_order: number | null
+        applies_to: string[]
+        is_active: boolean
+        sort_order: number
         created_by: string | null
-        created_at: string | null
-        updated_at: string | null
+        created_at: string
+        updated_at: string
         division_id: string | null
       }
       Insert: {
-        id: string | null | undefined
-        category: string | null | undefined
-        name: string | null | undefined
-        url: string | null | undefined
+        id: string | undefined
+        category: string | undefined
+        name: string
+        url: string
         description: string | null | undefined
-        applies_to: string | null | undefined
-        is_active: boolean | null | undefined
-        sort_order: number | null | undefined
+        applies_to: string[]
+        is_active: boolean | undefined
+        sort_order: number | undefined
         created_by: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
         division_id: string | null | undefined
       }
       Update: {
@@ -5068,7 +5120,7 @@ export type EsquemaPublico = {
         name: string | undefined
         url: string | undefined
         description: string | undefined
-        applies_to: string | undefined
+        applies_to: string[] | undefined
         is_active: boolean | undefined
         sort_order: number | undefined
         created_by: string | undefined
@@ -5079,8 +5131,8 @@ export type EsquemaPublico = {
     }
     Roleplays: {
       Row: {
-        id: string | null
-        title: string | null
+        id: string
+        title: string
         description: string | null
         participant_id: string | null
         participant_name: string | null
@@ -5089,15 +5141,15 @@ export type EsquemaPublico = {
         transcript: string | null
         score: number | string | null
         notes: string | null
-        shared: boolean | null
+        shared: boolean
         created_by: string | null
-        created_at: string | null
-        updated_at: string | null
-        tenant_id: string | null
+        created_at: string
+        updated_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        title: string | null | undefined
+        id: string | undefined
+        title: string
         description: string | null | undefined
         participant_id: string | null | undefined
         participant_name: string | null | undefined
@@ -5106,11 +5158,11 @@ export type EsquemaPublico = {
         transcript: string | null | undefined
         score: number | string | null | undefined
         notes: string | null | undefined
-        shared: boolean | null | undefined
+        shared: boolean | undefined
         created_by: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
-        tenant_id: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -5132,18 +5184,18 @@ export type EsquemaPublico = {
     }
     Roles: {
       Row: {
-        id: string | null
-        key: string | null
-        name: string | null
+        id: string
+        key: string
+        name: string
         description: string | null
-        created_at: string | null
+        created_at: string
       }
       Insert: {
-        id: string | null | undefined
-        key: string | null | undefined
-        name: string | null | undefined
+        id: string | undefined
+        key: string
+        name: string
         description: string | null | undefined
-        created_at: string | null | undefined
+        created_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -5155,36 +5207,36 @@ export type EsquemaPublico = {
     }
     SaleExpectedInstallments: {
       Row: {
-        id: string | null
-        sale_id: string | null
-        installment_number: number | null
+        id: string
+        sale_id: string
+        installment_number: number
         due_date: string | null
-        expected_gross_amount: number | string | null
-        expected_commissionable_amount: number | string | null
-        status: string | null
-        created_at: string | null
-        updated_at: string | null
-        flagged_delinquent: boolean | null
-        reminder_count: number | null
+        expected_gross_amount: number | string
+        expected_commissionable_amount: number | string
+        status: string
+        created_at: string
+        updated_at: string
+        flagged_delinquent: boolean
+        reminder_count: number
         last_reminder_at: string | null
-        tenant_id: string | null
-        is_monitoring: boolean | null
+        tenant_id: string
+        is_monitoring: boolean
       }
       Insert: {
-        id: string | null | undefined
-        sale_id: string | null | undefined
-        installment_number: number | null | undefined
+        id: string | undefined
+        sale_id: string
+        installment_number: number
         due_date: string | null | undefined
-        expected_gross_amount: number | string | null | undefined
-        expected_commissionable_amount: number | string | null | undefined
-        status: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
-        flagged_delinquent: boolean | null | undefined
-        reminder_count: number | null | undefined
+        expected_gross_amount: number | string
+        expected_commissionable_amount: number | string
+        status: string | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+        flagged_delinquent: boolean | undefined
+        reminder_count: number | undefined
         last_reminder_at: string | null | undefined
-        tenant_id: string | null | undefined
-        is_monitoring: boolean | null | undefined
+        tenant_id: string
+        is_monitoring: boolean | undefined
       }
       Update: {
         id: string | undefined
@@ -5205,53 +5257,53 @@ export type EsquemaPublico = {
     }
     Sales: {
       Row: {
-        id: string | null
-        contact_id: string | null
+        id: string
+        contact_id: string
         appointment_id: string | null
-        product_id: string | null
-        payment_plan_id: string | null
-        sale_date: string | null
-        refund_deadline_at: string | null
-        gross_amount: number | string | null
+        product_id: string
+        payment_plan_id: string
+        sale_date: string
+        refund_deadline_at: string
+        gross_amount: number | string
         expected_commissionable_amount: number | string | null
         setter_id: string | null
         closer_id: string | null
         affiliate_id: string | null
         affiliate_commission_percent: number | string | null
-        status: string | null
-        created_by: string | null
+        status: string
+        created_by: string
         updated_by: string | null
         notes: string | null
-        created_at: string | null
-        updated_at: string | null
+        created_at: string
+        updated_at: string
         cash_day1: number | string | null
-        is_upsell: boolean | null
+        is_upsell: boolean
         origin_sale_id: string | null
-        from_follow_up: boolean | null
-        discount: number | string | null
-        processing_fee: number | string | null
+        from_follow_up: boolean
+        discount: number | string
+        processing_fee: number | string
         onboarding_date: string | null
         first_coaching_date: string | null
         graduation_date: string | null
-        reservation_amount: number | string | null
+        reservation_amount: number | string
         converted_from_reservation_id: string | null
-        down_payment_amount: number | string | null
+        down_payment_amount: number | string
         installments_start_date: string | null
         installments_count: number | null
         reservation_completed_at: string | null
         payment_method: string | null
         payment_proof_url: string | null
         custom_plan: Json | null
-        extras: string | null
-        buyer_is_scheduler: boolean | null
+        extras: string[] | null
+        buyer_is_scheduler: boolean
         payer_data: Json | null
         access_email: string | null
         onboarding_scheduled_at: string | null
         onboarding_session_at: string | null
-        documents_verified: boolean | null
+        documents_verified: boolean
         documents_verified_at: string | null
         documents_verified_by: string | null
-        documents_verified_override: boolean | null
+        documents_verified_override: boolean
         documents_override_reason: string | null
         documents_override_by: string | null
         documents_override_at: string | null
@@ -5259,57 +5311,57 @@ export type EsquemaPublico = {
         course_access_revoked_at: string | null
         student_document_type: string | null
         student_document_number: string | null
-        tenant_id: string | null
+        tenant_id: string
         payment_proof_path: string | null
       }
       Insert: {
-        id: string | null | undefined
-        contact_id: string | null | undefined
+        id: string | undefined
+        contact_id: string
         appointment_id: string | null | undefined
-        product_id: string | null | undefined
-        payment_plan_id: string | null | undefined
-        sale_date: string | null | undefined
-        refund_deadline_at: string | null | undefined
-        gross_amount: number | string | null | undefined
+        product_id: string
+        payment_plan_id: string
+        sale_date: string
+        refund_deadline_at: string
+        gross_amount: number | string
         expected_commissionable_amount: number | string | null | undefined
         setter_id: string | null | undefined
         closer_id: string | null | undefined
         affiliate_id: string | null | undefined
         affiliate_commission_percent: number | string | null | undefined
-        status: string | null | undefined
-        created_by: string | null | undefined
+        status: string | undefined
+        created_by: string
         updated_by: string | null | undefined
         notes: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
         cash_day1: number | string | null | undefined
-        is_upsell: boolean | null | undefined
+        is_upsell: boolean | undefined
         origin_sale_id: string | null | undefined
-        from_follow_up: boolean | null | undefined
-        discount: number | string | null | undefined
-        processing_fee: number | string | null | undefined
+        from_follow_up: boolean | undefined
+        discount: number | string | undefined
+        processing_fee: number | string | undefined
         onboarding_date: string | null | undefined
         first_coaching_date: string | null | undefined
         graduation_date: string | null | undefined
-        reservation_amount: number | string | null | undefined
+        reservation_amount: number | string | undefined
         converted_from_reservation_id: string | null | undefined
-        down_payment_amount: number | string | null | undefined
+        down_payment_amount: number | string | undefined
         installments_start_date: string | null | undefined
         installments_count: number | null | undefined
         reservation_completed_at: string | null | undefined
         payment_method: string | null | undefined
         payment_proof_url: string | null | undefined
         custom_plan: Json | null | undefined
-        extras: string | null | undefined
-        buyer_is_scheduler: boolean | null | undefined
+        extras: string[] | null | undefined
+        buyer_is_scheduler: boolean | undefined
         payer_data: Json | null | undefined
         access_email: string | null | undefined
         onboarding_scheduled_at: string | null | undefined
         onboarding_session_at: string | null | undefined
-        documents_verified: boolean | null | undefined
+        documents_verified: boolean | undefined
         documents_verified_at: string | null | undefined
         documents_verified_by: string | null | undefined
-        documents_verified_override: boolean | null | undefined
+        documents_verified_override: boolean | undefined
         documents_override_reason: string | null | undefined
         documents_override_by: string | null | undefined
         documents_override_at: string | null | undefined
@@ -5317,7 +5369,7 @@ export type EsquemaPublico = {
         course_access_revoked_at: string | null | undefined
         student_document_type: string | null | undefined
         student_document_number: string | null | undefined
-        tenant_id: string | null | undefined
+        tenant_id: string
         payment_proof_path: string | null | undefined
       }
       Update: {
@@ -5358,7 +5410,7 @@ export type EsquemaPublico = {
         payment_method: string | undefined
         payment_proof_url: string | undefined
         custom_plan: Json | undefined
-        extras: string | undefined
+        extras: string[] | undefined
         buyer_is_scheduler: boolean | undefined
         payer_data: Json | undefined
         access_email: string | undefined
@@ -5381,30 +5433,30 @@ export type EsquemaPublico = {
     }
     SalesTramos: {
       Row: {
-        id: string | null
-        name: string | null
-        threshold: number | string | null
+        id: string
+        name: string
+        threshold: number | string
         emoji: string | null
         color: string | null
         reward: string | null
-        sort_order: number | null
-        is_active: boolean | null
-        created_at: string | null
-        updated_at: string | null
-        tenant_id: string | null
+        sort_order: number
+        is_active: boolean
+        created_at: string
+        updated_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        name: string | null | undefined
-        threshold: number | string | null | undefined
+        id: string | undefined
+        name: string
+        threshold: number | string
         emoji: string | null | undefined
         color: string | null | undefined
         reward: string | null | undefined
-        sort_order: number | null | undefined
-        is_active: boolean | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
-        tenant_id: string | null | undefined
+        sort_order: number | undefined
+        is_active: boolean | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -5422,18 +5474,18 @@ export type EsquemaPublico = {
     }
     SalesTramosConfig: {
       Row: {
-        id: number | null
-        metric: string | null
-        period: string | null
-        updated_at: string | null
-        tenant_id: string | null
+        id: number
+        metric: string
+        period: string
+        updated_at: string
+        tenant_id: string
       }
       Insert: {
-        id: number | null | undefined
-        metric: string | null | undefined
-        period: string | null | undefined
-        updated_at: string | null | undefined
-        tenant_id: string | null | undefined
+        id: number | undefined
+        metric: string | undefined
+        period: string | undefined
+        updated_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: number | undefined
@@ -5445,26 +5497,26 @@ export type EsquemaPublico = {
     }
     SavedDashboardViews: {
       Row: {
-        id: string | null
-        user_id: string | null
-        name: string | null
-        scope: string | null
-        filters: Json | null
-        widgets: Json | null
-        created_at: string | null
-        updated_at: string | null
-        tenant_id: string | null
+        id: string
+        user_id: string
+        name: string
+        scope: string
+        filters: Json
+        widgets: Json
+        created_at: string
+        updated_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        user_id: string | null | undefined
-        name: string | null | undefined
-        scope: string | null | undefined
-        filters: Json | null | undefined
-        widgets: Json | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
-        tenant_id: string | null | undefined
+        id: string | undefined
+        user_id: string
+        name: string
+        scope: string | undefined
+        filters: Json
+        widgets: Json
+        created_at: string | undefined
+        updated_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -5480,9 +5532,9 @@ export type EsquemaPublico = {
     }
     SequraDelinquentCustomers: {
       Row: {
-        id: string | null
-        order_reference: string | null
-        merchant_reference: string | null
+        id: string
+        order_reference: string
+        merchant_reference: string
         customer_name: string | null
         customer_email: string | null
         product_name: string | null
@@ -5490,17 +5542,17 @@ export type EsquemaPublico = {
         debt_amount: number | string | null
         overdue_days: number | null
         overdue_since: string | null
-        status: string | null
+        status: string
         notes: string | null
-        last_synced_at: string | null
-        created_at: string | null
-        updated_at: string | null
-        tenant_id: string | null
+        last_synced_at: string
+        created_at: string
+        updated_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        order_reference: string | null | undefined
-        merchant_reference: string | null | undefined
+        id: string | undefined
+        order_reference: string
+        merchant_reference: string | undefined
         customer_name: string | null | undefined
         customer_email: string | null | undefined
         product_name: string | null | undefined
@@ -5508,12 +5560,12 @@ export type EsquemaPublico = {
         debt_amount: number | string | null | undefined
         overdue_days: number | null | undefined
         overdue_since: string | null | undefined
-        status: string | null | undefined
+        status: string | undefined
         notes: string | null | undefined
-        last_synced_at: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
-        tenant_id: string | null | undefined
+        last_synced_at: string | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -5536,28 +5588,28 @@ export type EsquemaPublico = {
     }
     SocialPostMetricSnapshots: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        post_id: string | null
-        observed_at: string | null
+        id: string
+        tenant_id: string
+        post_id: string
+        observed_at: string
         views_count: number | string | null
         likes_count: number | string | null
         comments_count: number | string | null
         shares_count: number | string | null
-        source: string | null
-        created_at: string | null
+        source: string
+        created_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        post_id: string | null | undefined
-        observed_at: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        post_id: string
+        observed_at: string | undefined
         views_count: number | string | null | undefined
         likes_count: number | string | null | undefined
         comments_count: number | string | null | undefined
         shares_count: number | string | null | undefined
-        source: string | null | undefined
-        created_at: string | null | undefined
+        source: string | undefined
+        created_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -5574,10 +5626,10 @@ export type EsquemaPublico = {
     }
     SocialPosts: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        platform: string | null
-        external_id: string | null
+        id: string
+        tenant_id: string
+        platform: string
+        external_id: string
         profile_id: string | null
         content_type: string | null
         caption: string | null
@@ -5591,21 +5643,21 @@ export type EsquemaPublico = {
         shares_count: number | string | null
         duration_seconds: number | string | null
         metadata_json: Json | null
-        collected_at: string | null
-        source: string | null
+        collected_at: string
+        source: string
         job_id: string | null
         transcript: string | null
         transcript_timing: string | null
-        analysis_status: string | null
+        analysis_status: string
         analysis_json: Json | null
         analyzed_at: string | null
         metrics_observed_at: string | null
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        platform: string | null | undefined
-        external_id: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        platform: string
+        external_id: string
         profile_id: string | null | undefined
         content_type: string | null | undefined
         caption: string | null | undefined
@@ -5619,12 +5671,12 @@ export type EsquemaPublico = {
         shares_count: number | string | null | undefined
         duration_seconds: number | string | null | undefined
         metadata_json: Json | null | undefined
-        collected_at: string | null | undefined
-        source: string | null | undefined
+        collected_at: string | undefined
+        source: string | undefined
         job_id: string | null | undefined
         transcript: string | null | undefined
         transcript_timing: string | null | undefined
-        analysis_status: string | null | undefined
+        analysis_status: string | undefined
         analysis_json: Json | null | undefined
         analyzed_at: string | null | undefined
         metrics_observed_at: string | null | undefined
@@ -5660,41 +5712,41 @@ export type EsquemaPublico = {
     }
     SocialProfiles: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        platform: string | null
+        id: string
+        tenant_id: string
+        platform: string
         external_id: string | null
-        username: string | null
+        username: string
         display_name: string | null
         profile_url: string | null
         avatar_url: string | null
         followers_count: number | string | null
         following_count: number | string | null
         posts_count: number | string | null
-        verified: boolean | null
+        verified: boolean
         biography: string | null
         metadata_json: Json | null
-        collected_at: string | null
-        source: string | null
+        collected_at: string
+        source: string
         job_id: string | null
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        platform: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        platform: string
         external_id: string | null | undefined
-        username: string | null | undefined
+        username: string
         display_name: string | null | undefined
         profile_url: string | null | undefined
         avatar_url: string | null | undefined
         followers_count: number | string | null | undefined
         following_count: number | string | null | undefined
         posts_count: number | string | null | undefined
-        verified: boolean | null | undefined
+        verified: boolean | undefined
         biography: string | null | undefined
         metadata_json: Json | null | undefined
-        collected_at: string | null | undefined
-        source: string | null | undefined
+        collected_at: string | undefined
+        source: string | undefined
         job_id: string | null | undefined
       }
       Update: {
@@ -5719,18 +5771,18 @@ export type EsquemaPublico = {
     }
     SocialRawPayloads: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        job_id: string | null
-        payload: Json | null
-        created_at: string | null
+        id: string
+        tenant_id: string
+        job_id: string
+        payload: Json
+        created_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        job_id: string | null | undefined
-        payload: Json | null | undefined
-        created_at: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        job_id: string
+        payload: Json
+        created_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -5742,38 +5794,38 @@ export type EsquemaPublico = {
     }
     SocialResearchJobs: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        platform: string | null
-        provider: string | null
-        job_type: string | null
+        id: string
+        tenant_id: string
+        platform: string
+        provider: string
+        job_type: string
         actor_id: string | null
         provider_run_id: string | null
         provider_dataset_id: string | null
-        status: string | null
+        status: string
         input_json: Json | null
         idempotency_key: string | null
-        records_processed: number | null
+        records_processed: number
         error_message: string | null
-        created_at: string | null
+        created_at: string
         started_at: string | null
         completed_at: string | null
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        platform: string | null | undefined
-        provider: string | null | undefined
-        job_type: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        platform: string
+        provider: string | undefined
+        job_type: string
         actor_id: string | null | undefined
         provider_run_id: string | null | undefined
         provider_dataset_id: string | null | undefined
-        status: string | null | undefined
+        status: string | undefined
         input_json: Json | null | undefined
         idempotency_key: string | null | undefined
-        records_processed: number | null | undefined
+        records_processed: number | undefined
         error_message: string | null | undefined
-        created_at: string | null | undefined
+        created_at: string | undefined
         started_at: string | null | undefined
         completed_at: string | null | undefined
       }
@@ -5798,32 +5850,32 @@ export type EsquemaPublico = {
     }
     StripeCustomers: {
       Row: {
-        id: string | null
-        tenant_id: string | null
+        id: string
+        tenant_id: string
         contact_id: string | null
-        stripe_customer_id: string | null
+        stripe_customer_id: string
         email: string | null
         name: string | null
-        status: string | null
+        status: string
         subscription_id: string | null
         current_period_end: string | null
-        last_synced_at: string | null
-        created_at: string | null
-        updated_at: string | null
+        last_synced_at: string
+        created_at: string
+        updated_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
+        id: string | undefined
+        tenant_id: string
         contact_id: string | null | undefined
-        stripe_customer_id: string | null | undefined
+        stripe_customer_id: string
         email: string | null | undefined
         name: string | null | undefined
-        status: string | null | undefined
+        status: string
         subscription_id: string | null | undefined
         current_period_end: string | null | undefined
-        last_synced_at: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        last_synced_at: string | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -5842,42 +5894,42 @@ export type EsquemaPublico = {
     }
     StripePayments: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        payment_id: string | null
+        id: string
+        tenant_id: string
+        payment_id: string
         charge_id: string | null
         customer_id: string | null
         customer_email: string | null
-        amount: number | string | null
-        refunded_amount: number | string | null
-        currency: string | null
-        status: string | null
+        amount: number | string
+        refunded_amount: number | string
+        currency: string
+        status: string
         paid_at: string | null
         metadata: Json | null
-        synced_at: string | null
-        created_at: string | null
-        updated_at: string | null
+        synced_at: string
+        created_at: string
+        updated_at: string
         stripe_fee: number | string | null
         refunded_at: string | null
         fx_rate_to_eur: number | string | null
         fx_rate_date: string | null
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        payment_id: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        payment_id: string
         charge_id: string | null | undefined
         customer_id: string | null | undefined
         customer_email: string | null | undefined
-        amount: number | string | null | undefined
-        refunded_amount: number | string | null | undefined
-        currency: string | null | undefined
-        status: string | null | undefined
+        amount: number | string
+        refunded_amount: number | string | undefined
+        currency: string | undefined
+        status: string | undefined
         paid_at: string | null | undefined
         metadata: Json | null | undefined
-        synced_at: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        synced_at: string | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
         stripe_fee: number | string | null | undefined
         refunded_at: string | null | undefined
         fx_rate_to_eur: number | string | null | undefined
@@ -5907,22 +5959,22 @@ export type EsquemaPublico = {
     }
     StripePriceMap: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        stripe_price_id: string | null
-        product_id: string | null
-        payment_plan_id: string | null
-        created_by: string | null
-        created_at: string | null
+        id: string
+        tenant_id: string
+        stripe_price_id: string
+        product_id: string
+        payment_plan_id: string
+        created_by: string
+        created_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        stripe_price_id: string | null | undefined
-        product_id: string | null | undefined
-        payment_plan_id: string | null | undefined
-        created_by: string | null | undefined
-        created_at: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        stripe_price_id: string
+        product_id: string
+        payment_plan_id: string
+        created_by: string
+        created_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -5936,32 +5988,32 @@ export type EsquemaPublico = {
     }
     Suggestions: {
       Row: {
-        id: string | null
+        id: string
         user_id: string | null
-        type: string | null
-        title: string | null
-        message: string | null
-        status: string | null
+        type: string
+        title: string
+        message: string
+        status: string
         admin_notes: string | null
         page_url: string | null
-        created_at: string | null
-        updated_at: string | null
+        created_at: string
+        updated_at: string
         resolved_at: string | null
-        tenant_id: string | null
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
+        id: string | undefined
         user_id: string | null | undefined
-        type: string | null | undefined
-        title: string | null | undefined
-        message: string | null | undefined
-        status: string | null | undefined
+        type: string | undefined
+        title: string
+        message: string
+        status: string | undefined
         admin_notes: string | null | undefined
         page_url: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
         resolved_at: string | null | undefined
-        tenant_id: string | null | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -5980,38 +6032,38 @@ export type EsquemaPublico = {
     }
     Targets: {
       Row: {
-        id: string | null
-        name: string | null
-        scope_type: string | null
+        id: string
+        name: string
+        scope_type: string
         scope_user_id: string | null
         scope_role_key: string | null
-        metric_key: string | null
-        period_type: string | null
-        period_start: string | null
-        period_end: string | null
-        target_value: number | string | null
-        is_active: boolean | null
-        created_by: string | null
-        created_at: string | null
-        updated_at: string | null
-        tenant_id: string | null
+        metric_key: string
+        period_type: string
+        period_start: string
+        period_end: string
+        target_value: number | string
+        is_active: boolean
+        created_by: string
+        created_at: string
+        updated_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        name: string | null | undefined
-        scope_type: string | null | undefined
+        id: string | undefined
+        name: string
+        scope_type: string
         scope_user_id: string | null | undefined
         scope_role_key: string | null | undefined
-        metric_key: string | null | undefined
-        period_type: string | null | undefined
-        period_start: string | null | undefined
-        period_end: string | null | undefined
-        target_value: number | string | null | undefined
-        is_active: boolean | null | undefined
-        created_by: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
-        tenant_id: string | null | undefined
+        metric_key: string
+        period_type: string
+        period_start: string
+        period_end: string
+        target_value: number | string
+        is_active: boolean | undefined
+        created_by: string
+        created_at: string | undefined
+        updated_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -6033,38 +6085,38 @@ export type EsquemaPublico = {
     }
     Tasks: {
       Row: {
-        id: string | null
-        title: string | null
+        id: string
+        title: string
         description: string | null
         assignee_id: string | null
-        status: string | null
+        status: string
         stage: string | null
         notes: string | null
         due_date: string | null
-        source: string | null
-        is_proposal: boolean | null
+        source: string
+        is_proposal: boolean
         created_by: string | null
-        created_at: string | null
-        updated_at: string | null
-        priority: string | null
-        tenant_id: string | null
+        created_at: string
+        updated_at: string
+        priority: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        title: string | null | undefined
+        id: string | undefined
+        title: string
         description: string | null | undefined
         assignee_id: string | null | undefined
-        status: string | null | undefined
+        status: string | undefined
         stage: string | null | undefined
         notes: string | null | undefined
         due_date: string | null | undefined
-        source: string | null | undefined
-        is_proposal: boolean | null | undefined
+        source: string | undefined
+        is_proposal: boolean | undefined
         created_by: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
-        priority: string | null | undefined
-        tenant_id: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+        priority: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -6086,22 +6138,22 @@ export type EsquemaPublico = {
     }
     TenantEmailSettings: {
       Row: {
-        id: string | null
-        tenant_id: string | null
+        id: string
+        tenant_id: string
         from_name: string | null
         from_email: string | null
         reply_to_email: string | null
-        created_at: string | null
-        updated_at: string | null
+        created_at: string
+        updated_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
+        id: string | undefined
+        tenant_id: string
         from_name: string | null | undefined
         from_email: string | null | undefined
         reply_to_email: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -6115,18 +6167,18 @@ export type EsquemaPublico = {
     }
     TenantMembers: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        user_id: string | null
-        role: string | null
-        created_at: string | null
+        id: string
+        tenant_id: string
+        user_id: string
+        role: string
+        created_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        user_id: string | null | undefined
-        role: string | null | undefined
-        created_at: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        user_id: string
+        role: string
+        created_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -6138,20 +6190,20 @@ export type EsquemaPublico = {
     }
     Tenants: {
       Row: {
-        id: string | null
-        slug: string | null
-        name: string | null
-        status: string | null
-        settings: Json | null
-        created_at: string | null
+        id: string
+        slug: string
+        name: string
+        status: string
+        settings: Json
+        created_at: string
       }
       Insert: {
-        id: string | null | undefined
-        slug: string | null | undefined
-        name: string | null | undefined
-        status: string | null | undefined
-        settings: Json | null | undefined
-        created_at: string | null | undefined
+        id: string | undefined
+        slug: string
+        name: string
+        status: string | undefined
+        settings: Json
+        created_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -6164,10 +6216,10 @@ export type EsquemaPublico = {
     }
     Testimonios: {
       Row: {
-        id: string | null
-        slug: string | null
-        name: string | null
-        kind: string | null
+        id: string
+        slug: string
+        name: string
+        kind: string
         avatar: string | null
         sector: string | null
         photo_url: string | null
@@ -6177,19 +6229,19 @@ export type EsquemaPublico = {
         punto_b: string | null
         vehiculo: string | null
         cifra: string | null
-        has_revenue: boolean | null
-        consent: boolean | null
-        sort_order: number | null
-        active: boolean | null
-        created_at: string | null
-        updated_at: string | null
-        tenant_id: string | null
+        has_revenue: boolean
+        consent: boolean
+        sort_order: number
+        active: boolean
+        created_at: string
+        updated_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        slug: string | null | undefined
-        name: string | null | undefined
-        kind: string | null | undefined
+        id: string | undefined
+        slug: string
+        name: string
+        kind: string | undefined
         avatar: string | null | undefined
         sector: string | null | undefined
         photo_url: string | null | undefined
@@ -6199,13 +6251,13 @@ export type EsquemaPublico = {
         punto_b: string | null | undefined
         vehiculo: string | null | undefined
         cifra: string | null | undefined
-        has_revenue: boolean | null | undefined
-        consent: boolean | null | undefined
-        sort_order: number | null | undefined
-        active: boolean | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
-        tenant_id: string | null | undefined
+        has_revenue: boolean | undefined
+        consent: boolean | undefined
+        sort_order: number | undefined
+        active: boolean | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -6232,32 +6284,32 @@ export type EsquemaPublico = {
     }
     TrackingSites: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        slug: string | null
-        name: string | null
-        public_key: string | null
-        allowed_origins: string | null
-        allow_localhost: boolean | null
-        tracking_enabled: boolean | null
-        consent_default: string | null
-        rate_limit_per_minute: number | null
-        created_at: string | null
-        updated_at: string | null
+        id: string
+        tenant_id: string
+        slug: string
+        name: string
+        public_key: string
+        allowed_origins: string[]
+        allow_localhost: boolean
+        tracking_enabled: boolean
+        consent_default: string
+        rate_limit_per_minute: number
+        created_at: string
+        updated_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        slug: string | null | undefined
-        name: string | null | undefined
-        public_key: string | null | undefined
-        allowed_origins: string | null | undefined
-        allow_localhost: boolean | null | undefined
-        tracking_enabled: boolean | null | undefined
-        consent_default: string | null | undefined
-        rate_limit_per_minute: number | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        slug: string
+        name: string
+        public_key: string
+        allowed_origins: string[]
+        allow_localhost: boolean | undefined
+        tracking_enabled: boolean | undefined
+        consent_default: string | undefined
+        rate_limit_per_minute: number | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -6265,7 +6317,7 @@ export type EsquemaPublico = {
         slug: string | undefined
         name: string | undefined
         public_key: string | undefined
-        allowed_origins: string | undefined
+        allowed_origins: string[] | undefined
         allow_localhost: boolean | undefined
         tracking_enabled: boolean | undefined
         consent_default: string | undefined
@@ -6276,30 +6328,30 @@ export type EsquemaPublico = {
     }
     UserFathomConnections: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        user_id: string | null
-        api_key: string | null
+        id: string
+        tenant_id: string
+        user_id: string
+        api_key: string
         key_fingerprint: string | null
-        status: string | null
+        status: string
         last_sync_at: string | null
         last_error: string | null
-        meetings_seen: number | null
-        created_at: string | null
-        updated_at: string | null
+        meetings_seen: number
+        created_at: string
+        updated_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        user_id: string | null | undefined
-        api_key: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        user_id: string
+        api_key: string
         key_fingerprint: string | null | undefined
-        status: string | null | undefined
+        status: string | undefined
         last_sync_at: string | null | undefined
         last_error: string | null | undefined
-        meetings_seen: number | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
+        meetings_seen: number | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -6317,66 +6369,66 @@ export type EsquemaPublico = {
     }
     Users: {
       Row: {
-        id: string | null
-        full_name: string | null
-        email: string | null
+        id: string
+        full_name: string
+        email: string
         phone: string | null
-        role_id: string | null
-        is_active: boolean | null
+        role_id: string
+        is_active: boolean
         default_affiliate_commission_percent: number | string | null
         avatar_url: string | null
-        created_at: string | null
-        updated_at: string | null
-        data_scope: string | null
+        created_at: string
+        updated_at: string
+        data_scope: string
         start_date: string | null
         base_salary: number | string | null
         commission_percent: number | string | null
         monthly_goal: number | string | null
         assigned_channel: string | null
-        member_status: string | null
+        member_status: string
         affiliate_code: string | null
-        dept_overrides: string | null
+        dept_overrides: string[] | null
         tracking_code: string | null
         dni: string | null
         address: string | null
         personal_email: string | null
         calendly_email: string | null
-        page_overrides: string | null
-        fijo_min_sales: number | null
-        fijo_unlock_type: string | null
-        fijo_min_revenue: number | string | null
-        pays_commissions: boolean | null
+        page_overrides: string[] | null
+        fijo_min_sales: number
+        fijo_unlock_type: string
+        fijo_min_revenue: number | string
+        pays_commissions: boolean
       }
       Insert: {
-        id: string | null | undefined
-        full_name: string | null | undefined
-        email: string | null | undefined
+        id: string
+        full_name: string
+        email: string
         phone: string | null | undefined
-        role_id: string | null | undefined
-        is_active: boolean | null | undefined
+        role_id: string
+        is_active: boolean | undefined
         default_affiliate_commission_percent: number | string | null | undefined
         avatar_url: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
-        data_scope: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+        data_scope: string | undefined
         start_date: string | null | undefined
         base_salary: number | string | null | undefined
         commission_percent: number | string | null | undefined
         monthly_goal: number | string | null | undefined
         assigned_channel: string | null | undefined
-        member_status: string | null | undefined
+        member_status: string | undefined
         affiliate_code: string | null | undefined
-        dept_overrides: string | null | undefined
+        dept_overrides: string[] | null | undefined
         tracking_code: string | null | undefined
         dni: string | null | undefined
         address: string | null | undefined
         personal_email: string | null | undefined
         calendly_email: string | null | undefined
-        page_overrides: string | null | undefined
-        fijo_min_sales: number | null | undefined
-        fijo_unlock_type: string | null | undefined
-        fijo_min_revenue: number | string | null | undefined
-        pays_commissions: boolean | null | undefined
+        page_overrides: string[] | null | undefined
+        fijo_min_sales: number | undefined
+        fijo_unlock_type: string | undefined
+        fijo_min_revenue: number | string | undefined
+        pays_commissions: boolean | undefined
       }
       Update: {
         id: string | undefined
@@ -6397,13 +6449,13 @@ export type EsquemaPublico = {
         assigned_channel: string | undefined
         member_status: string | undefined
         affiliate_code: string | undefined
-        dept_overrides: string | undefined
+        dept_overrides: string[] | undefined
         tracking_code: string | undefined
         dni: string | undefined
         address: string | undefined
         personal_email: string | undefined
         calendly_email: string | undefined
-        page_overrides: string | undefined
+        page_overrides: string[] | undefined
         fijo_min_sales: number | undefined
         fijo_unlock_type: string | undefined
         fijo_min_revenue: number | string | undefined
@@ -6412,28 +6464,28 @@ export type EsquemaPublico = {
     }
     VslEmbedLocations: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        video_id: string | null
-        video_version_id: string | null
-        normalized_url: string | null
-        domain: string | null
-        placement: string | null
-        first_seen_at: string | null
-        last_seen_at: string | null
-        created_at: string | null
+        id: string
+        tenant_id: string
+        video_id: string
+        video_version_id: string
+        normalized_url: string
+        domain: string
+        placement: string
+        first_seen_at: string
+        last_seen_at: string
+        created_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        video_id: string | null | undefined
-        video_version_id: string | null | undefined
-        normalized_url: string | null | undefined
-        domain: string | null | undefined
-        placement: string | null | undefined
-        first_seen_at: string | null | undefined
-        last_seen_at: string | null | undefined
-        created_at: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        video_id: string
+        video_version_id: string
+        normalized_url: string
+        domain: string
+        placement: string | undefined
+        first_seen_at: string | undefined
+        last_seen_at: string | undefined
+        created_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -6450,36 +6502,36 @@ export type EsquemaPublico = {
     }
     VslPlaybackSessions: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        video_id: string | null
-        video_version_id: string | null
+        id: string
+        tenant_id: string
+        video_id: string
+        video_version_id: string
         embed_location_id: string | null
         legacy_session_id: string | null
-        viewer_id: string | null
-        session_id: string | null
-        playback_id: string | null
-        started_at: string | null
+        viewer_id: string
+        session_id: string
+        playback_id: string
+        started_at: string
         ended_at: string | null
         last_event_at: string | null
-        tracking_schema_version: number | null
-        created_at: string | null
+        tracking_schema_version: number
+        created_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        video_id: string | null | undefined
-        video_version_id: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        video_id: string
+        video_version_id: string
         embed_location_id: string | null | undefined
         legacy_session_id: string | null | undefined
-        viewer_id: string | null | undefined
-        session_id: string | null | undefined
-        playback_id: string | null | undefined
-        started_at: string | null | undefined
+        viewer_id: string
+        session_id: string | undefined
+        playback_id: string | undefined
+        started_at: string
         ended_at: string | null | undefined
         last_event_at: string | null | undefined
-        tracking_schema_version: number | null | undefined
-        created_at: string | null | undefined
+        tracking_schema_version: number | undefined
+        created_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -6500,46 +6552,46 @@ export type EsquemaPublico = {
     }
     VslSessions: {
       Row: {
-        id: string | null
-        video_id: string | null
-        anon_id: string | null
+        id: string
+        video_id: string
+        anon_id: string
         lead_email: string | null
         lead_name: string | null
         referrer: string | null
         device: string | null
         country: string | null
         user_agent: string | null
-        duration: number | string | null
-        max_position: number | string | null
-        watched_seconds: string | null
-        plays: number | null
-        reached_end: boolean | null
+        duration: number | string
+        max_position: number | string
+        watched_seconds: number[]
+        plays: number
+        reached_end: boolean
         first_play_at: string | null
         last_beat_at: string | null
-        created_at: string | null
-        updated_at: string | null
-        tenant_id: string | null
+        created_at: string
+        updated_at: string
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        video_id: string | null | undefined
-        anon_id: string | null | undefined
+        id: string | undefined
+        video_id: string
+        anon_id: string
         lead_email: string | null | undefined
         lead_name: string | null | undefined
         referrer: string | null | undefined
         device: string | null | undefined
         country: string | null | undefined
         user_agent: string | null | undefined
-        duration: number | string | null | undefined
-        max_position: number | string | null | undefined
-        watched_seconds: string | null | undefined
-        plays: number | null | undefined
-        reached_end: boolean | null | undefined
+        duration: number | string | undefined
+        max_position: number | string | undefined
+        watched_seconds: number[]
+        plays: number | undefined
+        reached_end: boolean | undefined
         first_play_at: string | null | undefined
         last_beat_at: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
-        tenant_id: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -6553,7 +6605,7 @@ export type EsquemaPublico = {
         user_agent: string | undefined
         duration: number | string | undefined
         max_position: number | string | undefined
-        watched_seconds: string | undefined
+        watched_seconds: number[] | undefined
         plays: number | undefined
         reached_end: boolean | undefined
         first_play_at: string | undefined
@@ -6565,36 +6617,36 @@ export type EsquemaPublico = {
     }
     VslTrackingEvents: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        playback_id: string | null
-        event_id: string | null
-        event_type: string | null
-        occurred_at: string | null
-        received_at: string | null
+        id: string
+        tenant_id: string
+        playback_id: string
+        event_id: string
+        event_type: string
+        occurred_at: string
+        received_at: string
         playhead_seconds: number | string | null
         duration_seconds: number | string | null
         playback_rate: number | string | null
         visibility_state: string | null
-        source: string | null
-        schema_version: number | null
-        created_at: string | null
+        source: string
+        schema_version: number
+        created_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        playback_id: string | null | undefined
-        event_id: string | null | undefined
-        event_type: string | null | undefined
-        occurred_at: string | null | undefined
-        received_at: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        playback_id: string
+        event_id: string
+        event_type: string
+        occurred_at: string
+        received_at: string | undefined
         playhead_seconds: number | string | null | undefined
         duration_seconds: number | string | null | undefined
         playback_rate: number | string | null | undefined
         visibility_state: string | null | undefined
-        source: string | null | undefined
-        schema_version: number | null | undefined
-        created_at: string | null | undefined
+        source: string | undefined
+        schema_version: number | undefined
+        created_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -6615,30 +6667,30 @@ export type EsquemaPublico = {
     }
     VslVideoVersions: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        video_id: string | null
-        version_number: number | null
-        provider: string | null
+        id: string
+        tenant_id: string
+        video_id: string
+        version_number: number
+        provider: string
         provider_video_id: string | null
         source_url: string | null
-        duration_seconds: number | string | null
-        published_at: string | null
+        duration_seconds: number | string
+        published_at: string
         replaced_at: string | null
-        created_at: string | null
+        created_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        video_id: string | null | undefined
-        version_number: number | null | undefined
-        provider: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        video_id: string
+        version_number: number
+        provider: string | undefined
         provider_video_id: string | null | undefined
         source_url: string | null | undefined
-        duration_seconds: number | string | null | undefined
-        published_at: string | null | undefined
+        duration_seconds: number | string | undefined
+        published_at: string | undefined
         replaced_at: string | null | undefined
-        created_at: string | null | undefined
+        created_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -6656,29 +6708,29 @@ export type EsquemaPublico = {
     }
     VslVideos: {
       Row: {
-        id: string | null
-        slug: string | null
-        name: string | null
+        id: string
+        slug: string
+        name: string
         source_url: string | null
         poster_url: string | null
-        duration_seconds: number | string | null
-        config: Json | null
-        created_at: string | null
-        updated_at: string | null
-        tenant_id: string | null
+        duration_seconds: number | string
+        config: Json
+        created_at: string
+        updated_at: string
+        tenant_id: string
         deleted_at: string | null
       }
       Insert: {
-        id: string | null | undefined
-        slug: string | null | undefined
-        name: string | null | undefined
+        id: string | undefined
+        slug: string
+        name: string
         source_url: string | null | undefined
         poster_url: string | null | undefined
-        duration_seconds: number | string | null | undefined
-        config: Json | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
-        tenant_id: string | null | undefined
+        duration_seconds: number | string | undefined
+        config: Json
+        created_at: string | undefined
+        updated_at: string | undefined
+        tenant_id: string
         deleted_at: string | null | undefined
       }
       Update: {
@@ -6697,24 +6749,24 @@ export type EsquemaPublico = {
     }
     VslViewerIdentities: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        viewer_id: string | null
-        contact_id: string | null
-        link_source: string | null
-        linked_at: string | null
+        id: string
+        tenant_id: string
+        viewer_id: string
+        contact_id: string
+        link_source: string
+        linked_at: string
         revoked_at: string | null
-        created_at: string | null
+        created_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        viewer_id: string | null | undefined
-        contact_id: string | null | undefined
-        link_source: string | null | undefined
-        linked_at: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        viewer_id: string
+        contact_id: string
+        link_source: string
+        linked_at: string | undefined
         revoked_at: string | null | undefined
-        created_at: string | null | undefined
+        created_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -6729,30 +6781,30 @@ export type EsquemaPublico = {
     }
     VslWatchIntervals: {
       Row: {
-        id: string | null
-        tenant_id: string | null
-        playback_id: string | null
-        batch_id: string | null
-        sequence_number: number | null
-        start_second: number | string | null
-        end_second: number | string | null
-        playback_rate: number | string | null
-        occurred_at: string | null
-        received_at: string | null
-        created_at: string | null
+        id: string
+        tenant_id: string
+        playback_id: string
+        batch_id: string
+        sequence_number: number
+        start_second: number | string
+        end_second: number | string
+        playback_rate: number | string
+        occurred_at: string
+        received_at: string
+        created_at: string
       }
       Insert: {
-        id: string | null | undefined
-        tenant_id: string | null | undefined
-        playback_id: string | null | undefined
-        batch_id: string | null | undefined
-        sequence_number: number | null | undefined
-        start_second: number | string | null | undefined
-        end_second: number | string | null | undefined
-        playback_rate: number | string | null | undefined
-        occurred_at: string | null | undefined
-        received_at: string | null | undefined
-        created_at: string | null | undefined
+        id: string | undefined
+        tenant_id: string
+        playback_id: string
+        batch_id: string
+        sequence_number: number
+        start_second: number | string
+        end_second: number | string
+        playback_rate: number | string | undefined
+        occurred_at: string
+        received_at: string | undefined
+        created_at: string | undefined
       }
       Update: {
         id: string | undefined
@@ -6770,32 +6822,32 @@ export type EsquemaPublico = {
     }
     YoutubeUploads: {
       Row: {
-        id: string | null
-        ig_media_external_id: string | null
+        id: string
+        ig_media_external_id: string
         youtube_video_id: string | null
-        status: string | null
+        status: string
         error: string | null
-        created_at: string | null
-        updated_at: string | null
-        views: number | string | null
-        likes: number | string | null
-        comments: number | string | null
+        created_at: string
+        updated_at: string
+        views: number | string
+        likes: number | string
+        comments: number | string
         stats_synced_at: string | null
-        tenant_id: string | null
+        tenant_id: string
       }
       Insert: {
-        id: string | null | undefined
-        ig_media_external_id: string | null | undefined
+        id: string | undefined
+        ig_media_external_id: string
         youtube_video_id: string | null | undefined
-        status: string | null | undefined
+        status: string | undefined
         error: string | null | undefined
-        created_at: string | null | undefined
-        updated_at: string | null | undefined
-        views: number | string | null | undefined
-        likes: number | string | null | undefined
-        comments: number | string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+        views: number | string | undefined
+        likes: number | string | undefined
+        comments: number | string | undefined
         stats_synced_at: string | null | undefined
-        tenant_id: string | null | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined

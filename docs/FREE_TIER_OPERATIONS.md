@@ -150,6 +150,50 @@ a la migración), así que el beneficio queda afirmado por forma de plan, no por
 patrón de acceso (seq scan a medida que `appointments` crezca) está en `PENDIENTES.md` como
 hallazgo de arquitectura, sin índice propuesto.
 
+## Snapshots pg_stat: línea base antes/después de un cambio de rendimiento
+
+Para que la próxima comparación SÍ tenga ventana temporal, la migración
+`20261027120000_pgss_baseline_snapshots.sql` añadió el snapshot manual de `pg_stat_statements`:
+
+- **Tomar snapshot** (solo vía SQL, implementado como `SECURITY DEFINER` con ejecución prohibida
+  a anon/authenticated): `SELECT public.pgss_take_snapshot('motivo');` — devuelve el id del
+  snapshot. Se anota SIEMPRE el motivo: un snapshot sin evento asociado no se puede contrastar.
+  Cada uno pesa ~1,4 MB (4.852 statements en la BD del 27-oct) y no hay retención automática:
+  no se borra ninguno salvo que el dueño apruebe una política de retención.
+- **Protocolo:** (1) snapshot ANTES del cambio (baseline); (2) cambio (migración/índice/layout);
+  (3) esperar el intervalo de medida — idealmente 24 h para separar horas pico del día medio;
+  (4) segundo snapshot con el mismo motivo de contraste; (5) delta con la SQL de abajo.
+- **Reglas de comparación, para que el delta diga la verdad:**
+  1. Los DOS snapshots deben compartir `stats_reset_at` (columna de `pgss_snapshots`): si la
+     extensión se reseteó o desalojó statements por llenar su cache entre medias, la
+     comparación no es válida (descartar y repetir).
+  2. El delta de `calls`/`total_ms` cuenta lo que ocurrió EN el intervalo entre snapshots
+     (ambos son acumulados desde el mismo reset).
+  3. Si el statement se desalojó de la cache pg_stat_statements desaparece de snapshots
+     posteriores: su fila no aparecerá en la join — es pérdida de muestra de cola, no un delta negativo.
+- **SQL del delta** (rellenar `<ID_antes>` y `<ID_despues>` con los ids de snapshot):
+
+```sql
+WITH antes AS (SELECT queryid, calls, total_ms, mean_ms, query_left
+               FROM public.pgss_snapshot_statements WHERE snapshot_id = '<ID_antes>'),
+     despues AS (SELECT queryid, calls, total_ms, mean_ms, query_left
+               FROM public.pgss_snapshot_statements WHERE snapshot_id = '<ID_despues>')
+SELECT a.query_left,
+       a.calls AS llamadas_antes,  d.calls AS llamadas_despues,
+       round(a.total_ms::numeric) AS ms_antes, round(d.total_ms::numeric) AS ms_despues,
+       a.mean_ms AS media_antes, d.mean_ms AS media_despues,
+       round((d.total_ms - a.total_ms)::numeric) AS delta_ms
+FROM antes a JOIN despues d USING (queryid)
+WHERE d.total_ms <> a.total_ms
+ORDER BY (d.total_ms - a.total_ms) DESC
+LIMIT 50;
+```
+
+**Baseline real ya capturado:** snapshot `9e8a1f2f-ae37-4462-aa54-0d51f4f22100` (27-oct-2026,
+4.852 statements, ventana desde el 10-sep-2026): la referencia para comparar la aplicación del
+índice `(tenant_id, status, appointment_datetime DESC)` del diseño de agenda y cualquier otro
+cambio de rendimiento que venga.
+
 Vigilar especialmente `raw_events`, `canonical_events`, `event_delivery_attempts`,
 `contact_attributions`, transcripciones y archivos de VSL/testimonios. Umbral operativo: al 70% del
 límite, identificar las tablas/buckets que crecen, exportar y solo después acordar una política de
