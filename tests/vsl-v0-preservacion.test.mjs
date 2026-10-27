@@ -150,6 +150,35 @@ test('postMessage: solo el iframe VSL y su ventana padre pueden intercambiar ide
   assert.match(loader, /isVslFrameSource\(e\.source\)/, 'la landing rechaza ready de ventanas ajenas')
 })
 
+test('loader: el JS que se sirve COMPLILA — un deslizo de sintaxis rompe toda la landing', () => {
+  // El loader es un template literal de su script: un comment sin abrir o un paréntesis de
+  // más se sirve igual (200) y el navegador lo rechaza EN PÁGINA, tirando identify,
+  // Calendly y el auto-capture a la vez. El test extrae el script y lo compila de verdad.
+  const fuente = lee('app/embed/loader.js/route.ts')
+  const desde = fuente.indexOf('const js = `')
+  const hasta = fuente.indexOf('`\n', desde)
+  assert.ok(desde !== -1 && hasta !== -1, 'no se encuentra el template del script')
+  const js = fuente
+    .slice(desde + 'const js = `'.length, hasta)
+    .replace(/\$\{JSON\.stringify\(origin\)\}/g, '"https://app.scalixsystems.com"')
+  assert.doesNotThrow(() => new Function(js), 'el script servido debe ser JavaScript válido')
+})
+
+test("loader: al identificar emite window.gop('lead', email) para el stitching del pixel", () => {
+  const loader = lee('app/embed/loader.js/route.ts')
+  // El evento de identidad del pixel es lo que escribe analytics_visitors.contact_id:
+  // con el MISMO email, el visitante anónimo queda enlazado al contacto en la BD.
+  assert.match(loader, /window\.gop\('lead', \{ email: email \}\)/, 'evento lead con el email')
+  assert.doesNotMatch(loader, /window\.gop\('lead',[^)]*name\)/, 'el nombre NO viaja en el evento del pixel')
+  // Hook DENTRO de identify (manual y auto-captura pasan por el mismo sitio) con el email
+  // ya sin merge fields; y solo cuando hay email, que es la señal de identidad.
+  assert.match(loader, /emitLeadPixel\(payload\.email\);\n\s+pending = payload/, 'se emite justo al identificar')
+  // Sin pixel en la página es no-op (jamas rompe la landing por falta de tracker.js).
+  assert.match(loader, /typeof window\.gop === 'function'/, 'guard de presencia del pixel')
+  // Dedupe por email: GHL re-renderiza y vuelve a llamar identify con el mismo lead.
+  assert.match(loader, /email === ultimoLead\) return/, 'no re-emite el mismo lead')
+})
+
 // ---------------------------------------------------------------------------
 // 8. V1 — soft delete + rate limit (extensión segura sobre lo preservado)
 // ---------------------------------------------------------------------------
