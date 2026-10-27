@@ -37,7 +37,7 @@ test('skills de agente y docs cuentan como cambio sin impacto en la app (CI y Ve
   const vercel = readFileSync(join(root, 'vercel.json'), 'utf8')
   assert.match(vercel, /':!\.agents\/\*\*' ':!\.claude\/skills\/\*\*'/)
   const cfg = JSON.parse(vercel)
-  for (const rama of ['dependabot/**', 'docs/**', 'claude/**'])
+  for (const rama of ['dependabot/**', 'docs/**', 'claude/**', 'feat/**', 'fix/**', 'chore/**'])
     assert.equal(cfg.git.deploymentEnabled[rama], false, rama)
 })
 

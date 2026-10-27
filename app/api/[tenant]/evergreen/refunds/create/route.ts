@@ -73,19 +73,33 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     const totalGross = (collections ?? []).reduce((s, c) => s + Number(c.gross_amount || 0), 0)
     const totalComm = (collections ?? []).reduce((s, c) => s + Number(c.commissionable_amount || 0), 0)
 
-    const grossRefund = grossRefundAmount != null ? Number(grossRefundAmount) : totalGross
+    // Lo YA devuelto de esta venta: sin descontarlo, una segunda devolución (o un doble envío) pasaba el tope contra lo
+    // cobrado y reclamaba otra vez las mismas comisiones.
+    const { data: previas } = await sb
+      .from('refunds')
+      .select('gross_refund_amount')
+      .eq('tenant_id', t.tenantId)
+      .eq('sale_id', saleId)
+      .limit(10000)
+    const yaDevuelto = (previas ?? []).reduce((acc, r) => acc + Number(r.gross_refund_amount || 0), 0)
+    const devolvible = Math.max(totalGross - yaDevuelto, 0)
+    if (devolvible <= 0.01) {
+      return NextResponse.json({ error: 'Esta venta ya está devuelta por completo' }, { status: 409 })
+    }
+
+    const grossRefund = grossRefundAmount != null ? Number(grossRefundAmount) : devolvible
     // Un importe fuera de rango (NaN, negativo, o mayor que lo realmente cobrado) generaría un
     // refund corrupto y comisiones negativas mal calculadas — grossRefundAmount viene del body
     // de la request sin validar hasta ahora.
-    if (!Number.isFinite(grossRefund) || grossRefund < 0 || grossRefund > totalGross + 0.01) {
+    if (!Number.isFinite(grossRefund) || grossRefund < 0 || grossRefund > devolvible + 0.01) {
       return NextResponse.json(
-        { error: 'grossRefundAmount inválido: debe estar entre 0 y lo realmente cobrado' },
+        { error: 'grossRefundAmount inválido: debe estar entre 0 y lo que queda por devolver de lo cobrado' },
         { status: 400 }
       )
     }
     // Comisionable proporcional al importe devuelto
     const commRefund = totalGross > 0 ? (grossRefund / totalGross) * totalComm : grossRefund
-    const isFull = grossRefund >= totalGross - 0.01
+    const isFull = yaDevuelto + grossRefund >= totalGross - 0.01
 
     // 1) Registrar la devolución
     const { data: refund, error: refErr } = await sb

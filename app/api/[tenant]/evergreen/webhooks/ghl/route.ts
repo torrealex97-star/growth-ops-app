@@ -767,6 +767,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       appointmentId: created.id,
     })
   } catch (err) {
+    console.error('[ghl] 500 al procesar el webhook:', err instanceof Error ? err.message : err)
     return NextResponse.json(
       { error: 'Internal error', detail: err instanceof Error ? err.message : String(err) },
       { status: 500 }

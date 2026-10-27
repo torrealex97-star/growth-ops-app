@@ -106,6 +106,8 @@ async function runForTenant(sb: SupabaseClient, tenantId: string, deadline: numb
             method: 'POST',
             headers: { Authorization: `Bearer ${calendlyToken}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({ reason: 'Reprogramada desde la app (reintento automático)' }),
+            // Un fetch colgado desbordaba el presupuesto de 45 s que este cron se impone entre iteraciones.
+            signal: AbortSignal.timeout(10_000),
           }
         )
         // 404/409: el evento ya no existe o ya está cancelado — se da por resuelto igualmente.
