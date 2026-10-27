@@ -197,6 +197,32 @@ Estado final del bucle: InitPlan/índices verificados en plan real, advisor limp
 el trabajo restante (patrón de acceso y su crecimiento con volumen) queda en [PENDIENTES.md](../PENDIENTES.md)
 para decidir cuando escale.
 
+# COMPLETADO — Snapshot manual de pg_stat_statements (27-oct, Freebuff)
+
+Necesidad: tras cerrar el bucle del InitPlan (#635) se quedó abierto el de tener línea base
+para la PRÓXIMA medición — no había forma de comparar una ventana con otra (stats acumuladas
+desde el 10-sep sin snapshot previo). Añadido como migración reproducible
+[supabase/migrations/20261027120000_pgss_baseline_snapshots.sql](../supabase/migrations/20261027120000_pgss_baseline_snapshots.sql):
+
+- `pgss_snapshots` + `pgss_snapshot_statements` (una fila por statement con queryid/calls/
+  total_ms/mean_ms/query_left) y función `pgss_take_snapshot(note)` SECURITY DEFINER. RLS sin
+  políticas y REVOKE a PUBLIC/anon/authenticated: solo SQL (postgres/servicio), espejo del
+  patrón `platform_settings`. Ambas tablas añadidas a `EXCEPCIONES_SIN_TENANT` con motivo
+  (datos globales de plataforma, no de una subcuenta).
+- Dry-run obligatorio respetado: `BEGIN…ROLLBACK` con aserciones de comportamiento (n de filas,
+  sin duplicados por (snapshot, queryid), RLS en ambas) — y el dry-run CAZÓ un bug real: la
+  vista `pg_stat_statements_info` vive en el esquema `extensions` y con
+  `search_path=pg_catalog, public` la función no la veía; se corrigió con nombres cualificados
+  ANTES de tocar producción. La reversión quedó verificada (to_regclass null en las 3 piezas).
+- Aplicado y registrado en `schema_migrations` (20261027120000 / pgss_baseline_snapshots, con
+  rollback declarado). Primer snapshot REAL (baseline): id `9e8a1f2f-ae37-4462-aa54-0d51f4f22100`
+  (4.852 statements, ~1,4 MB) — ancla el futuro índice compuesto `(tenant_id, status,
+  appointment_datetime DESC)` del diseño de agenda y cualquier otro cambio de rendimiento.
+- Protocolo completo (incluye las reglas: mismo reset en ambos snapshots; delta = intervalo;
+  desalojo de cache no es delta negativo) en [FREE_TIER_OPERATIONS.md, sección «Snapshots pg_stat»](FREE_TIER_OPERATIONS.md).
+- Manual, NO cron a propósito: sin tarea programada que avalar en Vercel/Supabase free
+  (presupuesto permanente); el valor es anclar decisiones concretas.
+
 Auditoría pedida tras lo de la migración RLS: ¿qué ve `anon` por la RPC `public_tenant_branding`?
 Estado real medido en producción:
 
