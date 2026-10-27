@@ -192,38 +192,42 @@ export async function listarClientesDeUsuario(userId: string): Promise<McpClient
   return (data ?? []) as McpClienteVisible[]
 }
 
-/** Sesiones (tokens emitidos) de los clientes QUE PERTENECEN a este usuario: la join client→owner
- *  es el filtro de propiedad; una sesión de un cliente ajeno no entra aunque user_id coincidiera. */
+/**
+ * Sesiones (tokens emitidos) DE ESTE USUARIO: las que él autorizó, sea quien sea el dueño del cliente.
+ * Antes se filtraba por «clientes de los que soy dueño»: quien autorizaba un cliente registrado por otra persona no
+ * veía ni podía revocar su propia sesión, y el dueño del cliente veía metadatos de sesiones ajenas.
+ */
 export async function listarSesionesDeUsuario(userId: string): Promise<McpSesionVisible[]> {
-  const clientes = await listarClientesDeUsuario(userId)
-  if (clientes.length === 0) return []
-  const clientIds = clientes.map((c) => c.client_id)
   const { data, error } = await sb()
     .from('mcp_oauth_tokens')
     .select('id, client_id, scope, created_at, expires_at, revoked_at, refresh_expires_at')
-    .in('client_id', clientIds)
+    .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(200)
   if (error) throw new Error(`No se pudieron listar las sesiones MCP: ${error.message}`)
-  const nombre = new Map(clientes.map((c) => [c.client_id, c.name]))
-  return ((data ?? []) as Omit<McpSesionVisible, 'client_name'>[]).map((t) => ({
-    ...t,
-    client_name: nombre.get(t.client_id) ?? null,
-  }))
+  const filas = (data ?? []) as Omit<McpSesionVisible, 'client_name'>[]
+  const ids = [...new Set(filas.map((t) => t.client_id))]
+  const nombre = new Map<string, string>()
+  if (ids.length > 0) {
+    const { data: cs, error: errC } = await sb()
+      .from('mcp_oauth_clients')
+      .select('client_id, name')
+      .in('client_id', ids)
+    if (errC) throw new Error(`No se pudieron leer los clientes MCP: ${errC.message}`)
+    for (const c of (cs ?? []) as { client_id: string; name: string }[]) nombre.set(c.client_id, c.name)
+  }
+  return filas.map((t) => ({ ...t, client_name: nombre.get(t.client_id) ?? null }))
 }
 
-/** Revoca UNA sesión. Solo si el token pertenece a un cliente del que el usuario es dueño. */
+/** Revoca UNA sesión. Solo si el token es del propio usuario (quien autorizó), nunca de otra persona. */
 export async function revocarSesion(userId: string, tokenId: string): Promise<boolean> {
-  const clientes = await listarClientesDeUsuario(userId)
-  const clientIds = new Set(clientes.map((c) => c.client_id))
-  if (clientIds.size === 0) return false
-  // UPDATE acotado por client_id y revoked_at nulo: si la fila ya está revocada, el resultado
-  // es 0 filas y la función devuelve false (idempotente), no un error.
+  // UPDATE acotado por user_id y revoked_at nulo: si la fila ya está revocada, el resultado es 0 filas y la función
+  // devuelve false (idempotente), no un error.
   const { data, error } = await sb()
     .from('mcp_oauth_tokens')
     .update({ revoked_at: new Date().toISOString() })
     .eq('id', tokenId)
-    .in('client_id', [...clientIds])
+    .eq('user_id', userId)
     .is('revoked_at', null)
     .select('id')
   if (error) throw new Error(`No se pudo revocar la sesión MCP: ${error.message}`)

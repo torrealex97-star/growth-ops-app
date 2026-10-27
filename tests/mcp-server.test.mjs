@@ -153,7 +153,7 @@ test('pantalla de conexiones MCP: revocación acotada al dueño y estado calcula
 
   // Revocar UNA sesión: UPDATE acotado por los client_ids propios y revoked_at nulo.
   const revocarSesion = store.slice(store.indexOf('export async function revocarSesion'))
-  assert.match(revocarSesion, /\.in\('client_id', \[\.\.\.clientIds\]\)/)
+  assert.match(revocarSesion, /\.eq\('user_id', userId\)/)
   assert.match(revocarSesion, /\.is\('revoked_at', null\)/)
 
   // Revocar cliente: borra con owner_user_id en el filtro y verifica el borrado real (count).

@@ -9,12 +9,17 @@ export async function depsReales(tenantId: string): Promise<DepsOrquestador> {
   const ghl = cfgDesdeEnv(cfgTenant)
   return {
     ia: async (req) => {
-      const r = await completeConversation({
-        system: req.system,
-        messages: req.messages,
-        maxTokens: req.maxTokens,
-        temperature: req.temperature,
-      })
+      // Con la configuración de la SUBCUENTA (sus claves y su motor, con las globales de respaldo), no con process.env a
+      // secas: así los mensajes de los leads de una subcuenta van al proveedor que ella eligió y el gasto es suyo.
+      const r = await completeConversation(
+        {
+          system: req.system,
+          messages: req.messages,
+          maxTokens: req.maxTokens,
+          temperature: req.temperature,
+        },
+        cfgTenant
+      )
       return { text: r.text, engine: r.engine, model: r.model }
     },
     enviar: async (p) => {

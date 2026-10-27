@@ -152,3 +152,42 @@ test('validación: rechaza precio, pago, enlaces ajenos, ser persona, vacío y T
   // Sin enlace configurado, ninguna URL es válida.
   assert.equal(validarBorrador(`Mira ${guion.enlaceAgenda}`, null).ok, false)
 })
+
+// ── Revisión 27-oct: lo que el validador dejaba pasar
+import { validarBorrador as validar } from '../lib/conversaciones/redactor.ts'
+
+test('validarBorrador: garantía con tilde, plazos y cuotas se rechazan (el modelo escribe español correcto)', () => {
+  for (const t of [
+    'El programa tiene garantía total de 30 días',
+    'Puedes pagarlo a plazos sin problema',
+    'Hay una cuota única',
+    'Ofrecemos GARANTÍAS',
+    'Tenemos garantia',
+  ])
+    assert.equal(validar(t, null).ok, false, t)
+  assert.equal(validar('Cuéntame, ¿qué buscas conseguir con tu negocio?', null).ok, true)
+})
+
+test('validarBorrador: dominios sin esquema tampoco cuelan; solo el del enlace de agenda configurado', () => {
+  const agenda = 'https://cal.example.test/llamada'
+  for (const t of [
+    'Reserva aquí: www.otro-dominio.com/x',
+    'mira calendly.com/otro',
+    'escríbeme a tienda.ly',
+    'visita otro.example.es',
+  ])
+    assert.equal(validar(t, agenda).ok, false, t)
+  assert.equal(validar('Reserva tu llamada en cal.example.test/llamada cuando quieras', agenda).ok, true)
+  assert.equal(validar(`Reserva aquí: ${agenda}`, agenda).ok, true)
+  assert.equal(validar('Perfecto. Luego te cuento más', agenda).ok, true, 'el final de una frase no es un dominio')
+})
+
+import { readFileSync as leerFuente } from 'node:fs'
+
+test('el agente usa la configuración de la SUBCUENTA para la IA y el webhook dura lo que tarda el agente', () => {
+  const d = leerFuente('lib/conversaciones/deps-reales.ts', 'utf8')
+  assert.match(d, /completeConversation\([\s\S]*?cfgTenant\s*\)/)
+  assert.match(leerFuente('app/api/[tenant]/evergreen/webhooks/ghl-mensajes/route.ts', 'utf8'), /maxDuration = 60/)
+  assert.match(leerFuente('lib/conversaciones/orquestador.ts', 'utf8'), /\.eq\('kind', 'agente'\)/)
+  assert.match(leerFuente('lib/ai/agent/tools.ts', 'utf8'), /String\(input\.content \?\? ''\)\.slice\(0, 600\)/)
+})
