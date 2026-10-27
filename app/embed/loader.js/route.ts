@@ -1,10 +1,13 @@
 export const dynamic = 'force-dynamic'
 
-// Script que se incrusta en la landing / página de GHL. Hace tres cosas:
+// Script que se incrusta en la landing / página de GHL. Hace cuatro cosas:
 //  1) Expone window.tccVSL.identify(email) para asociar el lead manualmente.
 //  2) AUTO-captura el lead del funnel: lee email/nombre desde los parámetros de la URL
 //     (?email=...&name=...) o desde window.tccVSLLead, y llama a identify solo.
-//  3) Propaga a Calendly lo que la página conoce: el anonId del VSL (salesforce_uuid,
+//  3) Emite el evento first-party del pixel `window.gop('lead', { email })` al identificar,
+//     para que el stitching de identidad escriba analytics_visitors.contact_id y el
+//     visitante anónimo (y sus UTMs y % de visión) quede enlazado al contacto en la BD.
+//  4) Propaga a Calendly lo que la página conoce: el anonId del VSL (salesforce_uuid,
 //     para el % de visión) y las UTMs del anuncio/landing (utm_*), que Calendly reenvía
 //     en el bloque tracking del webhook — sin ellas la agenda entra sin origen y la
 //     atribución decide que no vino de ninguna campaña aunque la landing las tenga.
@@ -45,9 +48,29 @@ export async function GET() {
     if (bad(payload.email)) delete payload.email;
     if (bad(payload.name)) delete payload.name;
     if (!payload.email && !payload.name) return;
+    emitLeadPixel(payload.email);
     pending = payload;
     send(payload);
   };
+
+  // === Puente al pixel first-party (stitching visitante→contacto) -------------
+  // Al identificar a la persona emitimos también el evento \x60lead\x60 del pixel
+  // (/tracker.js: window.gop('lead', { email })). El servidor de atribución usa la
+  // identidad de ese evento para escribir analytics_visitors.contact_id: con el MISMO
+  // email, el visitante anónimo de la sesión queda enlazado al contacto y sus UTMs y su
+  // % de visión llegan a atribución SIN depender de que el webhook externo traiga anonId.
+  // El nombre NO se emite: no es señal de identidad del pixel y sería PII de más.
+  // Sin pixel en la página (typeof window.gop != 'function') es una no-op silenciosa; el
+  // VSL/iframe/Calendly funcionan igual (ver nota de los catch arriba).
+  // Dedupe por email a propósito: los re-render de GHL vuelven a llamar identify con el
+  // mismo lead y cada emisión sería un evento \x60lead\x60 de más en raw_events.
+  var ultimoLead = null;
+  function emitLeadPixel(email){
+    if (!email || !email.length || email === ultimoLead) return;
+    ultimoLead = email;
+    try { if (typeof window.gop === 'function') window.gop('lead', { email: email }); }
+    catch (_) { /* opcional: ver la nota del fichero */ }
+  }
 
   // === Enganche del visionado ANÓNIMO con la cita (leads sin optin) -----------
   // El player nos manda su anonId. Lo inyectamos como salesforce_uuid en los enlaces
