@@ -53,6 +53,13 @@ export const EXCEPCIONES_SIN_TENANT: Readonly<Record<string, string>> = {
   platform_settings:
     'ajustes GLOBALES de plataforma (cliente OAuth de Google, secreto de onboarding): no pertenecen a una ' +
     'subcuenta. RLS activo sin políticas y sin grants: solo el service role, y solo un super admin los gestiona',
+  pgss_snapshots:
+    'snapshot MANUAL de pg_stat_statements (línea base para comparaciones antes/después de ' +
+    'rendimiento): un punto en el tiempo de la ventana global de stats, no es un dato de una ' +
+    'subcuenta. RLS sin políticas y sin grants: solo SQL (postgres/servicio)',
+  pgss_snapshot_statements:
+    'una fila por statement del snapshot pgss (por queryid): mismo alcance global que su ' +
+    'tabla padre, mismo patrón de acceso solo-SQL',
 }
 
 // NOTA PARA F0: `organizations` será la segunda tabla raíz sin tenant_id

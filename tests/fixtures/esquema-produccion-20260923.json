@@ -539,6 +539,20 @@
     "politicas": 6
   },
   {
+    "tabla": "pgss_snapshot_statements",
+    "tieneTenantId": false,
+    "tenantIdNotNull": false,
+    "rlsHabilitada": true,
+    "politicas": 0
+  },
+  {
+    "tabla": "pgss_snapshots",
+    "tieneTenantId": false,
+    "tenantIdNotNull": false,
+    "rlsHabilitada": true,
+    "politicas": 0
+  },
+  {
     "tabla": "platform_settings",
     "tieneTenantId": false,
     "tenantIdNotNull": false,

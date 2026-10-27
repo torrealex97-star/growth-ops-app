@@ -100,6 +100,11 @@ test('la lista de excepciones es cerrada y cada una tiene motivo escrito', () =>
     'mcp_oauth_clients',
     'mcp_oauth_codes',
     'mcp_oauth_tokens',
+    // Snapshots manuales de pg_stat_statements (27-oct): línea base para comparaciones de rendimiento;
+    // son un punto del TIEMPO de la ventana global de stats, no un dato de una subcuenta. RLS sin
+    // políticas y sin grants: solo SQL (postgres/servicio).
+    'pgss_snapshot_statements',
+    'pgss_snapshots',
     // Ajustes globales de plataforma (14-oct): no pertenecen a una subcuenta; RLS sin políticas, solo
     // service role y gestionados por super admin (docs/SECURITY_HARDENING.md).
     'platform_settings',
