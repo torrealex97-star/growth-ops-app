@@ -186,14 +186,14 @@ test('canal no autorizado (TikTok), ventana cerrada y persona que ya respondió:
   for (const x of [tk, vc, hu]) assert.equal(x.llamadas.ia, 0)
 })
 
-test('tope diario: con los envíos del día agotados no actúa', async () => {
+test('tope diario: con las interacciones del día agotadas no actúa (también en modo borrador)', async () => {
   const e = escenario({ cfg: { ...CFG, maxEnviosDia: 2 } })
   for (let i = 0; i < 2; i++)
     e.db.conversation_events.push({
       id: `x${i}`,
       tenant_id: 'T',
       conversation_id: 'C9',
-      kind: 'ia_envio',
+      kind: 'agente',
       data: {},
       created_at: AHORA.toISOString(),
     })
