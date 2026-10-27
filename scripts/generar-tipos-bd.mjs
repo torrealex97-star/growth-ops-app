@@ -52,16 +52,26 @@ const nombres = Object.keys(defs).sort()
 
 const pascal = (s) => s.replace(/(^|[^a-zA-Z0-9])([a-zA-Z0-9])/g, (_, __, c) => c.toUpperCase())
 
+// Elemento del array: el spec VIEJO tipaba su contenido con "format" en items; el NUEVO solo deja
+// el "type" JSON en items (string/integer/…). Cubre ambas vías; cualquier otro formato cae a string.
 const tsArrayElement = (p) => {
-  const el = p.items?.format ?? 'string'
-  if (el === 'boolean') return 'boolean'
-  if (el === 'integer' || el === 'smallint') return 'number'
-  if (el === 'json' || el === 'jsonb') return 'Json'
-  if (el === 'bigint' || el === 'numeric') return 'number | string'
+  const el = p.items || {}
+  const fmt = el.format ?? el.type ?? 'string'
+  if (fmt === 'boolean') return 'boolean'
+  if (fmt === 'integer' || fmt === 'smallint' || fmt === 'number') return 'number'
+  if (fmt === 'json' || fmt === 'jsonb') return 'Json'
+  if (fmt === 'bigint' || fmt === 'numeric') return 'number | string'
   return 'string'
 }
 
-const tipoTs = (p) => {
+// NOT NULL: el OpenAPI VIEJO de PostgREST marcaba cada propiedad con "nullable": false, pero el
+// NUEVO (updatede PostgREST visible desde el 27-oct) no emite ese campo en las propiedades y solo
+// refleja la obligatoriedad en "required" del definition (required = exactamente las NOT NULL que
+// además no resuelven su valor solas; id con default gen_random_uuid() sigue en required). Para dar
+// soporte a ambas: explícito true gana (nullable), y con nullable ausente se deriva de required.
+const esNotNull = (p, campo, required) => p.nullable !== true && (p.nullable === false || required.has(campo))
+
+const tipoTs = (p, campo, required) => {
   let base
   switch (p.format) {
     case 'uuid':
@@ -85,6 +95,8 @@ const tipoTs = (p) => {
     case 'real':
       base = 'number'
       break
+    // El spec VIEJO marcaba el formato de arrays como "ARRAY"; el NUEVO usa la forma PostgreSQL
+    // compuesta ("text[]", "integer[]", "uuid[]", …). Basta con que el formato termine en [].
     case 'boolean':
       base = 'boolean'
       break
@@ -92,13 +104,14 @@ const tipoTs = (p) => {
     case 'jsonb':
       base = 'Json'
       break
-    case 'ARRAY':
-      base = `${tsArrayElement(p)}[]`
-      break
     default:
+      if (typeof p.format === 'string' && p.format.endsWith('[]')) {
+        base = `${tsArrayElement(p)}[]`
+        break
+      }
       base = 'string'
   }
-  return p.nullable === false ? base : `${base} | null`
+  return esNotNull(p, campo, required) ? base : `${base} | null`
 }
 
 const bloques = []
@@ -109,18 +122,18 @@ for (const nombre of nombres) {
   const tabla = pascal(nombre.replace(/^public\./, ''))
 
   const row = Object.entries(props)
-    .map(([campo, p]) => `      ${campo}: ${tipoTs(p)}`)
+    .map(([campo, p]) => `      ${campo}: ${tipoTs(p, campo, required)}`)
     .join('\n')
   const insert = Object.entries(props)
     .map(([campo, p]) => {
       const conDefault = p.default !== undefined && p.default !== null
-      const obligatorio = required.has(campo) && !conDefault && p.nullable === false
-      const base = tipoTs(p)
+      const obligatorio = required.has(campo) && !conDefault && esNotNull(p, campo, required)
+      const base = tipoTs(p, campo, required)
       return `      ${campo}: ${obligatorio ? base : `${base} | undefined`}`
     })
     .join('\n')
   const update = Object.entries(props)
-    .map(([campo, p]) => `      ${campo}: ${tipoTs(p).replace(/ \| null$/, '')} | undefined`)
+    .map(([campo, p]) => `      ${campo}: ${tipoTs(p, campo, required).replace(/ \| null$/, '')} | undefined`)
     .join('\n')
 
   bloques.push(`    ${tabla}: {
