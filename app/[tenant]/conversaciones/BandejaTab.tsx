@@ -499,7 +499,14 @@ export default function BandejaTab() {
                       value=""
                       onChange={(e) => {
                         const id = e.target.value
-                        if (id)
+                        // Confirmación: con teclado, mover la flecha por un <select> cerrado dispara `change` y borraría la
+                        // primera respuesta rápida del equipo sin querer.
+                        if (
+                          id &&
+                          window.confirm(
+                            '¿Quitar esta respuesta rápida? Dejará de estar disponible para todo el equipo.'
+                          )
+                        )
                           guardarRapidas(
                             rapidas.filter((x) => x.id !== id),
                             'Respuesta rápida quitada'
