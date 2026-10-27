@@ -47,3 +47,30 @@ test('Vercel compara contra el último despliegue y no solo contra el commit ant
   assert.match(cfg.ignoreCommand, /VERCEL_GIT_PREVIOUS_SHA:-HEAD\^/)
   assert.match(cfg.ignoreCommand, /git diff --quiet \$BASE HEAD/)
 })
+
+// ── Revisión 27-oct (infra): el repo es PÚBLICO y los logs de Actions los lee cualquiera
+import { readdirSync } from 'node:fs'
+
+test('ningún workflow imprime el cuerpo de la respuesta de un cron (lleva los slugs de todas las subcuentas)', () => {
+  for (const f of readdirSync(join(root, '.github/workflows'))) {
+    const y = readFileSync(join(root, '.github/workflows', f), 'utf8')
+    assert.doesNotMatch(y, /cat response\.json/, f)
+  }
+})
+
+test('ci.yml corre con permisos mínimos y Dependabot vigila también las acciones', () => {
+  assert.match(ci, /\npermissions:\n  contents: read\n/)
+  assert.match(readFileSync(join(root, '.github/dependabot.yml'), 'utf8'), /package-ecosystem: github-actions/)
+})
+
+test('los tests de funnels, meta y targets forman parte de `npm test` (antes no los ejecutaba nada)', () => {
+  const scripts = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).scripts
+  for (const d of ['funnels', 'meta', 'targets'])
+    assert.match(scripts.test, new RegExp(`tests/${d}/\\*\\.test\\.mjs`), d)
+})
+
+test('.env.local.example lista las variables obligatorias del servidor', () => {
+  const e = readFileSync(join(root, '.env.local.example'), 'utf8')
+  for (const v of ['CONFIG_ENC_KEY', 'CRON_SECRET', 'MCP_JWT_SECRET', 'TRACKING_IP_SALT', 'RESEND_API_KEY'])
+    assert.match(e, new RegExp(`^${v}=`, 'm'), v)
+})
