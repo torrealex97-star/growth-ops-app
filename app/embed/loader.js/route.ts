@@ -54,7 +54,7 @@ export async function GET() {
   };
 
   // === Puente al pixel first-party (stitching visitante→contacto) -------------
-  // Al identificar a la persona emitimos también el evento \x60lead\x60 del pixel
+  // Al identificar a la persona emitimos también el evento 'lead' del pixel
   // (/tracker.js: window.gop('lead', { email })). El servidor de atribución usa la
   // identidad de ese evento para escribir analytics_visitors.contact_id: con el MISMO
   // email, el visitante anónimo de la sesión queda enlazado al contacto y sus UTMs y su
@@ -63,7 +63,7 @@ export async function GET() {
   // Sin pixel en la página (typeof window.gop != 'function') es una no-op silenciosa; el
   // VSL/iframe/Calendly funcionan igual (ver nota de los catch arriba).
   // Dedupe por email a propósito: los re-render de GHL vuelven a llamar identify con el
-  // mismo lead y cada emisión sería un evento \x60lead\x60 de más en raw_events.
+  // mismo lead y cada emisión sería un evento 'lead' de más en raw_events.
   var ultimoLead = null;
   function emitLeadPixel(email){
     if (!email || !email.length || email === ultimoLead) return;
