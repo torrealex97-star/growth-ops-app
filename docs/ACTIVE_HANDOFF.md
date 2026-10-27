@@ -32,7 +32,16 @@ eventos e intervalos `dbg-`/`freebuff-`); los batch reales son UUID y no se toca
 respondió 200 con lead_email/lead_name escritos. **Único hueco pendiente:** el % visto en Leads
 (`contacts.vsl_watch_pct`) está a 0 filas — no ha habido aún NINGÚN lead identificado en producción
 desde que existe la función ( emails sintéticos por diseño no tocan contactos reales); el UPDATE
-por subcuenta está cubierto por tests de regresión y se llenará con el primer lead real. Los
+por subcuenta está cubierto por tests de regresión y se llenará con el primer lead real. **HUECO
+CERRADO (27-oct ~14:10Z, Buffy):** la vía completa se verificó EN PRODUCCIÓN con un contacto
+sintético marcado (`e2e-vsl-pct-…` del tenant del vídeo): `session` → `identify` → beats 200, y el
+sync escribió `contacts.vsl_watch_pct = 60` (pos 54/90) que subió monótono a `73` tras un latido
+posterior (66/90; `GREATEST` no baja), con `vsl_watched_at` marcado, `vsl_viewer_identities`
+enlazado (contacto↔viewer), evento `video_viewer_identified` y 2 intervalos del heatmap a distinta
+velocidad. Mismo flujo completo funciona hoy. Toda la traza (contacto incluido) se retiró: residuo
+0 en `vsl_sessions`, `vsl_playback_sessions`, `vsl_tracking_events`, `vsl_watch_intervals`,
+`vsl_viewer_identities` y `contacts`. Queda a 0 filas para leads REALES porque la primera
+identificación real aún no ha ocurrido — ya no es un gap de código sino de tráfico. Los
 intervalos de prueba con `start`/`end` separados más de 5 s los rechaza el sanitizador
 (`lib/vsl/tracking.ts`, que es lo que manda el player real) y no son error. Hallazgos revisados y
 descartados: rate limit en `vsl/live` (GET de
