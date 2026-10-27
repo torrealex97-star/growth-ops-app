@@ -40,6 +40,18 @@ solo-lectura; lo pondera el backlog), DELETE sin feedback en el dashboard y mét
 (falsos positivos de knip). Los hallazgos mayores del player ya se corrigieron en el #661 del
 26-oct: no hizo falta re-fixes.
 
+**Nota operativa — comprobaciones de despliegues (27-oct, Buffy):** el MCP de Vercel conectado a
+Freebuff **no puede leer `growth-ops-app`**: `VERCEL_GET_DEPLOYMENTS`/`_GET_PROJECTS`/`_GET_TEAMS`
+devuelven 403 (la cuenta integrada no tiene acceso al equipo del proyecto; `_GET_PROJECTS`
+además lista 0 proyectos). Sustituto verificado: la **CLI de Vercel autenticada del checkout**
+(`.vercel/project.json` apunta al proyecto correcto). Con ella:
+`vercel ls --prod` (lista de production deployments y su estado), `vercel inspect <url>`
+(alias de dominio y estado Ready/Building/Canceled), `vercel logs <url>` para runtime. Semántica
+recordada al leer la lista: un `Canceled` de 9–14 s es la concurrencia de Hobby saltándose
+intermedios (nada perdido, el último construye; gemelo de los runs de CI cancelados), y el
+ignoreCommand de docs-only de `vercel.json` también puede devolver CANCELED — diagnosticar SIEMPRE
+con `vercel inspect`/events, nunca solo por el color de la lista.
+
 **Comparativa semanal A/B VSL EN EL PANEL (26-oct tarde, Buffy):** PR #650 fusionado (`b0a86266`):
 el bloque desplegable «Comparativa de hitos entre vídeos» del panel VSL lee en cada visita la ruta
 autenticada `vsl/ab-comparativa` (hitos 25/50/95 + play rate + % medio por vídeo del tenant; label
