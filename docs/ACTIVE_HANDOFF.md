@@ -105,8 +105,9 @@ registrada en `schema_migrations`. Worktrees basura de `.freebuff/` eliminados; 
 
 1. **Dependabot abierto:** #630 (grupo minor y patch, checks en verde), #631 y #632 (bumps
    mayores, revisar CI antes de fusionar). Fusionar por familias, no en lote.
-2. **Bucle EXPLAIN abierto** del cierre de la migración RLS (#635): medir el efecto real del
-   InitPlan/índices sobre las lecturas de `appointments` con `pg_stat_statements`.
+2. **Bucle EXPLAIN del cierre de la migración RLS (#635): CERRADO el 27-oct** — ver la sección
+   «Efecto medido del InitPlan RLS (#635)» más abajo. Sigue en `PENDIENTES.md` el hallazgo de
+   arquitectura del patrón de acceso a `appointments` (seq scan con quals OR).
 3. **identify visitante→contacto sin escribir (23-oct):** causa raíz documentada en el bloque
    «DIAGNÓSTICO» — la landing no carga `loader.js` ni el player; la parte (b) opcional en código
    (que `loader.js` emita `window.gop('lead', …)` al identificar) es el hilo de código pendiente.
@@ -145,9 +146,56 @@ optimize_rls_and_foreign_key_indexes` con los statements reales. El INSERT dupó
    existente: un agente anterior ya llevaba el registro pasivo de esa versión con el nombre correcto;
    la línea se mantiene único con `version` como PKey, así que el historial queda coherente.
 
-Rama `perf/rls-initplan-verificado`, PR de docs con el estado completado. **Bucle abierto:**
-EXPLAIN del top-queries de `appointments` (SCALABILITY_AUDIT PR-2) para medir el efecto real del
-InitPlan/índices; el historial vacío del resto de migraciones queda documentado pero sin resolver.
+Rama `perf/rls-initplan-verificado`, PR de docs con el estado completado. **Bucle cerrado el
+27-oct-2026**: ver la sección «Efecto medido del InitPlan RLS (#635)» más abajo; el historial vacío
+del resto de migraciones queda documentado pero sin resolver.
+
+# COMPLETADO — Efecto medido del InitPlan RLS (#635) sobre las lecturas de la agenda (27-oct, Freebuff)
+
+Bucle abierto del 24-oct (SCALABILITY_AUDIT PR-2), **cerrado con medición en la BD de producción**.
+Lo verificado, lo medido y lo que NO se puede medir:
+
+- **VERIFIED — forma InitPlan en plan real** (EXPLAIN ANALYZE en la BD de producción, sonda en
+  transacción con `ROLLBACK` y rol/JWT reales). Un listado de agenda ejecutado bajo
+  `SET LOCAL ROLE authenticated` muestra los helpers de Auth resueltos UNA vez por statement:
+  `auth.uid()`/`auth.role()` como `InitPlan … (never executed)` (se resuelven en la fase InitPlan,
+  no por fila) y el match de tenant como `hashed SubPlan` (materializado una vez, lookup O(1) por
+  fila: `ANY (tenant_id = (hashed SubPlan 1).col1)`). En la variante filtrada por
+  `status IN ('scheduled','confirmed')` el barrido se apoya en `appointments_contact_id_status_idx`
+  (index scan) y descarta por filtro 63 filas antes del LIMIT.
+- **VERIFIED — advisor limpio y pg_policies en forma post-migración.** El conteo sobre
+  `pg_policies` de policies cuyo `qual`/`with_check` referencian `auth.uid()`/`auth.role()`/
+  `auth.jwt()` SIN estar envueltos en `( select auth.… )` devuelve **0**; el advisor
+  `auth_rls_initplan` ya no señala nada (el 24-oct marcaba 5 policies).
+- **MEDIDO — pg_stat_statements actual** (ventana desde el último reset; sin comparación
+  temporal posible, ver abajo): las lecturas que mencionan `appointments` concentran el **28,15 %
+  del tiempo de ejecución acumulado de la BD** (1203 s de 4273 s). Desglose del top:
+  - Listados PostgREST `WITH pgrst_source … LEFT JOIN LATERAL (contacts)` de la agenda:
+    12.718 llamadas × 16,8 ms y 12.805 llamadas × 10,7 ms.
+  - Detalles pesados (`appointments.*` con `raw_payload` + `row_to_json` de
+    contacts/setter/closer): ~90–551 llamadas × 212–572 ms de media.
+  - Accesos intermedos: 91–328 ms de media con 90–627 llamadas cada uno.
+- **INSPECTED — límite honesto de la comparación pre/post.** `pg_stat_statements` no conserva un
+  snapshot previo al 24-oct, así que no existe medida por ventana del mismo shape antes/después.
+  Intentar simular la forma antigua (helper inline sin envolver) en una consulta normal resultó
+  inválida: el planificador hoistea `auth.uid()` inline también (200 000 evaluaciones: 94 ms básico
+  vs 96 ms envueltas). La diferencia real solo existe en el qual de una policy RLS, donde el
+  planificador no puede hoistearlo y lo evaluaba por fila; reproducirlo exigiría reaplicar la
+  migración inversa en producción — descartado. Por tanto el beneficio del InitPlan se afirma a
+  nivel de **forma de plan** (una evaluación por statement en vez de una por fila en cada listado
+  de ~800 filas), no como porcentaje de ms ahorrados.
+- **Hallazgo nuevo (EXPLAIN + stats):** el coste restante de las lecturas de `appointments` ya no
+  está en los helpers de Auth, sino en el **patrón de acceso**: cada listado hace seq scan
+  completo (~3.700 buffer hits compartidos, medido con RLS activo) porque los quals con OR
+  (`is_admin_or_director() OR … OR setter_id = … OR closer_id = …`) impiden un índice para
+  `ORDER BY appointment_datetime DESC LIMIT 25` combinado con la policy. Hoy cuesta 10–17 ms
+  (tabla pequeña, ~800 filas / 7,7 MB) y es saludable; el riesgo es su crecimiento lineal con el
+  volumen. No se propuso índice: el remedio real pasa por rediseñar el shape de la policy o de la
+  consulta (decisión de arquitectura, no un índice nuevo).
+
+Estado final del bucle: InitPlan/índices verificados en plan real, advisor limpio y share medido;
+el trabajo restante (patrón de acceso y su crecimiento con volumen) queda en [PENDIENTES.md](../PENDIENTES.md)
+para decidir cuando escale.
 
 Auditoría pedida tras lo de la migración RLS: ¿qué ve `anon` por la RPC `public_tenant_branding`?
 Estado real medido en producción:
