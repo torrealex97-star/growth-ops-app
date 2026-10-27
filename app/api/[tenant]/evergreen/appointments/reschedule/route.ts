@@ -209,6 +209,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({ reason: 'Reprogramada desde la app' }),
+              signal: AbortSignal.timeout(10_000),
             })
             calendlyCanceled = r.ok
             if (!r.ok) {

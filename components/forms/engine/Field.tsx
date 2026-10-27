@@ -171,6 +171,7 @@ export function Field({ q, value, onChange, onPick, error, name, email }: FieldP
                   ref={ref}
                   className={inputCls}
                   placeholder="Cuéntanos"
+                  aria-label={`${q.title}: otra respuesta`}
                   maxLength={200}
                   value={str.slice(OTHER_VALUE_PREFIX.length).trimStart()}
                   onChange={(e) => onChange(OTHER_VALUE_PREFIX + e.target.value)}
@@ -217,6 +218,7 @@ export function Field({ q, value, onChange, onPick, error, name, email }: FieldP
                 <input
                   className={inputCls}
                   placeholder="Cuéntanos"
+                  aria-label={`${q.title}: otra respuesta`}
                   maxLength={200}
                   value={otherVal.slice(OTHER_VALUE_PREFIX.length).trimStart()}
                   onChange={(e) => onChange(arr.map((x) => (x === otherVal ? OTHER_VALUE_PREFIX + e.target.value : x)))}

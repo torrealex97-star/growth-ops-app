@@ -36,12 +36,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     const calendlyToken = (await getTenantConfigWithFallback(t.tenantId)).CALENDLY_API_TOKEN
     let calendlyCanceled = false
     if (appt.external_source === 'calendly' && appt.calendly_event_uuid && calendlyToken) {
-      const r = await fetch(`https://api.calendly.com/scheduled_events/${appt.calendly_event_uuid}/cancellation`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${calendlyToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: reason || 'Cancelada desde la app' }),
-      })
-      calendlyCanceled = r.ok
+      // Con tope de espera: sin él, un Calendly lento retenía la cancelación hasta el límite de la función (60 s) y la cita
+      // nunca se marcaba como cancelada en la app. Si agota el tiempo se sigue: queda `calendlyCanceled = false`.
+      try {
+        const r = await fetch(`https://api.calendly.com/scheduled_events/${appt.calendly_event_uuid}/cancellation`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${calendlyToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason: reason || 'Cancelada desde la app' }),
+          signal: AbortSignal.timeout(10_000),
+        })
+        calendlyCanceled = r.ok
+      } catch (e) {
+        console.error('[appointments/cancel] Calendly no respondió a tiempo:', e instanceof Error ? e.message : e)
+      }
     }
 
     const { error: updateErr } = await sb

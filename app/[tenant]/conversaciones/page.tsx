@@ -51,15 +51,40 @@ export default function ConversacionesPage() {
           sitio.
         </p>
       </div>
-      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Secciones de conversaciones">
+      <div
+        className="flex flex-wrap gap-1.5"
+        role="tablist"
+        aria-label="Secciones de conversaciones"
+        onKeyDown={(e) => {
+          // Patrón ARIA de pestañas: flechas, Inicio y Fin mueven la selección (antes solo se llegaba con Tab).
+          const i = visibles.indexOf(activa)
+          const destino =
+            e.key === 'ArrowRight'
+              ? visibles[(i + 1) % visibles.length]
+              : e.key === 'ArrowLeft'
+                ? visibles[(i - 1 + visibles.length) % visibles.length]
+                : e.key === 'Home'
+                  ? visibles[0]
+                  : e.key === 'End'
+                    ? visibles[visibles.length - 1]
+                    : null
+          if (!destino) return
+          e.preventDefault()
+          setTab(destino)
+          document.getElementById(`conv-tab-${destino}`)?.focus()
+        }}
+      >
         {visibles.map((t) => {
           const { etiqueta, icono: Icono } = DEFINICION[t]
           return (
             <button
               key={t}
+              id={`conv-tab-${t}`}
               type="button"
               role="tab"
               aria-selected={activa === t}
+              aria-controls="conv-panel"
+              tabIndex={activa === t ? 0 : -1}
               onClick={() => setTab(t)}
               className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold ${
                 activa === t
@@ -72,7 +97,9 @@ export default function ConversacionesPage() {
           )
         })}
       </div>
-      <Vista />
+      <div id="conv-panel" role="tabpanel" aria-labelledby={`conv-tab-${activa}`}>
+        <Vista />
+      </div>
     </div>
   )
 }

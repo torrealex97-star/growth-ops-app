@@ -122,7 +122,7 @@ test('la ruta de devoluciones valida plazo, importe y que la venta quede marcada
   const code = sinComentarios(read('app/api/[tenant]/evergreen/refunds/create/route.ts'))
   assert.match(code, /outOfWindow: true/)
   assert.match(code, /!withinWindow && !override/)
-  assert.match(code, /grossRefund > totalGross \+ 0\.01/)
+  assert.match(code, /grossRefund > devolvible \+ 0\.01/)
   assert.match(code, /refundDate > hoy/, 'una devolución con fecha futura descuadra el P&L')
   assert.match(code, /from\('sales'\)[\s\S]{0,300}\.select\('id'\)/, 'hay que comprobar que la venta se marcó')
   assert.match(code, /recomputeRepCommissionTiers\(sb, t\.tenantId/)
