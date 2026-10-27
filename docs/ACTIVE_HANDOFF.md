@@ -7,6 +7,7 @@ Todo lo que depende de Alex, paso a paso: **[PASOS_ALEX.md](PASOS_ALEX.md)**.
 
 | Qué | Dónde está | Qué falta para subirlo |
 | --- | --- | --- |
+| Atribución de compras: backfill vía ficha de GHL (los compradores sin UTMs se atribuyen a campaña/anuncio desde las First/Latest Attribution declaradas por GHL; botón manual en Integraciones) | Rama `fix/atribucion-compras-ghl-rebase` (Buffy, 27-oct): relanza 013a90a7 (23-oct) sobre `main` actual (único conflicto: tablero, resuelto a favor del estado vigente); quality + build locales en verde | PR + CI verde |
 | Registro de las 4 migraciones aplicadas por SQL Editor (26-oct): forms_csm_solo_alumnos, forms_hardening, lanzamientos, mcp_reader_conversaciones | Aplicadas y verificadas en producción; **no constan en `supabase_migrations.schema_migrations`** | No usar `supabase db push` (reaplicaría y fallaría por políticas duplicadas); seguir con `apply_migration` |
 | SDK `@anthropic-ai/sdk` 1.x | No migrado (Dependabot ya lo ignora; #649 cerrado) | Migrar a mano: el SDK 1.x quita `temperature` de `messages.create` y rompe `lib/ai/provider.ts` |
 | Copia de seguridad de la rama vieja `rescate/linaje-viejo-20260913` | Rama local borrada; copia en `~/rescate-linaje-viejo-20260913.bundle` (verificada) | Nada; recuperable con `git fetch <bundle> rescate/linaje-viejo-20260913` |
