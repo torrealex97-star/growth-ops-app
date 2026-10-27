@@ -129,11 +129,13 @@ export async function procesarMensajeEntrante(
   const historial: MensajeHistorial[] = mensajes.map((m) => ({ autor: m.author, texto: m.body, enviadoEn: m.sent_at }))
 
   const inicioDia = new Date(Date.UTC(ahora.getUTCFullYear(), ahora.getUTCMonth(), ahora.getUTCDate())).toISOString()
+  // Tope diario de INTERACCIONES del agente (cada mensaje procesado que llega a la IA, sea borrador o envío): contar
+  // solo `ia_envio` dejaba sin tope el modo borrador, donde cada DM de un lead provocaba una llamada al modelo.
   const { count: enviosHoy } = await sb
     .from('conversation_events')
     .select('id', { count: 'exact', head: true })
     .eq('tenant_id', tenantId)
-    .eq('kind', 'ia_envio')
+    .eq('kind', 'agente')
     .gte('created_at', inicioDia)
 
   const decision = decidirAgente(

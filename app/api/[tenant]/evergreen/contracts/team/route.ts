@@ -21,6 +21,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     const { tenant } = await params
     const t = await requireTenant(tenant)
     if ('error' in t) return t.error
+    // El cliente service-role se salta el RLS de `contracts` (solo admin/director/csm): el control está aquí.
+    if (!t.role || !['admin', 'director', 'manager', 'csm'].includes(t.role) || !t.administraTenant) {
+      return NextResponse.json({ error: 'No tienes permiso para crear contratos de equipo' }, { status: 403 })
+    }
 
     const {
       userId,

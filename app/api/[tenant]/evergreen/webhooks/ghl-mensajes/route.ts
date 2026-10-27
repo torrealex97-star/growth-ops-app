@@ -9,7 +9,9 @@ import { procesarMensajeEntrante } from '@/lib/conversaciones/orquestador'
 import { depsReales } from '@/lib/conversaciones/deps-reales'
 
 export const runtime = 'nodejs'
-export const maxDuration = 10
+// after() hereda este tope: el agente puede encadenar resumen + respuesta de IA + envío por GHL (cada llamada de IA
+// admite hasta 45 s). Con 10 s la plataforma mataba el proceso a medias, sin traspaso ni registro.
+export const maxDuration = 60
 
 // WEBHOOK DE MENSAJES DE GHL (InboundMessage / OutboundMessage) → bandeja de Conversaciones.
 //

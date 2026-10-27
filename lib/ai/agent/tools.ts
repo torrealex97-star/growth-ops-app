@@ -743,7 +743,8 @@ export async function recordBusinessFact(
     .insert({
       tenant_id: tenantId,
       type: input.type,
-      content: input.content,
+      // Acotado: el contenido puede venir de texto de terceros (transcripciones, notas) que el modelo acaba de leer.
+      content: String(input.content ?? '').slice(0, 600),
       outcome_of: input.outcomeOf || null,
       created_by: userId,
     })

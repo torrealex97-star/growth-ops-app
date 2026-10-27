@@ -141,7 +141,7 @@ export default function AgenteTab() {
             />
           </label>
           <label className="text-xs text-muted-foreground">
-            Máximo de envíos de la IA por día
+            Máximo de interacciones de la IA por día (borradores y envíos)
             <input
               type="number"
               min={1}

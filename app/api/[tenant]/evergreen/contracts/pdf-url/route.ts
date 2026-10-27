@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { requireTenant } from '@/lib/auth/requireTenant'
+import { ROLES_VER_CONTRATOS } from '@/lib/auth/acceso-por-propiedad'
 
 export const runtime = 'nodejs'
 
@@ -27,11 +28,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
 
     const { data: contract, error } = await sb
       .from('contracts')
-      .select('signed_pdf_url, url')
+      .select('signed_pdf_url, url, user_id')
       .eq('id', contractId)
       .eq('tenant_id', t.tenantId)
       .maybeSingle()
     if (error || !contract) return NextResponse.json({ error: 'Contrato no encontrado' }, { status: 404 })
+    // Misma regla que `contracts_select` del RLS (el service-role la salta): liderazgo/csm/gestoría, o el contrato es tuyo.
+    const veLiderazgo = t.isSuperAdmin || (ROLES_VER_CONTRATOS as readonly string[]).includes(t.role ?? '')
+    if (!veLiderazgo && contract.user_id !== t.userId) {
+      // 404 y no 403: no se confirma que el contrato existe a quien no puede verlo.
+      return NextResponse.json({ error: 'Contrato no encontrado' }, { status: 404 })
+    }
 
     if (contract.signed_pdf_url) {
       const path = `${contractId}.pdf`

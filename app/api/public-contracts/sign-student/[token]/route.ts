@@ -262,7 +262,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
 
     // Persiste teléfono en el contacto si lo aportó al firmar.
     if (c.contact_id && sd.phone) {
-      const { error: phoneErr } = await sb.from('contacts').update({ phone: sd.phone }).eq('id', c.contact_id)
+      const { error: phoneErr } = await sb
+        .from('contacts')
+        .update({ phone: sd.phone })
+        .eq('id', c.contact_id)
+        .eq('tenant_id', tenantId)
       if (phoneErr)
         console.warn(`[sign-student] contrato ${c.id}: no se pudo guardar el teléfono aportado:`, phoneErr.message)
     }
