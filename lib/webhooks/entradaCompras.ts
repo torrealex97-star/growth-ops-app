@@ -2,7 +2,8 @@ import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { getTenantConfigWithFallback } from '@/lib/config'
 import { getOrCreateContact } from '@/lib/contacts/resolve'
-import { atribuirDesdePayload } from '@/lib/contacts/atribucion'
+import { leerTrayectoria, registrarToque, type ToqueAtribucion } from '@/lib/contacts/atribucion'
+import { enriquecerAtribucionDesdeContactoGhl, tieneEvidenciaAtribucionGhl } from '@/lib/integrations/ghl-attribution'
 import { hechoDesdeSobre } from '@/lib/eventos/canonico'
 import type { VeredictoFirma } from './verifySecret'
 
@@ -239,12 +240,30 @@ export async function procesarEntradaCompra(opciones: {
   // último — las reglas de registrarToque. Sin UTMs en el payload, no se escribe NADA (un hueco
   // no es un cero). Un fallo al atribuir NO tumba el webhook: la compra y el contacto valen más
   // que su procedencia.
+  //
+  // FUENTES DE EVIDENCIA, EN ORDEN: 1) las UTMs que el proveedor ponga en su propio payload
+  // (toqueDesdePayload); 2) si no hay evidencia y el contacto ya existe en GHL, la FICHA de GHL,
+  // que conserva la atribución del lead (first/last attribution con campaña y anuncio de Meta) —
+  // una única consulta con timeout y fallback: una caída de GHL no impide registrar la compra.
   try {
-    const { resultado } = await atribuirDesdePayload(sb, tenantId, contactId, toqueDesdePayload(payload), {
-      source: fuente,
-      enEl: derivado.ocurridoEn,
-    })
-    if (!resultado.ok) console.warn(`[atribucion/${fuente}] no se pudo registrar el toque:`, resultado.error)
+    let toquePayload = toqueDesdePayload(payload)
+    const ghlContactId = resolved.contact.ghl_contact_id
+    if (ghlContactId && cfg.GHL_API_TOKEN && !tieneEvidenciaAtribucionGhl(toquePayload)) {
+      toquePayload = (await enriquecerAtribucionDesdeContactoGhl(toquePayload, ghlContactId, cfg.GHL_API_TOKEN)).payload
+    }
+    const trayectoria = leerTrayectoria(toquePayload)
+    const toques = [
+      trayectoria.first,
+      trayectoria.second,
+      trayectoria.last,
+      // El toque del propio evento compra (booking/flat): su procedencia declarada es la fuente,
+      // igual que lo era con atribuirDesdePayload.
+      trayectoria.booking ? { ...trayectoria.booking, source: trayectoria.booking.source ?? fuente } : null,
+    ].filter((t): t is ToqueAtribucion => Boolean(t))
+    for (const toque of toques) {
+      const r = await registrarToque(sb, tenantId, contactId, { ...toque, enEl: derivado.ocurridoEn })
+      if (!r.ok) console.warn(`[atribucion/${fuente}] no se pudo registrar el toque:`, r.error)
+    }
   } catch (e) {
     console.warn(`[atribucion/${fuente}] no se pudo registrar el toque:`, e instanceof Error ? e.message : e)
   }

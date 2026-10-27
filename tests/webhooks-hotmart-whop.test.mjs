@@ -371,7 +371,12 @@ test('el motor encaja el contacto por email, estampa venta/canal solo al crear y
   assert.match(src, /getOrCreateContact/)
   assert.match(src, /leadStatus: 'venta'/)
   assert.match(src, /leadChannel: fuente/)
-  assert.match(src, /atribuirDesdePayload/)
+  // La atribución pasa por la trayectoria del proveedor (first/last attribution) y, si el payload
+  // no trae evidencia y el contacto existe en GHL, se enriquece con SU FICHA (única fuente que
+  // conserva las UTMs del comprador cuando Stripe/Hotmart/Whop no las mandan).
+  assert.match(src, /leerTrayectoria\(toquePayload\)/)
+  assert.match(src, /registrarToque\(sb, tenantId, contactId/)
+  assert.match(src, /!tieneEvidenciaAtribucionGhl\(toquePayload\)/)
   assert.match(src, /enEl: derivado\.ocurridoEn/, 'el toque lleva la fecha real del hecho')
   // Y el hecho canónico con la fecha de la derivación y la contactId de la proyección.
   assert.match(src, /ocurridoEn: derivado\.ocurridoEn/)
