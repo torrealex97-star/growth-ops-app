@@ -24,5 +24,7 @@ jobs:
             -H "Authorization: Bearer $CRON_SECRET" \
             "$APP_URL/api/_/evergreen/cron/social-radar")
           echo "HTTP $code"
-          cat response.json; echo
+          # Repo PÚBLICO: los logs de Actions los lee cualquiera. El cuerpo de la respuesta lleva los slugs de todas las
+          # subcuentas y mensajes de error internos, así que NO se imprime: solo el tamaño y el indicador `ok`.
+          echo "Respuesta omitida ($(wc -c < response.json) bytes) ok=$(jq -r 'try (.ok | tostring) catch "n/d"' response.json 2>/dev/null || echo n/d)"
           case "$code" in 2*) exit 0 ;; *) exit 1 ;; esac

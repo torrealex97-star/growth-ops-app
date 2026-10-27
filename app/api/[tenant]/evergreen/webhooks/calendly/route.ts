@@ -575,6 +575,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       setter: !!setterId,
     })
   } catch (err) {
+    console.error('[calendly] 500 al procesar el webhook:', err instanceof Error ? err.message : err)
     return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 })
   }
 }

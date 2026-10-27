@@ -23,6 +23,10 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Mínimo privilegio: ningún job necesita más que leer el repositorio (el despliegue lo hace Vercel).
+permissions:
+  contents: read
+
 jobs:
   changes:
     name: Detectar cambios de aplicación

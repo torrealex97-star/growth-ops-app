@@ -107,6 +107,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     return NextResponse.json({ ok: true, resultado })
   } catch (error) {
     // 500 para que Fathom reintente: un fallo transitorio (BD caída) no puede perder una reunión.
+    // Se REGISTRA: este error está capturado, así que Sentry (que solo ve los no capturados) no lo veía y la entrega
+    // fallida solo constaba en el panel del proveedor.
+    console.error('[fathom] 500 al procesar la reunión:', error instanceof Error ? error.message : error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Error al procesar la reunión' },
       { status: 500 }
