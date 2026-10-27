@@ -22,13 +22,23 @@ devuelva `tenant_id` en su RETURNING); (2) el `viewer_id` del playback guardaba 
 vez del saneado, rompiendo el enlace identify→contacto; (3) `identify` era la única ruta pública VSL
 sin rate limit; (4) `as any` del POST de vídeos sustituido por el helper tipado `jsonVsl`. CI del
 SHA: Quality Gate + Build + Smoke E2E en verde (dos runs, con y sin el commit de docs); local:
-`quality` (789 tests) + `build` verdes. **Pendiente de VERIFICAR en producción:** el deploy Vercel
-del merge está en cola por rate limit de builds de la cuenta (retry 24 h) — cuando tenga hueco
-construirá este SHA y conviene confirmar con tráfico real que los latidos escriben sesiones y que
-el % visto se pinta en Leads. Hallazgos revisados y descartados: rate limit en `vsl/live` (GET de
-solo-lectura; lo pondera el backlog), DELETE sin feedback en el dashboard y métricas de `vsl_sync` (falsos positivos de
-knip). Los hallazgos mayores del player ya se corrigieron en el #661 del 26-oct: no hizo falta
-re-fixes.
+`quality` (789 tests) + `build` verdes. **VERIFICADO EN PRODUCCIÓN (27-oct ~11:00Z):** Vercel
+construyó el SHA fusionado (deploy `DUabPuZ7` Ready contra `app.scalixsystems.com`); smoke
+controlado (sesión + 2 latidos + ended + ended repetido) devolvió 200 y en BD la sesión reunió los
+51 segundos únicos, reached_end, el viewer_id saneado y el evento repetido idempotente; los
+intervalos del heatmap escribieron (batch de 2 tramos a distinta velocidad) y el tráfico REAL
+del player ya escribia batches de 11–12 tramos. Traza de humo borrada de la BD (sesión, playback,
+eventos e intervalos `dbg-`/`freebuff-`); los batch reales son UUID y no se tocaron. El `identify`
+respondió 200 con lead_email/lead_name escritos. **Único hueco pendiente:** el % visto en Leads
+(`contacts.vsl_watch_pct`) está a 0 filas — no ha habido aún NINGÚN lead identificado en producción
+desde que existe la función ( emails sintéticos por diseño no tocan contactos reales); el UPDATE
+por subcuenta está cubierto por tests de regresión y se llenará con el primer lead real. Los
+intervalos de prueba con `start`/`end` separados más de 5 s los rechaza el sanitizador
+(`lib/vsl/tracking.ts`, que es lo que manda el player real) y no son error. Hallazgos revisados y
+descartados: rate limit en `vsl/live` (GET de
+solo-lectura; lo pondera el backlog), DELETE sin feedback en el dashboard y métricas de `vsl_sync`
+(falsos positivos de knip). Los hallazgos mayores del player ya se corrigieron en el #661 del
+26-oct: no hizo falta re-fixes.
 
 **Comparativa semanal A/B VSL EN EL PANEL (26-oct tarde, Buffy):** PR #650 fusionado (`b0a86266`):
 el bloque desplegable «Comparativa de hitos entre vídeos» del panel VSL lee en cada visita la ruta
