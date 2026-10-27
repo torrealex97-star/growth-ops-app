@@ -561,11 +561,7 @@ export function FormEngine({
         {stage === 'question' && current && (
           <div key={current.id} className={anim}>
             <div className="mb-6 flex items-center justify-between text-sm text-muted-foreground">
-              <button
-                type="button"
-                onClick={back}
-                className="inline-flex items-center gap-1 hover:text-foreground"
-              >
+              <button type="button" onClick={back} className="inline-flex items-center gap-1 hover:text-foreground">
                 <ArrowLeft className="h-4 w-4" /> Atrás
               </button>
               <span aria-live="polite">
