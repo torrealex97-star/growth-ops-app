@@ -901,6 +901,46 @@ export const INTEGRATION_GROUPS: IntegrationGroup[] = [
     ],
   },
   {
+    id: 'lanzamiento',
+    title: 'Lanzamientos (GHL)',
+    description:
+      'Calendario de lanzamientos y apuntados: GHL avisa de cada alta, de la encuesta previa y de quién confirma asistencia.',
+    category: 'marketing',
+    required: ['LANZAMIENTO_WEBHOOK_SECRET'],
+    webhookPath: '/api/{tenant}/evergreen/webhooks/lanzamiento',
+    pasos: [
+      {
+        titulo: 'Programa y abre un lanzamiento',
+        detalle:
+          'En Lanzamientos escribe la fecha del evento, pulsa «Programar» y luego «Abrir siguiente». Solo los leads que lleguen con un lanzamiento abierto se apuntan a él.',
+      },
+      {
+        titulo: 'Crea tres Custom Webhook en GHL',
+        detalle:
+          'En GHL → Automation → Workflows añade una acción «Custom Webhook» (POST) en cada flujo: el del registro usa la dirección de arriba; el de la encuesta, la misma con ?evento=encuesta al final; y el del botón «Sí, confirmo», con ?evento=confirmacion (?evento=desconfirmacion para retirar la asistencia).',
+      },
+      {
+        titulo: 'Pon el secreto en los dos sitios',
+        detalle:
+          'Genera el secreto abajo con el botón y pégalo idéntico, sin espacios, como cabecera x-ghl-secret en cada Custom Webhook de GHL y en el campo de abajo.',
+      },
+      {
+        titulo: 'Compruébalo',
+        detalle:
+          'Registra un contacto de prueba: en «Recepción de webhooks» el último evento cambia y en Lanzamientos aparece apuntado al lanzamiento abierto.',
+      },
+    ],
+    fields: [
+      {
+        key: 'LANZAMIENTO_WEBHOOK_SECRET',
+        label: 'Secreto del webhook',
+        type: 'password',
+        secret: true,
+        help: 'El mismo valor que pones en la cabecera x-ghl-secret de los Custom Webhook de GHL. Lo eliges tú.',
+      },
+    ],
+  },
+  {
     id: 'whop',
     title: 'Whop',
     description: 'Membresías y pagos de tu comunidad en Whop: cotejo por API y recepción en tiempo real por webhook.',

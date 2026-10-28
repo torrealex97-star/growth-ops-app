@@ -282,7 +282,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ ten
       .from('raw_events')
       .select('source,received_at,processing_status')
       .eq('tenant_id', auth.tenantId)
-      .in('source', ['stripe', 'hotmart', 'whop', 'typeform'])
+      .in('source', ['stripe', 'hotmart', 'whop', 'typeform', 'ghl-launch'])
       .order('received_at', { ascending: false })
       .limit(150)
       .then(({ data }) => (data ?? []) as Parameters<typeof eventosPorFuente>[0]),
@@ -296,9 +296,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ ten
       webhook.evidencia === 'raw_stripe' ||
       webhook.evidencia === 'raw_hotmart' ||
       webhook.evidencia === 'raw_whop' ||
-      webhook.evidencia === 'raw_typeform'
+      webhook.evidencia === 'raw_typeform' ||
+      webhook.evidencia === 'raw_lanzamiento'
     ) {
-      const r = entregasPorFuente[webhook.evidencia.replace('raw_', '')] ?? {
+      // La fuente de raw_events del lanzamiento es `ghl-launch`, no el nombre de la evidencia.
+      const fuente = webhook.evidencia === 'raw_lanzamiento' ? 'ghl-launch' : webhook.evidencia.replace('raw_', '')
+      const r = entregasPorFuente[fuente] ?? {
         ultimo_valido: null,
         ultimo_rechazo: null,
       }
