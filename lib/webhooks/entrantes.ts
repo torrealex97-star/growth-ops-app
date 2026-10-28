@@ -43,6 +43,7 @@ export type WebhookEntrante = {
     | 'raw_hotmart'
     | 'raw_whop'
     | 'raw_typeform'
+    | 'raw_lanzamiento'
     | null
   /**
    * Aviso persistente cuando aplica. No es un error: es una limitación de la plataforma
@@ -211,6 +212,34 @@ export const WEBHOOKS_ENTRANTES: WebhookEntrante[] = [
         'Tú eliges el secreto: genéralo aquí con el botón y pégalo en dos sitios. En Typeform: Connect → Webhooks → Edit → Add a Secret. Aquí: el campo «Secret del webhook». Tiene que ser EXACTAMENTE el mismo valor, sin espacios.',
       prueba:
         'Envía el formulario público con tu email (la vista previa del editor no dispara el webhook). En Typeform, Webhooks → View deliveries debe mostrar un 200; aquí, «Último evento» cambia.',
+      secretoLoEligesTu: true,
+    },
+  },
+  {
+    id: 'lanzamiento',
+    groupId: 'lanzamiento',
+    titulo: 'Lanzamientos — altas, encuesta y confirmación (GHL)',
+    descripcion:
+      'Apunta cada lead nuevo al lanzamiento abierto con sus UTMs, guarda las respuestas de la encuesta previa y marca quién confirma asistencia.',
+    path: '/api/{tenant}/evergreen/webhooks/lanzamiento',
+    metodo: 'POST',
+    auth: { tipo: 'cabecera', nombre: 'x-ghl-secret', configKey: 'LANZAMIENTO_WEBHOOK_SECRET' },
+    eventos: [
+      'alta (por defecto)',
+      'encuesta (?evento=encuesta)',
+      'confirmación (?evento=confirmacion o desconfirmacion)',
+    ],
+    // Escribe TODO en raw_events (fuente `ghl-launch`) antes de procesar, incluidos los rechazos de firma.
+    evidencia: 'raw_lanzamiento',
+    aviso:
+      'Necesita un lanzamiento ABIERTO: en Lanzamientos programa una fecha y pulsa «Abrir siguiente». Sin lanzamiento abierto las altas no tienen a dónde apuntarse.',
+    guia: {
+      donde:
+        'GHL → Automation → Workflows. Crea una acción «Custom Webhook» (método POST) por cada evento: la del alta usa la dirección de arriba tal cual; la de la encuesta, la misma con ?evento=encuesta al final; y la del botón «Sí, confirmo», con ?evento=confirmacion (o ?evento=desconfirmacion para retirar la asistencia).',
+      secreto:
+        'Tú eliges el secreto: genéralo aquí con el botón y pégalo en dos sitios, idéntico. En cada Custom Webhook de GHL, como cabecera con nombre x-ghl-secret. Aquí, en el campo «Secreto del webhook». Sin espacios.',
+      prueba:
+        'Apunta un contacto de prueba desde el formulario de registro (o dispara el workflow a mano). Aquí, «Último evento» cambia, y en Lanzamientos el contacto aparece en el lanzamiento abierto.',
       secretoLoEligesTu: true,
     },
   },

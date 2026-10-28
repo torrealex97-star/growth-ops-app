@@ -42,6 +42,7 @@ test('la cabecera que el catálogo declara es la que la ruta comprueba de verdad
     'ghl-mensajes': { cabecera: 'x-ghl-secret', clave: 'GHL_WEBHOOK_SECRET' },
     contratos: { cabecera: 'x-ghl-secret', clave: 'GHL_WEBHOOK_SECRET' },
     onboarding: { cabecera: 'x-ghl-secret', clave: 'ONBOARDING_INBOUND_SECRET' },
+    lanzamiento: { cabecera: 'x-ghl-secret', clave: 'LANZAMIENTO_WEBHOOK_SECRET' },
   }
   for (const w of WEBHOOKS_ENTRANTES) {
     const esp = esperados[w.id]
@@ -230,4 +231,13 @@ test('el webhook de GHL sigue marcando sus actas con via ghl_webhook (la evidenc
   const ruta = readFileSync(join(root, 'app/api/[tenant]/evergreen/webhooks/ghl/route.ts'), 'utf8')
   const actas = ruta.match(/audit_logs[\s\S]{0,400}?via: 'ghl_webhook'/g) ?? []
   assert.ok(actas.length >= 2, 'el webhook de GHL marca con via sus actas de create y update')
+})
+
+test('lanzamiento: la cabecera y la clave del catálogo son las que lee el motor del webhook', () => {
+  const motor = readFileSync(join(root, 'lib/launch/webhook.ts'), 'utf8')
+  assert.match(motor, /const CLAVE_SECRETO = 'LANZAMIENTO_WEBHOOK_SECRET'/)
+  assert.match(motor, /req\.headers\.get\('x-ghl-secret'\)/)
+  const w = WEBHOOKS_ENTRANTES.find((x) => x.id === 'lanzamiento')
+  assert.equal(w.guia.secretoLoEligesTu, true)
+  assert.equal(w.evidencia, 'raw_lanzamiento')
 })
