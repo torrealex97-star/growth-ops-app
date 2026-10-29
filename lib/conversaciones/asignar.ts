@@ -71,12 +71,14 @@ export async function asignarRoundRobin(
       .select('id')
       .maybeSingle()
     if (!hecho) return null
-    await sb.from('conversation_events').insert({
+    const { error: errEvento } = await sb.from('conversation_events').insert({
       tenant_id: tenantId,
       conversation_id: conversationId,
       kind: 'asignacion',
       data: { de: null, a: elegido, auto: true },
     })
+    // La asignación (claim atómico) ya se ejecutó; la pérdida del evento se ve a log.
+    if (errEvento) console.error('[conversaciones] asignación sin evento de bitácora:', errEvento.message)
     return elegido
   } catch (e) {
     console.warn('[conversaciones] reparto no disponible:', e instanceof Error ? e.message : e)

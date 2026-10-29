@@ -124,13 +124,18 @@ export async function enviarComoPersona(
     texto,
     enviadoEn: ahora.toISOString(),
   })
-  await sb.from('conversation_events').insert({
-    tenant_id: tenantId,
-    conversation_id: conversationId,
-    actor_user_id: usuarioId,
-    kind: origen.tipo === 'borrador' ? 'borrador_aprobado' : 'respuesta',
-    data: { respuesta_id: messageId, ...(origen.tipo === 'borrador' ? { evento_id: origen.eventoId } : {}) },
-  })
+  {
+    const { error: errEvento } = await sb.from('conversation_events').insert({
+      tenant_id: tenantId,
+      conversation_id: conversationId,
+      actor_user_id: usuarioId,
+      kind: origen.tipo === 'borrador' ? 'borrador_aprobado' : 'respuesta',
+      data: { respuesta_id: messageId, ...(origen.tipo === 'borrador' ? { evento_id: origen.eventoId } : {}) },
+    })
+    // El mensaje ya se envió: un 500 invitaría a reenviarlo. La pérdida del evento de bitácora se
+    // hace visible a log.
+    if (errEvento) console.error('[conversaciones] no se pudo registrar la respuesta anticipada:', errEvento.message)
+  }
   return { ok: true, messageId }
 }
 

@@ -143,12 +143,14 @@ export async function registrarMensaje(
     .eq('tenant_id', tenantId)
   if (errUp) return { ok: false, error: errUp.message }
   if (parche.status !== estadoAnterior) {
-    await sb.from('conversation_events').insert({
+    const { error: errEvento } = await sb.from('conversation_events').insert({
       tenant_id: tenantId,
       conversation_id: conv.id,
       kind: 'estado',
       data: { de: estadoAnterior, a: parche.status, por: m.autor },
     })
+    // El cambio de estado ya se aplicó; la pérdida del evento se ve a log.
+    if (errEvento) console.error('[conversaciones] no se pudo registrar el cambio de estado:', errEvento.message)
   }
   return { ok: true, nuevo: true, conversationId: conv.id }
 }

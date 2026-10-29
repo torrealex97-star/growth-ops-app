@@ -53,13 +53,20 @@ type FilaConv = {
   assignee_id: string | null
 }
 
-const evento = (
+const evento = async (
   sb: SupabaseClient,
   tenantId: string,
   conversationId: string,
   kind: string,
   data: Record<string, unknown>
-) => sb.from('conversation_events').insert({ tenant_id: tenantId, conversation_id: conversationId, kind, data })
+) => {
+  const { error } = await sb
+    .from('conversation_events')
+    .insert({ tenant_id: tenantId, conversation_id: conversationId, kind, data })
+  // La acción principal ya se ejecutó; un 500 aquí provocaría reintentos del remitente y duplicaría
+  // el efecto. La pérdida se hace visible a log, que es lo único honesto que queda.
+  if (error) console.error(`[conversaciones] no se pudo registrar el evento '${kind}':`, error.message)
+}
 
 async function traspasar(
   sb: SupabaseClient,

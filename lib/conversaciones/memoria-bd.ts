@@ -65,17 +65,21 @@ export async function memoriaParaPrompt(
         const limpio = limpiarResumen(r.text)
         if (limpio) {
           propio = limpio
-          await sb
+          const { error: errResumen } = await sb
             .from('conversations')
             .update({ summary: limpio, updated_at: new Date().toISOString() })
             .eq('tenant_id', tenantId)
             .eq('id', conv.id)
-          await sb.from('conversation_events').insert({
+          // Si el resumen no se persiste se pierde memoria de la conversación en silencio; se ve a log
+          // y la siguiente ventana de resumen lo reconstruirá.
+          if (errResumen) console.error('[conversaciones] no se pudo guardar el resumen:', errResumen.message)
+          const { error: errEvento } = await sb.from('conversation_events').insert({
             tenant_id: tenantId,
             conversation_id: conv.id,
             kind: 'resumen',
             data: { hasta: fuera[fuera.length - 1].sent_at },
           })
+          if (errEvento) console.error('[conversaciones] no se pudo registrar el evento resumen:', errEvento.message)
         }
       }
     }
