@@ -7,7 +7,8 @@ Todo lo que depende de Alex, paso a paso: **[PASOS_ALEX.md](PASOS_ALEX.md)**.
 
 | Qué | Dónde está | Qué falta para subirlo |
 | --- | --- | --- |
-| Registro de las 4 migraciones aplicadas por SQL Editor (26-oct): forms_csm_solo_alumnos, forms_hardening, lanzamientos, mcp_reader_conversaciones | Aplicadas y verificadas en producción; **no constan en `supabase_migrations.schema_migrations`** | No usar `supabase db push` (reaplicaría y fallaría por políticas duplicadas); seguir con `apply_migration` |
+| Registro de las 2 migraciones aplicadas por SQL Editor: lanzamientos, mcp_reader_conversaciones (las 2 de forms quedaron registradas el 29-oct vía `apply_migration`, versión de la primera alineada al fichero; la de hardening quedó con versión de registro `20261029151952` y el número del fichero en su `name`) | Aplicadas y verificadas en producción; **no constan en `supabase_migrations.schema_migrations`** | No usar `supabase db push` (reaplicaría y fallaría por políticas duplicadas); seguir con `apply_migration` |
+| Barrido «await sin comprobar { error }» — ola final del backlog | Rama `fix/silent-writes-ola` (Freebuff, 29-oct) | En curso: escáner estático + triage priorizando dinero/estado; PR con CI verde antes de fusionar |
 | SDK `@anthropic-ai/sdk` 1.x | No migrado (Dependabot ya lo ignora; #649 cerrado) | Migrar a mano: el SDK 1.x quita `temperature` de `messages.create` y rompe `lib/ai/provider.ts` |
 | Copia de seguridad de la rama vieja `rescate/linaje-viejo-20260913` | Rama local borrada; copia en `~/rescate-linaje-viejo-20260913.bundle` (verificada) | Nada; recuperable con `git fetch <bundle> rescate/linaje-viejo-20260913` |
 
