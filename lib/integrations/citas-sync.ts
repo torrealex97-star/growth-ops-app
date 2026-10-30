@@ -3,8 +3,10 @@ import {
   atribuirDesdePayload,
   leerToque,
   leerTrayectoria,
+  leerUtmContacto,
   registrarToque,
   serializarToque,
+  utmDeReservaConContacto,
   type ToqueAtribucion,
 } from '@/lib/contacts/atribucion'
 import { aplicarCustomFieldsGhl } from '@/lib/contacts/custom-fields-ghl'
@@ -774,6 +776,13 @@ export async function syncCalendly(
   // presupuesto dejaba atrás siempre (asc: re-procesaba la misma cabeza antigua, la cola no
   // entraba nunca y sus ventas quedaban sin closer de referencia).
   const duenaPorEmail = new Map<string, string | null>()
+  // Cache de la atribución CAPTURADA del contacto (véase el relleno de huecos más abajo): la
+  // misma fila no se relee para cada cita de la misma persona en la pasada. Valores: ok=true con
+  // utm (o null) | ok=false con error.
+  const origenDelContacto = new Map<
+    string,
+    { ok: true; utm: Record<string, string> | null } | { ok: false; error: string }
+  >()
 
   const { desde, hasta } = ventana(opts)
   let pageToken = opts.pageToken ?? ''
@@ -871,12 +880,30 @@ export async function syncCalendly(
         } catch (e) {
           console.warn('[atribucion][calendly] no se pudo registrar el toque:', e instanceof Error ? e.message : e)
         }
-        const utmDeCita = {
+        let utmDeCita = {
           ...(toque.utmSource ? { utm_source: toque.utmSource } : {}),
           ...(toque.utmMedium ? { utm_medium: toque.utmMedium } : {}),
           ...(toque.utmCampaign ? { utm_campaign: toque.utmCampaign } : {}),
           ...(toque.utmContent ? { utm_content: toque.utmContent } : {}),
           ...(toque.utmTerm ? { utm_term: toque.utmTerm } : {}),
+        }
+        // RECAÍDA DEL ORIGEN (formulario → Calendly). Cuando la reserva no trae NINGUNA UTM (lo
+        // normal: los enlaces de booking no las repiten), los huecos se rellenan con la atribución
+        // capturada del contacto — el lead dejó su origen en contact_attributions al ponerse por
+        // Typeform o un formulario propio, y la cita nacía sin canal en las agendas. Solo entra lo
+        // capturado (nada se inventa); un payload con ALGUNA UTM no se completa: corregir a salves
+        // de distintos fabricaría una fuente híbrida. Lectura cachada por contacto y fallar
+        // continúa sin heredar nada (un hueco no es un cero).
+        if (Object.keys(utmDeCita).length === 0) {
+          if (!origenDelContacto.has(contact.id))
+            origenDelContacto.set(contact.id, await leerUtmContacto(sb, tenantId, contact.id))
+          const origen = origenDelContacto.get(contact.id)
+          if (origen?.ok && origen.utm) {
+            const relleno = utmDeReservaConContacto(utmDeCita, origen.utm)
+            if (Object.keys(relleno).length > 0) utmDeCita = relleno
+          } else if (origen && !origen.ok) {
+            console.warn('[atribucion][calendly] no se pudo leer la atribución del contacto:', origen.error)
+          }
         }
         const bookingSnapshot = serializarToque(toque)
         // Closer = dueño del calendario (event_memberships[0].user_email), igual que el webhook:

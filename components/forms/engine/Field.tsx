@@ -1,13 +1,23 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Star } from 'lucide-react'
+import { Mail, Megaphone, Search, Star, Users, Video } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { DIAL_CODES, toE164 } from '@/lib/phone'
 import { maxForScale, OTHER_VALUE_PREFIX } from '@/lib/forms/validation'
 import type { Answer, Question } from '@/lib/forms/types'
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+
+// Iconos de opción por nombre permitido: las páginas públicas no importan lucide dinámicamente, así
+// que solo pasan los nombres de esta lista cerrada; un nombre fuera de ella degrada a la letra.
+const ICONOS_OPCION: Record<string, typeof Star> = {
+  megaphone: Megaphone,
+  search: Search,
+  users: Users,
+  video: Video,
+  mail: Mail,
+}
 
 const inputCls =
   'w-full rounded-[var(--form-radius,0.75rem)] border-2 border-border bg-card px-4 py-3 text-lg text-foreground placeholder:text-muted-foreground focus:border-brand-500 focus:outline-none'
@@ -30,6 +40,7 @@ function ChoiceButton({
   onClick,
   multi,
   imageUrl,
+  icon,
 }: {
   letter: string
   label: string
@@ -37,7 +48,10 @@ function ChoiceButton({
   onClick: () => void
   multi?: boolean
   imageUrl?: string
+  /** Icono lucide por nombre permitido (ver ICONOS_OPCION); inválido ⇒ se muestra la letra. */
+  icon?: string
 }) {
+  const Icono = icon ? ICONOS_OPCION[icon] : undefined
   return (
     <button
       type="button"
@@ -65,7 +79,7 @@ function ChoiceButton({
               : 'border-border text-muted-foreground'
           )}
         >
-          {letter}
+          {Icono ? <Icono size={15} strokeWidth={2.25} aria-hidden /> : letter}
         </span>
         <span>{label}</span>
       </span>
@@ -154,6 +168,7 @@ export function Field({ q, value, onChange, onPick, error, name, email }: FieldP
               letter={LETTERS[i] ?? ''}
               label={o.label}
               imageUrl={o.imageUrl}
+              icon={o.icon}
               selected={str === o.value}
               onClick={() => onPick(o.value)}
             />
@@ -197,6 +212,7 @@ export function Field({ q, value, onChange, onPick, error, name, email }: FieldP
               key={o.value}
               multi
               letter={LETTERS[i] ?? ''}
+              icon={o.icon}
               label={o.label}
               imageUrl={o.imageUrl}
               selected={arr.includes(o.value)}

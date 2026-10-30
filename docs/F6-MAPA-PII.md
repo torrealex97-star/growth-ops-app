@@ -25,7 +25,7 @@ del inventario es el que hace o rompe `erase_person`: **¿la fila se puede alcan
 | `contact_attributions`                                            | `utm_content`, `first_/last_utm_content`                                                             | 0                                                                                          |
 | `sales`                                                           | `access_email`, `notes`                                                                              | 28 ventas                                                                                  |
 | `stripe_customers`                                                | `email`, `name`                                                                                      | **28**                                                                                     |
-| `conversations` + `conversation_messages` + `conversation_events` | `body` de los mensajes, `texto` de los borradores, `summary` (memoria del agente)                    | nuevas (módulo Conversaciones); se borran enteras por `contact_id` o `contact_external_id` |
+| `conversations` + `conversation_messages` + `conversation_events` + `conversation_notes` | `body` de los mensajes, `texto` de los borradores, `summary` (memoria del agente), `body` de las notas privadas | nuevas (módulo Conversaciones); se borran enteras por `contact_id` o `contact_external_id` — las notas caen en cascada por su FK a `conversations` |
 | `contracts`                                                       | `body_snapshot`, `notes`                                                                             | 0                                                                                          |
 | `csm_events`, `drops`                                             | `notes`                                                                                              | 0                                                                                          |
 
@@ -57,7 +57,10 @@ vacías, lo que permite cerrarlas por diseño antes de que se pueblen:
 `users` guarda `full_name`, `email`, `personal_email`, `phone`, `address` y `dni` (4 filas, `dni`
 vacío). **No entra en `erase_person`**, que es un comando por `contact_id`: el borrado de una
 persona del equipo es un procedimiento distinto, con otra base legal y otra retención. Queda
-anotado para que nadie lo confunda ni lo dé por cubierto.
+anotado para que nadie lo confunda ni lo dé por cubierto. En la misma categoría están las notas
+privadas del equipo (`conversation_notes`): texto interno sobre el fichero de un contacto, con el
+autor (`author_user_id`) como PII del equipo; se borran con la conversación (FK en cascada, mismo
+§1.1), pero no se anonimizan si el contacto se borra parcialmente y la conversación sobrevive.
 
 ## 2. Storage
 
