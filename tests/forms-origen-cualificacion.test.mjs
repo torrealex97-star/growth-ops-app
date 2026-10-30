@@ -60,6 +60,32 @@ test('sin respuestas de cualificación no se inventa nada', () => {
   assert.deepEqual(cualificacionDeFormulario(config, { n: 'Ana', e: 'ana@x.test' }, 'F1'), {})
 })
 
+test('la pregunta de origen con opciones graba la etiqueta bajo la clave estable y admite "Otro"', () => {
+  const captacion = {
+    questions: [
+      {
+        id: 'pregunta-1',
+        type: 'singleChoice',
+        title: '¿De dónde nos has conocido?',
+        required: true,
+        semantic: 'qualification.origen_contacto',
+        options: [
+          { value: 'anuncios-meta', label: 'Anuncios en Instagram / Meta', icon: 'megaphone' },
+          { value: 'referido', label: 'Me recomendaron', icon: 'users' },
+        ],
+        allowOther: true,
+      },
+      { id: 'email', type: 'email', title: 'Tu email', semantic: 'contact.email' },
+    ],
+  }
+  // La clave viene de `semantic` (NO del título): renombrar el copy no mueve la cualificación.
+  // La respuesta es el value; `cualificacion` la traduce a la etiqueta legible.
+  const conOpcion = cualificacionDeFormulario(captacion, { 'pregunta-1': 'anuncios-meta', email: 'ana@x.test' }, 'F2')
+  assert.equal(conOpcion.origen_contacto, 'Anuncios en Instagram / Meta')
+  assert.equal(conOpcion.respuestas[0].a, 'Anuncios en Instagram / Meta')
+  assert.equal(conOpcion.origen, 'formulario')
+})
+
 test('la fusión conserva lo que Calendly ya traía y lo nuevo gana en sus claves', () => {
   const f = fusionarCualificacion(
     { ingresos: '500', instagram: 'ana', respuestas: [{ q: 'Instagram', a: 'ana' }] },
