@@ -2,7 +2,21 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { MessageSquare, Bot, CheckCircle2, Clock, Inbox, Loader2, Send, Settings2, Undo2 } from 'lucide-react'
+import {
+  MessageSquare,
+  Bot,
+  CheckCircle2,
+  Clock,
+  Inbox,
+  Loader2,
+  Pin,
+  PinOff,
+  Play,
+  Send,
+  Settings2,
+  StickyNote,
+  Undo2,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { useParamUrl } from '@/lib/hooks/useParamUrl'
@@ -12,7 +26,10 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ESTADOS, ETIQUETA_ESTADO, esEstado, type Estado } from '@/lib/conversaciones/estados'
 import { estadoVentana } from '@/lib/conversaciones/ventana'
-import { ROLES_IA } from '@/lib/conversaciones/acciones'
+import { ROLES_GESTION, ROLES_IA } from '@/lib/conversaciones/acciones'
+import { MAX_NOTA, type TokenNota } from '@/lib/conversaciones/notas'
+import HiloReplay from './HiloReplay'
+import type { EventoReplay, MensajeReplay } from '@/lib/conversaciones/replay'
 import { formatDateTime } from '@/lib/utils'
 import { rellenarRespuesta, type RespuestaRapida } from '@/lib/conversaciones/respuestas-rapidas'
 
@@ -30,6 +47,9 @@ type Fila = {
 }
 type Mensaje = { id: string; direction: string; author: string; body: string; sent_at: string }
 type Borrador = { id: string; texto: string }
+type Evento = { id: string; kind: string; data: Record<string, unknown> | null; created_at: string }
+type Nota = { id: string; texto: string; fijada: boolean; creadoEn: string; autor: string; tokens?: TokenNota[] }
+type Miembro = { id: string; nombre: string }
 
 const nombreDe = (c: Fila['contacts']) => (Array.isArray(c) ? c[0] : c)?.full_name ?? 'Sin nombre'
 const TODOS = 'todas'
@@ -46,6 +66,12 @@ export default function BandejaTab() {
   const [mensajes, setMensajes] = useState<Mensaje[] | null>(null)
   const [trabajando, setTrabajando] = useState(false)
   const [borradores, setBorradores] = useState<Borrador[]>([])
+  const [eventoTrazas, setEventoTrazas] = useState<Evento[] | null>(null)
+  const [notas, setNotas] = useState<Nota[] | null>(null)
+  const [equipo, setEquipo] = useState<Miembro[]>([])
+  const [textoNota, setTextoNota] = useState('')
+  const [filtroMencion, setFiltroMencion] = useState<string | null>(null)
+  const [replayAbierto, setReplayAbierto] = useState(false)
   const [edicion, setEdicion] = useState<Record<string, string>>({})
   const [respuesta, setRespuesta] = useState('')
   const [rapidas, setRapidas] = useState<RespuestaRapida[]>([])
@@ -54,6 +80,8 @@ export default function BandejaTab() {
   const [etiquetaNueva, setEtiquetaNueva] = useState('')
 
   const puedeIA = !!sesion && (sesion.isSuperAdmin || (ROLES_IA as readonly string[]).includes(sesion.rol ?? ''))
+  // Las notas son internas del equipo de gestión (el MISMO set que puede actuar en la conversación).
+  const puedeNota = !!sesion && (sesion.isSuperAdmin || (ROLES_GESTION as readonly string[]).includes(sesion.rol ?? ''))
 
   useEffect(() => {
     const ctrl = new AbortController()
@@ -109,15 +137,64 @@ export default function BandejaTab() {
     void cargarLista()
   }, [cargarLista])
 
+  // Los eventos de bitácora alimentan TRES vistas (borradores del agente, replay y trazas tras emitir
+  // una nota), así que se cargan UNA vez por conversación y cada accion sobre notas/hilo los refresca sin
+  // repetir consultas en el componente.
+  const cargarEventos = useCallback(
+    async (id: string) => {
+      const sb = createClient()
+      const { data } = await sb
+        .from('conversation_events')
+        .select('id,kind,data,created_at')
+        .eq('tenant_id', tenantId)
+        .eq('conversation_id', id)
+        .order('created_at', { ascending: false })
+        .limit(300)
+      const evs = (data ?? []) as Evento[]
+      setEventoTrazas(evs)
+      setBorradores(
+        evs
+          .filter((e) => e.kind === 'borrador')
+          .filter(
+            (e) => (e.data as { texto?: string; estado?: string } | null)?.estado === 'pendiente' && !!e.data?.texto
+          )
+          .slice(0, 5)
+          .map((e) => ({ id: e.id, texto: (e.data as { texto: string }).texto }))
+      )
+      return evs
+    },
+    [tenantId]
+  )
+
+  const cargarNotas = useCallback(
+    async (id: string) => {
+      const resp = await fetch(`/api/${tenant}/evergreen/conversaciones/${id}/notas`)
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null)
+      setNotas(resp && Array.isArray(resp.notas) ? resp.notas : [])
+      setEquipo(resp && Array.isArray(resp.equipo) ? resp.equipo : [])
+      return resp
+    },
+    [tenant]
+  )
+
   useEffect(() => {
     if (!sel) {
       setMensajes(null)
+      setNotas(null)
+      setEquipo([])
+      setEventoTrazas(null)
+      setReplayAbierto(false)
       return
     }
     let vivo = true
     setMensajes(null)
+    setNotas(null)
+    setEquipo([])
+    setEventoTrazas(null)
     setBorradores([])
     setRespuesta('')
+    setReplayAbierto(false)
     ;(async () => {
       const sb = createClient()
       const { data } = await sb
@@ -127,26 +204,80 @@ export default function BandejaTab() {
         .eq('conversation_id', sel)
         .order('sent_at', { ascending: true })
         .limit(300)
-      const { data: evs } = await sb
-        .from('conversation_events')
-        .select('id,data')
-        .eq('tenant_id', tenantId)
-        .eq('conversation_id', sel)
-        .eq('kind', 'borrador')
-        .order('created_at', { ascending: false })
-        .limit(5)
       if (!vivo) return
       setMensajes((data ?? []) as Mensaje[])
-      setBorradores(
-        ((evs ?? []) as { id: string; data: { texto?: string; estado?: string } }[])
-          .filter((e) => e.data?.estado === 'pendiente' && e.data?.texto)
-          .map((e) => ({ id: e.id, texto: e.data.texto as string }))
-      )
+      if (!vivo) return
+      await Promise.all([cargarEventos(sel), cargarNotas(sel)])
     })()
     return () => {
       vivo = false
     }
-  }, [sel, tenantId])
+  }, [sel, tenantId, cargarEventos, cargarNotas])
+
+  const mentionsConocidos = useMemo(
+    () =>
+      filtroMencion === null ? [] : equipo.filter((m) => m.nombre.toLowerCase().startsWith(filtroMencion)).slice(0, 6),
+    [equipo, filtroMencion]
+  )
+
+  function alEscribirNota(valor: string) {
+    setTextoNota(valor)
+    const m = /(^|\s)@([^\s]*)$/.exec(valor)
+    setFiltroMencion(m ? m[2].toLowerCase() : null)
+  }
+
+  function elegirMencion(nombre: string) {
+    setTextoNota((v) => v.replace(/(^|\s)@([^\s]*)$/, (_fuente, espacio: string) => `${espacio}@${nombre} `))
+    setFiltroMencion(null)
+  }
+
+  async function guardarNota() {
+    if (!sel || !textoNota.trim()) return
+    const texto = textoNota
+    setTextoNota('')
+    setFiltroMencion(null)
+    try {
+      const res = await fetch(`/api/${tenant}/evergreen/conversaciones/${sel}/notas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texto }),
+      })
+      const cuerpo = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(cuerpo.error ?? 'No se pudo guardar')
+      const nueva = cuerpo.nota as Nota
+      setNotas((prev) => [...(prev ?? []), nueva])
+      await cargarEventos(sel)
+      toast.success('Nota privada guardada')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo guardar')
+    }
+  }
+
+  async function fijarNota(n: Nota, fijada: boolean) {
+    if (!sel) return
+    try {
+      const res = await fetch(`/api/${tenant}/evergreen/conversaciones/${sel}/notas`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notaId: n.id, fijada }),
+      })
+      const cuerpo = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(cuerpo.error ?? 'No se pudo guardar')
+      setNotas((prev) => (prev ?? []).map((x) => (x.id === n.id ? { ...x, fijada: cuerpo.fijada === fijada } : x)))
+      await cargarEventos(sel)
+      toast.success(fijada ? 'Nota fijada' : 'Nota desfijada')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo guardar')
+    }
+  }
+
+  const ordenNotas = useMemo(
+    () =>
+      [...(notas ?? [])].sort((a, b) =>
+        a.fijada !== b.fijada ? (a.fijada ? -1 : 1) : a.creadoEn < b.creadoEn ? -1 : 1
+      ),
+    [notas]
+  )
 
   const actual = useMemo(() => lista?.find((c) => c.id === sel) ?? null, [lista, sel])
 
@@ -349,6 +480,15 @@ export default function BandejaTab() {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={trabajando || replayAbierto || (eventoTrazas ?? []).length === 0}
+                    onClick={() => setReplayAbierto(true)}
+                    title="Reproducir el hilo paso a paso, al reloj real de la conversación"
+                  >
+                    <Play className="mr-1.5 h-3.5 w-3.5" /> Replay
+                  </Button>
                   {actual.status === 'resuelta' ? (
                     <Button
                       size="sm"
@@ -439,6 +579,105 @@ export default function BandejaTab() {
                   ))
                 )}
               </div>
+              {/* REPLAY temporal (patrón OpenReplay): sustituye el hilo, no lo bloquea — se sale con «Salir». */}
+              {replayAbierto && (eventoTrazas !== null || mensajes !== null) ? (
+                <HiloReplay
+                  mensajes={((mensajes ?? []) as MensajeReplay[]).map((m) => ({
+                    direction: m.direction,
+                    author: m.author,
+                    body: m.body,
+                    sent_at: m.sent_at,
+                  }))}
+                  eventos={((eventoTrazas ?? []) as EventoReplay[]).map((e) => ({
+                    id: e.id,
+                    kind: e.kind,
+                    data: e.data,
+                    created_at: e.created_at,
+                  }))}
+                  notas={(notas ?? []).map((n) => ({ id: n.id, texto: n.texto, creadoEn: n.creadoEn }))}
+                  onSalir={() => setReplayAbierto(false)}
+                />
+              ) : null}
+
+              {/* NOTAS PRIVADAS del equipo (patrón Chatwoot): nunca salen al lead. Las fijadas van arriba. */}
+              <div className="space-y-2" aria-label="Notas privadas del equipo">
+                <p className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                  <StickyNote className="h-3.5 w-3.5" aria-hidden /> Notas privadas
+                  <span className="font-normal text-muted-foreground">· las ve solo tu equipo</span>
+                </p>
+                {ordenNotas.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Sin notas. Déjales lo acordado, qué sigue y recordatorios internos sobre este fichero.
+                  </p>
+                ) : (
+                  <div className="max-h-40 space-y-1.5 overflow-y-auto pr-1">
+                    {ordenNotas.map((n) => (
+                      <div key={n.id} className="rounded-lg border border-border bg-muted/40 p-2">
+                        <p className="text-sm whitespace-pre-wrap break-words text-foreground">
+                          {n.tokens?.length
+                            ? n.tokens.map((t, i) => (
+                                <span key={i} className={t.userId ? 'font-medium text-brand-400' : undefined}>
+                                  {t.texto}
+                                </span>
+                              ))
+                            : n.texto}
+                        </p>
+                        <div className="mt-0.5 flex items-center justify-between gap-2 text-3xs text-muted-foreground">
+                          <span>
+                            {n.autor} · {formatDateTime(n.creadoEn)}
+                          </span>
+                          <button
+                            type="button"
+                            aria-label={n.fijada ? `Desfijar la nota de ${n.autor}` : `Fijar la nota de ${n.autor}`}
+                            onClick={() => fijarNota(n, !n.fijada)}
+                            className="inline-flex items-center gap-0.5 hover:text-foreground"
+                          >
+                            {n.fijada ? (
+                              <PinOff className="h-3 w-3" aria-hidden />
+                            ) : (
+                              <Pin className="h-3 w-3" aria-hidden />
+                            )}
+                            {n.fijada ? 'Desfijar' : 'Fijar'}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {puedeNota ? (
+                  <div className="space-y-1.5">
+                    {mentionsConocidos.length > 0 ? (
+                      <div className="flex flex-wrap gap-1" aria-label="Menciones del equipo">
+                        {mentionsConocidos.map((m) => (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => elegirMencion(m.nombre)}
+                            className="rounded-full border border-brand-500/40 bg-brand-500/10 px-2 py-0.5 text-3xs text-foreground hover:border-brand-500"
+                          >
+                            @{m.nombre}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                    <div className="flex gap-2">
+                      <textarea
+                        value={textoNota}
+                        onChange={(e) => alEscribirNota(e.target.value)}
+                        rows={2}
+                        maxLength={MAX_NOTA}
+                        placeholder="Nota interna… escribe @ para mencionar a alguien del equipo"
+                        aria-label="Texto de la nota privada"
+                        className="w-full rounded-lg border border-border bg-muted p-2 text-sm text-foreground placeholder:text-muted-foreground"
+                      />
+                      <Button size="sm" variant="outline" disabled={!textoNota.trim() || !sel} onClick={guardarNota}>
+                        Añadir nota
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
               {borradores.map((b) => (
                 <div key={b.id} className="space-y-2 rounded-lg border border-brand-500/40 bg-brand-500/5 p-3">
                   <p className="flex items-center gap-1.5 text-xs font-medium text-foreground">
