@@ -396,3 +396,76 @@ export async function atribuirDesdePayload(
   const resultado = await registrarToque(sb, tenantId, contactId, toque)
   return { toque, resultado }
 }
+
+// ── UTMs de la cita con recaída en el origen del contacto ─────────────────────
+//
+// La reserva (Calendly) manda: sus `tracking` son la evidencia del toque de reserva. Pero los
+// enlaces de reserva casi nunca repiten las UTMs, y un lead captado por formulario (webhook de
+// Typeform o Formularios propio) ya dejó el origen capturado en contact_attributions — la cita
+// nacía sin canal en las agendas aunque se supiera de dónde vino.
+//
+// El relleno SOLO toca los huecos que deja la reserva, con la atribución CAPTURADA del contacto:
+// ninguna clave se inventa, y la reserva gana siempre (por clave). El resultado contiene únicamente
+// claves con valor — un spread de este objeto nunca escribe nulls sobre columnas (idempotencia de
+// las re-syncs, misma regla que closer_id).
+
+const TEXTO_UTM = (v: unknown): string | null => {
+  if (typeof v !== 'string') return null
+  const s = v.trim()
+  return s === '' ? null : s
+}
+
+const CLAVES_UTM_CITA = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'] as const
+
+export function utmDeReservaConContacto(
+  reserva: Record<string, unknown>,
+  contacto: Record<string, unknown> | null
+): Record<string, string> {
+  const salida: Record<string, string> = {}
+  for (const clave of CLAVES_UTM_CITA) {
+    const deReserva = TEXTO_UTM(reserva?.[clave])
+    if (deReserva) {
+      salida[clave] = deReserva
+      continue
+    }
+    const deContacto = TEXTO_UTM(contacto?.[clave])
+    if (deContacto) salida[clave] = deContacto
+  }
+  return salida
+}
+
+/**
+ * Origen capturado del contacto (fila is_primary de contact_attributions): el toque vigente y,
+ * si no trae nada, el primer toque —nunca una mezcla de ambos, que sería un origen inventado.
+ * Devuelve ok/error (un fallo de lectura NO es un "sin atribución"; decide el llamador).
+ */
+export async function leerUtmContacto(
+  sb: SupabaseClient,
+  tenantId: string,
+  contactId: string
+): Promise<{ ok: true; utm: Record<string, string> | null } | { ok: false; error: string }> {
+  const { data, error } = await sb
+    .from('contact_attributions')
+    .select(
+      'utm_source,utm_medium,utm_campaign,utm_content,utm_term,first_utm_source,first_utm_medium,first_utm_campaign,first_utm_content,first_utm_term'
+    )
+    .eq('tenant_id', tenantId)
+    .eq('contact_id', contactId)
+    .eq('is_primary', true)
+    .maybeSingle()
+  if (error) return { ok: false, error: error.message }
+  const fila = data as Record<string, unknown> | null
+  if (!fila) return { ok: true, utm: null }
+  const bloque = (llevanPrefijo: boolean) => {
+    const b: Record<string, string> = {}
+    for (const clave of CLAVES_UTM_CITA) {
+      const v = TEXTO_UTM(fila[llevanPrefijo ? `first_${clave}` : clave])
+      if (v) b[clave] = v
+    }
+    return b
+  }
+  const vigente = bloque(false)
+  if (Object.keys(vigente).length > 0) return { ok: true, utm: vigente }
+  const primero = bloque(true)
+  return { ok: true, utm: Object.keys(primero).length > 0 ? primero : null }
+}
