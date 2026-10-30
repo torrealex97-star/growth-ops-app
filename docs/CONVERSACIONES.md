@@ -73,6 +73,28 @@ Instagram/GHL/Facebook/TikTok con análisis), **Agente de IA** (solo admin/direc
 y mejora del prompt) y **Métricas**. `/setting-ai`, `/conversaciones/agente` y `/conversaciones/metricas` redirigen a la
 pestaña correspondiente. «Setting AI» desaparece del menú.
 
+## Notas privadas y replay temporal
+
+- **Notas privadas** (patrón Chatwoot): comunicación interna del EQUIPO sobre el fichero, con autor,
+  fijable/desfijable y menciones `@Nombre` contra el equipo de gestión (solo se marca si el nombre
+  coincide con alguien del equipo: sin menciones inventadas). Nunca se envían al lead ni tocan
+  `conversation_messages`: tabla propia `conversation_notes` con la MISMA RLS que el resto del módulo
+  (tenant isolation restrictiva + lectura solo para admin/director/manager/marketing/setter) y
+  escritura SOLO por la ruta `/conversaciones/[id]/notas` (service-role, con evento de auditoría
+  `nota` / `nota_fijar` en la bitácora; las tablas no admiten escritura directa de authenticated).
+  El texto se valida con la constraint de BD (entre 1 y 2000 caracteres ya recortados) y la cadena de
+  borrado de conversaciones limpia sus notas en cascada (ver mapa PII, §1.1). El cuadro de nota solo
+  aparece para el equipo de gestión que ya puede actuar en la conversación
+  (`acciones.ts · ROLES_GESTION`); la lista incluye al propio autor y la fecha de cada nota.
+- **Replay temporal** (patrón OpenReplay, en la app, sin servicio externo): botón «Replay» en la
+  cabecera del hilo. Reconstruye la línea de tiempo pura (mensajes por `sent_at` + eventos de
+  bitácora + notas por su instante) y la reproduce sobre el RELOJ REAL de la conversación: burbujas y
+  hechos van apareciendo en orden y el paso actual queda resaltado, con reproducir/pausa (velocidad
+  1× / 5× / 20× sobre ticks de 100 ms), salto al paso anterior/siguiente y barra de posición. Las
+  entradas sin instante utilizable se excluyen: NUNCA se muestra una hora inventada ("un hueco no es
+  un cero"). Helper puro en `lib/conversaciones/replay.ts` (`lineaReplay`, `programaReplay`,
+  `indiceEnReplay`, `etiquetaEvento`) y reproductor en `app/[tenant]/conversaciones/HiloReplay.tsx`.
+
 ## Etiquetas y respuestas rápidas
 
 - **Etiquetas**: chips en la cabecera del hilo (añadir con Enter, quitar con ×). Máx. 12 por conversación; se auditan como
