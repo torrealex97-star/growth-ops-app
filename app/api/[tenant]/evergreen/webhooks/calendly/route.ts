@@ -7,7 +7,15 @@ import { mapKey, slugify } from '@/lib/qualification'
 import { notifyCreatuagente, toZonedISO, addMinutesISO } from '@/lib/creatuagente'
 import { getTenantConfigWithFallback } from '@/lib/config'
 import { getOrCreateContact } from '@/lib/contacts/resolve'
-import { leerToque, leerTrayectoria, registrarToque, serializarToque, toqueTieneDatos } from '@/lib/contacts/atribucion'
+import {
+  leerToque,
+  leerTrayectoria,
+  leerUtmContacto,
+  registrarToque,
+  serializarToque,
+  toqueTieneDatos,
+  utmDeReservaConContacto,
+} from '@/lib/contacts/atribucion'
 import { resolverColaboradorPorCodigo } from '@/lib/collaborators/scope'
 
 export const runtime = 'nodejs'
@@ -137,7 +145,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     const meetingUrl = sched.location?.join_url || null
     const rescheduleUrl = (p.reschedule_url as string | null) || null
     const tr = p.tracking || {}
-    const utm = {
+    const utm: Record<string, string | null> = {
       utm_source: tr.utm_source || null,
       utm_medium: tr.utm_medium || null,
       utm_campaign: tr.utm_campaign || null,
@@ -210,6 +218,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       return NextResponse.json({ error: 'Error creando contacto', detail: resolved.error }, { status: 500 })
     }
     const contact = resolved.contact
+
+    // RECAÍDA DEL ORIGEN (formulario → Calendly). El payload de la reserva casi nunca repite las
+    // UTMs del enlace que trajo al lead (los enlaces de booking no las llevan), y la cita nacía
+    // sin canal en las agendas aunque el contacto tuviera su origen capturado al dejar el
+    // formulario (Typeform o propio). Se rellenan SOLO los huecos que deja la reserva con ese
+    // origen capturado: la reserva manda cuando trae algo y ninguna clave se inventa. Si la
+    // lectura falla, se sigue con lo que trajo el payload — un hueco no es un cero y este
+    // relleno no es parte del contrato de datos (la atribución del toque se registra más abajo
+    // como siempre).
+    if (!hasUtm) {
+      const origen = await leerUtmContacto(sb, tenantId, contact.id)
+      if (origen.ok && origen.utm) {
+        const relleno = utmDeReservaConContacto(utm, origen.utm)
+        for (const [clave, valor] of Object.entries(relleno)) utm[clave] = valor
+      } else if (!origen.ok) {
+        console.warn('[calendly] no se pudo leer la atribución del contacto para rellenar los UTMs:', origen.error)
+      }
+    }
 
     // ATRIBUCIÓN. El toque se registra conservando el PRIMERO: si alguien llega por un anuncio y vuelve
     // semanas después por un email, el anuncio es quien lo trajo, y machacarlo haría que el canal que
@@ -402,7 +428,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       calendly_event_uuid: eventUuid,
       qualification: effectiveQualification,
       ...utm,
-      // Calendly solo prueba el toque de reserva. No lo ascendemos a first/last sin evidencia.
+      // Calendly solo prueba el toque de reserva (los utm_* pueden venir rellenados del origen
+      // capturado del contacto — ver recaída arriba —, pero la evidencia first/last/booking es la
+      // que el payload declara). No lo ascendemos a first/last sin evidencia.
       attribution_first: null,
       attribution_second: null,
       attribution_last: null,
