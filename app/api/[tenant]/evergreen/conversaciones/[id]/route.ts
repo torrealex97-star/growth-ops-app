@@ -38,12 +38,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     .eq('id', id)
   if (errUp) return NextResponse.json({ error: 'No se pudo guardar el cambio' }, { status: 500 })
 
-  await sb.from('conversation_events').insert({
-    tenant_id: sesion.tenantId,
-    conversation_id: id,
-    actor_user_id: sesion.userId,
-    kind: r.evento.kind,
-    data: r.evento.data,
-  })
+  {
+    // El cambio de estado ya se guardó; un 500 aquí haría creer que falló la acción (y a reintentos).
+    // La pérdida del evento de bitácora se hace visible a log.
+    const { error: errEvento } = await sb.from('conversation_events').insert({
+      tenant_id: sesion.tenantId,
+      conversation_id: id,
+      actor_user_id: sesion.userId,
+      kind: r.evento.kind,
+      data: r.evento.data,
+    })
+    if (errEvento) console.error('[conversaciones] acción aplicada sin evento de bitácora:', errEvento.message)
+  }
   return NextResponse.json({ ok: true, ...r.parche })
 }

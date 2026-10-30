@@ -58,7 +58,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ tena
     { onConflict: 'tenant_id,key' }
   )
   if (error) return NextResponse.json({ error: 'No se pudo guardar' }, { status: 500 })
-  await sb.from('audit_logs').insert({
+  const { error: errAudit } = await sb.from('audit_logs').insert({
     tenant_id: sesion.tenantId,
     actor_user_id: sesion.userId,
     entity_type: 'conversaciones_respuestas_rapidas',
@@ -66,5 +66,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ tena
     action: 'update',
     new_values: { total: leerRespuestasRapidas(valor).length },
   })
+  // La configuración ya se guardó; la auditoría no puede revertirla, así que su fallo se ve a log.
+  if (errAudit) console.error('[conversaciones] guardado sin auditoría:', errAudit.message)
   return NextResponse.json({ respuestas: leerRespuestasRapidas(valor) })
 }
