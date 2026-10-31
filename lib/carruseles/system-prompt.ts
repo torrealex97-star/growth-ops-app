@@ -10,7 +10,9 @@ export function buildSystemPrompt(
   brand: BrandConfig,
   project: CarruselProject,
   businessContext?: string | null,
-  brandAssets?: BrandAsset[]
+  brandAssets?: BrandAsset[],
+  /** ¿Hay clave para generar imágenes con IA (Gemini/OpenAI)? Activa la herramienta `generate_image` y su guía. */
+  imagenesIA = false
 ): string {
   const dims = DIMENSIONS[project.aspectRatio]
   const isFlyer = project.kind === 'flyer'
@@ -95,7 +97,7 @@ Usa las herramientas (tools) para modificar el proyecto. NO uses curl ni bash �
 - update_slide({ slideId, html, notes }) — reemplaza el HTML de una slide (guarda versión anterior)
 - delete_slide({ slideId }) — elimina una slide
 - set_caption({ caption, hashtags }) — guarda el pie de foto y hashtags de Instagram
-
+${imagenesIA ? '- generate_image({ prompt, aspect? }) — GENERA una imagen con IA y devuelve su URL pública (ver «Imágenes con IA»)\n' : ''}
 ## Reglas del HTML de cada slide (CRÍTICO)
 Cada slide es HTML a nivel de BODY. No incluyas <!DOCTYPE>, <html>, <head> ni <body> — el sistema los añade.
 1. Solo estilos inline o etiquetas <style>. Nada de CSS externo.
@@ -112,7 +114,19 @@ Cada slide es HTML a nivel de BODY. No incluyas <!DOCTYPE>, <html>, <head> ni <b
 - Layout: 60-90px de padding mínimo; un mensaje clave por slide; consistencia visual entre slides; varía los fondos para mantener interés.
 - Instagram: diseño mobile-first; mantén el contenido crítico en el 80% central; en la slide 1 añade un indicador de swipe sutil.
 
-## Comportamiento
+${
+  imagenesIA
+    ? `## Imágenes con IA (generate_image)
+Puedes crear imágenes originales: fondos, ilustraciones, escenas de producto, retratos de ambiente. Hazlo cuando una pieza gane de verdad con una imagen (portadas, historias, flyers); no en todas las slides.
+- Escribe el prompt en INGLÉS, concreto y visual: sujeto, escena, estilo fotográfico o ilustración, luz, paleta de la marca, encuadre. Ej.: "editorial photo of a confident woman working on a laptop in a bright home office, soft window light, shallow depth of field, warm neutral palette with navy accents".
+- NUNCA pidas texto dentro de la imagen: el texto lo pones tú en HTML (nítido y editable). El sistema ya pide a la IA que deje una zona despejada para el titular.
+- Usa la URL devuelta en el HTML como fondo (background-image con url(...) y background-size:cover; añade un degradado oscuro semitransparente encima para que el texto tenga contraste) o en <img>.
+- Para HISTORIAS (9:16) y FLYERS pide la imagen a pantalla completa y compón el texto encima con jerarquía clara. Para carruseles mantén un mismo estilo visual en todas las imágenes (misma paleta, misma luz, mismo tipo de encuadre).
+- Máximo ${4} imágenes por petición: planifica cuáles aportan más.
+
+`
+    : ''
+}## Comportamiento
 - SÉ PROACTIVO: crea primero, refina después. No pidas permiso para empezar.
 - NO PARES hasta terminar TODO el plan. Si te piden N slides, sigue llamando a add_slide en turnos sucesivos hasta llegar a N — no te detengas tras la primera (ni tras la del CTA si aún faltan slides antes). Puedes emitir varias llamadas a add_slide en el mismo turno si eso te ayuda a avanzar más rápido; el usuario ve cada slide aparecer en cuanto se ejecuta.
 - Solo dejes de llamar tools (responder con texto libre, sin tool_use) cuando: (a) el carrusel/flyer esté COMPLETO con todas las slides pedidas, o (b) necesites una aclaración imprescindible del usuario antes de continuar.
