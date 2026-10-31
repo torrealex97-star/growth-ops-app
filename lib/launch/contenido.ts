@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { piezasDePlantilla } from './plantilla'
 
 // Contenido del lanzamiento (tabla `launch_content`, 20261031120000): calendario de la nutrición
 // multicanal y descargables. Cada pieza va fechada respecto al evento (`dia`), así que «Copiar del
@@ -209,5 +210,24 @@ export async function copiarContenido(
   }))
   const { error } = await sb.from('launch_content').insert(filas)
   if (error) throw new Error(`No se pudo copiar el contenido: ${error.message}`)
+  return filas.length
+}
+
+/** Aplica la plantilla estándar al lanzamiento (todo en pendiente). Devuelve cuántas piezas añadió. */
+export async function aplicarPlantilla(
+  sb: SupabaseClient,
+  tenantId: string,
+  launchId: string,
+  userId: string
+): Promise<number> {
+  await lanzamientoDeLaSubcuenta(sb, tenantId, launchId)
+  const filas = piezasDePlantilla().map((d) => ({
+    ...limpiarPieza(d, false),
+    tenant_id: tenantId,
+    launch_id: launchId,
+    created_by: userId,
+  }))
+  const { error } = await sb.from('launch_content').insert(filas)
+  if (error) throw new Error(`No se pudo aplicar la plantilla: ${error.message}`)
   return filas.length
 }
