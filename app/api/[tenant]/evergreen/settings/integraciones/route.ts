@@ -1,3 +1,4 @@
+import { diagnosticarGhl, resumenDiagnostico } from '@/lib/ghl/diagnostico'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import {
@@ -781,9 +782,12 @@ async function probeGroup(group: string, tenantId: string): Promise<ProbeResult>
         headers: { Authorization: `Bearer ${token}`, Version: '2021-07-28', Accept: 'application/json' },
       })
       const j = (await r.json().catch(() => ({}))) as { location?: { name?: string }; message?: string }
-      return r.ok
-        ? { ok: true, message: `Subcuenta ${j.location?.name || locationId} conectada.` }
-        : { ok: false, message: j.message || `GoHighLevel respondió ${r.status}.`, code: codeFromStatus(r.status) }
+      if (r.ok) {
+        // Solo lecturas: dice qué áreas permite el token (bandeja, publicar en redes…).
+        const diag = resumenDiagnostico(await diagnosticarGhl({ token, locationId }))
+        return { ok: true, message: `Subcuenta ${j.location?.name || locationId} conectada. ${diag}` }
+      }
+      return { ok: false, message: j.message || `GoHighLevel respondió ${r.status}.`, code: codeFromStatus(r.status) }
     }
     if (group === 'hotmart') {
       if (!cfg.HOTMART_CLIENT_ID || !cfg.HOTMART_CLIENT_SECRET) {
