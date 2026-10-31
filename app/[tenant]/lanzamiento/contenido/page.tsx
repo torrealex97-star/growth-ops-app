@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AlertTriangle, ArrowLeft, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { useTenant } from '@/lib/tenant-context'
 import { CANALES, ESTADOS, fechaDePieza, type PiezaContenido } from '@/lib/launch/contenido'
+import { CHECKLIST, progresoChecklist } from '@/lib/launch/plantilla'
 
 // CONTENIDO DEL LANZAMIENTO: calendario de la nutrición multicanal (email, WhatsApp, stories...) y
 // descargables. Las piezas se fechan respecto al evento, así que «Copiar secuencia» trae la
@@ -46,6 +47,7 @@ export default function ContenidoLanzamientoPage() {
   const [form, setForm] = useState(VACIO)
   const [editandoId, setEditandoId] = useState<string | null>(null)
   const [guardando, setGuardando] = useState(false)
+  const [marcados, setMarcados] = useState<string[]>([])
   const abortPiezas = useRef<AbortController | null>(null)
 
   const base = `/api/${tenant}/evergreen/lanzamiento`
@@ -64,6 +66,9 @@ export default function ContenidoLanzamientoPage() {
         if (!r.ok) throw new Error(j.error || 'No se pudo leer el contenido')
         setPiezas(j.piezas as PiezaContenido[])
         setPuedeEditar(Boolean(j.puedeEditar))
+        const rc = await fetch(`${base}/checklist?launch=${id}`, { signal: ac.signal })
+        const jc = await rc.json()
+        if (rc.ok) setMarcados(jc.marcados as string[])
       } catch (e) {
         if ((e as Error).name !== 'AbortError') setError(e instanceof Error ? e.message : 'Error de conexión')
       } finally {
@@ -166,6 +171,32 @@ export default function ContenidoLanzamientoPage() {
     void accion({ accion: 'copiar', origen })
   }
 
+  const aplicarPlantillaEstandar = async () => {
+    if (
+      piezas.length > 0 &&
+      !confirm(`Este lanzamiento ya tiene ${piezas.length} piezas. La plantilla se añadirá encima. ¿Continuar?`)
+    )
+      return
+    await accion({ accion: 'plantilla' })
+  }
+
+  const marcar = async (key: string, hecho: boolean) => {
+    const antes = marcados
+    setMarcados(hecho ? [...marcados, key] : marcados.filter((k) => k !== key))
+    try {
+      const r = await fetch(`${base}/checklist`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ launchId, key, hecho }),
+      })
+      if (!r.ok) throw new Error((await r.json()).error || 'No se pudo guardar')
+    } catch (e) {
+      setMarcados(antes)
+      setError(e instanceof Error ? e.message : 'Error de conexión')
+    }
+  }
+
+  const progreso = progresoChecklist(marcados)
   const lanz = cal.find((l) => l.id === launchId)
   const publicaciones = piezas.filter((p) => p.tipo === 'publicacion')
   const descargables = piezas.filter((p) => p.tipo === 'descargable')
@@ -253,13 +284,65 @@ export default function ContenidoLanzamientoPage() {
                 ))}
               </select>
             )}
+            {puedeEditar && (
+              <button
+                disabled={guardando}
+                onClick={() => void aplicarPlantillaEstandar()}
+                className={`${CAMPO} hover:bg-muted disabled:opacity-50`}
+              >
+                Aplicar plantilla estándar
+              </button>
+            )}
             {cargandoPiezas && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden />}
             {piezas.length > 0 && (
-              <span className="ml-auto text-sm text-muted-foreground">
+              <span className="ml-auto text-sm tabular-nums text-muted-foreground">
                 {publicadas} de {piezas.length} publicadas
               </span>
             )}
           </div>
+
+          <section className="rounded-lg border border-border bg-card p-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-foreground">Checklist del lanzamiento</h2>
+              <span className="text-sm tabular-nums text-muted-foreground">
+                {progreso.hecho} de {progreso.total}
+              </span>
+            </div>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden>
+              <div
+                className="h-full bg-brand-600 transition-[width] duration-300 ease-out motion-reduce:transition-none"
+                style={{ width: `${progreso.total ? (progreso.hecho / progreso.total) * 100 : 0}%` }}
+              />
+            </div>
+            <div className="mt-3 grid gap-4 sm:grid-cols-2">
+              {CHECKLIST.map((f) => {
+                const p = progreso.porFase.find((x) => x.id === f.id)
+                return (
+                  <fieldset key={f.id}>
+                    <legend className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {f.titulo} · {p?.hecho}/{p?.total}
+                    </legend>
+                    <ul className="mt-1 space-y-1">
+                      {f.items.map((it) => (
+                        <li key={it.key}>
+                          <label className="flex items-start gap-2 text-sm text-foreground">
+                            <input
+                              type="checkbox"
+                              className="mt-0.5"
+                              checked={marcados.includes(it.key)}
+                              disabled={!puedeEditar}
+                              onChange={(e) => void marcar(it.key, e.target.checked)}
+                            />
+                            <span>{it.texto}</span>
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                  </fieldset>
+                )
+              })}
+            </div>
+          </section>
 
           {puedeEditar ? (
             <section className="rounded-lg border border-border bg-card p-4">
