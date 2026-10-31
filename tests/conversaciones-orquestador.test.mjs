@@ -245,3 +245,29 @@ test('el webhook marca el eco antes de guardar y lanza al agente solo con entran
   assert.match(r, /if \(r\.nuevo && mensaje\.direccion === 'entrante'\)/)
   assert.match(r, /after\(async/)
 })
+
+test('si no se puede guardar el marcador de idempotencia, el agente NO contesta (un reintento duplicaría la respuesta)', async () => {
+  const e = escenario()
+  const original = e.db
+  // Base que rechaza solo la inserción del evento `agente`.
+  const sb = cliente(original)
+  const from = sb.from.bind(sb)
+  sb.from = (t) => {
+    const q = from(t)
+    if (t !== 'conversation_events') return q
+    const insert = q.insert.bind(q)
+    q.insert = (v) => {
+      if (v?.kind === 'agente') {
+        const r = insert(v)
+        r.then = (res) => Promise.resolve({ data: null, error: { message: 'fallo simulado' } }).then(res)
+        return r
+      }
+      return insert(v)
+    }
+    return q
+  }
+  const r = await procesarMensajeEntrante(sb, 'T', 'C1', 'm1', e.deps)
+  assert.equal(r.accion, 'error')
+  assert.equal(e.llamadas.ia, 0, 'no llega a llamar a la IA')
+  assert.equal(e.llamadas.enviar.length, 0, 'ni a enviar')
+})

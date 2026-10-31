@@ -112,3 +112,8 @@ test('Typeform y Formularios comparten el mismo código de origen y cualificaci�
   assert.match(t, /@\/lib\/contacts\/origen-y-cualificacion/)
   assert.ok(!/async function copiarAAgendas/.test(t), 'no queda una copia local')
 })
+
+test('el icono de una opción solo resuelve nombres propios de la lista (no «constructor» ni «toString»)', () => {
+  const f = readFileSync('components/forms/engine/Field.tsx', 'utf8')
+  assert.match(f, /Object\.hasOwn\(ICONOS_OPCION, icon\)/)
+})

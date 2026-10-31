@@ -66,6 +66,7 @@ const evento = async (
   // La acción principal ya se ejecutó; un 500 aquí provocaría reintentos del remitente y duplicaría
   // el efecto. La pérdida se hace visible a log, que es lo único honesto que queda.
   if (error) console.error(`[conversaciones] no se pudo registrar el evento '${kind}':`, error.message)
+  return !error
 }
 
 async function traspasar(
@@ -170,7 +171,10 @@ export async function procesarMensajeEntrante(
     .limit(1)
     .maybeSingle()
   if (previo) return { accion: 'ya_procesado' }
-  await evento(sb, tenantId, c.id, 'agente', { mensaje_id: mensajeEntranteId, modo: decision.modo })
+  // El marcador `agente` ES la idempotencia: si no se guarda, un reintento del webhook volvería a procesar el mensaje y
+  // podría contestar dos veces. Por eso este evento, a diferencia de los de bitácora, no se da por perdido: se corta.
+  const marcado = await evento(sb, tenantId, c.id, 'agente', { mensaje_id: mensajeEntranteId, modo: decision.modo })
+  if (!marcado) return { accion: 'error', error: 'no se pudo registrar el marcador de idempotencia del agente' }
 
   const ultimoLead = [...historial].reverse().find((m) => m.autor === 'lead')
   const traspaso = evaluarTraspaso(ultimoLead?.texto ?? '')
