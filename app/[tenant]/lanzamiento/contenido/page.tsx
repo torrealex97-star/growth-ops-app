@@ -295,7 +295,7 @@ export default function ContenidoLanzamientoPage() {
             )}
             {cargandoPiezas && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden />}
             {piezas.length > 0 && (
-              <span className="ml-auto text-sm text-muted-foreground">
+              <span className="ml-auto text-sm tabular-nums text-muted-foreground">
                 {publicadas} de {piezas.length} publicadas
               </span>
             )}
@@ -304,13 +304,13 @@ export default function ContenidoLanzamientoPage() {
           <section className="rounded-lg border border-border bg-card p-4">
             <div className="flex items-center justify-between">
               <h2 className="font-semibold text-foreground">Checklist del lanzamiento</h2>
-              <span className="text-sm text-muted-foreground">
+              <span className="text-sm tabular-nums text-muted-foreground">
                 {progreso.hecho} de {progreso.total}
               </span>
             </div>
             <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden>
               <div
-                className="h-full bg-brand-600"
+                className="h-full bg-brand-600 transition-[width] duration-300 ease-out motion-reduce:transition-none"
                 style={{ width: `${progreso.total ? (progreso.hecho / progreso.total) * 100 : 0}%` }}
               />
             </div>
