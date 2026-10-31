@@ -821,8 +821,11 @@ async function probeGroup(group: string, tenantId: string): Promise<ProbeResult>
         : { ok: false, message: j.message || `Whop respondió ${r.status}.`, code: codeFromStatus(r.status) }
     }
     if (group === 'ai') {
-      if (!cfg.DEEPSEEK_API_KEY && !cfg.ANTHROPIC_API_KEY) {
-        return { ok: false, message: 'Configura al menos un motor de texto: DeepSeek o Anthropic.' }
+      if (!cfg.DEEPSEEK_API_KEY && !cfg.ANTHROPIC_API_KEY && !cfg.GEMINI_API_KEY && !cfg.OPENAI_API_KEY) {
+        return {
+          ok: false,
+          message: 'Configura al menos un motor: DeepSeek o Anthropic para texto, Gemini u OpenAI para imágenes.',
+        }
       }
 
       const motores: string[] = []
@@ -870,6 +873,25 @@ async function probeGroup(group: string, tenantId: string): Promise<ProbeResult>
           return { ok: false, message: `Groq respondió ${groq.status}.`, code: codeFromStatus(groq.status) }
         }
         motores.push('Groq (transcripción)')
+      }
+
+      // Proveedores de IMAGEN (carruseles, flyers, historias): se comprueba solo que la clave sea válida
+      // listando modelos; no se genera ninguna imagen (costaría dinero al pulsar «Probar»).
+      if (cfg.GEMINI_API_KEY) {
+        const gemini = await probeFetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=1', {
+          headers: { 'x-goog-api-key': cfg.GEMINI_API_KEY },
+        })
+        if (!gemini.ok)
+          return { ok: false, message: `Gemini respondió ${gemini.status}.`, code: codeFromStatus(gemini.status) }
+        motores.push('Gemini (imágenes)')
+      }
+      if (cfg.OPENAI_API_KEY) {
+        const openai = await probeFetch('https://api.openai.com/v1/models', {
+          headers: { Authorization: `Bearer ${cfg.OPENAI_API_KEY}` },
+        })
+        if (!openai.ok)
+          return { ok: false, message: `OpenAI respondió ${openai.status}.`, code: codeFromStatus(openai.status) }
+        motores.push('OpenAI (imágenes)')
       }
 
       return {

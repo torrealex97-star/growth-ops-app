@@ -94,7 +94,7 @@ test('DeepSeek se configura DENTRO del módulo de IA, como un motor más', () =>
   // el motor elegido, ni Groq (que solo aporta transcripción) para usar el agente de texto.
   assert.match(grupoAi, /requiredAny: \['DEEPSEEK_API_KEY', 'ANTHROPIC_API_KEY'\]/)
   assert.ok(!/required: \['ANTHROPIC_API_KEY', 'GROQ_API_KEY'\]/.test(grupoAi))
-  assert.match(route, /Configura al menos un motor de texto: DeepSeek o Anthropic/)
+  assert.match(route, /Configura al menos un motor: DeepSeek o Anthropic para texto, Gemini u OpenAI para imágenes/)
 })
 
 test('la asistencia vive en Notificaciones y el widget positivo ya no se sirve', () => {
