@@ -821,8 +821,8 @@ async function probeGroup(group: string, tenantId: string): Promise<ProbeResult>
         : { ok: false, message: j.message || `Whop respondió ${r.status}.`, code: codeFromStatus(r.status) }
     }
     if (group === 'ai') {
-      if (!cfg.DEEPSEEK_API_KEY && !cfg.ANTHROPIC_API_KEY) {
-        return { ok: false, message: 'Configura al menos un motor de texto: DeepSeek o Anthropic.' }
+      if (!cfg.DEEPSEEK_API_KEY && !cfg.ANTHROPIC_API_KEY && !cfg.GEMINI_API_KEY && !cfg.OPENAI_API_KEY) {
+        return { ok: false, message: 'Configura al menos un motor de texto: DeepSeek, Anthropic, Gemini u OpenAI.' }
       }
 
       const motores: string[] = []
@@ -860,6 +860,27 @@ async function probeGroup(group: string, tenantId: string): Promise<ProbeResult>
           }
         }
         motores.push('Anthropic')
+      }
+
+      if (cfg.GEMINI_API_KEY) {
+        // Listar modelos no consume cuota; la clave va en cabecera, nunca en la URL.
+        const gemini = await probeFetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=1', {
+          headers: { 'x-goog-api-key': cfg.GEMINI_API_KEY },
+        })
+        if (!gemini.ok) {
+          return { ok: false, message: `Gemini respondió ${gemini.status}.`, code: codeFromStatus(gemini.status) }
+        }
+        motores.push('Gemini')
+      }
+
+      if (cfg.OPENAI_API_KEY) {
+        const openai = await probeFetch('https://api.openai.com/v1/models?limit=1', {
+          headers: { Authorization: `Bearer ${cfg.OPENAI_API_KEY}` },
+        })
+        if (!openai.ok) {
+          return { ok: false, message: `OpenAI respondió ${openai.status}.`, code: codeFromStatus(openai.status) }
+        }
+        motores.push('OpenAI')
       }
 
       if (cfg.GROQ_API_KEY) {
