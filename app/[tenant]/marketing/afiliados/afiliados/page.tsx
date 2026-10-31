@@ -80,6 +80,7 @@ type VentaRow = {
   status: string | null
 }
 type CobroRow = {
+  id: string
   sale_id: string | null
   gross_amount: number | string | null
   status: string | null
@@ -94,6 +95,7 @@ type ComisionRow = {
   commission_amount: number | string | null
   status: string | null
   created_at: string | null
+  collection_id: string | null
 }
 type ContactoRow = { id: string; full_name: string | null; lead_status: string | null; created_at: string | null }
 type CitaRow = { id: string; contact_id: string | null; appointment_datetime: string | null; status: string | null }
@@ -144,6 +146,18 @@ const COMISION_STATUS_LABELS: Record<string, string> = {
   cancelled: 'Cancelada',
 }
 
+// Desglose de la COMISIÓN COMPLETA de un colaborador por el MES DEL CASH que la
+// generó: el enlace canónico es commissions.collection_id → collections.collected_at
+// (cada fila del ledger nace de un cobro del motor). Una fila sin collection vigente
+// (cuota futura aún sin cobrar, clawback por devolución o ajuste manual) va a su
+// bucket propio: nunca se cuelga de un mes de cash que no se puede saber.
+type DesgloseComisiones = {
+  total: number
+  cashEsteMes: number
+  cashMesesAnteriores: number
+  sinCashVinculado: number
+}
+
 export default function AfiliadosPage() {
   const tenant = useTenant()
   const tenantId = useTenantId()
@@ -189,6 +203,9 @@ export default function AfiliadosPage() {
   const [enlaceSeleccionado, setEnlaceSeleccionado] = useState<Record<string, string>>({})
 
   const rango = useMemo(() => getPeriodRange(periodPreset, customFrom, customTo), [periodPreset, customFrom, customTo])
+  // Mes natural en curso con el rango canónico del filtro 'month': la partición
+  // «cash de este mes vs meses anteriores» es relativa a HOY, no al periodo del filtro.
+  const rangoMesEnCurso = useMemo(() => getPeriodRange('month', '', ''), [])
   const puedeGestionar = sesion?.rol === 'admin' || sesion?.rol === 'director'
   const esColaborador = sesion?.rol === 'affiliate'
 
@@ -271,14 +288,16 @@ export default function AfiliadosPage() {
         fetchAllRows(() =>
           sb
             .from('collections')
-            .select('sale_id, gross_amount, status, collected_at')
+            .select('id, sale_id, gross_amount, status, collected_at')
             .eq('tenant_id', tenantId)
             .order('id')
         ),
         fetchAllRows(() =>
           sb
             .from('commissions')
-            .select('id, user_id, participant_type, percent, commission_amount, direction, status, created_at')
+            .select(
+              'id, user_id, participant_type, percent, commission_amount, direction, status, created_at, collection_id'
+            )
             .eq('tenant_id', tenantId)
             .in('user_id', userIds)
             .order('id')
@@ -434,6 +453,27 @@ export default function AfiliadosPage() {
       }
     },
     [contactosPorPerfil, citas, ventas, cobros, comisiones, rango]
+  )
+
+  // Desglose de la comisión completa (TODO el ledger del colaborador, no el periodo
+  // del filtro) por mes del cash: ver DesgloseComisiones arriba.
+  const desgloseComisionesDe = useCallback(
+    (userId: string | null): DesgloseComisiones => {
+      const desglose = { total: 0, cashEsteMes: 0, cashMesesAnteriores: 0, sinCashVinculado: 0 }
+      if (!userId) return desglose
+      const cobroPorId = new Map(cobros.map((c) => [c.id, c]))
+      for (const c of comisiones) {
+        if (c.user_id !== userId || c.status === 'cancelled') continue
+        const importe = (c.direction === 'negative' ? -1 : 1) * num(c.commission_amount)
+        desglose.total += importe
+        const fechaCobro = c.collection_id ? (cobroPorId.get(c.collection_id)?.collected_at ?? null) : null
+        if (!fechaCobro) desglose.sinCashVinculado += importe
+        else if (inPeriod(fechaCobro, rangoMesEnCurso)) desglose.cashEsteMes += importe
+        else desglose.cashMesesAnteriores += importe
+      }
+      return desglose
+    },
+    [comisiones, cobros, rangoMesEnCurso]
   )
 
   const lista = useMemo(() => {
@@ -661,6 +701,7 @@ export default function AfiliadosPage() {
           onCopiar={copiarEnlace}
           copiado={copiadoId === miPerfil.id}
           campanas={campanasDe(miPerfil.user_id)}
+          desglose={desgloseComisionesDe(miPerfil.user_id)}
         />
       </div>
     )
@@ -716,6 +757,7 @@ export default function AfiliadosPage() {
           onCopiar={copiarEnlace}
           copiado={copiadoId === detallePerfil.id}
           campanas={campanasDe(detallePerfil.user_id)}
+          desglose={desgloseComisionesDe(detallePerfil.user_id)}
         />
       ) : (
         <>
@@ -1112,6 +1154,7 @@ function FichaColaborador({
   onCopiar,
   copiado,
   campanas,
+  desglose,
 }: {
   tenant: string
   perfil: PerfilColaborador
@@ -1125,6 +1168,7 @@ function FichaColaborador({
   onCopiar?: (perfil: PerfilColaborador) => void
   copiado?: boolean
   campanas?: { name: string; is_active: boolean; slug: string | null }[]
+  desglose: DesgloseComisiones
 }) {
   const [contactos, setContactos] = useState<ContactoRow[]>([])
   const [cualificaciones, setCualificaciones] = useState<Record<string, Record<string, unknown> | null>>({})
@@ -1314,10 +1358,34 @@ function FichaColaborador({
           description="Cobros brutos registrados, vinculados a ventas del periodo"
         />
         <KPICard
-          title="Comisiones"
+          title="Comisiones del periodo"
           value={formatCurrency(kpi.comisiones)}
           icon={Percent}
-          description={`% por defecto: ${perfil.default_commission_percent != null ? `${num(perfil.default_commission_percent)}%` : '—'}`}
+          description={`en ${PERIOD_LABELS[periodPreset].toLowerCase()} · % por defecto: ${
+            perfil.default_commission_percent != null ? `${num(perfil.default_commission_percent)}%` : '—'
+          }`}
+        />
+        <KPICard
+          title="Comisión completa (ledger)"
+          value={formatCurrency(desglose.total)}
+          icon={Percent}
+          description={`histórico sin canceladas${
+            desglose.sinCashVinculado !== 0
+              ? ` · ${formatCurrency(desglose.sinCashVinculado)} sin cash vinculado (cuotas futuras, devoluciones y ajustes)`
+              : ''
+          }`}
+        />
+        <KPICard
+          title="Comisiones de cash de este mes"
+          value={formatCurrency(desglose.cashEsteMes)}
+          icon={Wallet}
+          description="por el día en que el cobro (collected_at) entró el cash"
+        />
+        <KPICard
+          title="Comisiones de cash de meses anteriores"
+          value={formatCurrency(desglose.cashMesesAnteriores)}
+          icon={CalendarCheck}
+          description="por el día en que su cobro (collected_at) entró el cash"
         />
       </div>
 

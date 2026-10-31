@@ -5,12 +5,36 @@ aplicadas en producción, con lo que hace falta para subirlas. Al fusionarse una
 
 Todo lo que depende de Alex, paso a paso: **[PASOS_ALEX.md](PASOS_ALEX.md)**.
 
-| Qué | Dónde está | Qué falta para subirlo |
-| --- | --- | --- |
+# COMPLETADO — Ficha de colaborador: desglose de comisión completa por mes del cash (31-oct)
+
+Petición directa al mirar `marketing/afiliados/afiliados` como colaboradora: se ve la comisión
+completa pero no cuánta viene de cash collected de ESTE MES vs MESES ANTERIORES.
+
+- La partición no inventa fórmulas: viaja por el enlace canónico del motor
+  `commissions.collection_id → collections.collected_at` (cada fila del ledger nace de un cobro;
+  UNIQUE `(collection_id, user_id, participant_type)`). El mes natural en curso sale del rango
+  canónico `getPeriodRange('month')`, no de aritmética a mano.
+- Buckets: cash de este mes / cash de meses anteriores / **sin cash vinculado** (cuotas futuras aún
+  sin cobrar, clawback por devolución y ajustes manuales — bucket propio, «un hueco no es un cero»:
+  no se cuelgan de un mes que no se puede saber). Los signos del ledger se consumen
+  `(direction === 'negative' ? -1 : 1)` y las `cancelled` quedan fuera, igual que ya hacía la ficha.
+- UI: en `FichaColaborador` (la ve el propio colaborador —sin barra de periodo— y el admin en el
+  detalle) la antigua KPI «Comisiones» pasa a «Comisiones del periodo» con su etiqueta de periodo
+  explícita, y se añaden 3 KPIs: «Comisión completa (ledger)», «Comisiones de cash de este mes» y
+  «Comisiones de cash de meses anteriores»; el bucket sin cash se declara en la descripción solo si
+  no es cero.
+- No dump ni cambio de queries completas: solo se añadieron 2 columnas a selects ya existentes
+  (`collections.id` para mapear collected_at, `commissions.collection_id`).
+- Validación: `tests/afiliados-desglose-comisiones.test.mjs` (nuevo) + `npm run quality` completo y
+  `npm run build` en la rama (detalle abajo). Rama `feat/comisiones-desglose-cash`, worktree
+  `.freebuff/worktrees/comisiones-desglose`.
+
+| Qué                                                                                                                                                                                                                                                                                                                   | Dónde está                                                                                       | Qué falta para subirlo                                                                                     |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
 | Registro de las 2 migraciones aplicadas por SQL Editor: lanzamientos, mcp_reader_conversaciones (las 2 de forms quedaron registradas el 29-oct vía `apply_migration`, versión de la primera alineada al fichero; la de hardening quedó con versión de registro `20261029151952` y el número del fichero en su `name`) | Aplicadas y verificadas en producción; **no constan en `supabase_migrations.schema_migrations`** | No usar `supabase db push` (reaplicaría y fallaría por políticas duplicadas); seguir con `apply_migration` |
-| Barrido «await sin comprobar { error }» — ola final del backlog | Rama `fix/silent-writes-ola` (Freebuff, 29-oct) | En curso: escáner estático + triage priorizando dinero/estado; PR con CI verde antes de fusionar |
-| SDK `@anthropic-ai/sdk` 1.x | No migrado (Dependabot ya lo ignora; #649 cerrado) | Migrar a mano: el SDK 1.x quita `temperature` de `messages.create` y rompe `lib/ai/provider.ts` |
-| Copia de seguridad de la rama vieja `rescate/linaje-viejo-20260913` | Rama local borrada; copia en `~/rescate-linaje-viejo-20260913.bundle` (verificada) | Nada; recuperable con `git fetch <bundle> rescate/linaje-viejo-20260913` |
+| Barrido «await sin comprobar { error }» — ola final del backlog                                                                                                                                                                                                                                                       | Rama `fix/silent-writes-ola` (Freebuff, 29-oct)                                                  | En curso: escáner estático + triage priorizando dinero/estado; PR con CI verde antes de fusionar           |
+| SDK `@anthropic-ai/sdk` 1.x                                                                                                                                                                                                                                                                                           | No migrado (Dependabot ya lo ignora; #649 cerrado)                                               | Migrar a mano: el SDK 1.x quita `temperature` de `messages.create` y rompe `lib/ai/provider.ts`            |
+| Copia de seguridad de la rama vieja `rescate/linaje-viejo-20260913`                                                                                                                                                                                                                                                   | Rama local borrada; copia en `~/rescate-linaje-viejo-20260913.bundle` (verificada)               | Nada; recuperable con `git fetch <bundle> rescate/linaje-viejo-20260913`                                   |
 
 # RELEVO (24-oct, tarde — Buffy) — estado del repo e hilos candidatos para el próximo agente
 
@@ -218,7 +242,7 @@ desde el 10-sep sin snapshot previo). Añadido como migración reproducible
 - Aplicado y registrado en `schema_migrations` (20261027120000 / pgss_baseline_snapshots, con
   rollback declarado). Primer snapshot REAL (baseline): id `9e8a1f2f-ae37-4462-aa54-0d51f4f22100`
   (4.852 statements, ~1,4 MB) — ancla el futuro índice compuesto `(tenant_id, status,
-  appointment_datetime DESC)` del diseño de agenda y cualquier otro cambio de rendimiento.
+appointment_datetime DESC)` del diseño de agenda y cualquier otro cambio de rendimiento.
 - Protocolo completo (incluye las reglas: mismo reset en ambos snapshots; delta = intervalo;
   desalojo de cache no es delta negativo) en [FREE_TIER_OPERATIONS.md, sección «Snapshots pg_stat»](FREE_TIER_OPERATIONS.md).
 - Manual, NO cron a propósito: sin tarea programada que avalar en Vercel/Supabase free
