@@ -5,12 +5,35 @@ aplicadas en producción, con lo que hace falta para subirlas. Al fusionarse una
 
 Todo lo que depende de Alex, paso a paso: **[PASOS_ALEX.md](PASOS_ALEX.md)**.
 
-| Qué | Dónde está | Qué falta para subirlo |
-| --- | --- | --- |
+# COMPLETADO — Adopción de AIS-OS: log de decisiones + ledger de auditoría (31-oct, Buffy)
+
+Tras evaluar <https://github.com/nateherkai/AIS-OS> (kit de "AI Operating System", MIT), se adopta
+SOLO la mecánica aprovechable, sin tocar código productivo:
+
+1. **`docs/decisions/log.md`** (nuevo, append-only): registro único de decisiones no triviales con
+   formato Decisión / Por qué / Alternativas / Owner. Dos entradas sembradas (la adopción misma y
+   la práctica de auditorías). Enlazado desde `AGENTS.md` (sección Documentos).
+2. **`docs/AUDIT_LEDGER.md`** (nuevo): ledger con IDs estables (`PERF-01`, `TRK-01`, `INT-01`,
+   `DEP-01`, `REF-01`, `RUN-01`) sembrado desde `ACTIVE_HANDOFF`, `PENDIENTES`, `FASE1-MATRIZ` y
+   `S0-*`, con su nivel de evidencia honesto (`TESTED`/`INSPECTED` + fechas) y estado
+   (abierto/resuelto/reabierto/no re-chequeado). Incluye el protocolo de evidencia para auditorías
+   futuras (evidencia con fecha, defecto confirmado ≠ por verificar, no inventar hallazgos, «hueco
+   no es cero»). Los hallazgos nuevos de auditorías futuras van ahí, no en docs ad hoc.
+3. **No se construye ningún panel nuevo de Fuentes/conectores**: su equivalente YA existe en la app
+   (`integration_sync_runs` + página de Integraciones + Data Health + `lib/ops/sync-health.ts`) y el
+   registro de conexiones es `docs/FASE1-MATRIZ-INTEGRACIONES.md`; el ledger los referencia.
+4. **No se adoptan las marcas ni la estructura de carpetas del kit** («Three Ms»/«Four Cs» son
+   marcas de Nate Herk; `docs/plan/` ya es la hoja de ruta canónica).
+
+Rama `docs/ais-os-adopciones` (worktree), solo 4 ficheros de docs. Validación aplicable a docs:
+prettier OK. Sin cambios de código, sin tests, sin migraciones.
+
+| Qué                                                                                                                                                                                                                                                                                                                   | Dónde está                                                                                       | Qué falta para subirlo                                                                                     |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
 | Registro de las 2 migraciones aplicadas por SQL Editor: lanzamientos, mcp_reader_conversaciones (las 2 de forms quedaron registradas el 29-oct vía `apply_migration`, versión de la primera alineada al fichero; la de hardening quedó con versión de registro `20261029151952` y el número del fichero en su `name`) | Aplicadas y verificadas en producción; **no constan en `supabase_migrations.schema_migrations`** | No usar `supabase db push` (reaplicaría y fallaría por políticas duplicadas); seguir con `apply_migration` |
-| Barrido «await sin comprobar { error }» — ola final del backlog | Rama `fix/silent-writes-ola` (Freebuff, 29-oct) | En curso: escáner estático + triage priorizando dinero/estado; PR con CI verde antes de fusionar |
-| SDK `@anthropic-ai/sdk` 1.x | No migrado (Dependabot ya lo ignora; #649 cerrado) | Migrar a mano: el SDK 1.x quita `temperature` de `messages.create` y rompe `lib/ai/provider.ts` |
-| Copia de seguridad de la rama vieja `rescate/linaje-viejo-20260913` | Rama local borrada; copia en `~/rescate-linaje-viejo-20260913.bundle` (verificada) | Nada; recuperable con `git fetch <bundle> rescate/linaje-viejo-20260913` |
+| Barrido «await sin comprobar { error }» — ola final del backlog                                                                                                                                                                                                                                                       | Rama `fix/silent-writes-ola` (Freebuff, 29-oct)                                                  | En curso: escáner estático + triage priorizando dinero/estado; PR con CI verde antes de fusionar           |
+| SDK `@anthropic-ai/sdk` 1.x                                                                                                                                                                                                                                                                                           | No migrado (Dependabot ya lo ignora; #649 cerrado)                                               | Migrar a mano: el SDK 1.x quita `temperature` de `messages.create` y rompe `lib/ai/provider.ts`            |
+| Copia de seguridad de la rama vieja `rescate/linaje-viejo-20260913`                                                                                                                                                                                                                                                   | Rama local borrada; copia en `~/rescate-linaje-viejo-20260913.bundle` (verificada)               | Nada; recuperable con `git fetch <bundle> rescate/linaje-viejo-20260913`                                   |
 
 # RELEVO (24-oct, tarde — Buffy) — estado del repo e hilos candidatos para el próximo agente
 
@@ -218,7 +241,7 @@ desde el 10-sep sin snapshot previo). Añadido como migración reproducible
 - Aplicado y registrado en `schema_migrations` (20261027120000 / pgss_baseline_snapshots, con
   rollback declarado). Primer snapshot REAL (baseline): id `9e8a1f2f-ae37-4462-aa54-0d51f4f22100`
   (4.852 statements, ~1,4 MB) — ancla el futuro índice compuesto `(tenant_id, status,
-  appointment_datetime DESC)` del diseño de agenda y cualquier otro cambio de rendimiento.
+appointment_datetime DESC)` del diseño de agenda y cualquier otro cambio de rendimiento.
 - Protocolo completo (incluye las reglas: mismo reset en ambos snapshots; delta = intervalo;
   desalojo de cache no es delta negativo) en [FREE_TIER_OPERATIONS.md, sección «Snapshots pg_stat»](FREE_TIER_OPERATIONS.md).
 - Manual, NO cron a propósito: sin tarea programada que avalar en Vercel/Supabase free
