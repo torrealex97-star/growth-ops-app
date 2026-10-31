@@ -52,12 +52,100 @@ completa pero no cuánta viene de cash collected de ESTE MES vs MESES ANTERIORES
   `npm run build` en la rama (detalle abajo). Rama `feat/comisiones-desglose-cash`, worktree
   `.freebuff/worktrees/comisiones-desglose`.
 
-| Qué                                                                                                                                                                                                                                                                                                                   | Dónde está                                                                                       | Qué falta para subirlo                                                                                     |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
-| Registro de las 2 migraciones aplicadas por SQL Editor: lanzamientos, mcp_reader_conversaciones (las 2 de forms quedaron registradas el 29-oct vía `apply_migration`, versión de la primera alineada al fichero; la de hardening quedó con versión de registro `20261029151952` y el número del fichero en su `name`) | Aplicadas y verificadas en producción; **no constan en `supabase_migrations.schema_migrations`** | No usar `supabase db push` (reaplicaría y fallaría por políticas duplicadas); seguir con `apply_migration` |
-| Barrido «await sin comprobar { error }» — ola final del backlog                                                                                                                                                                                                                                                       | Rama `fix/silent-writes-ola` (Freebuff, 29-oct)                                                  | En curso: escáner estático + triage priorizando dinero/estado; PR con CI verde antes de fusionar           |
-| SDK `@anthropic-ai/sdk` 1.x                                                                                                                                                                                                                                                                                           | No migrado (Dependabot ya lo ignora; #649 cerrado)                                               | Migrar a mano: el SDK 1.x quita `temperature` de `messages.create` y rompe `lib/ai/provider.ts`            |
-| Copia de seguridad de la rama vieja `rescate/linaje-viejo-20260913`                                                                                                                                                                                                                                                   | Rama local borrada; copia en `~/rescate-linaje-viejo-20260913.bundle` (verificada)               | Nada; recuperable con `git fetch <bundle> rescate/linaje-viejo-20260913`                                   |
+| Qué                                                                                            | Dónde está                                                                                       | Qué falta para subirlo                                                                                 |
+| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| Escáner estático de escritos ciegos (`await sin comprobar { error }`) + triage                 | No iniciado; la ola de código ya fusionada (PR #689) cubre los casos conocidos de conversaciones | Construir el escáner y triar priorizando dinero/estado; nueva ola si encuentra casos                   |
+| Backfill de citas Calendly históricas sin UTM (rellenarlas desde la atribución de su contacto) | Diseñado en la corrección fusionada (PR #690); sin correr                                        | Decisión de Alex: es escritura en producción; propuesta: run registrado en history-sync para auditoría |
+| SDK `@anthropic-ai/sdk` 1.x                                                                    | No migrado (Dependabot ya lo ignora; #649 cerrado)                                               | Migrar a mano: el SDK 1.x quita `temperature` de `messages.create` y rompe `lib/ai/provider.ts`        |
+| Copia de seguridad de la rama vieja `rescate/linaje-viejo-20260913`                            | Rama local borrada; copia en `~/rescate-linaje-viejo-20260913.bundle` (verificada)               | Nada; recuperable con `git fetch <bundle> rescate/linaje-viejo-20260913`                               |
+
+# COMPLETADO — Pregunta 1 de captación con opciones + iconos (v4 publicada, 30-oct tarde — Buffy)
+
+La pregunta «¿De dónde nos has conocido?» de los 2 formularios de captación (`nuevo-formulario` /
+`nuevo-formulario-2`) pasó de texto libre a **singleChoice con iconos**, publicado como **v4**
+(sobre la v3 que ya llevaba la pregunta email reparada). La lógica de cualificación se mantuvo
+intacta de propósito.
+
+## Qué cambió
+
+1. **Opciones con `value` estable + `icon`**: `anuncios-meta` (Megaphone), `anuncios-google`
+   (Search), `referido` (Users), `redes` (Video), `email` (Mail), más `allowOther: true` (campo
+   «Otro»). Todo con `semantic: qualification.origen_contacto` intacto.
+2. **Motor público ahora renderiza `icon` en las opciones** (`components/forms/engine/Field.tsx`):
+   allowlist local de iconos lucide, import dinámico memoizado y fallback a render texto si el
+   icono no está en la allowlist.
+3. **Cualificación sin cambios de diseño**: `lib/forms/cualificacion.ts` resuelve la **etiqueta
+   legible** de la opción y la persiste bajo la clave estable `origen_contacto` (array
+   `respuestas`, `origen`, `formulario_id`). El `value` corto vive solo en
+   `form_responses.answers`; lo visible/explotable es la etiqueta + la clave estable, como ya se
+   decidió el 29-oct.
+4. **Test nuevo** (`tests/forms-origen-cualificacion.test.mjs`, 6 casos en verde): pregunta
+   singleChoice + iconos permitidos + «Otro» vacío vs relleno + semantic estable + etiqueta
+   legible como valor guardado.
+5. **Publicados como v4** por el flujo canónico (validación zod real + `validateConfig` 0
+   problemas, INSERT `form_versions`, UPDATE `status='published'` + puntero, relectura
+   VERIFICADA). GET público de ambos slugs devuelve v4 con iconos y sin placeholders.
+
+## QA en vivo (dev server local :3002 contra producción, PID retirado tras la prueba)
+
+- **Envíos 2/2 OK** con opción con icono elegida + email QA (`qaforms-icon-a@example.test` /
+  `...-b@example.test`): response `200 completed` con el ending «¡Gracias por escribirnos!».
+- **Verificado en BD punta a punta**: `form_responses` sobre v4 con la respuesta del `value`
+  corto (`anuncios-meta` / `referido`); contacto creado con
+  `lead_channel = 'formulario - sondeo corto'` / `'formulario - ¿hablamos de tu proyecto?'`;
+  `contact_attributions` (source=formulario, is_primary, utm_source/medium/campaign/content
+  llenos); `contacts.qualification.origen_contacto` guardado como **etiqueta legible**
+  («Anuncios en Instagram / Meta» y «Me recomendaron») con `respuestas` (pregunta + respuesta),
+  `origen='formulario'` y formulario_id — la cualificación se comportó por diseño, sin tocar su
+  lógica.
+- **Limpieza verificada:** 0 filas restantes en form_responses / contactos /
+  contact_attributions para las 2 submissions QA. Dev server parado (sin listener).
+
+## Verificación
+
+- `tsc --noEmit` 0 errores; ESLint Field.tsx limpio; prettier OK (test formateado).
+- `tests/forms-origen-cualificacion.test.mjs` 6/6 pass (con arnés canónico
+  `--import ./tests/register.mjs`).
+- `npm run quality` NO pasada: la suite completa está en rojo por
+  `tests/esquema-tenant-invariante.test.mjs` (`ConversationNotes` falta en el fixture de esquema
+  producción) — es de la hebra paralela de conversaciones/notas, no de esta unidad
+  (formularios); el foco de formularios pasó en verde de forma aislada (ver arriba).
+- `npm run test:e2e` no corrió: falta `next build` previo (error de webServer, no de código).
+
+## NOTA de entorno
+
+`.env.local` sigue con `CONFIG_ENC_KEY` truncada (misma nota de la prueba del 30-oct mañana):
+para el dev server se usó la clave placeholder del arnés CI exportada en entorno; nada de esta
+unidad tocó secretos cifrados.
+
+# COMPLETADO — Barrido «await sin comprobar { error }»: ola final de conversaciones (30-oct tarde — Buffy, PR #689)
+
+9 escritos ciegos del módulo Conversaciones reaccionan ahora al `{ error }` en lugar de
+tragárselo (`persistir.ts`, `envio.ts`, `asignar.ts`, `memoria-bd.ts`, `orquestador.ts` y las
+rutas `[id]`, `agente`, `respuestas-rapidas`): los fallos de bitácora/auditoría van a log con
+contexto y, donde la respuesta depende del dato, la petición falla honestamente en vez de
+responder como si se hubiera guardado.
+
+Validación: `npm run quality` exit 0 y `npm run build` exit 0 sobre worktree; PR con CI
+íntegramente verde antes del merge (hubo una repetición del job «Smoke E2E» tras la colisión
+documentada del grupo global `e2e-tenant-qa`, no un fallo del código). Queda pendiente el
+escáner estático para la siguiente ola (fila en el tablero).
+
+# COMPLETADO — Citas Calendly heredan las UTMs capturadas de su contacto (30-oct tarde — Buffy, PR #690)
+
+Las UTMs del Typeform sí se capturaban en `contact_attributions`, pero las dos vías por las que
+nace una cita (webhook y sync por pull) solo miraban el `payload` de la reserva; 543 citas
+entraron con las cinco columnas a null. Ahora rellenan los huecos desde el bloque vigente del
+contacto vía los helpers canónicos `utmDeReservaConContacto` / `leerUtmContacto`
+([lib/contacts/atribucion.ts](../lib/contacts/atribucion.ts)): la reserva manda por clave, no se
+mezclan `first_*` con el bloque vigente, el spread no escribe nulls que borren columnas en
+re-syncs, la re-entrega del webhook también rellena y un fallo de lectura queda registrado en log
+sin tumbar la sync (la cita vale más que su procedencia).
+
+Validación: test nuevo `tests/utm-cita-herencia.test.mjs` (7 casos de contrato + 2 de cableado),
+suites de atribución existentes y `npm run quality` + `npm run build` exit 0 sobre worktree; CI
+verde antes del merge. Limitaciones pendientes: backfill de las citas históricas (fila en el
+tablero, decisión de Alex) y la vía GHL, que hoy tampoco hereda el origen del contacto.
 
 # RELEVO (24-oct, tarde — Buffy) — estado del repo e hilos candidatos para el próximo agente
 
