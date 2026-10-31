@@ -24,6 +24,7 @@ import { testimonioPitch, type Testimonio } from '@/lib/testimonios-shared'
 import { useSesion, useTenant, useTenantId } from '@/lib/tenant-context'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { formatCurrency } from '@/lib/utils'
+import { VozClientePanel } from '@/components/insights/VozClientePanel'
 
 const STATUSES = [
   { value: 'idea', label: 'Idea' },
@@ -366,6 +367,8 @@ export default function ContentPage() {
           </button>
         </div>
       </div>
+
+      <VozClientePanel modo="completo" />
 
       {/* Barra de filtros / vistas */}
       <div className="flex flex-wrap items-center gap-2">

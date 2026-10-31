@@ -1,5 +1,6 @@
 'use client'
 
+import { VozClientePanel } from '@/components/insights/VozClientePanel'
 import { useDeferredValue, useEffect, useMemo, useState, useCallback } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import Link from 'next/link'
@@ -984,6 +985,8 @@ function DashboardEquipo() {
       {!loading && userId && myRoleKey && !isLeadership(myRoleKey) && tenantId && (
         <MiDia tenant={tenant} tenantId={tenantId} userId={userId} rol={myRoleKey} />
       )}
+
+      <VozClientePanel modo="compacto" />
 
       <PeriodFilterBar
         preset={periodPreset}
