@@ -28,6 +28,30 @@ SOLO la mecánica aprovechable, sin tocar código productivo:
 Rama `docs/ais-os-adopciones` (worktree), solo 4 ficheros de docs. Validación aplicable a docs:
 prettier OK. Sin cambios de código, sin tests, sin migraciones.
 
+# COMPLETADO — Ficha de colaborador: desglose de comisión completa por mes del cash (31-oct)
+
+Petición directa al mirar `marketing/afiliados/afiliados` como colaboradora: se ve la comisión
+completa pero no cuánta viene de cash collected de ESTE MES vs MESES ANTERIORES.
+
+- La partición no inventa fórmulas: viaja por el enlace canónico del motor
+  `commissions.collection_id → collections.collected_at` (cada fila del ledger nace de un cobro;
+  UNIQUE `(collection_id, user_id, participant_type)`). El mes natural en curso sale del rango
+  canónico `getPeriodRange('month')`, no de aritmética a mano.
+- Buckets: cash de este mes / cash de meses anteriores / **sin cash vinculado** (cuotas futuras aún
+  sin cobrar, clawback por devolución y ajustes manuales — bucket propio, «un hueco no es un cero»:
+  no se cuelgan de un mes que no se puede saber). Los signos del ledger se consumen
+  `(direction === 'negative' ? -1 : 1)` y las `cancelled` quedan fuera, igual que ya hacía la ficha.
+- UI: en `FichaColaborador` (la ve el propio colaborador —sin barra de periodo— y el admin en el
+  detalle) la antigua KPI «Comisiones» pasa a «Comisiones del periodo» con su etiqueta de periodo
+  explícita, y se añaden 3 KPIs: «Comisión completa (ledger)», «Comisiones de cash de este mes» y
+  «Comisiones de cash de meses anteriores»; el bucket sin cash se declara en la descripción solo si
+  no es cero.
+- No dump ni cambio de queries completas: solo se añadieron 2 columnas a selects ya existentes
+  (`collections.id` para mapear collected_at, `commissions.collection_id`).
+- Validación: `tests/afiliados-desglose-comisiones.test.mjs` (nuevo) + `npm run quality` completo y
+  `npm run build` en la rama (detalle abajo). Rama `feat/comisiones-desglose-cash`, worktree
+  `.freebuff/worktrees/comisiones-desglose`.
+
 | Qué                                                                                                                                                                                                                                                                                                                   | Dónde está                                                                                       | Qué falta para subirlo                                                                                     |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
 | Registro de las 2 migraciones aplicadas por SQL Editor: lanzamientos, mcp_reader_conversaciones (las 2 de forms quedaron registradas el 29-oct vía `apply_migration`, versión de la primera alineada al fichero; la de hardening quedó con versión de registro `20261029151952` y el número del fichero en su `name`) | Aplicadas y verificadas en producción; **no constan en `supabase_migrations.schema_migrations`** | No usar `supabase db push` (reaplicaría y fallaría por políticas duplicadas); seguir con `apply_migration` |
