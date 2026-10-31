@@ -27,7 +27,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
   const launch = req.nextUrl.searchParams.get('launch') ?? ''
   if (!UUID.test(launch)) return NextResponse.json({ error: 'Falta el lanzamiento' }, { status: 400 })
   try {
-    return NextResponse.json({ piezas: await listarContenido(svc(), auth.tenantId, launch) })
+    return NextResponse.json({
+      piezas: await listarContenido(svc(), auth.tenantId, launch),
+      // La pantalla oculta el formulario a quien no puede guardar (el POST lo vuelve a comprobar).
+      puedeEditar: ['admin', 'director'].includes(auth.role ?? ''),
+    })
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Error' }, { status: 500 })
   }
