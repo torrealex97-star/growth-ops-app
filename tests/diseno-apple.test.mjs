@@ -13,7 +13,7 @@ test('los materiales translúcidos respetan prefers-reduced-transparency', () =>
 test('prefers-contrast: more refuerza bordes y texto atenuado en claro y oscuro', () => {
   const bloque = css.slice(css.indexOf('@media (prefers-contrast: more)'))
   assert.match(bloque, /:root \{[^}]*--border/)
-  assert.match(bloque, /\.dark \{[^}]*--muted-foreground/)
+  assert.match(bloque, /\.dark:root \{[^}]*--muted-foreground/)
 })
 
 test('tracking por tamaño: titulares apretados, cuerpo sin tocar', () => {

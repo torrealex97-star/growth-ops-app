@@ -495,7 +495,7 @@ label[for] {
     --border: 0 0% 45%;
     --muted-foreground: 0 0% 30%;
   }
-  .dark {
+  .dark:root {
     --border: 0 0% 65%;
     --muted-foreground: 0 0% 82%;
   }
