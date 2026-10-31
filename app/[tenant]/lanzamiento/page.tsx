@@ -150,6 +150,12 @@ export default function LanzamientoPage() {
           >
             Contenido
           </Link>
+          <Link
+            href={`/${tenant}/lanzamiento/informe`}
+            className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-1.5 text-sm hover:bg-muted"
+          >
+            Informe
+          </Link>
           <button
             onClick={() => void load()}
             className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-1.5 text-sm hover:bg-muted"
