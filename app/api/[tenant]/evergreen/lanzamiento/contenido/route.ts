@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireTenant } from '@/lib/auth/requireTenant'
 import {
+  aplicarPlantilla,
   borrarPieza,
   copiarContenido,
   crearPieza,
@@ -68,6 +69,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       if (!ok(body.id)) return NextResponse.json({ error: 'Falta la pieza' }, { status: 400 })
       await borrarPieza(sb, auth.tenantId, body.id as string)
       return NextResponse.json({ ok: true })
+    }
+    if (body.accion === 'plantilla') {
+      if (!ok(body.launchId)) return NextResponse.json({ error: 'Falta el lanzamiento' }, { status: 400 })
+      const añadidas = await aplicarPlantilla(sb, auth.tenantId, body.launchId as string, auth.userId)
+      return NextResponse.json({ ok: true, añadidas })
     }
     if (body.accion === 'copiar') {
       if (!ok(body.origen) || !ok(body.launchId))
