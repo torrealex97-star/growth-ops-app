@@ -51,7 +51,9 @@ function ChoiceButton({
   /** Icono lucide por nombre permitido (ver ICONOS_OPCION); inválido ⇒ se muestra la letra. */
   icon?: string
 }) {
-  const Icono = icon ? ICONOS_OPCION[icon] : undefined
+  // `hasOwn`: sin él, un nombre como «constructor» o «toString» resolvía a una función heredada del prototipo y React
+  // intentaba renderizarla como componente.
+  const Icono = icon && Object.hasOwn(ICONOS_OPCION, icon) ? ICONOS_OPCION[icon] : undefined
   return (
     <button
       type="button"
