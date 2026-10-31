@@ -567,7 +567,9 @@ export const INTEGRATION_GROUPS: IntegrationGroup[] = [
         titulo: 'Crea el token en GHL: Ajustes → Integraciones privadas',
         detalle:
           'En GHL, Settings (Ajustes) → Private Integrations → New. Dale un nombre (por ejemplo ' +
-          '"GrowthOps") y marca los permisos de contactos, calendarios y oportunidades. Al crearla ' +
+          '"GrowthOps") y marca los permisos de contactos, calendarios y oportunidades; si quieres bandeja de ' +
+          'conversaciones o publicar en redes, añade también conversaciones/mensajes y Social Planner. ' +
+          'Al "Probar conexión" la app te dice qué permisos faltan. Al crearla ' +
           'te enseña el token UNA sola vez y empieza por "pit-": cópialo antes de cerrar y pégalo abajo.',
       },
       {
