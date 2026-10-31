@@ -7,6 +7,15 @@ import { getBrand, getProject, addSlide, updateSlide, deleteSlide, updateProject
 import { buildSystemPrompt, type BrandAsset } from '@/lib/carruseles/system-prompt'
 import { MAX_SLIDES } from '@/lib/carruseles/types'
 import { getTenantConfigWithFallback } from '@/lib/config'
+import {
+  ejecutarBucleGenerico,
+  elegirMotorImagen,
+  elegirMotorTexto,
+  MENSAJE_SIN_MOTOR,
+  type Cfg,
+} from '@/lib/carruseles/motor'
+import { generarImagenIA, MAX_IMAGENES_POR_PETICION } from '@/lib/carruseles/imagenes'
+import type { HerramientaGenerica } from '@/lib/ai/gemini'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -73,9 +82,68 @@ const TOOLS: Anthropic.Tool[] = [
   },
 ]
 
-async function executeTool(tenantId: string, projectId: string, name: string, input: unknown): Promise<string> {
+// Herramienta de imágenes con IA: solo se ofrece si hay clave de Gemini u OpenAI.
+const TOOL_IMAGEN: Anthropic.Tool = {
+  name: 'generate_image',
+  description:
+    'Genera una imagen original con IA (Gemini/OpenAI) y devuelve su URL pública para usarla en el HTML de una slide (fondo o <img>). Escribe el prompt en inglés, concreto y visual, SIN pedir texto dentro de la imagen.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      prompt: {
+        type: 'string',
+        description: 'Descripción visual de la imagen (inglés recomendado, sin texto dentro).',
+      },
+    },
+    required: ['prompt'],
+  },
+}
+
+/** Mismas herramientas en formato neutro para Gemini y OpenAI. */
+const aGenericas = (tools: Anthropic.Tool[]): HerramientaGenerica[] =>
+  tools.map((t) => ({
+    name: t.name,
+    description: t.description ?? '',
+    parameters: t.input_schema as HerramientaGenerica['parameters'],
+  }))
+
+type ContextoHerramientas = {
+  cfg: Cfg
+  tenantSlug: string
+  formato: import('@/lib/carruseles/types').AspectRatio
+  marca?: string
+  estilo?: string[]
+  imagenesGeneradas: { n: number }
+  referencias: { mime: string; base64: string }[]
+}
+
+async function executeTool(
+  tenantId: string,
+  projectId: string,
+  name: string,
+  input: unknown,
+  ctx?: ContextoHerramientas
+): Promise<string> {
   const b = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>
   try {
+    if (name === 'generate_image') {
+      if (!ctx) return 'ERROR: la generación de imágenes no está disponible.'
+      if (ctx.imagenesGeneradas.n >= MAX_IMAGENES_POR_PETICION)
+        return `ERROR: límite de ${MAX_IMAGENES_POR_PETICION} imágenes por petición alcanzado. Reutiliza las ya generadas.`
+      const prompt = String(b.prompt || '').trim()
+      if (prompt.length < 8) return 'ERROR: describe la imagen con más detalle (mínimo 8 caracteres).'
+      ctx.imagenesGeneradas.n++
+      const r = await generarImagenIA({
+        cfg: ctx.cfg,
+        tenantSlug: ctx.tenantSlug,
+        prompt,
+        formato: ctx.formato,
+        marca: ctx.marca,
+        estilo: ctx.estilo,
+        referencias: ctx.referencias.slice(0, 3),
+      })
+      return `OK: imagen generada (${r.motor}). URL pública para usar en el HTML: ${r.url}`
+    }
     if (name === 'add_slide') {
       const slide = await addSlide(tenantId, projectId, String(b.html || ''), String(b.notes || ''))
       if (!slide) return `ERROR: no se pudo añadir la slide (límite ${MAX_SLIDES} alcanzado o proyecto inexistente).`
@@ -185,8 +253,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   // global al proceso y no se limpia: la siguiente petición de OTRA subcuenta atendida por la misma
   // lambda generaba con la clave —y a cuenta— de la primera.
   const cfg = await getTenantConfigWithFallback(t.tenantId, true)
-  const anthropicKey = cfg.ANTHROPIC_API_KEY
-  if (!anthropicKey) return NextResponse.json({ error: 'ANTHROPIC_API_KEY no configurada' }, { status: 503 })
+  // Cualquiera de las claves de IA de la subcuenta basta (Anthropic, Gemini u OpenAI): antes, sin la de Anthropic no se
+  // creaba ningún carrusel.
+  const motor = elegirMotorTexto(cfg)
+  if (!motor) return NextResponse.json({ error: MENSAJE_SIN_MOTOR }, { status: 503 })
+  const imagenesIA = elegirMotorImagen(cfg) !== null
+  const anthropicKey = cfg.ANTHROPIC_API_KEY ?? ''
 
   const body = await req.json().catch(() => ({}))
   const message: string = typeof body.message === 'string' ? body.message : ''
@@ -201,8 +273,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
 
   const brand = await getBrand(t.tenantId)
   const brandAssets = parseBrandAssets(process.env.IG_BRAND_ASSETS)
-  const system = buildSystemPrompt(brand, project, process.env.IG_BUSINESS_CONTEXT, brandAssets)
-  const client = new Anthropic({ apiKey: anthropicKey })
+  const system = buildSystemPrompt(brand, project, process.env.IG_BUSINESS_CONTEXT, brandAssets, imagenesIA)
+  const client = new Anthropic({ apiKey: anthropicKey || 'sin-clave' })
+  const toolsActivas = imagenesIA ? [...TOOLS, TOOL_IMAGEN] : TOOLS
 
   // Construye el historial (solo texto) + mensaje actual con imágenes de referencia/marca.
   const messages: Anthropic.MessageParam[] = []
@@ -240,7 +313,91 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   const baselineCount = project.slides.length
   const targetSlideCount = requested != null ? baselineCount + requested : null
 
+  // Contexto de las herramientas (generación de imágenes): formato del proyecto, marca y referencias ya descargadas.
+  const referenciasNeutras = userBlocks
+    .filter((b): b is Anthropic.ImageBlockParam => b.type === 'image' && b.source.type === 'base64')
+    .map((b) => ({
+      mime: (b.source as { media_type: string }).media_type,
+      base64: (b.source as { data: string }).data,
+    }))
+  const ctxHerramientas: ContextoHerramientas | undefined = imagenesIA
+    ? {
+        cfg,
+        tenantSlug: tenant,
+        formato: project.aspectRatio,
+        marca: brand.name || undefined,
+        estilo: brand.styleKeywords,
+        imagenesGeneradas: { n: 0 },
+        referencias: referenciasNeutras,
+      }
+    : undefined
+
   const encoder = new TextEncoder()
+
+  // ── Gemini / OpenAI: mismo trabajo, bucle de herramientas propio (sin streaming; acotado por tiempo) ──
+  if (motor !== 'anthropic') {
+    const flujo = new ReadableStream({
+      async start(controller) {
+        const send = (obj: unknown) => {
+          try {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`))
+          } catch {
+            /* cerrado */
+          }
+        }
+        for (const w of imageWarnings) send({ type: 'warning', warning: w })
+        try {
+          const r = await ejecutarBucleGenerico({
+            motor,
+            cfg,
+            system,
+            historial: messages
+              .filter((m) => typeof m.content === 'string' && (m.role === 'user' || m.role === 'assistant'))
+              .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content as string })),
+            textoUsuario: message,
+            imagenes: referenciasNeutras,
+            tools: aGenericas(toolsActivas),
+            ejecutar: (nombre, args) => executeTool(t.tenantId, projectId, nombre, args, ctxHerramientas),
+            continuar: async () => {
+              if (targetSlideCount == null) return null
+              const actual = await getProject(t.tenantId, projectId)
+              const n = actual?.slides.length ?? 0
+              return n < targetSlideCount
+                ? `Todavía te faltan slides: llevas ${n} de ${targetSlideCount} pedidas. Continúa AHORA llamando a add_slide para las que faltan (la última debe ser el CTA). No expliques nada, solo usa las tools.`
+                : null
+            },
+            onTexto: (texto) => send({ type: 'token', text: texto }),
+            onCambio: () => send({ type: 'refresh' }),
+          })
+          if (r.truncado)
+            send({
+              type: 'warning',
+              warning:
+                'Se alcanzó el tiempo máximo de generación. Pídeme que continúe para terminar las slides que falten.',
+            })
+          send({ type: 'done' })
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : 'Error inesperado de la IA'
+          console.error('[carruseles/chat] error:', msg)
+          send({ type: 'error', error: msg })
+          send({ type: 'done' })
+        } finally {
+          try {
+            controller.close()
+          } catch {
+            /* cerrado */
+          }
+        }
+      },
+    })
+    return new Response(flujo, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache, no-transform',
+        Connection: 'keep-alive',
+      },
+    })
+  }
   const stream = new ReadableStream({
     async start(controller) {
       const send = (obj: unknown) => {
@@ -272,7 +429,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
               // fuera de su tipo en vez de silenciar todo el objeto con `any`.
               thinking: { type: 'disabled' },
               system,
-              tools: TOOLS,
+              tools: toolsActivas,
               messages,
             } as Anthropic.MessageStreamParams & { thinking: { type: 'disabled' } })
             ms.on('text', (t: string) => send({ type: 'token', text: t }))
@@ -307,7 +464,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
 
           const results: Anthropic.ToolResultBlockParam[] = []
           for (const tu of toolUses) {
-            const out = await executeTool(t.tenantId, projectId, tu.name, tu.input)
+            const out = await executeTool(t.tenantId, projectId, tu.name, tu.input, ctxHerramientas)
             send({ type: 'refresh' }) // el cliente refresca el proyecto tras cada cambio
             results.push({ type: 'tool_result', tool_use_id: tu.id, content: out })
           }
