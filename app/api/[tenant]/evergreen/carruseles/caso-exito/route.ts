@@ -11,6 +11,9 @@ import {
   type CasoExitoSpec,
 } from '@/lib/carruseles/caso-exito'
 import { getTenantConfigWithFallback } from '@/lib/config'
+import { geminiGenerar } from '@/lib/ai/gemini'
+import { openaiChat } from '@/lib/ai/openai'
+import { elegirMotorTexto, modeloTexto, MENSAJE_SIN_MOTOR } from '@/lib/carruseles/motor'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -131,8 +134,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   // Clave de ESTA subcuenta, en una instantánea (ver carruseles/chat): process.env es global al
   // proceso y no se limpia entre peticiones de subcuentas distintas.
   const cfg = await getTenantConfigWithFallback(t.tenantId, true)
-  const anthropicKey = cfg.ANTHROPIC_API_KEY
-  if (!anthropicKey) return NextResponse.json({ error: 'ANTHROPIC_API_KEY no configurada' }, { status: 503 })
+  const motor = elegirMotorTexto(cfg)
+  if (!motor) return NextResponse.json({ error: MENSAJE_SIN_MOTOR }, { status: 503 })
 
   const body = await req.json().catch(() => ({}))
   const name: string = typeof body.name === 'string' ? body.name.trim() : ''
@@ -148,33 +151,58 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     )
   if (story.length > 60000) return NextResponse.json({ error: 'El relato es demasiado largo' }, { status: 400 })
 
-  const client = new Anthropic({ apiKey: anthropicKey })
-
-  // El SDK instalado (0.36.3) es previo al parámetro `thinking`; se añade por fuera de su tipo
-  // en vez de silenciar todo el objeto con `any`.
-  type CreateParams = Anthropic.MessageCreateParamsNonStreaming & { thinking: { type: 'disabled' } }
-
   let spec: CasoExitoSpec | null = null
   try {
-    const res = await client.messages.create({
-      model: MODEL,
-      max_tokens: 4000,
-      // Igual que en /chat: este flujo no usa thinking y los bloques vacíos rompen la request.
-      thinking: { type: 'disabled' },
-      system: SYSTEM,
-      tools: [TOOL],
-      tool_choice: { type: 'tool', name: 'build_caso_exito' },
-      messages: [
-        {
-          role: 'user',
-          content: `Nombre del protagonista: ${name}\n\nRelato del caso de éxito:\n\n${story}`,
-        },
-      ],
-    } as CreateParams)
-    const use = res.content.find(
-      (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use' && b.name === 'build_caso_exito'
-    )
-    spec = parseSpec(use?.input, name)
+    const usuario = `Nombre del protagonista: ${name}\n\nRelato del caso de éxito:\n\n${story}`
+    if (motor === 'anthropic') {
+      const client = new Anthropic({ apiKey: cfg.ANTHROPIC_API_KEY as string })
+      // El SDK instalado (0.36.3) es previo al parámetro `thinking`; se añade por fuera de su tipo
+      // en vez de silenciar todo el objeto con `any`.
+      type CreateParams = Anthropic.MessageCreateParamsNonStreaming & { thinking: { type: 'disabled' } }
+      const res = await client.messages.create({
+        model: MODEL,
+        max_tokens: 4000,
+        // Igual que en /chat: este flujo no usa thinking y los bloques vacíos rompen la request.
+        thinking: { type: 'disabled' },
+        system: SYSTEM,
+        tools: [TOOL],
+        tool_choice: { type: 'tool', name: 'build_caso_exito' },
+        messages: [{ role: 'user', content: usuario }],
+      } as CreateParams)
+      const use = res.content.find(
+        (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use' && b.name === 'build_caso_exito'
+      )
+      spec = parseSpec(use?.input, name)
+    } else {
+      // Gemini/OpenAI: mismo contrato, pero como JSON puro (modo JSON) en vez de herramienta.
+      const sistemaJson = `${SYSTEM}\n\nEn lugar de llamar a una herramienta, responde SOLO con un objeto JSON con este esquema: ${JSON.stringify(TOOL.input_schema)}`
+      let texto = ''
+      if (motor === 'gemini') {
+        const r = await geminiGenerar({
+          apiKey: cfg.GEMINI_API_KEY as string,
+          model: modeloTexto(cfg, 'gemini'),
+          system: sistemaJson,
+          contents: [{ role: 'user', parts: [{ text: usuario }] }],
+          maxTokens: 4000,
+          json: true,
+        })
+        texto = r.texto
+      } else {
+        const r = await openaiChat({
+          apiKey: cfg.OPENAI_API_KEY as string,
+          model: modeloTexto(cfg, 'openai'),
+          messages: [
+            { role: 'system', content: sistemaJson },
+            { role: 'user', content: usuario },
+          ],
+          maxTokens: 4000,
+          json: true,
+        })
+        texto = r.texto
+      }
+      const limpio = texto.replace(/^```(?:json)?\s*|\s*```$/g, '').trim()
+      spec = parseSpec(JSON.parse(limpio), name)
+    }
   } catch (e) {
     const err = e as { error?: { error?: { message?: string }; message?: string }; message?: string }
     const msg = err?.error?.error?.message || err?.error?.message || err?.message || 'Error de la API'
