@@ -11,6 +11,7 @@ import { SlideFilmstrip } from '@/components/carruseles/SlideFilmstrip'
 import { AspectRatioSelector } from '@/components/carruseles/AspectRatioSelector'
 import { ExportButton } from '@/components/carruseles/ExportButton'
 import { CaptionPanel } from '@/components/carruseles/CaptionPanel'
+import { ImagenIaDialog } from '@/components/carruseles/ImagenIaDialog'
 import { toast } from 'sonner'
 import type { CarruselProject, AspectRatio } from '@/lib/carruseles/types'
 import { useTenant } from '@/lib/tenant-context'
@@ -157,6 +158,7 @@ export default function CarruselEditorPage() {
         >
           <MessageSquare className="h-3.5 w-3.5" />
         </Button>
+        <ImagenIaDialog projectId={id} onCreated={fetchProject} />
         <ExportButton title={project.title} slides={project.slides} aspectRatio={project.aspectRatio} />
       </div>
 

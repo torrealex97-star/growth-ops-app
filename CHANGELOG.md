@@ -7,6 +7,11 @@
 
 ---
 
+## Pendiente de publicar 31-oct-2026 — carruseles sin Anthropic y con imágenes de Gemini/OpenAI
+
+- `[fix]` **Carruseles ya no devuelven 503 por no tener Anthropic**: si la subcuenta tiene DeepSeek, el generador de slides lo usa por su endpoint compatible con Anthropic (mismo bucle de herramientas; DeepSeek no ve imágenes, las referencias no se adjuntan y se avisa). Sin ningún motor de texto, el mensaje dice qué conectar.
+- `[nuevo]` **Imágenes con IA (Gemini «Nano Banana» u OpenAI gpt-image-1)** para slides, flyers e historias: botón «Imagen IA» en el editor, ruta `POST /api/[tenant]/evergreen/carruseles/imagen` (clave de la subcuenta, prompt con la marca, relevo entre proveedores con el motivo escrito, imagen guardada en `carrusel-uploads`). Claves en Integraciones → Inteligencia artificial; «Probar» las valida listando modelos, sin generar (sin coste).
+
 ## Publicado 29-sep → 2-oct-2026 — composer del inbox y bandeja (deployment READY verificado por API de Vercel en cada merge)
 
 - `[fix]` **Composer del inbox: sin `Content-Type: application/json` GHL ignoraba el body (PR #307)**: `fetch` sin cabecera manda el JSON como `text/plain` y la API lo descarta (404 `Contact id not given` en TODA respuesta del composer). `ghlHeaders()` añade la cabecera + sonda QA reutilizable `scripts/sonda-inbox-envio.mjs` (list/send/cleanup contra las rutas de producción con usuario QA efímero; nunca imprime secretos ni PII).

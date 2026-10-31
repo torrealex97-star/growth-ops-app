@@ -7,12 +7,14 @@ import { getBrand, getProject, addSlide, updateSlide, deleteSlide, updateProject
 import { buildSystemPrompt, type BrandAsset } from '@/lib/carruseles/system-prompt'
 import { MAX_SLIDES } from '@/lib/carruseles/types'
 import { getTenantConfigWithFallback } from '@/lib/config'
+import { deepseekModel } from '@/lib/ai/provider'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
 const MODEL = 'claude-sonnet-5'
+const DEEPSEEK_ANTHROPIC_BASE_URL = 'https://api.deepseek.com/anthropic'
 const MAX_ITERATIONS = 16
 // Límite de "reintentos" internos cuando el modelo deja de llamar tools sin haber
 // terminado el número de slides pedido. Acotado para no consumir todas las MAX_ITERATIONS
@@ -185,8 +187,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   // global al proceso y no se limpia: la siguiente petición de OTRA subcuenta atendida por la misma
   // lambda generaba con la clave —y a cuenta— de la primera.
   const cfg = await getTenantConfigWithFallback(t.tenantId, true)
-  const anthropicKey = cfg.ANTHROPIC_API_KEY
-  if (!anthropicKey) return NextResponse.json({ error: 'ANTHROPIC_API_KEY no configurada' }, { status: 503 })
+  // Motor de texto del generador: Anthropic si está conectado; si no, DeepSeek por su endpoint compatible con
+  // Anthropic (mismo bucle de herramientas). Antes, sin clave de Anthropic el módulo entero devolvía 503 aunque
+  // hubiera otra IA conectada. DeepSeek no ve imágenes: las referencias no se adjuntan y se avisa.
+  const anthropicKey = cfg.ANTHROPIC_API_KEY?.trim()
+  const deepseekKey = cfg.DEEPSEEK_API_KEY?.trim()
+  if (!anthropicKey && !deepseekKey) {
+    return NextResponse.json(
+      {
+        error:
+          'Conecta un motor de texto para crear carruseles: DeepSeek o Anthropic (Ajustes → Integraciones → Inteligencia artificial). Para generar imágenes, flyers e historias conecta además Gemini u OpenAI.',
+      },
+      { status: 503 }
+    )
+  }
+  const usaDeepseek = !anthropicKey
+  const modelo = usaDeepseek ? deepseekModel(cfg) : MODEL
 
   const body = await req.json().catch(() => ({}))
   const message: string = typeof body.message === 'string' ? body.message : ''
@@ -202,7 +218,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   const brand = await getBrand(t.tenantId)
   const brandAssets = parseBrandAssets(process.env.IG_BRAND_ASSETS)
   const system = buildSystemPrompt(brand, project, process.env.IG_BUSINESS_CONTEXT, brandAssets)
-  const client = new Anthropic({ apiKey: anthropicKey })
+  const client = usaDeepseek
+    ? new Anthropic({ apiKey: deepseekKey!, baseURL: DEEPSEEK_ANTHROPIC_BASE_URL, maxRetries: 1, timeout: 55_000 })
+    : new Anthropic({ apiKey: anthropicKey! })
 
   // Construye el historial (solo texto) + mensaje actual con imágenes de referencia/marca.
   const messages: Anthropic.MessageParam[] = []
@@ -217,14 +235,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
 
   // Las N referencias MÁS RECIENTES (no las primeras) para que una imagen recién subida
   // siempre se adjunte de verdad, aunque ya hubiera otras referencias antes.
-  const recentRefs = project.referenceImages.slice(-MAX_REFERENCE_IMAGES)
+  if (usaDeepseek && (project.referenceImages.length || brandAssets.length)) {
+    imageWarnings.push(
+      'El motor de texto conectado (DeepSeek) no puede ver imágenes: las referencias y los assets de marca no se adjuntan. Conecta Anthropic para que la IA los vea.'
+    )
+  }
+  const recentRefs = usaDeepseek ? [] : project.referenceImages.slice(-MAX_REFERENCE_IMAGES)
   for (const ref of recentRefs) {
     const { block, warning } = await fetchImageBlock(ref.url, ref.name)
     if (block) userBlocks.push(block)
     if (warning) imageWarnings.push(warning)
   }
 
-  const recentAssets = brandAssets.slice(0, MAX_BRAND_ASSET_IMAGES)
+  const recentAssets = usaDeepseek ? [] : brandAssets.slice(0, MAX_BRAND_ASSET_IMAGES)
   for (const asset of recentAssets) {
     const { block, warning } = await fetchImageBlock(asset.url, asset.name)
     if (block) userBlocks.push(block)
@@ -260,7 +283,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
           let final: Anthropic.Message
           try {
             const ms = client.messages.stream({
-              model: MODEL,
+              model: modelo,
               max_tokens: 16000,
               // Sonnet 5 activa "adaptive thinking" por defecto y devuelve bloques
               // thinking con texto vacío (display "omitted"). Al reenviar esos bloques
@@ -270,11 +293,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
               //
               // El SDK instalado (0.36.3) es previo al parámetro `thinking`; se añade por
               // fuera de su tipo en vez de silenciar todo el objeto con `any`.
-              thinking: { type: 'disabled' },
+              ...(usaDeepseek ? {} : { thinking: { type: 'disabled' } }),
               system,
               tools: TOOLS,
               messages,
-            } as Anthropic.MessageStreamParams & { thinking: { type: 'disabled' } })
+            } as Anthropic.MessageStreamParams)
             ms.on('text', (t: string) => send({ type: 'token', text: t }))
             final = await ms.finalMessage()
           } catch (apiErr) {
