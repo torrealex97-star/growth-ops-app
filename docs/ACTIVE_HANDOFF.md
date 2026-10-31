@@ -5,6 +5,29 @@ aplicadas en producción, con lo que hace falta para subirlas. Al fusionarse una
 
 Todo lo que depende de Alex, paso a paso: **[PASOS_ALEX.md](PASOS_ALEX.md)**.
 
+# COMPLETADO — Adopción de AIS-OS: log de decisiones + ledger de auditoría (31-oct, Buffy)
+
+Tras evaluar <https://github.com/nateherkai/AIS-OS> (kit de "AI Operating System", MIT), se adopta
+SOLO la mecánica aprovechable, sin tocar código productivo:
+
+1. **`docs/decisions/log.md`** (nuevo, append-only): registro único de decisiones no triviales con
+   formato Decisión / Por qué / Alternativas / Owner. Dos entradas sembradas (la adopción misma y
+   la práctica de auditorías). Enlazado desde `AGENTS.md` (sección Documentos).
+2. **`docs/AUDIT_LEDGER.md`** (nuevo): ledger con IDs estables (`PERF-01`, `TRK-01`, `INT-01`,
+   `DEP-01`, `REF-01`, `RUN-01`) sembrado desde `ACTIVE_HANDOFF`, `PENDIENTES`, `FASE1-MATRIZ` y
+   `S0-*`, con su nivel de evidencia honesto (`TESTED`/`INSPECTED` + fechas) y estado
+   (abierto/resuelto/reabierto/no re-chequeado). Incluye el protocolo de evidencia para auditorías
+   futuras (evidencia con fecha, defecto confirmado ≠ por verificar, no inventar hallazgos, «hueco
+   no es cero»). Los hallazgos nuevos de auditorías futuras van ahí, no en docs ad hoc.
+3. **No se construye ningún panel nuevo de Fuentes/conectores**: su equivalente YA existe en la app
+   (`integration_sync_runs` + página de Integraciones + Data Health + `lib/ops/sync-health.ts`) y el
+   registro de conexiones es `docs/FASE1-MATRIZ-INTEGRACIONES.md`; el ledger los referencia.
+4. **No se adoptan las marcas ni la estructura de carpetas del kit** («Three Ms»/«Four Cs» son
+   marcas de Nate Herk; `docs/plan/` ya es la hoja de ruta canónica).
+
+Rama `docs/ais-os-adopciones` (worktree), solo 4 ficheros de docs. Validación aplicable a docs:
+prettier OK. Sin cambios de código, sin tests, sin migraciones.
+
 # COMPLETADO — Ficha de colaborador: desglose de comisión completa por mes del cash (31-oct)
 
 Petición directa al mirar `marketing/afiliados/afiliados` como colaboradora: se ve la comisión

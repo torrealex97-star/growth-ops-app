@@ -37,8 +37,11 @@ Desde el 22-sep trabajan **a la vez** varios agentes (Freebuff y Claude Code). P
   `supabase_migrations.schema_migrations` con la misma versión que el fichero. Aplicar sin registrar
   deja el historial desalineado y la próxima sincronización intentaría reaplicarla.
 - **Documentos.** `docs/ACTIVE_HANDOFF.md` = coordinación y estado (qué está en curso, qué se validó,
-  qué bloquea). `PENDIENTES.md` = backlog de producto. `docs/plan/` = hoja de ruta. No se duplica
-  estado entre ellos: se enlaza.
+  qué bloquea). `PENDIENTES.md` = backlog de producto. `docs/plan/` = hoja de ruta.
+  `docs/decisions/log.md` = registro append-only de decisiones no triviales (por qué, alternativas,
+  owner). `docs/AUDIT_LEDGER.md` = hallazgos de auditoría con ID estable y su estado — los hallazgos
+  nuevos de una auditoría se añaden ahí, no en un doc ad hoc. No se duplica estado entre ellos: se
+  enlaza.
 
 ## Disciplina de ramas
 
