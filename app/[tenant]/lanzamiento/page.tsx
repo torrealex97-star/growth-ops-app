@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
 import { AlertTriangle, CalendarPlus, Info, Loader2, RefreshCw, Rocket } from 'lucide-react'
 import { useTenant } from '@/lib/tenant-context'
 
@@ -142,12 +143,26 @@ export default function LanzamientoPage() {
             Calendario y métricas del lanzamiento activo. Los leads nuevos del webhook de GHL se apuntan al activo.
           </p>
         </div>
-        <button
-          onClick={() => void load()}
-          className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-1.5 text-sm hover:bg-muted"
-        >
-          <RefreshCw className="h-4 w-4" /> Recargar
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href={`/${tenant}/lanzamiento/contenido`}
+            className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-1.5 text-sm hover:bg-muted"
+          >
+            Contenido
+          </Link>
+          <Link
+            href={`/${tenant}/lanzamiento/informe`}
+            className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-1.5 text-sm hover:bg-muted"
+          >
+            Informe
+          </Link>
+          <button
+            onClick={() => void load()}
+            className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-1.5 text-sm hover:bg-muted"
+          >
+            <RefreshCw className="h-4 w-4" /> Recargar
+          </button>
+        </div>
       </div>
 
       {loading && (
