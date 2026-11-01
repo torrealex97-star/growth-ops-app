@@ -9,6 +9,7 @@ import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { mensajeDeCarga, primerError } from '@/lib/supabase/resultado'
 import { KPICard } from '@/components/os/DashboardKPICard'
+import { VozClienteDashboard } from '@/components/insights/VozCliente'
 import { TeamRanking } from '@/components/os/TeamRanking'
 import { AttributionTable } from '@/components/os/AttributionTable'
 import { KaizenWidget } from '@/components/os/KaizenWidget'
@@ -1313,6 +1314,9 @@ function DashboardEquipo() {
           customers={periodCustomers}
         />
       )}
+
+      {/* Voz del cliente: qué dicen los potenciales (formulario previo y llamada) y los clientes. */}
+      {leadershipView && <VozClienteDashboard tenant={tenant} />}
 
       {/* Ranking + Agendas por persona */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
