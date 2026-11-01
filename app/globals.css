@@ -445,3 +445,58 @@ label[for] {
     display: none;
   }
 }
+
+/* ── Fundamentos de diseño (skill apple-design) ──────────────────────────────────────────────
+   Tipografía óptica: el tracking depende del tamaño. Los titulares grandes se aprietan; el cuerpo
+   queda en 0. Va en @layer base para que cualquier utilidad `tracking-*` de Tailwind lo pise. */
+@layer base {
+  h1 {
+    letter-spacing: -0.02em;
+  }
+  h2 {
+    letter-spacing: -0.015em;
+  }
+  h3 {
+    letter-spacing: -0.01em;
+  }
+  body {
+    font-optical-sizing: auto;
+  }
+}
+
+/* Respuesta inmediata: el botón reacciona al pulsar, no al soltar. Se añade a los <button> nativos
+   que no pasan por components/ui/button (ese ya trae su propia escala). */
+@media (prefers-reduced-motion: no-preference) {
+  /* `scale` (propiedad individual) y no `transform`: no pisa los translate de centrado de Tailwind. */
+  button:not(:disabled):not([role='tab']):active {
+    scale: 0.98;
+    transition: scale 100ms ease-out;
+  }
+}
+
+/* Accesibilidad de materiales: quien pide menos transparencia recibe superficies sólidas, sin
+   desenfoque (las cabeceras y tarjetas translúcidas pierden legibilidad sobre contenido). */
+@media (prefers-reduced-transparency: reduce) {
+  [class*='backdrop-blur'] {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  header[class*='backdrop-blur'] {
+    background-color: hsl(var(--background)) !important;
+  }
+  [class*='bg-card/'][class*='backdrop-blur'] {
+    background-color: hsl(var(--card)) !important;
+  }
+}
+
+/* Más contraste: bordes definidos y texto atenuado menos atenuado. */
+@media (prefers-contrast: more) {
+  :root {
+    --border: 0 0% 45%;
+    --muted-foreground: 0 0% 30%;
+  }
+  .dark:root {
+    --border: 0 0% 65%;
+    --muted-foreground: 0 0% 82%;
+  }
+}
