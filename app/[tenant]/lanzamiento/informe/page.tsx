@@ -57,9 +57,45 @@ export default function InformeLanzamientoPage() {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const ac = useRef<AbortController | null>(null)
+  const [guardados, setGuardados] = useState<{ id: string; momento: 'intermedio' | 'final'; generadoAt: string }[]>([])
+  const [puedeGuardar, setPuedeGuardar] = useState(false)
+  const [guardando, setGuardando] = useState(false)
   const base = `/api/${tenant}/evergreen/lanzamiento`
 
+  const cargarGuardados = async (id: string) => {
+    try {
+      const r = await fetch(`${base}/informe/guardados?launch=${id}`)
+      const j = await r.json()
+      if (r.ok) {
+        setGuardados(j.guardados)
+        setPuedeGuardar(Boolean(j.puedeGuardar))
+      }
+    } catch {
+      /* la lista es secundaria: el informe en pantalla no depende de ella */
+    }
+  }
+
+  const guardar = async (momento: 'intermedio' | 'final') => {
+    setGuardando(true)
+    setError(null)
+    try {
+      const r = await fetch(`${base}/informe/guardados`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ launchId, momento }),
+      })
+      const j = await r.json()
+      if (!r.ok) throw new Error(j.error || 'No se pudo guardar')
+      await cargarGuardados(launchId)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error de conexión')
+    } finally {
+      setGuardando(false)
+    }
+  }
+
   const cargar = async (id: string) => {
+    void cargarGuardados(id)
     ac.current?.abort()
     const a = new AbortController()
     ac.current = a
@@ -167,6 +203,50 @@ export default function InformeLanzamientoPage() {
               5.000.
             </p>
           )}
+
+          <section className={CAJA}>
+            <h2 className="font-semibold text-foreground">Informes guardados</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Guarda una instantánea a mitad del calentamiento (intermedio) y otra al cerrar el carrito (final): no
+              cambia aunque los datos sí lo hagan.
+            </p>
+            {puedeGuardar && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(['intermedio', 'final'] as const).map((m) => (
+                  <button
+                    key={m}
+                    disabled={guardando}
+                    onClick={() => void guardar(m)}
+                    className="rounded-md border border-border bg-background px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50"
+                  >
+                    {guardando ? 'Guardando…' : `Guardar informe ${m}`}
+                  </button>
+                ))}
+              </div>
+            )}
+            {guardados.length === 0 ? (
+              <p className="mt-3 text-sm text-muted-foreground">Aún no hay informes guardados de este lanzamiento.</p>
+            ) : (
+              <ul className="mt-3 divide-y divide-border text-sm">
+                {guardados.map((g) => (
+                  <li key={g.id} className="flex items-center justify-between gap-3 py-2">
+                    <span className="text-foreground">
+                      {g.momento === 'final' ? 'Final' : 'Intermedio'} ·{' '}
+                      <span className="tabular-nums text-muted-foreground">
+                        {new Date(g.generadoAt).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' })}
+                      </span>
+                    </span>
+                    <a
+                      href={`${base}/informe/guardados?id=${g.id}&formato=html`}
+                      className="text-brand-600 underline underline-offset-2"
+                    >
+                      Descargar HTML
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
 
           <section className={CAJA}>
             <h2 className="font-semibold text-foreground">Embudo</h2>
