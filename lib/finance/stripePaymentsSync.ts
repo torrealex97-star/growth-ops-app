@@ -20,6 +20,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { stripeList } from '@/lib/stripe/client'
 import { fetchStripeFeesForChargeIds } from './stripeFees'
+import { alinearFeesDeCobros } from './feeAlignment'
 import { esMonedaBase, obtenerTasaAEur, type TasaAEur } from './fx'
 import { ultimaDevolucionPorPago, type StripeRefundLite } from './refundDates'
 
@@ -237,6 +238,14 @@ export async function syncStripePayments(
       if (error) throw new Error(error.message)
       written += lote.length
     }
+  }
+
+  // El espejo ya tiene el fee real: se vuelca al cobro (lo que lee el P&L). Es mejora, no dinero nuevo:
+  // si falla, el espejo ya está escrito y el próximo sync lo reintenta.
+  try {
+    await alinearFeesDeCobros(sb, tenantId)
+  } catch {
+    // reintento en la siguiente ejecución
   }
 
   return {

@@ -172,7 +172,7 @@ export function PaymentInbox({ compact = false, onCount }: { compact?: boolean; 
       setOpening(null)
     }
   }
-  async function save() {
+  async function save(confirmNewSale = false) {
     if (!detail) return
     setSaving(true)
     const esReserva = mode === 'reservation'
@@ -182,6 +182,7 @@ export function PaymentInbox({ compact = false, onCount }: { compact?: boolean; 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           paymentId: detail.payment.payment_id,
+          ...(confirmNewSale ? { confirmNewSale: true } : {}),
           ...(mode === 'existing' || (esReserva && saleId)
             ? { saleId }
             : esReserva
@@ -203,7 +204,17 @@ export function PaymentInbox({ compact = false, onCount }: { compact?: boolean; 
         }),
       })
       const body = await res.json()
-      if (!res.ok) throw new Error(body.error)
+      if (!res.ok) {
+        // Venta abierta existente: se pide confirmar de forma explícita antes de duplicar la venta.
+        if (
+          body.code === 'VENTA_ABIERTA_EXISTENTE' &&
+          window.confirm(`${body.error}\n\n¿Crear igualmente una venta nueva?`)
+        ) {
+          setSaving(false)
+          return save(true)
+        }
+        throw new Error(body.error)
+      }
       if (body.warning) toast.warning(body.warning)
       else
         toast.success(
