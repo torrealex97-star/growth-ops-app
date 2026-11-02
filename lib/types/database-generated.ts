@@ -4439,35 +4439,6 @@ export type EsquemaPublico = {
         guion_webinar: string | undefined
       }
     }
-    LaunchReports: {
-      Row: {
-        id: string
-        tenant_id: string
-        launch_id: string
-        momento: string
-        datos: Json
-        generado_at: string
-        generado_por: string | null
-      }
-      Insert: {
-        id: string | undefined
-        tenant_id: string
-        launch_id: string
-        momento: string
-        datos: Json
-        generado_at: string | undefined
-        generado_por: string | null | undefined
-      }
-      Update: {
-        id: string | undefined
-        tenant_id: string | undefined
-        launch_id: string | undefined
-        momento: string | undefined
-        datos: Json | undefined
-        generado_at: string | undefined
-        generado_por: string | undefined
-      }
-    }
     LinkTemplates: {
       Row: {
         id: string
