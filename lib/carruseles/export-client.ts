@@ -3,6 +3,7 @@
 import * as htmlToImage from 'html-to-image'
 import JSZip from 'jszip'
 import { wrapSlideHtml, extractFontFamilies } from './slide-html'
+import { FAMILIAS_NATIVAS } from './historias/estilo-nativo'
 import { DIMENSIONS } from './types'
 import type { AspectRatio, Slide } from './types'
 
@@ -29,6 +30,12 @@ async function fetchFontEmbedCSS(families: string[], tenant: string): Promise<st
   } catch {
     return ''
   }
+}
+
+/** Familias que usa el HTML, más las del estilo nativo cuando son historias (viven en el CSS inyectado). */
+function familiasParaExportar(html: string, aspectRatio: AspectRatio): string[] {
+  const f = extractFontFamilies(html)
+  return aspectRatio === '9:16' ? [...new Set([...f, ...FAMILIAS_NATIVAS])] : f
 }
 
 function waitForIframe(iframe: HTMLIFrameElement, srcDoc: string): Promise<void> {
@@ -118,7 +125,7 @@ export async function exportProject(
 ): Promise<void> {
   if (slides.length === 0) return
   const allHtml = slides.map((s) => s.html).join('\n')
-  const families = extractFontFamilies(allHtml)
+  const families = familiasParaExportar(allHtml, aspectRatio)
   const fontEmbedCSS = await fetchFontEmbedCSS(families, tenant)
 
   const base = slugify(title)

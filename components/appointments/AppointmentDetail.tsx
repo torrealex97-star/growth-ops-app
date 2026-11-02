@@ -11,6 +11,7 @@ import { formatDateTime, formatDate } from '@/lib/utils'
 import { fireConfetti, cheerMessage } from '@/lib/confetti'
 import { toast } from 'sonner'
 import { MarcadoRapido } from '@/components/appointments/MarcadoRapido'
+import { BriefingCloser } from '@/components/appointments/BriefingCloser'
 import type { AppointmentWithRelations, AppointmentStatus } from '@/lib/types/database'
 import { STATUS_COLORS, STATUS_LABELS, isNoShow } from '@/lib/appointments/status'
 import { getQualificationEntries, type Qualification } from '@/lib/appointments/qualification'
@@ -791,6 +792,18 @@ export function AppointmentDetail({
           </Button>
         )}
       </div>
+
+      <BriefingCloser
+        entrada={{
+          respuestas: respuestasDelPayload.length
+            ? respuestasDelPayload
+            : qualificationEntries.map((e) => ({ pregunta: e.label, respuesta: String(e.value ?? '') })),
+          anuncio: appointment.utm_content,
+          campana: appointment.utm_campaign,
+          objecionesPrevias: appointment.ai_analysis?.objections ?? [],
+          leadNivel: leadScore?.nivel ?? null,
+        }}
+      />
 
       {/* MARCADO DEL RESULTADO. Va arriba, antes de las acciones y de los datos del contacto, porque es
           lo que hay que rellenar al colgar: si estuviera al final del panel, no se rellenaría. De aquí

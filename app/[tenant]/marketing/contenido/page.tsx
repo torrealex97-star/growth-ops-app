@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { activeUserNamesQuery } from '@/lib/users'
 import {
   Clapperboard,
+  Lightbulb,
   Plus,
   ExternalLink,
   LayoutGrid,
@@ -344,6 +345,12 @@ export default function ContentPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            href={`/${tenant}/marketing/ideas`}
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <Lightbulb className="h-4 w-4" /> Ideas
+          </Link>
           <div className="flex rounded-lg border border-border overflow-hidden">
             <button
               onClick={() => setView('tabla')}
