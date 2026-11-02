@@ -230,20 +230,32 @@ export default function NewCollectionPage() {
     // no recalculaba los tramos después, no resolvía la atribución por UTM (un setter atribuido por
     // enlace se quedaba sin comisión) y no avisaba a creatuagente. El mismo hecho de negocio daba
     // resultados distintos según por dónde entrara.
-    const res = await fetch(`/api/${tenant}/evergreen/collections/record`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        saleId: selectedSale.id,
-        grossAmount: parseFloat(grossAmount),
-        commissionableAmount,
-        method: paymentMethod,
-        collectedAt: new Date(collectedAt).toISOString(),
-        notes: notes || null,
-        paymentReference: paymentReference || null,
-      }),
-    })
-    const payload = (await res.json().catch(() => ({}))) as { error?: string; needsReview?: boolean }
+    const enviar = (confirmDuplicate: boolean) =>
+      fetch(`/api/${tenant}/evergreen/collections/record`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          saleId: selectedSale.id,
+          grossAmount: parseFloat(grossAmount),
+          commissionableAmount,
+          method: paymentMethod,
+          collectedAt: new Date(collectedAt).toISOString(),
+          notes: notes || null,
+          paymentReference: paymentReference || null,
+          ...(confirmDuplicate ? { confirmDuplicate: true } : {}),
+        }),
+      })
+    let res = await enviar(false)
+    let payload = (await res.json().catch(() => ({}))) as { error?: string; needsReview?: boolean; code?: string }
+    // Misma venta, mismo importe y día: casi siempre es el pago ya registrado. Solo se repite si la persona confirma.
+    if (
+      res.status === 409 &&
+      payload.code === 'COBRO_DUPLICADO' &&
+      confirm(`${payload.error}\n\n¿Registrar igualmente otro cobro?`)
+    ) {
+      res = await enviar(true)
+      payload = (await res.json().catch(() => ({}))) as typeof payload
+    }
     if (!res.ok) {
       toast.error('Error al registrar el cobro', { description: payload.error })
       setSubmitting(false)

@@ -15,6 +15,8 @@ import {
 } from '@/lib/launch/contenido'
 
 export const runtime = 'nodejs'
+// `generar` espera a la IA (hasta ~50 s): sin esto Vercel corta la función con su tope por defecto.
+export const maxDuration = 60
 
 const svc = () =>
   createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
