@@ -5,6 +5,27 @@ aplicadas en producción, con lo que hace falta para subirlas. Al fusionarse una
 
 Todo lo que depende de Alex, paso a paso: **[PASOS_ALEX.md](PASOS_ALEX.md)**.
 
+# PENDIENTE — Lo que queda tras la ola de Lanzamiento, historias y finanzas (2-nov)
+
+En `main` y aplicado en producción: Lanzamiento (contenido, checklist, informe guardado, guion + «Generar con IA»), voz del
+cliente, briefing del closer, diagnóstico GHL, carruseles con Gemini/OpenAI, historias de estilo nativo (solo imagen),
+guardas anti-duplicado de finanzas, `OPENAI_BASE_URL` por subcuenta, `unpdf` 2. Revisión de código del 2-nov: corregidos
+`maxDuration` de la ruta de contenido (la IA tardaba más que el tope por defecto) y la confirmación de cobro duplicado en
+`finanzas/cobros/cobros/new` (la guarda devolvía 409 sin forma de confirmar).
+
+| Qué                                                                                                              | Dónde está                                                          | Qué falta para subirlo                                                                                                                            |
+| ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `postgres` 3→4 (PR de Dependabot abierto)                                                                        | Sin mergear                                                         | Probar `lib/mcp/sql-executor.ts` (`set local role mcp_reader` + solo lectura dentro de `sql.begin`) contra una BD real: una escritura debe fallar |
+| PR #697 (carruseles + voz del cliente, antiguo)                                                                  | Abierto, obsoleto: lo sustituyen #696 y #703                        | Cerrarlo y borrar su rama (el asistente no tiene permiso)                                                                                         |
+| `lib/types/database-generated.ts`                                                                                | Parcheado a mano (LaunchChecklist/Content/Reports, `guion_webinar`) | `npm run tipos:bd` con credenciales reales y commitear el resultado                                                                               |
+| GHL: bandeja unificada, agente de setting, publicar historias/posts, verificación de firma `X-GHL-Signature`     | No iniciado                                                         | Resultado de «Probar conexión» de GHL (permisos del token) y la clave pública de firma de GHL                                                     |
+| Analítica de lanzamiento: aperturas/clics de email, WhatsApp, asistencia real al directo, Meta/TikTok/Google Ads | `datosQueFaltan` ya lo declara en el informe                        | Conectar cada fuente (ver `lib/launch/informe.ts`, `FuentesLanzamiento`)                                                                          |
+| Historias en vídeo                                                                                               | No iniciado (solo imagen por decisión de Alex)                      | Componer en el navegador (canvas + MediaRecorder, sin subir); etiquetar fotos con visión es opcional                                              |
+| Diseño Apple en el resto de la app                                                                               | Hecho: base global (`globals.css`) y Lanzamiento                    | Aplicar pantalla a pantalla (Dashboard, Ventas, Conversaciones…) con `tests/diseno-apple.test.mjs` como red                                       |
+| Alta manual de cobro: botón de confirmar duplicado                                                               | Corregido en esta revisión (`confirm()` y reintento)                | Verificar a mano en la pantalla con una venta que ya tenga un cobro igual                                                                         |
+| Pantallas nuevas de Lanzamiento sin ver renderizadas                                                             | Probadas con tests, no en el navegador                              | Programar un lanzamiento de prueba y recorrer Contenido, Informe y checklist; probar «Generar con IA» con una clave real                          |
+| Tests que necesitan BD viva (tipos frescos, columnas fantasma, invariante multitenant)                           | Pasan en CI, fallan en local sin credenciales                       | Nada, salvo correr `npm test` con credenciales para ver el resultado local                                                                        |
+
 # COMPLETADO — Adopción de AIS-OS: log de decisiones + ledger de auditoría (31-oct, Buffy)
 
 Tras evaluar <https://github.com/nateherkai/AIS-OS> (kit de "AI Operating System", MIT), se adopta
