@@ -13,7 +13,13 @@ import {
   type GeminiContenido,
   type HerramientaGenerica,
 } from '@/lib/ai/gemini'
-import { OPENAI_MODELO_IMAGEN, OPENAI_MODELO_TEXTO, openaiChat, type OpenAiMensaje } from '@/lib/ai/openai'
+import {
+  OPENAI_MODELO_IMAGEN,
+  OPENAI_MODELO_TEXTO,
+  openaiChat,
+  urlBaseOpenAi,
+  type OpenAiMensaje,
+} from '@/lib/ai/openai'
 
 export type MotorTexto = 'anthropic' | 'gemini' | 'openai'
 export type MotorImagen = 'gemini' | 'openai'
@@ -38,7 +44,11 @@ export function elegirMotorTexto(cfg: Cfg): MotorTexto | null {
 
 /** Motor de imágenes: el pedido si tiene clave; si no, Gemini (Nano Banana) y luego OpenAI. */
 export function elegirMotorImagen(cfg: Cfg): MotorImagen | null {
-  const claves: Record<MotorImagen, boolean> = { gemini: tiene(cfg.GEMINI_API_KEY), openai: tiene(cfg.OPENAI_API_KEY) }
+  const claves: Record<MotorImagen, boolean> = {
+    gemini: tiene(cfg.GEMINI_API_KEY),
+    // Con otra URL base la clave no es de OpenAI y gpt-image no existe ahí.
+    openai: tiene(cfg.OPENAI_API_KEY) && !tiene(cfg.OPENAI_BASE_URL),
+  }
   const pedido = (cfg.CARRUSELES_IMAGEN_MOTOR ?? '').trim().toLowerCase() as MotorImagen
   if (pedido in claves && claves[pedido]) return pedido
   return (['gemini', 'openai'] as MotorImagen[]).find((m) => claves[m]) ?? null
@@ -153,6 +163,7 @@ export async function ejecutarBucleGenerico(o: OpcionesBucle): Promise<{ truncad
         messages: mensajesOpenAi,
         tools: o.tools,
         maxTokens: 16000,
+        baseUrl: urlBaseOpenAi(o.cfg),
         timeoutMs: Math.max(5_000, limite - ahora()),
       })
       mensajesOpenAi.push(r.mensaje)

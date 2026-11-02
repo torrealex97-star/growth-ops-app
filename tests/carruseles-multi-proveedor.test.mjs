@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { aEsquemaGemini, aspectoGemini, geminiGenerar, geminiImagen } from '../lib/ai/gemini.ts'
-import { openaiChat, openaiImagen, tamanoOpenAi } from '../lib/ai/openai.ts'
+import { openaiChat, openaiImagen, tamanoOpenAi, urlBaseOpenAi } from '../lib/ai/openai.ts'
 import {
   ejecutarBucleGenerico,
   elegirMotorImagen,
@@ -302,4 +302,31 @@ test('la ruta del chat ya no exige Anthropic y ofrece generate_image solo con cl
   assert.match(ruta, /elegirMotorTexto\(cfg\)/)
   assert.match(ruta, /imagenesIA \? \[\.\.\.TOOLS, TOOL_IMAGEN\] : TOOLS/)
   assert.match(ruta, /MAX_IMAGENES_POR_PETICION/)
+})
+
+// ── URL base compatible con OpenAI (Groq, OpenRouter…)
+test('openai: OPENAI_BASE_URL solo se acepta si es https y el chat va a esa URL', async () => {
+  assert.equal(urlBaseOpenAi({}), 'https://api.openai.com/v1')
+  assert.equal(
+    urlBaseOpenAi({ OPENAI_BASE_URL: ' https://api.groq.com/openai/v1/ ' }),
+    'https://api.groq.com/openai/v1'
+  )
+  assert.equal(urlBaseOpenAi({ OPENAI_BASE_URL: 'http://evil.test/v1' }), 'https://api.openai.com/v1', 'http no vale')
+
+  let visto = ''
+  const f = async (url) => {
+    visto = url
+    return respuesta({ choices: [{ message: { content: 'hola' } }] })
+  }
+  await openaiChat({ apiKey: 'k', messages: [], baseUrl: 'https://api.groq.com/openai/v1', fetchImpl: f })
+  assert.equal(visto, 'https://api.groq.com/openai/v1/chat/completions')
+  await openaiChat({ apiKey: 'k', messages: [], fetchImpl: f })
+  assert.equal(visto, 'https://api.openai.com/v1/chat/completions')
+})
+
+test('motor de imágenes: con URL base ajena OpenAI no genera imágenes', () => {
+  const cfg = { OPENAI_API_KEY: 'k', OPENAI_BASE_URL: 'https://api.groq.com/openai/v1' }
+  assert.equal(elegirMotorImagen(cfg), null)
+  assert.equal(elegirMotorImagen({ ...cfg, GEMINI_API_KEY: 'g' }), 'gemini')
+  assert.equal(elegirMotorTexto(cfg), 'openai', 'el texto sí usa OpenAI con otra URL')
 })

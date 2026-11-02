@@ -711,6 +711,15 @@ export const INTEGRATION_GROUPS: IntegrationGroup[] = [
         help: 'Opcional. Alternativa a Gemini/Anthropic para los carruseles y para generar imágenes (gpt-image). Créala en platform.openai.com → API keys.',
       },
       {
+        key: 'OPENAI_BASE_URL',
+        advanced: true,
+        label: 'URL base compatible con OpenAI',
+        type: 'text',
+        secret: false,
+        placeholder: 'https://api.groq.com/openai/v1',
+        help: 'Opcional. Para usar un proveedor gratuito o alternativo con la clave de arriba (Groq: https://api.groq.com/openai/v1 · OpenRouter: https://openrouter.ai/api/v1) y poner el modelo en OPENAI_MODELO_TEXTO. Debe ser https. Con otra URL las imágenes se generan con Gemini, no con gpt-image.',
+      },
+      {
         key: 'CARRUSELES_IA_MOTOR',
         advanced: true,
         label: 'Motor de los carruseles',
