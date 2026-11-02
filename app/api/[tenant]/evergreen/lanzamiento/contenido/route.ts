@@ -1,6 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireTenant } from '@/lib/auth/requireTenant'
+import { getTenantConfigWithFallback } from '@/lib/config'
+import { limitar } from '@/lib/security/rate-limit'
+import { generarPieza, guardarGuion, leerGuion } from '@/lib/launch/generar-pieza'
 import {
   aplicarPlantilla,
   borrarPieza,
@@ -32,6 +35,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       piezas: await listarContenido(svc(), auth.tenantId, launch),
       // La pantalla oculta el formulario a quien no puede guardar (el POST lo vuelve a comprobar).
       puedeEditar: ['admin', 'director'].includes(auth.role ?? ''),
+      // El guion solo lo ven quienes pueden editar (es la fuente del contenido, no hace falta al resto).
+      guion: ['admin', 'director'].includes(auth.role ?? '') ? await leerGuion(svc(), auth.tenantId, launch) : null,
     })
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Error' }, { status: 500 })
@@ -46,7 +51,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   if (!['admin', 'director'].includes(auth.role ?? '')) {
     return NextResponse.json({ error: 'Solo admin o director pueden editar el contenido' }, { status: 403 })
   }
-  let body: { accion?: string; launchId?: string; id?: string; origen?: string; datos?: DatosPieza }
+  let body: { accion?: string; launchId?: string; id?: string; origen?: string; datos?: DatosPieza; guion?: string }
   try {
     body = (await req.json()) as typeof body
   } catch {
@@ -69,6 +74,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       if (!ok(body.id)) return NextResponse.json({ error: 'Falta la pieza' }, { status: 400 })
       await borrarPieza(sb, auth.tenantId, body.id as string)
       return NextResponse.json({ ok: true })
+    }
+    if (body.accion === 'guion') {
+      if (!ok(body.launchId) || typeof body.guion !== 'string')
+        return NextResponse.json({ error: 'Faltan datos' }, { status: 400 })
+      await guardarGuion(sb, auth.tenantId, body.launchId as string, body.guion)
+      return NextResponse.json({ ok: true })
+    }
+    if (body.accion === 'generar') {
+      if (!ok(body.id)) return NextResponse.json({ error: 'Falta la pieza' }, { status: 400 })
+      // Cada generación cuesta tokens: tope por subcuenta (en memoria y por instancia, como el resto).
+      const lim = limitar(`generar-pieza:${auth.tenantId}`, 30, 10 * 60_000)
+      if (!lim.ok)
+        return NextResponse.json(
+          { error: `Demasiadas generaciones seguidas. Espera ${lim.reintentarEnSeg} s.` },
+          { status: 429 }
+        )
+      const cfg = await getTenantConfigWithFallback(auth.tenantId, true)
+      const r = await generarPieza(sb, auth.tenantId, body.id as string, cfg)
+      return NextResponse.json({ ok: true, ...r })
     }
     if (body.accion === 'plantilla') {
       if (!ok(body.launchId)) return NextResponse.json({ error: 'Falta el lanzamiento' }, { status: 400 })

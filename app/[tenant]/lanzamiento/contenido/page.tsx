@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AlertTriangle, ArrowLeft, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Loader2, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react'
 import { useTenant } from '@/lib/tenant-context'
 import { CANALES, ESTADOS, fechaDePieza, type PiezaContenido } from '@/lib/launch/contenido'
 import { CHECKLIST, progresoChecklist } from '@/lib/launch/plantilla'
@@ -48,6 +48,8 @@ export default function ContenidoLanzamientoPage() {
   const [editandoId, setEditandoId] = useState<string | null>(null)
   const [guardando, setGuardando] = useState(false)
   const [marcados, setMarcados] = useState<string[]>([])
+  const [guion, setGuion] = useState('')
+  const [guionGuardado, setGuionGuardado] = useState('')
   const abortPiezas = useRef<AbortController | null>(null)
 
   const base = `/api/${tenant}/evergreen/lanzamiento`
@@ -66,6 +68,8 @@ export default function ContenidoLanzamientoPage() {
         if (!r.ok) throw new Error(j.error || 'No se pudo leer el contenido')
         setPiezas(j.piezas as PiezaContenido[])
         setPuedeEditar(Boolean(j.puedeEditar))
+        setGuion((j.guion as string | null) ?? '')
+        setGuionGuardado((j.guion as string | null) ?? '')
         const rc = await fetch(`${base}/checklist?launch=${id}`, { signal: ac.signal })
         const jc = await rc.json()
         if (rc.ok) setMarcados(jc.marcados as string[])
@@ -344,6 +348,39 @@ export default function ContenidoLanzamientoPage() {
             </div>
           </section>
 
+          {puedeEditar && (
+            <section className="rounded-lg border border-border bg-card p-4">
+              <h2 className="font-semibold text-foreground">Guion del webinar</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Es la fuente de todo el contenido: con él, cada pieza del calendario se puede generar con IA repitiendo
+                la misma creencia que se vende en el directo.
+              </p>
+              <textarea
+                aria-label="Guion del webinar"
+                rows={6}
+                maxLength={60000}
+                value={guion}
+                onChange={(e) => setGuion(e.target.value)}
+                placeholder="Pega aquí el guion completo del webinar…"
+                className={`${CAMPO} mt-3 w-full`}
+              />
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {guion.length.toLocaleString('es-ES')} / 60.000 caracteres
+                </span>
+                <button
+                  disabled={guardando || guion === guionGuardado}
+                  onClick={async () => {
+                    if (await accion({ accion: 'guion', guion })) setGuionGuardado(guion)
+                  }}
+                  className="rounded-md border border-border bg-background px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50"
+                >
+                  Guardar guion
+                </button>
+              </div>
+            </section>
+          )}
+
           {puedeEditar ? (
             <section className="rounded-lg border border-border bg-card p-4">
               <div className="flex items-center justify-between">
@@ -467,6 +504,8 @@ export default function ContenidoLanzamientoPage() {
                             guardando={guardando}
                             accion={accion}
                             editar={editar}
+                            tieneGuion={Boolean(guionGuardado.trim())}
+                            base={base}
                           />
                         ))}
                       </ul>
@@ -491,6 +530,8 @@ export default function ContenidoLanzamientoPage() {
                     guardando={guardando}
                     accion={accion}
                     editar={editar}
+                    tieneGuion={Boolean(guionGuardado.trim())}
+                    base={base}
                   />
                 ))}
               </ul>
@@ -508,12 +549,16 @@ function Fila({
   guardando,
   accion,
   editar,
+  tieneGuion,
+  base,
 }: {
   p: PiezaContenido
   puedeEditar: boolean
   guardando: boolean
   accion: (b: Record<string, unknown>) => Promise<boolean>
   editar: (p: PiezaContenido) => void
+  tieneGuion: boolean
+  base: string
 }) {
   return (
     <li className="flex flex-wrap items-start justify-between gap-3 py-3">
@@ -535,6 +580,14 @@ function Fila({
           >
             Abrir enlace
           </a>
+        )}
+        {puedeEditar && (
+          <GenerarConIA
+            pieza={p}
+            tieneGuion={tieneGuion}
+            base={base}
+            onUsar={(texto) => accion({ accion: 'editar', id: p.id, datos: { texto } })}
+          />
         )}
       </div>
       <div className="flex items-center gap-1">
@@ -577,5 +630,85 @@ function Fila({
         )}
       </div>
     </li>
+  )
+}
+
+// Sugerencia de texto para una pieza a partir del guion del webinar. No se guarda sola: la persona
+// la revisa y decide si la usa, la regenera o la descarta.
+function GenerarConIA({
+  pieza,
+  tieneGuion,
+  base,
+  onUsar,
+}: {
+  pieza: PiezaContenido
+  tieneGuion: boolean
+  base: string
+  onUsar: (texto: string) => Promise<boolean>
+}) {
+  const [sugerencia, setSugerencia] = useState<{ texto: string; motor: string } | null>(null)
+  const [generando, setGenerando] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const generar = async () => {
+    setGenerando(true)
+    setError(null)
+    try {
+      const r = await fetch(`${base}/contenido`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accion: 'generar', id: pieza.id }),
+      })
+      const j = await r.json()
+      if (!r.ok) throw new Error(j.error || 'No se pudo generar')
+      setSugerencia({ texto: j.texto as string, motor: j.motor as string })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error de conexión')
+    } finally {
+      setGenerando(false)
+    }
+  }
+
+  return (
+    <div className="mt-2">
+      <button
+        disabled={generando || !tieneGuion}
+        onClick={() => void generar()}
+        title={tieneGuion ? undefined : 'Guarda antes el guion del webinar'}
+        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1 text-xs hover:bg-muted disabled:opacity-50"
+      >
+        {generando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+        {sugerencia ? 'Regenerar con IA' : 'Generar con IA'}
+      </button>
+      {error && (
+        <p role="alert" className="mt-1 text-xs text-red-600 dark:text-red-400">
+          {error}
+        </p>
+      )}
+      {sugerencia && (
+        <div className="mt-2 rounded-md border border-border bg-muted/40 p-3">
+          <p className="whitespace-pre-wrap text-sm text-foreground">{sugerencia.texto}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Sugerencia de {sugerencia.motor}. Revísala antes de publicar.
+          </p>
+          <div className="mt-2 flex gap-2">
+            <button
+              onClick={async () => {
+                if (await onUsar(sugerencia.texto)) setSugerencia(null)
+              }}
+              className="rounded-md bg-brand-600 px-3 py-1 text-xs font-medium text-white hover:bg-brand-700"
+            >
+              Usar este texto
+            </button>
+            <button
+              onClick={() => setSugerencia(null)}
+              className="rounded-md border border-border px-3 py-1 text-xs hover:bg-muted"
+            >
+              Descartar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

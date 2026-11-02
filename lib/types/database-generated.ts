@@ -1,4 +1,4 @@
-// GENERADO — no editar a mano. Fuente: OpenAPI de PostgREST (2026-10-30T11:07:24.942Z).
+// GENERADO — no editar a mano. Fuente: OpenAPI de PostgREST (2026-11-02T15:30:00.000Z).
 // Regenerar con: npm run tipos:bd  (y commitear). El test tests/esquema-tenant-invariante.test.mjs
 // comprueba que este artefacto sigue fresco respecto al esquema vivo.
 // Espejo exacto del esquema public de Supabase; los tipos de APP siguen en lib/types/database.ts.
@@ -4372,6 +4372,35 @@ export type EsquemaPublico = {
         updated_at: string | undefined
       }
     }
+    LaunchReports: {
+      Row: {
+        id: string
+        tenant_id: string
+        launch_id: string
+        momento: string
+        datos: Json
+        generado_at: string
+        generado_por: string | null
+      }
+      Insert: {
+        id: string | undefined
+        tenant_id: string
+        launch_id: string
+        momento: string
+        datos: Json
+        generado_at: string | undefined
+        generado_por: string | null | undefined
+      }
+      Update: {
+        id: string | undefined
+        tenant_id: string | undefined
+        launch_id: string | undefined
+        momento: string | undefined
+        datos: Json | undefined
+        generado_at: string | undefined
+        generado_por: string | undefined
+      }
+    }
     Launches: {
       Row: {
         id: string
@@ -4383,6 +4412,7 @@ export type EsquemaPublico = {
         opened_by: string | null
         movidos: number | null
         created_at: string
+        guion_webinar: string | null
       }
       Insert: {
         id: string | undefined
@@ -4394,6 +4424,7 @@ export type EsquemaPublico = {
         opened_by: string | null | undefined
         movidos: number | null | undefined
         created_at: string | undefined
+        guion_webinar: string | null | undefined
       }
       Update: {
         id: string | undefined
@@ -4405,6 +4436,7 @@ export type EsquemaPublico = {
         opened_by: string | undefined
         movidos: number | undefined
         created_at: string | undefined
+        guion_webinar: string | undefined
       }
     }
     LaunchReports: {
