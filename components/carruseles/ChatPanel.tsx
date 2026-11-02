@@ -74,8 +74,9 @@ export function ChatPanel({ projectId, referenceImages, onStreamStart, onRefresh
   }, [messages])
 
   const handleSend = useCallback(
-    async (message: string) => {
-      if (isStreaming) return
+    async (message: string): Promise<boolean> => {
+      if (isStreaming) return false
+      let ok = true
       setError(null)
       setIsStreaming(true)
       onStreamStart?.()
@@ -121,6 +122,7 @@ export function ChatPanel({ projectId, referenceImages, onStreamStart, onRefresh
                 onRefresh?.()
               } else if (data.type === 'error') {
                 setError(data.error || 'Error')
+                ok = false
               } else if (data.type === 'warning' && data.warning) {
                 toast.warning(data.warning)
               }
@@ -134,6 +136,7 @@ export function ChatPanel({ projectId, referenceImages, onStreamStart, onRefresh
           // conserva lo generado
         } else {
           setError(err instanceof Error ? err.message : 'Error inesperado')
+          ok = false
         }
       } finally {
         setIsStreaming(false)
@@ -146,11 +149,12 @@ export function ChatPanel({ projectId, referenceImages, onStreamStart, onRefresh
         onStreamEnd?.()
         onRefresh?.()
       }
+      return ok
     },
     [isStreaming, messages, projectId, onStreamStart, onStreamEnd, onRefresh, persist, tenant]
   )
 
-  const generarEncargo = () => {
+  const generarEncargo = async () => {
     if (!encargo || isStreaming) return
     const texto = encargo
     setEncargo(null)
@@ -159,7 +163,15 @@ export function ChatPanel({ projectId, referenceImages, onStreamStart, onRefresh
     } catch {
       /* ignore */
     }
-    void handleSend(texto)
+    // Si el envío falla (sin clave de IA, red…) el encargo vuelve a ofrecerse para poder reintentar.
+    if (!(await handleSend(texto))) {
+      setEncargo(texto)
+      try {
+        sessionStorage.setItem(claveEncargo(projectId), texto)
+      } catch {
+        /* ignore */
+      }
+    }
   }
 
   return (
@@ -191,7 +203,7 @@ export function ChatPanel({ projectId, referenceImages, onStreamStart, onRefresh
               : 'Sube antes tus fotos (arriba) para un resultado más real; sin fotos usaré fondos de color.'}
           </p>
           <button
-            onClick={generarEncargo}
+            onClick={() => void generarEncargo()}
             disabled={isStreaming}
             className="mt-2 rounded-md bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-500 disabled:opacity-50"
           >

@@ -8,7 +8,28 @@ const ESPECIFICACIONES = [':wght@300;400;500;600;700;800;900', ':wght@400;700', 
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36'
 
+// Caché en memoria por instancia: el CSS de una familia no cambia entre exportaciones y evita repetir
+// los intentos fallidos con pesos que la familia no tiene. Acotada para no crecer sin límite.
+const CACHE = new Map<string, string>()
+const MAX_CACHE = 64
+
+export function vaciarCacheFuentes(): void {
+  CACHE.clear()
+}
+
 export async function cssDeFamilia(familia: string, fetchImpl: typeof fetch = fetch): Promise<string> {
+  const guardado = CACHE.get(familia)
+  if (guardado !== undefined) return guardado
+  const css = await pedirCss(familia, fetchImpl)
+  // Solo se cachea lo que salió bien: un fallo de red puntual no debe quedar fijado.
+  if (css) {
+    if (CACHE.size >= MAX_CACHE) CACHE.clear()
+    CACHE.set(familia, css)
+  }
+  return css
+}
+
+async function pedirCss(familia: string, fetchImpl: typeof fetch): Promise<string> {
   for (const espec of ESPECIFICACIONES) {
     const url = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(familia)}${espec}&display=swap`
     try {

@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { cssDeFamilia, cssDeFuentes } from '../lib/carruseles/fuentes.ts'
+import { cssDeFamilia, cssDeFuentes, vaciarCacheFuentes } from '../lib/carruseles/fuentes.ts'
 import { FAMILIAS_NATIVAS } from '../lib/carruseles/historias/estilo-nativo.ts'
+
+test.beforeEach(() => vaciarCacheFuentes())
 
 const resp = (ok, cuerpo = '') => ({ ok, text: async () => cuerpo })
 const FACE = '@font-face{font-family:X;src:url(x.woff2)}'
@@ -52,4 +54,19 @@ test('la exportación incluye las fuentes nativas en historias 9:16 y el proxy u
   const ruta = readFileSync('app/api/[tenant]/evergreen/carruseles/fonts/route.ts', 'utf8')
   assert.match(ruta, /cssDeFuentes/)
   assert.doesNotMatch(ruta, /wght@300;400;500;600;700;800;900/)
+})
+
+test('el CSS de una familia se cachea: la segunda exportación no repite las peticiones; los fallos no se cachean', async () => {
+  let n = 0
+  const f = async (url) => (n++, url.includes('wght@') ? resp(false) : resp(true, FACE))
+  await cssDeFamilia('Anton', f)
+  const tras1 = n
+  await cssDeFamilia('Anton', f)
+  assert.equal(n, tras1, 'segunda llamada servida desde la caché')
+  let m = 0
+  const roto = async () => (m++, resp(false))
+  await cssDeFamilia('Roto', roto)
+  const tras = m
+  await cssDeFamilia('Roto', roto)
+  assert.ok(m > tras, 'un fallo se reintenta (no queda fijado)')
 })

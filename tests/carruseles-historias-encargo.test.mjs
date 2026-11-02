@@ -65,17 +65,38 @@ test('en historias el prompt lista las fotos subidas CON su URL y explica cómo 
   assert.match(h, /Fotos subidas para esta secuencia/)
   assert.match(h, /"espejo\.jpg": https:\/\/cdn\.example\.test\/a\.jpg/)
   assert.match(h, /<img class="ig-foto" src="URL">/)
-  assert.match(h, /nunca una foto inventada/)
+  assert.match(h, /Usa SOLO las fotos subidas/)
   const c = buildSystemPrompt(marca, proyecto('4:5', fotos))
   assert.doesNotMatch(c, /cdn\.example\.test/, 'un carrusel no expone las URL en esta sección')
   assert.match(c, /Imágenes de referencia/)
 })
 
-test('el contexto de negocio y los assets son de la subcuenta (cfg), no de variables globales del proceso', () => {
+test('el contexto de negocio y los assets salen de la config PROPIA de la subcuenta, sin relevo a process.env', () => {
   const ruta = readFileSync('app/api/[tenant]/evergreen/carruseles/chat/route.ts', 'utf8')
-  assert.match(ruta, /cfg\.IG_BUSINESS_CONTEXT/)
-  assert.match(ruta, /parseBrandAssets\(cfg\.IG_BRAND_ASSETS\)/)
-  assert.doesNotMatch(ruta, /process\.env\.IG_/)
+  assert.match(ruta, /const propia = await getTenantConfig\(t\.tenantId, true\)/)
+  assert.match(ruta, /propia\.IG_BUSINESS_CONTEXT/)
+  assert.match(ruta, /parseBrandAssets\(propia\.IG_BRAND_ASSETS\)/)
+  assert.doesNotMatch(ruta, /process\.env\.IG_|cfg\.IG_BUSINESS_CONTEXT|cfg\.IG_BRAND_ASSETS/)
+})
+
+test('sin fotos subidas el prompt de historias manda fondo liso y prohíbe inventar URLs', () => {
+  const p = buildSystemPrompt(marca, proyecto('9:16', []))
+  assert.match(p, /No hay fotos subidas: usa un fondo de color liso/)
+  assert.match(p, /NUNCA inventes URLs de fotos/)
+  const con = buildSystemPrompt(
+    marca,
+    proyecto('9:16', [{ id: '1', url: 'https://cdn.example.test/a.jpg', name: 'a.jpg', addedAt: '' }])
+  )
+  assert.match(con, /Usa SOLO las fotos subidas/)
+  assert.doesNotMatch(con, /No hay fotos subidas/)
+})
+
+test('la etiqueta de fecha usa la fecha de hoy inyectada y la guía no trae una fecha fija de ejemplo', () => {
+  const p = buildSystemPrompt(marca, proyecto('9:16'), null, [], false, new Date(2026, 10, 2))
+  assert.match(p, /<span>2<\/span><span>nov\.<\/span><span>2026<\/span>/)
+  assert.match(p, /Usa esa fecha, no otra/)
+  assert.doesNotMatch(p, /<span>8<\/span><span>ene\.<\/span>/, 'el ejemplo antiguo («8 ene. 2026») ya no aparece')
+  assert.match(p, /nunca una de ejemplo/)
 })
 
 test('el diálogo y el chat usan el mismo encargo y el chat no lo envía solo', () => {
@@ -86,4 +107,11 @@ test('el diálogo y el chat usan el mismo encargo y el chat no lo envía solo', 
   assert.match(chat, /Generar secuencia/)
   assert.match(chat, /sessionStorage\.removeItem\(claveEncargo\(projectId\)\)/)
   assert.doesNotMatch(chat, /useEffect\(\(\) => \{[^}]*handleSend\(encargo/)
+})
+
+test('si el envío del encargo falla, el chat lo vuelve a ofrecer en vez de perderlo', () => {
+  const chat = readFileSync('components/carruseles/ChatPanel.tsx', 'utf8')
+  assert.match(chat, /async \(message: string\): Promise<boolean>/)
+  assert.match(chat, /if \(!\(await handleSend\(texto\)\)\) \{\s*setEncargo\(texto\)/)
+  assert.match(chat, /sessionStorage\.setItem\(claveEncargo\(projectId\), texto\)/)
 })
