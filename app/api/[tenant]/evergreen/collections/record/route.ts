@@ -6,6 +6,7 @@ import { resolveSaleAttribution } from '@/lib/commissions/attribution'
 import { notifyCreatuagenteVenta, resolveSaleToken } from '@/lib/creatuagente'
 import type { Collection, Sale } from '@/lib/types/database'
 import { getTenantConfigWithFallback } from '@/lib/config'
+import { cobroPosiblementeDuplicado, type CobroLite } from '@/lib/finance/integrityGuards'
 
 export const runtime = 'nodejs'
 
@@ -19,16 +20,26 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     const t = await requireTenant(tenant)
     if ('error' in t) return t.error
 
-    const { saleId, grossAmount, method, collectedAt, commissionableAmount, notes, paymentReference } =
-      (await req.json()) as {
-        saleId?: string
-        grossAmount?: number | string
-        method?: string | null
-        collectedAt?: string | null
-        commissionableAmount?: number | string | null
-        notes?: string | null
-        paymentReference?: string | null
-      }
+    const {
+      saleId,
+      grossAmount,
+      method,
+      collectedAt,
+      commissionableAmount,
+      notes,
+      paymentReference,
+      confirmDuplicate,
+    } = (await req.json()) as {
+      saleId?: string
+      grossAmount?: number | string
+      method?: string | null
+      collectedAt?: string | null
+      commissionableAmount?: number | string | null
+      notes?: string | null
+      paymentReference?: string | null
+      /** Solo true si la persona confirma que es OTRO cobro igual (mismo importe y día) de la misma venta. */
+      confirmDuplicate?: boolean
+    }
     const amount = Number(grossAmount)
     if (!saleId || !Number.isFinite(amount) || amount <= 0) {
       return NextResponse.json({ error: 'Parámetros inválidos' }, { status: 400 })
@@ -112,6 +123,37 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       )
     }
     const isFirstCollection = !priorCollections
+
+    // GUARDA ANTI-DUPLICADO (conciliación nov-2026, MONEY D6): un cobro manual con el mismo importe y día que
+    // otro de la misma venta —típicamente el pago de Stripe ya registrado— duplica el cash y sus comisiones.
+    if (!confirmDuplicate && priorCollections) {
+      const { data: previos, error: previosErr } = await sb
+        .from('collections')
+        .select('id,sale_id,gross_amount,collected_at,status,payment_reference')
+        .eq('tenant_id', t.tenantId)
+        .eq('sale_id', saleId)
+        .limit(200)
+      if (previosErr) {
+        return NextResponse.json(
+          { error: `No se pudo comprobar si el cobro ya existe: ${previosErr.message}` },
+          { status: 500 }
+        )
+      }
+      const duplicado = cobroPosiblementeDuplicado(
+        { amount: amount, collectedAt: now, paymentReference },
+        (previos ?? []) as CobroLite[]
+      )
+      if (duplicado) {
+        return NextResponse.json(
+          {
+            code: 'COBRO_DUPLICADO',
+            existingCollectionId: duplicado.id,
+            error: `Esta venta ya tiene un cobro de ${round2(Number(duplicado.gross_amount))} € el ${String(duplicado.collected_at).slice(0, 10)}${duplicado.payment_reference ? ` (ref. ${duplicado.payment_reference})` : ''}. Si es el mismo pago, ya está registrado; si es otro, confírmalo.`,
+          },
+          { status: 409 }
+        )
+      }
+    }
 
     const { data: coll, error: collErr } = await sb
       .from('collections')

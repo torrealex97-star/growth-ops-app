@@ -11,6 +11,7 @@ import { buildRestInstallments } from '@/lib/commissions/calculator'
 import { generateCommissionsForCollection } from '@/lib/commissions/generate'
 import type { Sale, Collection } from '@/lib/types/database'
 import { resolveSaleAttribution } from '@/lib/commissions/attribution'
+import { ventasAbiertasDelContacto } from '@/lib/finance/integrityGuards'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -24,6 +25,7 @@ const schema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
+  confirmNewSale: z.boolean().optional(),
   restCount: z.number().int().min(0).max(120).default(0),
   startDate: z
     .string()
@@ -107,6 +109,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       if (!plan || plan.product_id !== body.productId) return fail('El plan no corresponde al producto.')
       if ((plan.method ?? '') === 'sequra')
         return fail('La financiación externa (Sequra) se completa desde el registro habitual de ventas.')
+      // GUARDA ANTI-VENTA-DUPLICADA: un contacto con una venta a plazos abierta que paga otra vez casi
+      // seguro está pagando una CUOTA de esa venta. Crear una venta nueva duplicaba la facturación y dejaba
+      // un calendario de cuotas "vencidas" falsas (Yolanda, Rosana, nov-2026). Se confirma explícitamente.
+      if ((plan.method ?? '') !== 'reserva' && !body.confirmNewSale) {
+        const abiertas = await ventasAbiertasDelContacto(sb, session.tenantId, payment.contactId)
+        if (abiertas.length > 0)
+          return NextResponse.json(
+            {
+              code: 'VENTA_ABIERTA_EXISTENTE',
+              ventas: abiertas,
+              error: `Este cliente ya tiene una venta abierta con ${abiertas[0].pendiente.toLocaleString('es-ES')} € por cobrar. Lo normal es añadir el cobro a esa venta (elige "Añadir a venta existente"). Crea una venta nueva solo si es una compra distinta.`,
+            },
+            { status: 409 }
+          )
+      }
       if ((plan.method ?? '') === 'reserva') {
         // Una reserva se registra POR SU ANTICIPO: el total pactado es exactamente el cobro recibido
         // (la reserva no lleva cuotas; el plan final y el primer pago se eligen al completarla).
