@@ -272,8 +272,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   if (!project) return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 })
 
   const brand = await getBrand(t.tenantId)
-  const brandAssets = parseBrandAssets(process.env.IG_BRAND_ASSETS)
-  const system = buildSystemPrompt(brand, project, process.env.IG_BUSINESS_CONTEXT, brandAssets, imagenesIA)
+  // Contexto de negocio y assets de ESTA subcuenta (la instantánea `cfg` ya incluye el relevo a la
+  // configuración global): leer `process.env` directamente mezclaba el negocio de una subcuenta con otra.
+  const brandAssets = parseBrandAssets(cfg.IG_BRAND_ASSETS)
+  const system = buildSystemPrompt(brand, project, cfg.IG_BUSINESS_CONTEXT, brandAssets, imagenesIA)
   const client = new Anthropic({ apiKey: anthropicKey || 'sin-clave' })
   const toolsActivas = imagenesIA ? [...TOOLS, TOOL_IMAGEN] : TOOLS
 

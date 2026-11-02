@@ -38,8 +38,9 @@ Usa valores por defecto profesionales: texto oscuro sobre fondos claros, tipogra
 
   const refImages =
     project.referenceImages.length > 0
-      ? `\n## Imágenes de referencia (se adjuntan como imágenes en el chat cuando existen)
-${project.referenceImages.map((r) => `- "${r.name}"`).join('\n')}
+      ? `\n## ${esHistorias ? 'Fotos subidas para esta secuencia' : 'Imágenes de referencia'} (se adjuntan como imágenes en el chat cuando existen)
+${project.referenceImages.map((r) => (esHistorias ? `- "${r.name}": ${r.url}` : `- "${r.name}"`)).join('\n')}
+${esHistorias ? 'Para las historias usa estas fotos como fondo: <img class="ig-foto" src="URL"> con la URL exacta de arriba. Asigna cada foto a la etapa que mejor encaje (la más luminosa al gancho, la más cálida al cierre, las oscuras o desenfocadas al desarrollo) y repite una foto solo si hay menos fotos que historias. Si no hay fotos, usa un fondo de color liso del acento de la marca, nunca una foto inventada.' : ''}
 Estudia colores, tipografía, composición y estilo de estas referencias y replica ese estilo visual.
 Si el usuario pide usar una imagen concreta (ej. "una foto de X"), usa la referencia más reciente que encaje con esa descripción.`
       : ''
