@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { claveEncargo } from '@/lib/carruseles/historias/encargo'
 import { ChatMessage } from './ChatMessage'
 import { ChatInput } from './ChatInput'
 import { ReferenceImages } from './ReferenceImages'
@@ -31,6 +32,17 @@ export function ChatPanel({ projectId, referenceImages, onStreamStart, onRefresh
   const [error, setError] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+  // Encargo de historias elegido al crear el proyecto: se ofrece como botón para poder subir fotos antes.
+  const [encargo, setEncargo] = useState<string | null>(null)
+
+  useEffect(() => {
+    try {
+      const guardado = sessionStorage.getItem(claveEncargo(projectId))
+      if (guardado) setEncargo(guardado)
+    } catch {
+      /* sin sessionStorage no hay encargo precargado */
+    }
+  }, [projectId])
 
   useEffect(() => {
     try {
@@ -62,8 +74,9 @@ export function ChatPanel({ projectId, referenceImages, onStreamStart, onRefresh
   }, [messages])
 
   const handleSend = useCallback(
-    async (message: string) => {
-      if (isStreaming) return
+    async (message: string): Promise<boolean> => {
+      if (isStreaming) return false
+      let ok = true
       setError(null)
       setIsStreaming(true)
       onStreamStart?.()
@@ -109,6 +122,7 @@ export function ChatPanel({ projectId, referenceImages, onStreamStart, onRefresh
                 onRefresh?.()
               } else if (data.type === 'error') {
                 setError(data.error || 'Error')
+                ok = false
               } else if (data.type === 'warning' && data.warning) {
                 toast.warning(data.warning)
               }
@@ -122,6 +136,7 @@ export function ChatPanel({ projectId, referenceImages, onStreamStart, onRefresh
           // conserva lo generado
         } else {
           setError(err instanceof Error ? err.message : 'Error inesperado')
+          ok = false
         }
       } finally {
         setIsStreaming(false)
@@ -134,9 +149,30 @@ export function ChatPanel({ projectId, referenceImages, onStreamStart, onRefresh
         onStreamEnd?.()
         onRefresh?.()
       }
+      return ok
     },
     [isStreaming, messages, projectId, onStreamStart, onStreamEnd, onRefresh, persist, tenant]
   )
+
+  const generarEncargo = async () => {
+    if (!encargo || isStreaming) return
+    const texto = encargo
+    setEncargo(null)
+    try {
+      sessionStorage.removeItem(claveEncargo(projectId))
+    } catch {
+      /* ignore */
+    }
+    // Si el envío falla (sin clave de IA, red…) el encargo vuelve a ofrecerse para poder reintentar.
+    if (!(await handleSend(texto))) {
+      setEncargo(texto)
+      try {
+        sessionStorage.setItem(claveEncargo(projectId), texto)
+      } catch {
+        /* ignore */
+      }
+    }
+  }
 
   return (
     <div className="h-full flex flex-col">
@@ -156,6 +192,25 @@ export function ChatPanel({ projectId, referenceImages, onStreamStart, onRefresh
       </div>
 
       <ReferenceImages projectId={projectId} images={referenceImages} onChange={() => onRefresh?.()} />
+
+      {encargo && (
+        <div className="mx-4 mt-3 rounded-lg border border-brand-400/40 bg-brand-600/10 p-3">
+          <p className="text-xs font-medium text-foreground">Secuencia lista para generar</p>
+          <p className="mt-1 whitespace-pre-line text-xs text-muted-foreground">{encargo}</p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            {referenceImages.length > 0
+              ? `Usaré tus ${referenceImages.length} foto${referenceImages.length === 1 ? '' : 's'}.`
+              : 'Sube antes tus fotos (arriba) para un resultado más real; sin fotos usaré fondos de color.'}
+          </p>
+          <button
+            onClick={() => void generarEncargo()}
+            disabled={isStreaming}
+            className="mt-2 rounded-md bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-500 disabled:opacity-50"
+          >
+            Generar secuencia
+          </button>
+        </div>
+      )}
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         {messages.length === 0 && (

@@ -79,7 +79,7 @@ export const GUIA_COMPONENTES = `Componentes del editor nativo (clases CSS ya ca
 - Acento: <span class="ig-acento">palabra</span> o <span class="ig-marcador">palabra</span> (marcador tipo rotulador). UNA sola palabra de acento por historia.
 - Cajas de texto como en el editor: <span class="ig-caja">…</span> (blanca), ig-caja-negra, ig-caja-acento. Úsalas para frases largas sobre foto. Envuelve SIEMPRE la caja en su propio <div> (<div><span class="ig-caja-negra">texto</span></div>): así se ajusta al texto línea a línea como en el editor; directamente dentro de ig-zona se estira a todo el ancho.
 - Número de paso: <span class="ig-chip">1</span>. Comparaciones: <div class="ig-recuadro"><b>2025</b>texto</div>.
-- Etiqueta de fecha en la primera historia: <div class="ig-etiqueta-fecha"><span>8</span><span>ene.</span><span>2026</span></div>.
+- Etiqueta de fecha en la primera historia: <div class="ig-etiqueta-fecha"><span>DÍA</span><span>MES.</span><span>AÑO</span></div> (usa la fecha de hoy que se te indica, nunca una de ejemplo).
 - Stickers: <div class="ig-sticker-pregunta"><div class="ig-sp-cab">HABLEMOS CLARO 🤩</div><div class="ig-sp-cuerpo">Pregunta…</div></div>; <div class="ig-sticker-escribe">HABLEMOS CLARO<div>Escribe algo…</div></div>.
 - Pantalla partida: <div class="ig-partida"><div>foto arriba</div><div>foto abajo</div></div>.
 - Captura de pantalla / prueba: <div class="ig-captura">…</div> con cifras reales.

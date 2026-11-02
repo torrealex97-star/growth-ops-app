@@ -11,6 +11,14 @@ import { toast } from 'sonner'
 import type { AspectRatio, ProjectKind } from '@/lib/carruseles/types'
 import { ASPECT_LABELS } from '@/lib/carruseles/types'
 import { useTenant } from '@/lib/tenant-context'
+import {
+  LONGITUDES,
+  MAX_TEMA,
+  OPCIONES_CATEGORIA,
+  mensajeInicial,
+  type CategoriaElegida,
+} from '@/lib/carruseles/historias/briefing'
+import { claveEncargo } from '@/lib/carruseles/historias/encargo'
 
 interface Props {
   open: boolean
@@ -29,6 +37,11 @@ export function CreateProjectDialog({ open, onOpenChange }: Props) {
   const [kind, setKind] = useState<ProjectKind>('carousel')
   const [ratio, setRatio] = useState<AspectRatio>('4:5')
   const [creating, setCreating] = useState(false)
+  const [categoria, setCategoria] = useState<CategoriaElegida>('auto')
+  const [longitud, setLongitud] = useState<number>(5)
+  const [tema, setTema] = useState('')
+  // Un carrusel en formato 9:16 es una secuencia de historias.
+  const esHistorias = kind === 'carousel' && ratio === '9:16'
 
   const pickKind = (k: ProjectKind) => {
     setKind(k)
@@ -42,13 +55,22 @@ export function CreateProjectDialog({ open, onOpenChange }: Props) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: title.trim() || (kind === 'flyer' ? 'Nuevo flyer' : 'Nuevo carrusel'),
+          title:
+            title.trim() || (kind === 'flyer' ? 'Nuevo flyer' : esHistorias ? 'Nuevas historias' : 'Nuevo carrusel'),
           kind,
           aspectRatio: ratio,
         }),
       })
       if (!res.ok) throw new Error('Error al crear')
       const project = await res.json()
+      if (esHistorias) {
+        // El encargo queda como botón «Generar secuencia» en el chat (no se envía solo: primero se suben las fotos).
+        try {
+          sessionStorage.setItem(claveEncargo(project.id), mensajeInicial({ categoria, longitud, tema }))
+        } catch {
+          /* sin sessionStorage el chat arranca vacío y se describe a mano */
+        }
+      }
       router.push(`/${tenant}/instagram/carruseles/${project.id}`)
     } catch (e) {
       toast.error((e as Error).message)
@@ -111,6 +133,66 @@ export function CreateProjectDialog({ open, onOpenChange }: Props) {
               ))}
             </div>
           </div>
+
+          {esHistorias && (
+            <div className="space-y-3 rounded-lg border border-border p-3">
+              <p className="text-xs text-muted-foreground">
+                Secuencia de historias con el estilo del editor de Instagram. Después subes tus fotos y la generas.
+              </p>
+              <div>
+                <label htmlFor="hist-categoria" className="text-xs font-medium text-muted-foreground">
+                  Categoría
+                </label>
+                <select
+                  id="hist-categoria"
+                  value={categoria}
+                  onChange={(e) => setCategoria(e.target.value as CategoriaElegida)}
+                  className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+                >
+                  {OPCIONES_CATEGORIA.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <span className="text-xs font-medium text-muted-foreground">Nº de historias</span>
+                <div className="mt-1 flex gap-2" role="group" aria-label="Número de historias">
+                  {LONGITUDES.map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setLongitud(n)}
+                      aria-pressed={longitud === n}
+                      className={cn(
+                        'px-3 py-1.5 rounded-md text-xs font-medium border tabular-nums transition-colors',
+                        longitud === n
+                          ? 'border-brand-400 bg-brand-600/10 text-brand-300'
+                          : 'border-border text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label htmlFor="hist-tema" className="text-xs font-medium text-muted-foreground">
+                  Tema (opcional)
+                </label>
+                <textarea
+                  id="hist-tema"
+                  value={tema}
+                  maxLength={MAX_TEMA}
+                  onChange={(e) => setTema(e.target.value)}
+                  rows={3}
+                  placeholder="De qué quieres hablar. Si lo dejas vacío, propongo uno según tu negocio."
+                  className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+                />
+              </div>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>

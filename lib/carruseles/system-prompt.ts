@@ -7,13 +7,21 @@ export interface BrandAsset {
   name: string
 }
 
+/** «2 nov. 2026» → partes para <div class="ig-etiqueta-fecha">. */
+export function fechaEtiqueta(d: Date): string {
+  const mes = new Intl.DateTimeFormat('es-ES', { month: 'short' }).format(d).replace('.', '')
+  return `<span>${d.getDate()}</span><span>${mes}.</span><span>${d.getFullYear()}</span>`
+}
+
 export function buildSystemPrompt(
   brand: BrandConfig,
   project: CarruselProject,
   businessContext?: string | null,
   brandAssets?: BrandAsset[],
   /** ¿Hay clave para generar imágenes con IA (Gemini/OpenAI)? Activa la herramienta `generate_image` y su guía. */
-  imagenesIA = false
+  imagenesIA = false,
+  /** Fecha de hoy (para la etiqueta de fecha de las historias). Se inyecta en los tests. */
+  hoy: Date = new Date()
 ): string {
   const dims = DIMENSIONS[project.aspectRatio]
   const isFlyer = project.kind === 'flyer'
@@ -38,8 +46,9 @@ Usa valores por defecto profesionales: texto oscuro sobre fondos claros, tipogra
 
   const refImages =
     project.referenceImages.length > 0
-      ? `\n## Imágenes de referencia (se adjuntan como imágenes en el chat cuando existen)
-${project.referenceImages.map((r) => `- "${r.name}"`).join('\n')}
+      ? `\n## ${esHistorias ? 'Fotos subidas para esta secuencia' : 'Imágenes de referencia'} (se adjuntan como imágenes en el chat cuando existen)
+${project.referenceImages.map((r) => (esHistorias ? `- "${r.name}": ${r.url}` : `- "${r.name}"`)).join('\n')}
+${esHistorias ? 'Para las historias usa estas fotos como fondo: <img class="ig-foto" src="URL"> con la URL exacta de arriba. Asigna cada foto a la etapa que mejor encaje (la más luminosa al gancho, la más cálida al cierre, las oscuras o desenfocadas al desarrollo) y repite una foto solo si hay menos fotos que historias.' : ''}
 Estudia colores, tipografía, composición y estilo de estas referencias y replica ese estilo visual.
 Si el usuario pide usar una imagen concreta (ej. "una foto de X"), usa la referencia más reciente que encaje con esa descripción.`
       : ''
@@ -59,7 +68,7 @@ Usa estas URLs completas en etiquetas <img src="..."> dentro del HTML de las sli
       : ''
 
   const arc = esHistorias
-    ? `${seccionHistoriasPrompt()}\n- Color de acento de esta marca: ${brand.colors.accent || brand.colors.primary}. Pónlo en cada historia con style="--ig-acento:${brand.colors.accent || brand.colors.primary}" en el contenedor ig-historia.\nTras crear todas las historias, ofrece el copy del post con set_caption.`
+    ? `${seccionHistoriasPrompt()}\n- ${project.referenceImages.length > 0 ? 'Usa SOLO las fotos subidas que aparecen arriba.' : 'No hay fotos subidas: usa un fondo de color liso con el acento de la marca en <div class="ig-foto" style="background:COLOR"></div>; NUNCA inventes URLs de fotos ni uses imágenes de ejemplo.'}\n- Fecha de hoy para la etiqueta de fecha: ${fechaEtiqueta(hoy)}. Usa esa fecha, no otra.\n- Color de acento de esta marca: ${brand.colors.accent || brand.colors.primary}. Pónlo en cada historia con style="--ig-acento:${brand.colors.accent || brand.colors.primary}" en el contenedor ig-historia.\nTras crear todas las historias, ofrece el copy del post con set_caption.`
     : isFlyer
       ? `## Cómo trabajas con FLYERS
 Un flyer es UNA sola pieza de diseño de alto impacto (no un carrusel). Cuando el usuario te dé un tema:
