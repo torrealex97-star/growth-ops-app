@@ -1,9 +1,16 @@
 import type { BrandConfig, CarruselProject } from './types'
 import { DIMENSIONS, MAX_SLIDES } from './types'
+import { seccionHistoriasPrompt } from './historias/categorias'
 
 export interface BrandAsset {
   url: string
   name: string
+}
+
+/** «2 nov. 2026» → partes para <div class="ig-etiqueta-fecha">. */
+export function fechaEtiqueta(d: Date): string {
+  const mes = new Intl.DateTimeFormat('es-ES', { month: 'short' }).format(d).replace('.', '')
+  return `<span>${d.getDate()}</span><span>${mes}.</span><span>${d.getFullYear()}</span>`
 }
 
 export function buildSystemPrompt(
@@ -12,10 +19,14 @@ export function buildSystemPrompt(
   businessContext?: string | null,
   brandAssets?: BrandAsset[],
   /** ¿Hay clave para generar imágenes con IA (Gemini/OpenAI)? Activa la herramienta `generate_image` y su guía. */
-  imagenesIA = false
+  imagenesIA = false,
+  /** Fecha de hoy (para la etiqueta de fecha de las historias). Se inyecta en los tests. */
+  hoy: Date = new Date()
 ): string {
   const dims = DIMENSIONS[project.aspectRatio]
   const isFlyer = project.kind === 'flyer'
+  // Un carrusel en formato 9:16 es una secuencia de HISTORIAS: se trabaja con el estilo «editor nativo».
+  const esHistorias = !isFlyer && project.aspectRatio === '9:16'
 
   const brandSection = brand.name
     ? `## Identidad de marca
@@ -35,8 +46,9 @@ Usa valores por defecto profesionales: texto oscuro sobre fondos claros, tipogra
 
   const refImages =
     project.referenceImages.length > 0
-      ? `\n## Imágenes de referencia (se adjuntan como imágenes en el chat cuando existen)
-${project.referenceImages.map((r) => `- "${r.name}"`).join('\n')}
+      ? `\n## ${esHistorias ? 'Fotos subidas para esta secuencia' : 'Imágenes de referencia'} (se adjuntan como imágenes en el chat cuando existen)
+${project.referenceImages.map((r) => (esHistorias ? `- "${r.name}": ${r.url}` : `- "${r.name}"`)).join('\n')}
+${esHistorias ? 'Para las historias usa estas fotos como fondo: <img class="ig-foto" src="URL"> con la URL exacta de arriba. Asigna cada foto a la etapa que mejor encaje (la más luminosa al gancho, la más cálida al cierre, las oscuras o desenfocadas al desarrollo) y repite una foto solo si hay menos fotos que historias.' : ''}
 Estudia colores, tipografía, composición y estilo de estas referencias y replica ese estilo visual.
 Si el usuario pide usar una imagen concreta (ej. "una foto de X"), usa la referencia más reciente que encaje con esa descripción.`
       : ''
@@ -55,13 +67,15 @@ ${brandAssets.map((a) => `- "${a.name}": ${a.url}`).join('\n')}
 Usa estas URLs completas en etiquetas <img src="..."> dentro del HTML de las slides cuando encajen (logo en la esquina, foto de producto/equipo, etc). Algunas se adjuntan también como imágenes en el chat para que estudies su estilo.`
       : ''
 
-  const arc = isFlyer
-    ? `## Cómo trabajas con FLYERS
+  const arc = esHistorias
+    ? `${seccionHistoriasPrompt()}\n- ${project.referenceImages.length > 0 ? 'Usa SOLO las fotos subidas que aparecen arriba.' : 'No hay fotos subidas: usa un fondo de color liso con el acento de la marca en <div class="ig-foto" style="background:COLOR"></div>; NUNCA inventes URLs de fotos ni uses imágenes de ejemplo.'}\n- Fecha de hoy para la etiqueta de fecha: ${fechaEtiqueta(hoy)}. Usa esa fecha, no otra.\n- Color de acento de esta marca: ${brand.colors.accent || brand.colors.primary}. Pónlo en cada historia con style="--ig-acento:${brand.colors.accent || brand.colors.primary}" en el contenedor ig-historia.\nTras crear todas las historias, ofrece el copy del post con set_caption.`
+    : isFlyer
+      ? `## Cómo trabajas con FLYERS
 Un flyer es UNA sola pieza de diseño de alto impacto (no un carrusel). Cuando el usuario te dé un tema:
 1. Crea normalmente UNA slide (usa add_slide una vez). Si te piden variantes, crea varias slides como opciones.
 2. El flyer debe tener: título potente, subtítulo/beneficio, datos clave (fecha, lugar, precio, CTA) y un diseño rico con jerarquía visual clara.
 3. Aprovecha TODO el lienzo (${dims.width}x${dims.height}px): fondos con gradientes/formas, buena tipografía, contraste alto.`
-    : `## Cómo trabajas con CARRUSELES (modo autónomo)
+      : `## Cómo trabajas con CARRUSELES (modo autónomo)
 Cuando el usuario te dé un TEMA o IDEA, empieza a crear slides de inmediato — no pidas permiso.
 Si el usuario especifica un número de slides (ej. "de 6 slides"), usa EXACTAMENTE ese número. Si no lo especifica, planifica un arco de ${Math.min(8, MAX_SLIDES)} slides:
 - Slide 1: GANCHO — pregunta provocadora, dato impactante o afirmación contraria (máx 8 palabras, texto enorme)
@@ -108,11 +122,16 @@ Cada slide es HTML a nivel de BODY. No incluyas <!DOCTYPE>, <html>, <head> ni <b
 6. NADA de JavaScript (el sandbox lo bloquea).
 7. Usa flexbox/grid para el layout, absolute para overlays.
 
-## Inteligencia de diseño
+${
+  esHistorias
+    ? `## Diseño de historias
+El diseño NO se inventa: lo marcan los componentes del editor nativo de arriba. Contraste de texto alto (cajas o velo), una idea por historia y consistencia total entre historias.`
+    : `## Inteligencia de diseño
 - Tipografía: ganchos 64-110px bold; contenido título 36-52px, cuerpo 24-30px; máx 2 familias tipográficas; line-height 1.2 titulares, 1.5 cuerpo.
 - Color y contraste: ratio texto/fondo > 4.5:1 siempre; gradientes para dar profundidad; colores sólidos > patrones recargados.
 - Layout: 60-90px de padding mínimo; un mensaje clave por slide; consistencia visual entre slides; varía los fondos para mantener interés.
-- Instagram: diseño mobile-first; mantén el contenido crítico en el 80% central; en la slide 1 añade un indicador de swipe sutil.
+- Instagram: diseño mobile-first; mantén el contenido crítico en el 80% central; en la slide 1 añade un indicador de swipe sutil.`
+}
 
 ${
   imagenesIA
@@ -132,6 +151,6 @@ Puedes crear imágenes originales: fondos, ilustraciones, escenas de producto, r
 - Solo dejes de llamar tools (responder con texto libre, sin tool_use) cuando: (a) el carrusel/flyer esté COMPLETO con todas las slides pedidas, o (b) necesites una aclaración imprescindible del usuario antes de continuar.
 - RESPUESTAS BREVES: tras crear, describe lo que hiciste en 1-2 frases.
 - CONSISTENCIA DE MARCA en cada slide.
-- VARIEDAD CREATIVA: no repitas el mismo layout en todas las slides.
+${esHistorias ? '- CONSISTENCIA: misma persona, mismo acento y mismo estilo de caja en toda la secuencia; varía la composición, no el estilo.' : '- VARIEDAD CREATIVA: no repitas el mismo layout en todas las slides.'}
 ${isFlyer ? '' : '- TERMINA SIEMPRE CON CTA en la última slide, y no antes.'}`
 }
