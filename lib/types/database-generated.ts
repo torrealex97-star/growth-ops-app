@@ -4296,6 +4296,82 @@ export type EsquemaPublico = {
         tenant_id: string | undefined
       }
     }
+    LaunchChecklist: {
+      Row: {
+        tenant_id: string
+        launch_id: string
+        item_key: string
+        done_at: string
+        done_by: string | null
+      }
+      Insert: {
+        tenant_id: string
+        launch_id: string
+        item_key: string
+        done_at: string | undefined
+        done_by: string | null | undefined
+      }
+      Update: {
+        tenant_id: string | undefined
+        launch_id: string | undefined
+        item_key: string | undefined
+        done_at: string | undefined
+        done_by: string | undefined
+      }
+    }
+    LaunchContent: {
+      Row: {
+        id: string
+        tenant_id: string
+        launch_id: string
+        tipo: string
+        canal: string
+        dia: number | null
+        hora: string | null
+        titulo: string
+        texto: string | null
+        enlace: string | null
+        estado: string
+        responsable_id: string | null
+        created_by: string | null
+        created_at: string
+        updated_at: string
+      }
+      Insert: {
+        id: string | undefined
+        tenant_id: string
+        launch_id: string
+        tipo: string | undefined
+        canal: string | undefined
+        dia: number | null | undefined
+        hora: string | null | undefined
+        titulo: string
+        texto: string | null | undefined
+        enlace: string | null | undefined
+        estado: string | undefined
+        responsable_id: string | null | undefined
+        created_by: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+      }
+      Update: {
+        id: string | undefined
+        tenant_id: string | undefined
+        launch_id: string | undefined
+        tipo: string | undefined
+        canal: string | undefined
+        dia: number | undefined
+        hora: string | undefined
+        titulo: string | undefined
+        texto: string | undefined
+        enlace: string | undefined
+        estado: string | undefined
+        responsable_id: string | undefined
+        created_by: string | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+      }
+    }
     Launches: {
       Row: {
         id: string
@@ -4329,6 +4405,35 @@ export type EsquemaPublico = {
         opened_by: string | undefined
         movidos: number | undefined
         created_at: string | undefined
+      }
+    }
+    LaunchReports: {
+      Row: {
+        id: string
+        tenant_id: string
+        launch_id: string
+        momento: string
+        datos: Json
+        generado_at: string
+        generado_por: string | null
+      }
+      Insert: {
+        id: string | undefined
+        tenant_id: string
+        launch_id: string
+        momento: string
+        datos: Json
+        generado_at: string | undefined
+        generado_por: string | null | undefined
+      }
+      Update: {
+        id: string | undefined
+        tenant_id: string | undefined
+        launch_id: string | undefined
+        momento: string | undefined
+        datos: Json | undefined
+        generado_at: string | undefined
+        generado_por: string | undefined
       }
     }
     LinkTemplates: {
