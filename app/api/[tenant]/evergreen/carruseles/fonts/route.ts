@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireTenant } from '@/lib/auth/requireTenant'
+import { cssDeFuentes } from '@/lib/carruseles/fuentes'
 
 export const runtime = 'nodejs'
 
@@ -12,23 +13,8 @@ export async function GET(req: NextRequest, { params: routeParams }: { params: P
   const families = new URL(req.url).searchParams.get('families') || ''
   if (!families.trim()) return new NextResponse('', { headers: { 'Content-Type': 'text/css' } })
 
-  const params = families
-    .split(',')
-    .map((f) => f.trim())
-    .filter(Boolean)
-    .map((f) => `family=${encodeURIComponent(f)}:wght@300;400;500;600;700;800;900`)
-    .join('&')
-
-  const url = `https://fonts.googleapis.com/css2?${params}&display=swap`
   try {
-    const res = await fetch(url, {
-      headers: {
-        // UA moderno para que Google sirva woff2
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
-      },
-    })
-    const css = await res.text()
+    const css = await cssDeFuentes(families.split(','))
     return new NextResponse(css, {
       headers: {
         'Content-Type': 'text/css',

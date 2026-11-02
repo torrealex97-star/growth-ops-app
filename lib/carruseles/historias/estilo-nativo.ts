@@ -22,6 +22,9 @@ export const FUENTES_NATIVAS = {
   maquina: 'Space Mono',
 } as const
 
+/** Nombres de las familias nativas, para incrustarlas al exportar. */
+export const FAMILIAS_NATIVAS: string[] = Object.values(FUENTES_NATIVAS)
+
 /**
  * CSS de los componentes. `--ig-acento` y `--ig-acento-texto` se fijan por proyecto (color de marca).
  * Dimensiones pensadas para un lienzo de 1080×1920.
