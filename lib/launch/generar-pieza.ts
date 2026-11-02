@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { completeText } from '@/lib/ai/provider'
 import { geminiGenerar } from '@/lib/ai/gemini'
-import { openaiChat } from '@/lib/ai/openai'
+import { openaiChat, urlBaseOpenAi } from '@/lib/ai/openai'
 import { elegirMotorTexto, modeloTexto } from '@/lib/carruseles/motor'
 import type { Canal } from './contenido'
 
@@ -92,6 +92,7 @@ export async function generarTexto(
   if (motor === 'openai') {
     const r = await (inyectado.openai ?? openaiChat)({
       apiKey: cfg.OPENAI_API_KEY as string,
+      baseUrl: urlBaseOpenAi(cfg),
       model: modeloTexto(cfg, 'openai'),
       messages: [
         { role: 'system', content: p.system },

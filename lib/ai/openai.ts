@@ -6,12 +6,21 @@ import type { HerramientaGenerica, LlamadaHerramienta } from './gemini'
 export const OPENAI_MODELO_TEXTO = 'gpt-4.1'
 export const OPENAI_MODELO_IMAGEN = 'gpt-image-1'
 const BASE = 'https://api.openai.com/v1'
+
+/**
+ * URL base del chat: `OPENAI_BASE_URL` de la subcuenta si es https (Groq, OpenRouter, NVIDIA… hablan el mismo protocolo);
+ * si no, OpenAI. Solo https para no mandar la clave en claro a un destino mal escrito.
+ */
+export function urlBaseOpenAi(cfg: Record<string, string | undefined>): string {
+  const u = cfg.OPENAI_BASE_URL?.trim().replace(/\/+$/, '')
+  return u && /^https:\/\/[^\s]+$/.test(u) ? u : BASE
+}
 type Fetch = typeof fetch
 
 export type OpenAiMensaje = Record<string, unknown>
 
-async function post(ruta: string, apiKey: string, cuerpo: unknown, f: Fetch, timeoutMs: number) {
-  const res = await f(`${BASE}${ruta}`, {
+async function post(ruta: string, apiKey: string, cuerpo: unknown, f: Fetch, timeoutMs: number, base = BASE) {
+  const res = await f(`${base}${ruta}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify(cuerpo),
@@ -38,6 +47,7 @@ export async function openaiChat(p: {
   tools?: HerramientaGenerica[]
   maxTokens?: number
   json?: boolean
+  baseUrl?: string
   fetchImpl?: Fetch
   timeoutMs?: number
 }): Promise<{ mensaje: OpenAiMensaje; texto: string; llamadas: LlamadaHerramienta[] }> {
@@ -53,7 +63,7 @@ export async function openaiChat(p: {
       type: 'function',
       function: { name: t.name, description: t.description, parameters: t.parameters },
     }))
-  const json = await post('/chat/completions', p.apiKey, cuerpo, p.fetchImpl ?? fetch, p.timeoutMs ?? 50_000)
+  const json = await post('/chat/completions', p.apiKey, cuerpo, p.fetchImpl ?? fetch, p.timeoutMs ?? 50_000, p.baseUrl)
   const mensaje = ((json.choices as { message?: OpenAiMensaje }[] | undefined)?.[0]?.message ?? {}) as OpenAiMensaje
   const llamadas: LlamadaHerramienta[] = []
   for (const tc of (mensaje.tool_calls as

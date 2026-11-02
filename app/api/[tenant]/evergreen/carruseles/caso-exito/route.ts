@@ -12,7 +12,7 @@ import {
 } from '@/lib/carruseles/caso-exito'
 import { getTenantConfigWithFallback } from '@/lib/config'
 import { geminiGenerar } from '@/lib/ai/gemini'
-import { openaiChat } from '@/lib/ai/openai'
+import { openaiChat, urlBaseOpenAi } from '@/lib/ai/openai'
 import { elegirMotorTexto, modeloTexto, MENSAJE_SIN_MOTOR } from '@/lib/carruseles/motor'
 
 export const runtime = 'nodejs'
@@ -190,6 +190,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       } else {
         const r = await openaiChat({
           apiKey: cfg.OPENAI_API_KEY as string,
+          baseUrl: urlBaseOpenAi(cfg),
           model: modeloTexto(cfg, 'openai'),
           messages: [
             { role: 'system', content: sistemaJson },

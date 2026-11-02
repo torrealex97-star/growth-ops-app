@@ -28,6 +28,7 @@ import { comprobarSaludInstagram } from '@/lib/instagram/salud'
 import { stripeGet } from '@/lib/stripe/client'
 import { listarModelos, ModelosError, resolverModelo } from '@/lib/ai/modelos'
 import { DEEPSEEK_MODELOS_PREFERIDOS } from '@/lib/ai/provider'
+import { urlBaseOpenAi } from '@/lib/ai/openai'
 import { getValidGoogleAccessToken } from '@/lib/google/token-store'
 import {
   WEBHOOKS_ENTRANTES,
@@ -878,7 +879,7 @@ async function probeGroup(group: string, tenantId: string): Promise<ProbeResult>
       }
 
       if (cfg.OPENAI_API_KEY) {
-        const openai = await probeFetch('https://api.openai.com/v1/models?limit=1', {
+        const openai = await probeFetch(`${urlBaseOpenAi(cfg)}/models?limit=1`, {
           headers: { Authorization: `Bearer ${cfg.OPENAI_API_KEY}` },
         })
         if (!openai.ok) {
