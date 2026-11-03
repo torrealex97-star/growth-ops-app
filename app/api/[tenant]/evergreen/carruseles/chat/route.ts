@@ -158,6 +158,7 @@ type ContextoHistorias = {
   estilo: EstiloId
   media: Medio[]
   pedidos: Record<string, string>
+  plataforma?: 'tiktok'
   hoy: Date
   total: number
 }
@@ -228,6 +229,7 @@ async function executeTool(
     if ((name === 'add_story' || name === 'update_story') && hist) {
       const r = leerSpec(b)
       if (!r.ok) return `ERROR: ${r.error}.`
+      if (hist.plataforma === 'tiktok') r.spec.plataforma = 'tiktok'
       // Imagen generada con IA: solo se acepta una URL de nuestro propio almacén.
       let hctx = hist
       const permitido = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${BUCKET_CARRUSELES}/`
@@ -424,6 +426,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
         media: project.referenceImages
           .filter((r) => !r.pedido)
           .map((r) => ({ url: r.url, name: r.name, kind: tipoDeMedio(r.url) })),
+        plataforma: body.plataforma === 'tiktok' ? ('tiktok' as const) : undefined,
         pedidos: Object.fromEntries(
           project.referenceImages.filter((r) => r.pedido).map((r) => [r.pedido as string, r.url])
         ),

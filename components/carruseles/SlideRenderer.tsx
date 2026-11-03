@@ -5,14 +5,21 @@ import { wrapSlideHtml } from '@/lib/carruseles/slide-html'
 import type { AspectRatio } from '@/lib/carruseles/types'
 import { DIMENSIONS } from '@/lib/carruseles/types'
 
+/** Tipo de dato con el que una miniatura de «Fotos y vídeos» se arrastra hasta la slide (su número, desde 1). */
+export const TIPO_ARRASTRE_MEDIO = 'application/x-carrusel-medio'
+
 interface SlideRendererProps {
   html: string
   aspectRatio: AspectRatio
   className?: string
   style?: React.CSSProperties
+  /** Capa encima de la slide (coordenadas relativas a ella), p. ej. para arrastrar elementos. */
+  overlay?: React.ReactNode
+  /** Si se define, la slide acepta que se le suelte una foto/vídeo arrastrado desde «Fotos y vídeos». */
+  onDropMedio?: (indice: number) => void
 }
 
-export function SlideRenderer({ html, aspectRatio, className, style }: SlideRendererProps) {
+export function SlideRenderer({ html, aspectRatio, className, style, overlay, onDropMedio }: SlideRendererProps) {
   const outerRef = useRef<HTMLDivElement>(null)
   const [dims, setDims] = useState<{ w: number; h: number } | null>(null)
   const { width: slideW, height: slideH } = DIMENSIONS[aspectRatio]
@@ -56,6 +63,16 @@ export function SlideRenderer({ html, aspectRatio, className, style }: SlideRend
             boxShadow: '0 8px 30px rgba(0,0,0,0.35), 0 1px 4px rgba(0,0,0,0.2)',
             border: '1px solid rgba(255,255,255,0.08)',
           }}
+          onDragOver={onDropMedio ? (e) => e.preventDefault() : undefined}
+          onDrop={
+            onDropMedio
+              ? (e) => {
+                  e.preventDefault()
+                  const n = Number(e.dataTransfer.getData(TIPO_ARRASTRE_MEDIO))
+                  if (Number.isInteger(n) && n >= 1) onDropMedio(n)
+                }
+              : undefined
+          }
         >
           <iframe
             sandbox=""
@@ -73,6 +90,7 @@ export function SlideRenderer({ html, aspectRatio, className, style }: SlideRend
               pointerEvents: 'none',
             }}
           />
+          {overlay}
         </div>
       )}
     </div>

@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import type { ReferenceImage } from '@/lib/carruseles/types'
 import { useTenant } from '@/lib/tenant-context'
 import { tipoDeMedio } from '@/lib/carruseles/almacen'
+import { TIPO_ARRASTRE_MEDIO } from './SlideRenderer'
 
 interface Props {
   projectId: string
@@ -73,7 +74,17 @@ export function ReferenceImages({ projectId, images, onChange }: Props) {
       {images.length > 0 && (
         <div className="flex gap-1.5 flex-wrap">
           {images.map((img) => (
-            <div key={img.id} className="relative group">
+            <div
+              key={img.id}
+              className="relative group cursor-grab"
+              draggable={!img.pedido}
+              title={img.pedido ? undefined : 'Arrástrala sobre una historia para ponerla de fondo'}
+              onDragStart={(e) => {
+                // El número es la posición entre las fotos y vídeos de fondo (las del material real no cuentan).
+                const n = images.filter((x) => !x.pedido).findIndex((x) => x.id === img.id) + 1
+                e.dataTransfer.setData(TIPO_ARRASTRE_MEDIO, String(n))
+              }}
+            >
               {tipoDeMedio(img.url) === 'video' ? (
                 <video
                   src={img.url}

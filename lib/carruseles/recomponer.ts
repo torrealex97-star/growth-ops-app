@@ -1,3 +1,4 @@
+import { tipoDeMedio } from './almacen'
 import { estiloValido } from './estilos'
 import { leerSpecDeHtml } from './historias/pedidos'
 import { renderHistoria } from './historias/layouts'
@@ -10,7 +11,7 @@ import { getBrand, getProject, updateSlide } from './store'
 export async function recomponerHistorias(
   tenantId: string,
   projectId: string,
-  opciones: { estilo?: string } = {}
+  opciones: { estilo?: string; plataforma?: 'instagram' | 'tiktok' } = {}
 ): Promise<{ actualizadas: number; sinEspecificacion: number }> {
   const project = await getProject(tenantId, projectId)
   if (!project) throw new Error('Proyecto no encontrado')
@@ -20,7 +21,7 @@ export async function recomponerHistorias(
     .map((r) => ({
       url: r.url,
       name: r.name,
-      kind: /\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(r.url) ? ('video' as const) : ('image' as const),
+      kind: tipoDeMedio(r.url),
     }))
   // Si se subió más de una imagen para el mismo pedido, vale la última.
   const pedidos: Record<string, string> = {}
@@ -34,7 +35,11 @@ export async function recomponerHistorias(
       sinEspecificacion++
       continue
     }
-    const html = renderHistoria(previa.spec, {
+    // Cambiar de red no vuelve a pedir nada a la IA: solo cambian los márgenes de la interfaz.
+    const spec = opciones.plataforma
+      ? { ...previa.spec, plataforma: opciones.plataforma === 'tiktok' ? ('tiktok' as const) : undefined }
+      : previa.spec
+    const html = renderHistoria(spec, {
       brand,
       estilo: estiloValido(opciones.estilo ?? previa.estilo, true),
       media,

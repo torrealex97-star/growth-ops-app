@@ -3,10 +3,10 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
-import { ArrowLeft, Bookmark, Loader2, MessageSquare } from 'lucide-react'
+import { ArrowLeft, Bookmark, Loader2, MessageSquare, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ChatPanel } from '@/components/carruseles/ChatPanel'
-import { CarouselPreview } from '@/components/carruseles/CarouselPreview'
+import { VisorEditable } from '@/components/carruseles/VisorEditable'
 import { SlideFilmstrip } from '@/components/carruseles/SlideFilmstrip'
 import { AspectRatioSelector } from '@/components/carruseles/AspectRatioSelector'
 import { ExportButton } from '@/components/carruseles/ExportButton'
@@ -25,6 +25,7 @@ export default function CarruselEditorPage() {
   const [notFound, setNotFound] = useState(false)
   const [activeSlide, setActiveSlide] = useState(0)
   const [chatOpen, setChatOpen] = useState(true)
+  const [editando, setEditando] = useState(true)
   const [isGenerating, setIsGenerating] = useState(false)
   const [titleDraft, setTitleDraft] = useState('')
   const chatInputRef = useRef<HTMLTextAreaElement | null>(null)
@@ -157,6 +158,15 @@ export default function CarruselEditorPage() {
         >
           <MessageSquare className="h-3.5 w-3.5" />
         </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setEditando((v) => !v)}
+          className={editando ? 'gap-1 text-brand-400' : 'gap-1 text-muted-foreground'}
+          title="Mostrar/ocultar el panel de edición"
+        >
+          <Pencil className="h-3.5 w-3.5" /> Editar
+        </Button>
         <ExportButton title={project.title} slides={project.slides} aspectRatio={project.aspectRatio} />
       </div>
 
@@ -178,11 +188,16 @@ export default function CarruselEditorPage() {
         )}
 
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
-          <CarouselPreview
+          <VisorEditable
+            projectId={id}
             slides={project.slides}
             aspectRatio={project.aspectRatio}
             activeIndex={activeSlide}
             onActiveChange={setActiveSlide}
+            referenceImages={project.referenceImages}
+            onGuardado={fetchProject}
+            bloqueado={isGenerating}
+            mostrarPanel={editando}
           />
           <CaptionPanel caption={project.caption} hashtags={project.hashtags} />
         </div>

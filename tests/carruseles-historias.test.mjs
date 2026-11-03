@@ -84,8 +84,8 @@ test('el CSS nativo no usa degradados decorativos ni sombras de plantilla en el 
     /text-shadow/,
     'solo el brillo de la fuente neón lleva sombra'
   )
-  assert.match(CSS_NATIVO, new RegExp(`top:${ZONA_SEGURA.arriba}px`))
-  assert.match(CSS_NATIVO, new RegExp(`bottom:${ZONA_SEGURA.abajo}px`))
+  assert.match(CSS_NATIVO, new RegExp(`--ig-seg-arriba,${ZONA_SEGURA.arriba}px`))
+  assert.match(CSS_NATIVO, new RegExp(`--ig-seg-abajo,${ZONA_SEGURA.abajo}px`))
 })
 
 test('wrapSlideHtml inyecta el estilo nativo y sus fuentes SOLO en 9:16, con pesos válidos', () => {

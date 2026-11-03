@@ -41,3 +41,18 @@ arriba; contenido en una columna dentro de la zona segura) y la app decide si va
 - **Material real** (`lib/carruseles/historias/pedidos.ts`): plantilla `captura` con `pedido`. La IA nunca inventa pagos, testimonios ni resultados: pide el material y la
   pantalla muestra «Falta material real». Cada historia lleva su especificación incrustada (`data-spec`), así `recomponerHistorias` la recompone sin IA al subir el
   material o cambiar de estilo. El bucket es público (enlace no listado): avisar de tapar datos personales.
+
+## Edición en el visor
+
+El editor (`components/carruseles/VisorEditable.tsx`) permite retocar sin IA: las **historias nuevas** (con especificación incrustada) se editan por campos —plantilla, titular, palabra
+resaltada, texto, tipografía, caja, color y fondo— y se recomponen en el navegador (`renderHistoria` es código de cliente, sin módulos de servidor). Se **arrastra el bloque de texto**
+en vertical (asa «mover texto», también con flechas del teclado; `spec.posicion` es el borde superior del bloque, siempre debajo de la cabecera de fecha/logo y dentro de la zona segura) y se **suelta una foto** de «Fotos y vídeos» sobre la historia para ponerla de fondo.
+El resto de slides (carruseles, flyers, historias antiguas) se editan por **lista de textos** (`lib/carruseles/historias/edicion.ts`). El reordenado de slides ya existía en el filmstrip.
+
+### Productividad para producir historias (agencia con muchos clientes)
+
+- **Revisión de la secuencia** (`lib/carruseles/historias/revision.ts`): tiempo de lectura por historia frente a los ≈5 s que dura, gancho de ≤12 palabras con palabra resaltada, última historia con acción, emojis (máx. 2), ritmo (no
+  tres plantillas iguales seguidas), longitud de la secuencia y material real pendiente. Cada aviso lleva a su historia.
+- **Instagram o TikTok**: cambia los márgenes de la interfaz de cada red (`SEGURA_POR_PLATAFORMA`, valores aproximados) y recompone las historias sin IA; «Guías de la app» las dibuja sobre la vista previa.
+- **Variantes con IA por historia** (`/carruseles/variantes`): 3 ganchos, otra versión o más corto; la IA solo propone y la persona elige (no guarda sola).
+- **De idea a historias**: «Crear historias con esta idea» en Marketing › Ideas abre el creador con el tema escrito.

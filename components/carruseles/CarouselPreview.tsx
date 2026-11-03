@@ -10,9 +10,11 @@ interface Props {
   aspectRatio: AspectRatio
   activeIndex: number
   onActiveChange: (index: number) => void
+  overlay?: React.ReactNode
+  onDropMedio?: (indice: number) => void
 }
 
-export function CarouselPreview({ slides, aspectRatio, activeIndex, onActiveChange }: Props) {
+export function CarouselPreview({ slides, aspectRatio, activeIndex, onActiveChange, overlay, onDropMedio }: Props) {
   const slide = slides[activeIndex]
 
   if (!slide) {
@@ -44,7 +46,13 @@ export function CarouselPreview({ slides, aspectRatio, activeIndex, onActiveChan
         </Button>
 
         <div key={slide.id} className="relative w-full h-full">
-          <SlideRenderer html={slide.html} aspectRatio={aspectRatio} style={{ width: '100%', height: '100%' }} />
+          <SlideRenderer
+            html={slide.html}
+            aspectRatio={aspectRatio}
+            style={{ width: '100%', height: '100%' }}
+            overlay={overlay}
+            onDropMedio={onDropMedio}
+          />
         </div>
 
         <Button

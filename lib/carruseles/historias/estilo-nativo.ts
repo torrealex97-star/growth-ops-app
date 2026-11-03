@@ -14,6 +14,14 @@
 
 export const ZONA_SEGURA = { arriba: 250, abajo: 340 } as const
 
+/** Zonas libres de la interfaz de cada red (px sobre 1080×1920). Valores aproximados: ambas redes cambian su interfaz. */
+export const SEGURA_POR_PLATAFORMA = {
+  instagram: { arriba: 250, abajo: 340, derecha: 70 },
+  // Arriba se reserva igual que en Instagram porque ahí van la fecha y el logo de la cabecera.
+  tiktok: { arriba: 250, abajo: 480, derecha: 150 },
+} as const
+export type Plataforma = keyof typeof SEGURA_POR_PLATAFORMA
+
 /** Familias de Google Fonts que usa el estilo (se cargan solo si la slide las nombra en font-family). */
 export const FUENTES_NATIVAS = {
   titulo: 'DM Serif Display',
@@ -58,10 +66,11 @@ export const CSS_NATIVO = `
 .ig-foto{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .ig-velo{position:absolute;inset:0;background:#000}
 .ig-velo-0{opacity:0}.ig-velo-20{opacity:.2}.ig-velo-40{opacity:.4}.ig-velo-60{opacity:.6}.ig-velo-75{opacity:.75}
-.ig-zona{position:absolute;left:70px;right:70px;display:flex;flex-direction:column;gap:34px}
-.ig-zona-arriba{top:${ZONA_SEGURA.arriba}px}
+.ig-zona{position:absolute;left:70px;right:var(--ig-seg-derecha,70px);display:flex;flex-direction:column;gap:34px}
+.ig-zona-arriba{top:var(--ig-seg-arriba,${ZONA_SEGURA.arriba}px)}
 .ig-zona-centro{top:50%;transform:translateY(-50%)}
-.ig-zona-abajo{bottom:${ZONA_SEGURA.abajo}px}
+
+.ig-zona-abajo{bottom:var(--ig-seg-abajo,${ZONA_SEGURA.abajo}px)}
 .ig-centrado{align-items:center;text-align:center}
 .ig-titulo{font-family:var(--ig-f-titulo,'${FUENTES_NATIVAS.titulo}'),Georgia,serif;font-weight:400;font-size:112px;line-height:1.04;letter-spacing:-.02em;color:#fff}
 .ig-impacto{font-family:'${FUENTES_NATIVAS.impacto}',Impact,sans-serif;text-transform:uppercase;font-size:124px;line-height:1.0;letter-spacing:.005em;color:#fff}
@@ -94,8 +103,9 @@ ${CSS_TIPOGRAFIAS_IG}
 .ig-captura-real img{display:block;max-width:100%;max-height:820px;border-radius:16px;object-fit:contain}
 .ig-pedido{width:720px;border:6px dashed var(--ig-acento);border-radius:32px;padding:44px;text-align:center;color:#fff;font-family:system-ui,sans-serif;font-size:42px;line-height:1.3;background:rgba(0,0,0,.35)}
 .ig-pedido b{display:block;font-size:30px;letter-spacing:.12em;color:var(--ig-acento);margin:8px 0}
+.ig-zona.ig-zona-libre{top:var(--ig-top);max-height:calc(1920px - var(--ig-seg-abajo,${ZONA_SEGURA.abajo}px) - var(--ig-top))}
 .ig-fondo{position:absolute;inset:0;overflow:hidden}
-.ig-zona{max-height:${1920 - ZONA_SEGURA.arriba - ZONA_SEGURA.abajo}px;overflow:hidden}
+.ig-zona{max-height:calc(1920px - var(--ig-seg-arriba,${ZONA_SEGURA.arriba}px) - var(--ig-seg-abajo,${ZONA_SEGURA.abajo}px));overflow:hidden}
 .ig-cabecera{position:absolute;top:104px;left:54px;right:54px;display:flex;justify-content:space-between;align-items:flex-start}
 .ig-cabecera .ig-etiqueta-fecha{position:static}
 .ig-logo{height:64px;max-width:260px;object-fit:contain;margin-left:auto}

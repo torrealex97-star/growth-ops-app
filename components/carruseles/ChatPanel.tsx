@@ -30,6 +30,15 @@ interface Props {
   chatInputRef?: React.Ref<HTMLTextAreaElement>
 }
 
+/** Red elegida para este proyecto en el visor (se recuerda en el navegador); sin elegir, Instagram. */
+function plataformaGuardada(projectId: string): 'instagram' | 'tiktok' {
+  try {
+    return localStorage.getItem(`carrusel-plataforma-${projectId}`) === 'tiktok' ? 'tiktok' : 'instagram'
+  } catch {
+    return 'instagram'
+  }
+}
+
 export function ChatPanel({
   projectId,
   referenceImages,
@@ -132,7 +141,14 @@ export function ChatPanel({
         const res = await fetch(`/api/${tenant}/evergreen/carruseles/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message, projectId, history, estilo, fotosDeFondo }),
+          body: JSON.stringify({
+            message,
+            projectId,
+            history,
+            estilo,
+            fotosDeFondo,
+            plataforma: plataformaGuardada(projectId),
+          }),
           signal: abortRef.current.signal,
         })
         if (!res.ok) {
