@@ -5,6 +5,7 @@ import { formatDateTime } from '@/lib/utils'
 import { notifyCreatuagente, toZonedISO, addMinutesISO } from '@/lib/creatuagente'
 import { getTenantConfigWithFallback } from '@/lib/config'
 import { requireTenant } from '@/lib/auth/requireTenant'
+import { closerDeLaSubcuenta } from '@/lib/appointments/closer'
 
 export const runtime = 'nodejs'
 
@@ -28,6 +29,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       durationMinutes?: number
       timezone?: string // timezone del contacto (ej: 'America/New_York')
       manualOnly?: boolean // reprograma SOLO en la plataforma (no crea evento en Calendly)
+      closerId?: string // reasigna el closer a la vez: la cita nueva se crea en SU calendario (solo liderazgo)
     }
     const { appointmentId, startTime, timezone } = body
     if (!appointmentId) return NextResponse.json({ error: 'Falta appointmentId' }, { status: 400 })
@@ -57,6 +59,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     // agenda del equipo; el resto solo las suyas. Coherente con la RLS de SELECT.
     if (!LEADERSHIP.includes(role) && scope !== 'team' && appt.setter_id !== t.userId && appt.closer_id !== t.userId) {
       return NextResponse.json({ error: 'Solo puedes reprogramar tus propias agendas' }, { status: 403 })
+    }
+
+    // Cambio de closer: Calendly no permite mover el anfitrión de un evento, así que la cita nueva se crea
+    // en el calendario del closer elegido (y la anterior se cancela abajo, como en cualquier reagenda).
+    let closerEfectivo: string | null = appt.closer_id
+    if (body.closerId && body.closerId !== appt.closer_id) {
+      if (!LEADERSHIP.includes(role)) {
+        return NextResponse.json({ error: 'Solo liderazgo puede reasignar el closer' }, { status: 403 })
+      }
+      if (!(await closerDeLaSubcuenta(sb, t.tenantId, body.closerId, t.isSuperAdmin))) {
+        return NextResponse.json(
+          { error: 'El usuario elegido no es un closer válido de esta subcuenta' },
+          { status: 400 }
+        )
+      }
+      closerEfectivo = body.closerId
     }
 
     const parsedDuration =
@@ -94,7 +112,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
           { status: 400 }
         )
       }
-      if (!appt.closer_id) {
+      if (!closerEfectivo) {
         return NextResponse.json({ error: 'La agenda no tiene closer asignado' }, { status: 400 })
       }
 
@@ -112,7 +130,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       const { data: closer } = await sb
         .from('users')
         .select('email, calendly_email, full_name')
-        .eq('id', appt.closer_id)
+        .eq('id', closerEfectivo)
         .maybeSingle()
       if (!closer?.email) return NextResponse.json({ error: 'El closer no tiene email' }, { status: 400 })
 
@@ -169,6 +187,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
         .update({
           appointment_datetime: newDatetimeISO,
           duration_minutes: parsedDuration,
+          closer_id: closerEfectivo,
           external_id: result.eventUri,
           calendly_event_uuid: result.eventUuid,
           reschedule_url: result.rescheduleUrl,
@@ -254,7 +273,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
         entity_id: appointmentId,
         action: 'reschedule',
         old_values: oldValues,
-        new_values: { appointment_datetime: newDatetimeISO, duration_minutes: parsedDuration, calendlyCanceled },
+        new_values: {
+          appointment_datetime: newDatetimeISO,
+          duration_minutes: parsedDuration,
+          closer_id: closerEfectivo,
+          calendlyCanceled,
+        },
       })
       if (auditErr) console.error('[reschedule] no se pudo registrar audit_logs:', auditErr.message)
 
@@ -281,6 +305,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       .update({
         appointment_datetime: newDatetimeISO,
         duration_minutes: parsedDuration,
+        closer_id: closerEfectivo,
         status: 'scheduled',
         rescheduled_from_status: appt.status,
       })

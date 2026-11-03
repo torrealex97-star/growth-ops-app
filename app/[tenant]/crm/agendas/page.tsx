@@ -1,5 +1,6 @@
 'use client'
 
+import { reasignarCloserApi } from '@/lib/appointments/reasignar-cliente'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useSesion, useTenant, useTenantId } from '@/lib/tenant-context'
 
@@ -986,14 +987,9 @@ export default function AppointmentsPage() {
     async (appointmentId: string, closerId: string) => {
       setReassigningConflictId(appointmentId)
       try {
-        const res = await fetch(`/api/${tenant}/evergreen/appointments/reassign-closer`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ appointmentId, closerId }),
-        })
-        const json = await res.json()
-        if (!res.ok || json?.error) throw new Error(json?.error || 'No se pudo reasignar el closer')
-        toast.success('Closer reasignado')
+        const r = await reasignarCloserApi(tenant, appointmentId, closerId)
+        if (r.cancelado) return
+        toast.success('Closer reasignado', { description: r.aviso ?? undefined })
         await fetchData()
       } catch (err) {
         toast.error('No se pudo reasignar el closer', { description: err instanceof Error ? err.message : undefined })

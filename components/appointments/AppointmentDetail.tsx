@@ -1,5 +1,6 @@
 'use client'
 
+import { reasignarCloserApi } from '@/lib/appointments/reasignar-cliente'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -472,15 +473,17 @@ export function AppointmentDetail({
     }
     setCloserSaving(true)
     try {
-      const res = await fetch(`/api/${tenant}/evergreen/appointments/reassign-closer`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ appointmentId: appointment.id, closerId: newCloserId }),
-      })
-      const data = await res.json()
-      if (!res.ok || data?.error) throw new Error(data?.error || 'No se pudo reasignar el closer')
+      const r = await reasignarCloserApi(tenant, appointment.id, newCloserId)
+      if (r.cancelado) return
       const newCloser = newCloserId ? (closers?.find((c) => c.id === newCloserId) ?? null) : null
-      toast.success('Closer reasignado')
+      toast.success(
+        r.sincronizado === 'ghl'
+          ? 'Closer reasignado en la app y en GHL'
+          : r.sincronizado === 'calendly'
+            ? 'Closer reasignado: cita nueva en su calendario y anterior cancelada'
+            : 'Closer reasignado',
+        { description: r.aviso ?? undefined }
+      )
       onCloserChanged?.(appointment.id, newCloser)
     } catch (err) {
       toast.error('No se pudo reasignar el closer', { description: err instanceof Error ? err.message : undefined })
