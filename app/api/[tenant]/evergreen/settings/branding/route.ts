@@ -1,3 +1,4 @@
+import { BUCKET_CARRUSELES, subirAlBucket } from '@/lib/carruseles/almacen'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { requireTenant } from '@/lib/auth/requireTenant'
@@ -5,7 +6,7 @@ import { resolveTenantBranding } from '@/lib/tenant-branding'
 
 export const runtime = 'nodejs'
 
-const BUCKET = 'carrusel-uploads'
+const BUCKET = BUCKET_CARRUSELES
 const MAX_LOGO_BYTES = 4 * 1024 * 1024
 const EXTENSIONS: Record<string, string> = {
   'image/png': 'png',
@@ -87,15 +88,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
 
   const sb = serviceClient()
   const key = `${tenant}/tenant-logo/${crypto.randomUUID()}.${extension}`
-  const { error: uploadError } = await sb.storage.from(BUCKET).upload(key, Buffer.from(bytes), {
-    contentType: file.type,
-    upsert: false,
-  })
+  const { error: uploadError, url: logoUrl } = await subirAlBucket(sb, key, Buffer.from(bytes), file.type)
   if (uploadError) return NextResponse.json({ error: 'No se pudo subir el logo' }, { status: 500 })
 
   try {
-    const { data } = sb.storage.from(BUCKET).getPublicUrl(key)
-    const { branding, previousLogoUrl } = await saveLogoUrl(auth.tenantId, data.publicUrl, auth.userId)
+    const { branding, previousLogoUrl } = await saveLogoUrl(auth.tenantId, logoUrl, auth.userId)
     const previousKey = storageKey(previousLogoUrl)
     if (previousKey) {
       const { error: removeError } = await sb.storage.from(BUCKET).remove([previousKey])

@@ -5,6 +5,8 @@ import { claveEncargo } from '@/lib/carruseles/historias/encargo'
 import { ChatMessage } from './ChatMessage'
 import { ChatInput } from './ChatInput'
 import { ReferenceImages } from './ReferenceImages'
+import { EstiloPanel } from './EstiloPanel'
+import { ESTILO_POR_DEFECTO, ESTILOS, esEstilo, type EstiloId } from '@/lib/carruseles/estilos'
 import { AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import type { ReferenceImage } from '@/lib/carruseles/types'
@@ -19,13 +21,24 @@ interface Message {
 interface Props {
   projectId: string
   referenceImages: ReferenceImage[]
+  aspectRatio: string
+  numSlides: number
   onStreamStart?: () => void
   onRefresh?: () => void
   onStreamEnd?: () => void
   chatInputRef?: React.Ref<HTMLTextAreaElement>
 }
 
-export function ChatPanel({ projectId, referenceImages, onStreamStart, onRefresh, onStreamEnd, chatInputRef }: Props) {
+export function ChatPanel({
+  projectId,
+  referenceImages,
+  aspectRatio,
+  numSlides,
+  onStreamStart,
+  onRefresh,
+  onStreamEnd,
+  chatInputRef,
+}: Props) {
   const tenant = useTenant()
   const [messages, setMessages] = useState<Message[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
@@ -34,6 +47,30 @@ export function ChatPanel({ projectId, referenceImages, onStreamStart, onRefresh
   const abortRef = useRef<AbortController | null>(null)
   // Encargo de historias elegido al crear el proyecto: se ofrece como botón para poder subir fotos antes.
   const [encargo, setEncargo] = useState<string | null>(null)
+  // Estilo y uso de las fotos elegidos para este proyecto (se recuerdan en el navegador y viajan con cada mensaje).
+  const [estilo, setEstilo] = useState<EstiloId>(ESTILO_POR_DEFECTO)
+  const [fotosDeFondo, setFotosDeFondo] = useState(true)
+  const esHistorias = aspectRatio === '9:16'
+
+  useEffect(() => {
+    try {
+      const g = JSON.parse(localStorage.getItem(`carrusel-estilo-${projectId}`) || 'null')
+      if (g && esEstilo(g.estilo)) setEstilo(g.estilo)
+      if (g && typeof g.fotosDeFondo === 'boolean') setFotosDeFondo(g.fotosDeFondo)
+    } catch {
+      /* sin preferencia guardada */
+    }
+  }, [projectId])
+
+  const guardarEstilo = (e: EstiloId, f: boolean) => {
+    setEstilo(e)
+    setFotosDeFondo(f)
+    try {
+      localStorage.setItem(`carrusel-estilo-${projectId}`, JSON.stringify({ estilo: e, fotosDeFondo: f }))
+    } catch {
+      /* ignore */
+    }
+  }
 
   useEffect(() => {
     try {
@@ -93,7 +130,7 @@ export function ChatPanel({ projectId, referenceImages, onStreamStart, onRefresh
         const res = await fetch(`/api/${tenant}/evergreen/carruseles/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message, projectId, history }),
+          body: JSON.stringify({ message, projectId, history, estilo, fotosDeFondo }),
           signal: abortRef.current.signal,
         })
         if (!res.ok) {
@@ -151,7 +188,7 @@ export function ChatPanel({ projectId, referenceImages, onStreamStart, onRefresh
       }
       return ok
     },
-    [isStreaming, messages, projectId, onStreamStart, onStreamEnd, onRefresh, persist, tenant]
+    [isStreaming, messages, projectId, onStreamStart, onStreamEnd, onRefresh, persist, tenant, estilo, fotosDeFondo]
   )
 
   const generarEncargo = async () => {
@@ -192,6 +229,21 @@ export function ChatPanel({ projectId, referenceImages, onStreamStart, onRefresh
       </div>
 
       <ReferenceImages projectId={projectId} images={referenceImages} onChange={() => onRefresh?.()} />
+      <EstiloPanel
+        esHistorias={esHistorias}
+        estilo={estilo}
+        onEstilo={(e) => guardarEstilo(e, fotosDeFondo)}
+        fotosDeFondo={fotosDeFondo}
+        onFotosDeFondo={(f) => guardarEstilo(estilo, f)}
+        numMedios={referenceImages.length}
+        numSlides={numSlides}
+        ocupado={isStreaming}
+        onAplicar={() =>
+          void handleSend(
+            `Rehaz TODAS las ${esHistorias ? 'historias' : 'slides'} actuales con el estilo «${ESTILOS[estilo].nombre}», conservando el texto de cada una, con mis fotos y vídeos de fondo y la marca de la subcuenta. ${esHistorias ? 'Usa update_story con el id de cada historia.' : 'Usa update_slide con el id de cada slide.'}`
+          )
+        }
+      />
 
       {encargo && (
         <div className="mx-4 mt-3 rounded-lg border border-brand-400/40 bg-brand-600/10 p-3">

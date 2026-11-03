@@ -26,12 +26,13 @@ export const FUENTES_NATIVAS = {
 export const FAMILIAS_NATIVAS: string[] = Object.values(FUENTES_NATIVAS)
 
 /**
- * CSS de los componentes. `--ig-acento` y `--ig-acento-texto` se fijan por proyecto (color de marca).
+ * CSS de los componentes. `--ig-acento` y `--ig-acento-texto` se fijan por proyecto (color de marca) y
+ * `--ig-f-titulo` / `--ig-f-cuerpo` con las tipografías de la marca (si no las hay, las del estilo nativo).
  * Dimensiones pensadas para un lienzo de 1080×1920.
  */
 export const CSS_NATIVO = `
 :root{--ig-acento:#c026d3;--ig-acento-texto:#ffffff;--ig-negro:#0b0b0d;--ig-blanco:#ffffff}
-.ig-historia{position:relative;width:1080px;height:1920px;overflow:hidden;background:#111;color:#fff;font-family:'${FUENTES_NATIVAS.cuerpo}',Georgia,serif}
+.ig-historia{position:relative;width:1080px;height:1920px;overflow:hidden;background:#111;color:#fff;font-family:var(--ig-f-cuerpo,'${FUENTES_NATIVAS.cuerpo}'),Georgia,serif}
 .ig-foto{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .ig-velo{position:absolute;inset:0;background:#000}
 .ig-velo-0{opacity:0}.ig-velo-20{opacity:.2}.ig-velo-40{opacity:.4}.ig-velo-60{opacity:.6}.ig-velo-75{opacity:.75}
@@ -40,7 +41,7 @@ export const CSS_NATIVO = `
 .ig-zona-centro{top:50%;transform:translateY(-50%)}
 .ig-zona-abajo{bottom:${ZONA_SEGURA.abajo}px}
 .ig-centrado{align-items:center;text-align:center}
-.ig-titulo{font-family:'${FUENTES_NATIVAS.titulo}',Georgia,serif;font-weight:400;font-size:112px;line-height:1.04;letter-spacing:-.02em;color:#fff}
+.ig-titulo{font-family:var(--ig-f-titulo,'${FUENTES_NATIVAS.titulo}'),Georgia,serif;font-weight:400;font-size:112px;line-height:1.04;letter-spacing:-.02em;color:#fff}
 .ig-impacto{font-family:'${FUENTES_NATIVAS.impacto}',Impact,sans-serif;text-transform:uppercase;font-size:124px;line-height:1.0;letter-spacing:.005em;color:#fff}
 .ig-maquina{font-family:'${FUENTES_NATIVAS.maquina}',monospace;font-size:64px;line-height:1.2;color:#fff}
 .ig-texto{font-size:58px;line-height:1.3;color:#fff}
@@ -50,9 +51,9 @@ export const CSS_NATIVO = `
 .ig-caja{display:inline;background:rgba(255,255,255,.95);color:#111;padding:6px 24px;border-radius:12px;font-size:56px;line-height:1.7;-webkit-box-decoration-break:clone;box-decoration-break:clone}
 .ig-caja-negra{display:inline;background:rgba(0,0,0,.72);color:#fff;padding:6px 24px;border-radius:12px;font-size:56px;line-height:1.7;-webkit-box-decoration-break:clone;box-decoration-break:clone}
 .ig-caja-acento{display:inline;background:var(--ig-acento);color:var(--ig-acento-texto);padding:6px 24px;border-radius:12px;font-size:56px;line-height:1.7;-webkit-box-decoration-break:clone;box-decoration-break:clone}
-.ig-chip{display:inline-flex;align-items:center;justify-content:center;width:104px;height:104px;border-radius:26px;background:rgba(255,255,255,.92);color:#111;font-family:'${FUENTES_NATIVAS.titulo}',Georgia,serif;font-size:72px}
+.ig-chip{display:inline-flex;align-items:center;justify-content:center;width:104px;height:104px;border-radius:26px;background:rgba(255,255,255,.92);color:#111;font-family:var(--ig-f-titulo,'${FUENTES_NATIVAS.titulo}'),Georgia,serif;font-size:72px}
 .ig-recuadro{border:7px solid var(--ig-acento);border-radius:64px;padding:36px 44px;text-align:center;font-size:52px;line-height:1.3;color:#fff;background:rgba(0,0,0,.18)}
-.ig-recuadro b{display:block;font-family:'${FUENTES_NATIVAS.titulo}',Georgia,serif;font-weight:400;font-size:64px;margin-bottom:10px}
+.ig-recuadro b{display:block;font-family:var(--ig-f-titulo,'${FUENTES_NATIVAS.titulo}'),Georgia,serif;font-weight:400;font-size:64px;margin-bottom:10px}
 .ig-etiqueta-fecha{position:absolute;top:104px;left:54px;display:flex;flex-direction:column;align-items:center;background:#fff;color:#111;border-radius:14px;padding:8px 18px;font-family:system-ui,sans-serif;font-size:26px;line-height:1.1;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.25)}
 .ig-sticker-pregunta{width:760px;border-radius:30px;overflow:hidden;background:#fff;color:#111;font-family:system-ui,sans-serif;box-shadow:0 4px 18px rgba(0,0,0,.28)}
 .ig-sticker-pregunta .ig-sp-cab{background:#1c1c1e;color:#fff;text-align:center;font-size:30px;font-weight:700;padding:20px}
@@ -64,6 +65,13 @@ export const CSS_NATIVO = `
 .ig-flecha{position:absolute;width:210px;height:150px;pointer-events:none}
 .ig-captura{background:#fff;color:#111;border-radius:26px;padding:26px 30px;box-shadow:0 4px 18px rgba(0,0,0,.3);font-family:system-ui,sans-serif;font-size:40px}
 .ig-emoji{font-size:84px;line-height:1}
+.ig-fondo{position:absolute;inset:0;overflow:hidden}
+.ig-zona{max-height:${1920 - ZONA_SEGURA.arriba - ZONA_SEGURA.abajo}px;overflow:hidden}
+.ig-cabecera{position:absolute;top:104px;left:54px;right:54px;display:flex;justify-content:space-between;align-items:flex-start}
+.ig-cabecera .ig-etiqueta-fecha{position:static}
+.ig-logo{height:64px;max-width:260px;object-fit:contain;margin-left:auto}
+.ig-cifra{font-family:var(--ig-f-titulo,'${FUENTES_NATIVAS.titulo}'),Georgia,serif;font-size:230px;line-height:1;color:var(--ig-acento)}
+.ig-franja{background:rgba(0,0,0,.5);padding:28px 40px}
 `
 
 /** Flecha dibujada a mano (SVG inline) para señalar algo, con rotación opcional en grados. */

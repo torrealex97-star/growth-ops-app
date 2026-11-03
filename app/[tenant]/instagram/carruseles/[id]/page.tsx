@@ -167,6 +167,8 @@ export default function CarruselEditorPage() {
             <ChatPanel
               projectId={id}
               referenceImages={project.referenceImages}
+              aspectRatio={project.aspectRatio}
+              numSlides={project.slides.length}
               onStreamStart={() => setIsGenerating(true)}
               onRefresh={fetchProject}
               onStreamEnd={() => setIsGenerating(false)}

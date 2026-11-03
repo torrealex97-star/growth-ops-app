@@ -300,7 +300,7 @@ test('la ruta del chat ya no exige Anthropic y ofrece generate_image solo con cl
   const ruta = readFileSync('app/api/[tenant]/evergreen/carruseles/chat/route.ts', 'utf8')
   assert.doesNotMatch(ruta, /ANTHROPIC_API_KEY no configurada/)
   assert.match(ruta, /elegirMotorTexto\(cfg\)/)
-  assert.match(ruta, /imagenesIA \? \[\.\.\.TOOLS, TOOL_IMAGEN\] : TOOLS/)
+  assert.match(ruta, /imagenesIA \? \[\.\.\.herramientasBase, TOOL_IMAGEN\] : herramientasBase/)
   assert.match(ruta, /MAX_IMAGENES_POR_PETICION/)
 })
 

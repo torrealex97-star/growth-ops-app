@@ -1,3 +1,4 @@
+import { DEFAULT_BRAND_NAME, resolveTenantBranding } from '@/lib/tenant-branding'
 import { createClient } from '@supabase/supabase-js'
 import type {
   CarruselProject,
@@ -263,13 +264,16 @@ export async function getBrand(tenantId: string): Promise<BrandConfig> {
   const sb = svc()
   const { data, error } = await sb.from('carrusel_brand').select('*').eq('tenant_id', tenantId).maybeSingle()
   if (error) throw new Error(error.message)
-  if (!data) return DEFAULT_BRAND
+  // El nombre y el logo de la subcuenta (Configuración › Marca) valen si la marca de carruseles no tiene los suyos.
+  const { data: tenant } = await sb.from('tenants').select('settings').eq('id', tenantId).maybeSingle()
+  const delTenant = resolveTenantBranding(tenant?.settings)
+  const nombreTenant = delTenant.name === DEFAULT_BRAND_NAME ? '' : delTenant.name
   return {
-    name: data.name ?? '',
-    colors: { ...DEFAULT_BRAND.colors, ...(data.colors || {}) },
-    fonts: { ...DEFAULT_BRAND.fonts, ...(data.fonts || {}) },
-    logoUrl: data.logo_url ?? null,
-    styleKeywords: Array.isArray(data.style_keywords) ? data.style_keywords : [],
+    name: data?.name || nombreTenant,
+    colors: { ...DEFAULT_BRAND.colors, ...(data?.colors || {}) },
+    fonts: { ...DEFAULT_BRAND.fonts, ...(data?.fonts || {}) },
+    logoUrl: data?.logo_url || delTenant.logoUrl,
+    styleKeywords: Array.isArray(data?.style_keywords) ? data.style_keywords : [],
   }
 }
 

@@ -5,6 +5,10 @@ import { getCarruselUser } from '@/lib/carruseles/auth'
 import { requireTenant } from '@/lib/auth/requireTenant'
 import { getBrand, getProject, addSlide, updateSlide, deleteSlide, updateProject } from '@/lib/carruseles/store'
 import { buildSystemPrompt, type BrandAsset } from '@/lib/carruseles/system-prompt'
+import { ESTILO_POR_DEFECTO, esEstilo, type EstiloId, type OpcionesEstilo } from '@/lib/carruseles/estilos'
+import { LAYOUTS, leerSpec, renderHistoria, type Medio } from '@/lib/carruseles/historias/layouts'
+import { BUCKET_CARRUSELES, tipoDeMedio } from '@/lib/carruseles/almacen'
+import type { BrandConfig } from '@/lib/carruseles/types'
 import { MAX_SLIDES } from '@/lib/carruseles/types'
 import { getTenantConfigWithFallback, getTenantConfig } from '@/lib/config'
 import {
@@ -82,6 +86,59 @@ const TOOLS: Anthropic.Tool[] = [
   },
 ]
 
+// HISTORIAS (9:16): la IA elige plantilla y texto; el código compone (lib/carruseles/historias/layouts.ts).
+const PROPIEDADES_HISTORIA = {
+  layout: { type: 'string', enum: [...LAYOUTS], description: 'Plantilla de la historia' },
+  titulo: { type: 'string', description: 'Titular (máx ~8 palabras)' },
+  acento: { type: 'string', description: 'Palabra o frase del titular que se resalta' },
+  texto: { type: 'string', description: 'Texto de apoyo (máx ~25 palabras)' },
+  items: {
+    type: 'array',
+    description: 'Para comparacion: hasta 2 recuadros',
+    items: {
+      type: 'object',
+      properties: { icono: { type: 'string' }, titulo: { type: 'string' }, texto: { type: 'string' } },
+      required: ['titulo'],
+    },
+  },
+  sticker: {
+    type: 'object',
+    description: 'Para sticker',
+    properties: {
+      tipo: { type: 'string', enum: ['pregunta', 'escribe'] },
+      cabecera: { type: 'string' },
+      texto: { type: 'string' },
+    },
+    required: ['tipo'],
+  },
+  cifra: { type: 'string', description: 'Para cifra: el dato grande' },
+  fecha: { type: 'boolean', description: 'Etiqueta de fecha (solo en la primera)' },
+  ultima: { type: 'boolean', description: 'Historia de cierre (lleva el logo)' },
+  foto: { type: 'integer', description: 'Número (desde 1) de la foto o vídeo de la lista' },
+  foto2: { type: 'integer', description: 'Segunda foto, solo para partida' },
+  fotoUrl: { type: 'string', description: 'URL devuelta por generate_image para usarla de fondo' },
+  fondo: { type: 'string', enum: ['foto', 'liso'], description: 'liso = fondo de color de la marca sin foto' },
+}
+
+const TOOL_ADD_STORY: Anthropic.Tool = {
+  name: 'add_story',
+  description:
+    'Añade una historia al final usando una PLANTILLA. La app decide dónde va la foto, el velo oscuro, la fecha, el logo y los stickers; tú solo eliges plantilla y texto. No escribas HTML.',
+  input_schema: { type: 'object', properties: PROPIEDADES_HISTORIA, required: ['layout'] },
+}
+
+const TOOL_UPDATE_STORY: Anthropic.Tool = {
+  name: 'update_story',
+  description: 'Rehace una historia existente (por su id) con una plantilla y texto nuevos.',
+  input_schema: {
+    type: 'object',
+    properties: { slideId: { type: 'string' }, ...PROPIEDADES_HISTORIA },
+    required: ['slideId', 'layout'],
+  },
+}
+
+type ContextoHistorias = { brand: BrandConfig; estilo: EstiloId; media: Medio[]; hoy: Date; total: number }
+
 // Herramienta de imágenes con IA: solo se ofrece si hay clave de Gemini u OpenAI.
 const TOOL_IMAGEN: Anthropic.Tool = {
   name: 'generate_image',
@@ -122,7 +179,8 @@ async function executeTool(
   projectId: string,
   name: string,
   input: unknown,
-  ctx?: ContextoHerramientas
+  ctx?: ContextoHerramientas,
+  hist?: ContextoHistorias
 ): Promise<string> {
   const b = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>
   try {
@@ -143,6 +201,35 @@ async function executeTool(
         referencias: ctx.referencias.slice(0, 3),
       })
       return `OK: imagen generada (${r.motor}). URL pública para usar en el HTML: ${r.url}`
+    }
+    if ((name === 'add_story' || name === 'update_story') && hist) {
+      const r = leerSpec(b)
+      if (!r.ok) return `ERROR: ${r.error}.`
+      // Imagen generada con IA: solo se acepta una URL de nuestro propio almacén.
+      let hctx = hist
+      const permitido = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${BUCKET_CARRUSELES}/`
+      if (typeof b.fotoUrl === 'string' && b.fotoUrl.startsWith(permitido)) {
+        hctx = { ...hist, media: [...hist.media, { url: b.fotoUrl, kind: 'image', name: 'imagen IA' }] }
+        r.spec.foto = hctx.media.length
+      }
+      const actual = await getProject(tenantId, projectId)
+      if (!actual) return 'ERROR: proyecto inexistente.'
+      const notes = `${r.spec.layout}: ${r.spec.titulo ?? r.spec.texto ?? ''}`.slice(0, 120)
+      if (name === 'add_story') {
+        const html = renderHistoria(r.spec, { ...hctx, indice: actual.slides.length })
+        const slide = await addSlide(tenantId, projectId, html, notes)
+        if (!slide) return `ERROR: no se pudo añadir la historia (límite ${MAX_SLIDES} alcanzado).`
+        return `OK: historia añadida con id ${slide.id}.`
+      }
+      const indice = Math.max(
+        0,
+        actual.slides.findIndex((x) => x.id === String(b.slideId))
+      )
+      const slide = await updateSlide(tenantId, projectId, String(b.slideId), {
+        html: renderHistoria(r.spec, { ...hctx, indice }),
+        notes,
+      })
+      return slide ? `OK: historia ${slide.id} actualizada.` : `ERROR: no existe la historia ${b.slideId}.`
     }
     if (name === 'add_slide') {
       const slide = await addSlide(tenantId, projectId, String(b.html || ''), String(b.notes || ''))
@@ -276,9 +363,35 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   // las variables globales del servidor, y el negocio de una subcuenta acabaría escrito en las de otra.
   const propia = await getTenantConfig(t.tenantId, true)
   const brandAssets = parseBrandAssets(propia.IG_BRAND_ASSETS)
-  const system = buildSystemPrompt(brand, project, propia.IG_BUSINESS_CONTEXT, brandAssets, imagenesIA)
+  // Estilo y uso de las fotos elegidos en el panel; un valor desconocido cae al estilo por defecto.
+  const opciones: OpcionesEstilo = {
+    estilo: esEstilo(body.estilo) ? body.estilo : ESTILO_POR_DEFECTO,
+    fotosDeFondo: body.fotosDeFondo === true || project.aspectRatio === '9:16',
+  }
+  const system = buildSystemPrompt(
+    brand,
+    project,
+    propia.IG_BUSINESS_CONTEXT,
+    brandAssets,
+    imagenesIA,
+    new Date(),
+    opciones
+  )
   const client = new Anthropic({ apiKey: anthropicKey || 'sin-clave' })
-  const toolsActivas = imagenesIA ? [...TOOLS, TOOL_IMAGEN] : TOOLS
+  const esHistorias = project.aspectRatio === '9:16' && project.kind !== 'flyer'
+  const herramientasBase = esHistorias
+    ? [TOOL_ADD_STORY, TOOL_UPDATE_STORY, ...TOOLS.filter((x) => x.name === 'delete_slide' || x.name === 'set_caption')]
+    : TOOLS
+  const toolsActivas = imagenesIA ? [...herramientasBase, TOOL_IMAGEN] : herramientasBase
+  const ctxHistorias: ContextoHistorias | undefined = esHistorias
+    ? {
+        brand,
+        estilo: opciones.estilo,
+        media: project.referenceImages.map((r) => ({ url: r.url, name: r.name, kind: tipoDeMedio(r.url) })),
+        hoy: new Date(),
+        total: 0,
+      }
+    : undefined
 
   // Construye el historial (solo texto) + mensaje actual con imágenes de referencia/marca.
   const messages: Anthropic.MessageParam[] = []
@@ -293,7 +406,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
 
   // Las N referencias MÁS RECIENTES (no las primeras) para que una imagen recién subida
   // siempre se adjunte de verdad, aunque ya hubiera otras referencias antes.
-  const recentRefs = project.referenceImages.slice(-MAX_REFERENCE_IMAGES)
+  const recentRefs = project.referenceImages.filter((r) => tipoDeMedio(r.url) === 'image').slice(-MAX_REFERENCE_IMAGES)
   for (const ref of recentRefs) {
     const { block, warning } = await fetchImageBlock(ref.url, ref.name)
     if (block) userBlocks.push(block)
@@ -360,13 +473,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
             textoUsuario: message,
             imagenes: referenciasNeutras,
             tools: aGenericas(toolsActivas),
-            ejecutar: (nombre, args) => executeTool(t.tenantId, projectId, nombre, args, ctxHerramientas),
+            ejecutar: (nombre, args) => executeTool(t.tenantId, projectId, nombre, args, ctxHerramientas, ctxHistorias),
             continuar: async () => {
               if (targetSlideCount == null) return null
               const actual = await getProject(t.tenantId, projectId)
               const n = actual?.slides.length ?? 0
               return n < targetSlideCount
-                ? `Todavía te faltan slides: llevas ${n} de ${targetSlideCount} pedidas. Continúa AHORA llamando a add_slide para las que faltan (la última debe ser el CTA). No expliques nada, solo usa las tools.`
+                ? `Todavía te faltan slides: llevas ${n} de ${targetSlideCount} pedidas. Continúa AHORA llamando a ${esHistorias ? 'add_story' : 'add_slide'} para las que faltan (la última debe ser el CTA). No expliques nada, solo usa las tools.`
                 : null
             },
             onTexto: (texto) => send({ type: 'token', text: texto }),
@@ -457,7 +570,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
                 autoContinues++
                 messages.push({
                   role: 'user',
-                  content: `Todavía te faltan slides: llevas ${currentCount} de ${targetSlideCount} pedidas. Continúa AHORA llamando a add_slide para las que faltan (la última debe ser el CTA). No expliques nada, solo usa las tools.`,
+                  content: `Todavía te faltan slides: llevas ${currentCount} de ${targetSlideCount} pedidas. Continúa AHORA llamando a ${esHistorias ? 'add_story' : 'add_slide'} para las que faltan (la última debe ser el CTA). No expliques nada, solo usa las tools.`,
                 })
                 continue
               }
@@ -467,7 +580,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
 
           const results: Anthropic.ToolResultBlockParam[] = []
           for (const tu of toolUses) {
-            const out = await executeTool(t.tenantId, projectId, tu.name, tu.input, ctxHerramientas)
+            const out = await executeTool(t.tenantId, projectId, tu.name, tu.input, ctxHerramientas, ctxHistorias)
             send({ type: 'refresh' }) // el cliente refresca el proyecto tras cada cambio
             results.push({ type: 'tool_result', tool_use_id: tu.id, content: out })
           }

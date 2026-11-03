@@ -62,6 +62,37 @@ function waitForIframe(iframe: HTMLIFrameElement, srcDoc: string): Promise<void>
   })
 }
 
+/**
+ * Sustituye cada <video> por un fotograma (imagen): html-to-image no pinta vídeos, y sin esto el PNG saldría sin
+ * fondo. Si el navegador no deja leer el fotograma (CORS), esa historia sale sin ese fondo.
+ */
+async function congelarVideos(doc: Document): Promise<void> {
+  const esperar = (v: HTMLVideoElement, evento: string, ms: number) =>
+    new Promise<void>((resolve) => {
+      v.addEventListener(evento, () => resolve(), { once: true })
+      setTimeout(resolve, ms)
+    })
+  await Promise.all(
+    Array.from(doc.querySelectorAll('video')).map(async (v) => {
+      try {
+        if (v.readyState < 2) await esperar(v, 'loadeddata', 6000)
+        v.currentTime = Math.min(0.5, (v.duration || 1) / 2)
+        await esperar(v, 'seeked', 2000)
+        const c = doc.createElement('canvas')
+        c.width = v.videoWidth || 1080
+        c.height = v.videoHeight || 1920
+        c.getContext('2d')?.drawImage(v, 0, 0, c.width, c.height)
+        const img = doc.createElement('img')
+        img.className = v.className
+        img.src = c.toDataURL('image/jpeg', 0.92)
+        v.replaceWith(img)
+      } catch {
+        /* sin fotograma: la historia sale sin ese fondo */
+      }
+    })
+  )
+}
+
 /** Renderiza una slide a PNG (dataURL) usando un iframe oculto same-origin. */
 async function renderSlideToPng(slide: Slide, aspectRatio: AspectRatio, fontEmbedCSS: string): Promise<string> {
   const { width, height } = DIMENSIONS[aspectRatio]
@@ -77,6 +108,7 @@ async function renderSlideToPng(slide: Slide, aspectRatio: AspectRatio, fontEmbe
 
   try {
     await waitForIframe(iframe, wrapSlideHtml(slide.html, aspectRatio))
+    if (iframe.contentDocument) await congelarVideos(iframe.contentDocument)
     const body = iframe.contentDocument?.body
     if (!body) throw new Error('No se pudo renderizar la slide')
     const dataUrl = await htmlToImage.toPng(body, {
