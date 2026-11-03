@@ -82,6 +82,12 @@ export async function usuariosColaboradoresActivos(sb: SupabaseClient, tenantId:
  * Resuelve por código público (?ref=WDC-0472) → UUID del perfil, SIEMPRE dentro
  * del tenant y SOLO si está activo. El código nunca es identidad: se resuelve
  * server-side y la relación se guarda por id (§43).
+ *
+ * SIN DISTINGUIR MAYÚSCULAS. El código llega por enlaces, formularios y campos de GHL, y por el camino se
+ * pasa a minúsculas (`ab12cd34` frente a `AB12CD34`): con una comparación exacta, TODO contacto nuevo de una
+ * colaboradora quedaba sin atribuir y ella no veía sus agendas (detectado en octubre: 7 de 7 contactos
+ * nuevos con su código sin atribuir). Si dos perfiles de la misma subcuenta solo difirieran en mayúsculas
+ * gana el de coincidencia exacta; si no hay exacta, NO se adivina.
  */
 export async function resolverColaboradorPorCodigo(
   sb: SupabaseClient,
@@ -90,14 +96,22 @@ export async function resolverColaboradorPorCodigo(
 ): Promise<{ id: string } | null> {
   const code = rawCode.trim()
   if (!code) return null
+  // ilike sin comodines: `%`, `_` y `\` del código se escapan para que se comparen como texto.
+  const patron = code.replace(/[\\%_]/g, '\\$&')
   const { data } = await sb
     .from('collaborator_profiles')
-    .select('id')
+    .select('id, code')
     .eq('tenant_id', tenantId)
-    .eq('code', code)
     .eq('status', 'active')
-    .maybeSingle()
-  return (data as { id: string } | null) ?? null
+    .ilike('code', patron)
+    .limit(2)
+  const filas = (data ?? []) as { id: string; code: string }[]
+  if (filas.length === 1) return { id: filas[0].id }
+  if (filas.length > 1) {
+    const exacta = filas.find((f) => f.code === code)
+    return exacta ? { id: exacta.id } : null
+  }
+  return null
 }
 
 /**
