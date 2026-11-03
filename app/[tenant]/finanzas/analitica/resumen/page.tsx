@@ -46,6 +46,7 @@ type CommissionRow = {
   direction: string
   collection_id: string | null
   liquidation_month: string | null
+  status?: string | null
 }
 type UserRow = { base_salary: number | string | null }
 
@@ -124,7 +125,7 @@ export default function FinanzasPage() {
           .range(0, FINANCE_QUERY_ROW_CAP),
         supabase
           .from('commissions')
-          .select('commission_amount, direction, collection_id, liquidation_month')
+          .select('commission_amount, direction, collection_id, liquidation_month, status')
           .eq('tenant_id', tenantId)
           .range(0, FINANCE_QUERY_ROW_CAP),
         supabase
@@ -179,7 +180,8 @@ export default function FinanzasPage() {
         c.direction === 'negative'
           ? ymOf(c.liquidation_month)
           : ((c.collection_id ? collMonth.get(c.collection_id) : undefined) ?? ymOf(c.liquidation_month))
-      const monthCommissions = commissions.filter((c) => commissionYm(c) === targetYm)
+      // Las canceladas (p. ej. sustituidas por un ajuste manual) no son coste.
+      const monthCommissions = commissions.filter((c) => c.status !== 'cancelled' && commissionYm(c) === targetYm)
 
       const contractedSales = monthSales.reduce((a, s) => a + num(s.gross_amount), 0)
       const cashCollected = monthCollections.reduce((a, c) => a + num(c.gross_amount), 0)

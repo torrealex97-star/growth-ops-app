@@ -788,7 +788,8 @@ function DashboardEquipo() {
     for (const c of commissions) {
       if (c.sale_id && !filteredSaleIds.has(c.sale_id)) continue
       if (member !== 'all' && c.user_id !== member) continue
-      if (c.status === 'liquidated') continue
+      // Ni lo ya pagado ni lo cancelado (p. ej. sustituido por un ajuste manual) es «ganado pendiente».
+      if (c.status === 'liquidated' || c.status === 'cancelled') continue
       const amt = Number(c.commission_amount)
       ganada += c.direction === 'negative' ? -amt : amt
     }
@@ -862,7 +863,8 @@ function DashboardEquipo() {
     for (const c of commissions) {
       if (c.user_id !== userId) continue
       if (c.sale_id && !monthSaleIds.has(c.sale_id)) continue
-      if (c.status === 'liquidated') continue
+      // Ni lo ya pagado ni lo cancelado (p. ej. sustituido por un ajuste manual) es «ganado pendiente».
+      if (c.status === 'liquidated' || c.status === 'cancelled') continue
       const amt = Number(c.commission_amount)
       comisiones += c.direction === 'negative' ? -amt : amt
     }
