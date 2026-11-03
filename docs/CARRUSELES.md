@@ -28,3 +28,16 @@ arriba; contenido en una columna dentro de la zona segura) y la app decide si va
 - **Fotos y vídeos** (panel «Fotos y vídeos»): imágenes hasta 15 MB y vídeos MP4/WEBM/MOV hasta 50 MB. Los vídeos se reproducen de fondo (mudos, en bucle);
   al exportar PNG se usa un fotograma. El vídeo final con texto no se renderiza todavía: el PNG es la capa visual.
 - El bucket `carrusel-uploads` se crea solo en la primera subida (`lib/carruseles/almacen.ts`); en producción no existía y toda subida fallaba.
+
+## Historias y carruseles: productos separados, ejemplos del tenant y material real
+
+- **Separación**: el listado tiene pestañas Historias / Carruseles / Flyers y cada una crea lo suyo (`lib/carruseles/tipos.ts`). Las historias son siempre 9:16 y van por
+  plantillas; los carruseles (4:5 o 1:1) siguen siendo diseño libre y creativo (estilos Diseñado, Con foto, Minimal, De marca), con foto detrás solo si se pide.
+- **Texto de historias como en Instagram**: tipografías parecidas a las del editor (`classic`, `modern`, `neon`, `typewriter`, `strong`, `serif`; Instagram no publica las suyas, se
+  afinan con los ejemplos del tenant) y fondos de texto sin caja / sólida / translúcida (blanco, negro o marca). Los emojis son texto Unicode: los pinta la fuente del
+  dispositivo (Apple Color Emoji en iPhone/Mac; su fuente no se puede incluir en la app por licencia), también al exportar desde ellos.
+- **Mis ejemplos** (`lib/carruseles/ejemplos.ts`): capturas de historias y carruseles del tenant → guía de estilo analizada por visión (editable), guardada en
+  `tenants.settings.carruseles_ejemplos`. Entra en el prompt de su producto y se adjuntan hasta 3 ejemplos como imagen.
+- **Material real** (`lib/carruseles/historias/pedidos.ts`): plantilla `captura` con `pedido`. La IA nunca inventa pagos, testimonios ni resultados: pide el material y la
+  pantalla muestra «Falta material real». Cada historia lleva su especificación incrustada (`data-spec`), así `recomponerHistorias` la recompone sin IA al subir el
+  material o cambiar de estilo. El bucket es público (enlace no listado): avisar de tapar datos personales.
