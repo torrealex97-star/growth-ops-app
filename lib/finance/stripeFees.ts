@@ -71,26 +71,57 @@ export async function fetchStripeFeesForChargeIds(
   return { fees, deadlineReached }
 }
 
-type BalanceTxn = {
-  id: string
+export type BalanceTxn = {
+  id?: string
   /** Neto en céntimos: gross − fee. Solo informativo aquí. */
   net?: number | null
   fee?: number | null
   /** Detalle de la comisión por concepto (p.ej. `stripe_fee`). */
   fee_details?: { amount?: number | null; type?: string | null }[] | null
   source?: string | null
+  /** Moneda del SALDO de la cuenta (en que viene `fee`), NO necesariamente la del cobro. */
+  currency?: string | null
+  /** Si hubo conversión: importe en moneda del cobro × exchange_rate = importe en moneda del saldo. */
+  exchange_rate?: number | null
 }
 
 const aEuros = (cent: number | null | undefined): number => Math.round(Number(cent ?? 0)) / 100
 
-function feeDeTxn(txn: BalanceTxn | null | undefined): number | null {
+/**
+ * FEE EN LA MONEDA DEL COBRO (MONEY D2: un importe lleva su moneda y no se asume la base).
+ *
+ * El `fee` de un balance_transaction viene en la moneda del SALDO de la cuenta. Una cuenta que cobra en EUR
+ * pero liquida en USD recibe `fee` en dólares (con `exchange_rate`); restarlo tal cual de un importe en
+ * euros sobre-resta ~11-17 % del fee y la base comisionable sale baja. Si saldo y cobro coinciden no hay
+ * conversión. Si difieren y no hay tipo de cambio legible NO se adivina: `null` (el llamador usa su
+ * fallback), nunca un importe en la moneda equivocada.
+ */
+export function feeEnMonedaDelCobro(txn: BalanceTxn | null | undefined, monedaCobro?: string | null): number | null {
   if (!txn) return null
-  if (Array.isArray(txn.fee_details) && txn.fee_details.length) {
-    const total = txn.fee_details.reduce((s, d) => s + Number(d.amount ?? 0), 0)
-    return aEuros(total)
+  const minor =
+    Array.isArray(txn.fee_details) && txn.fee_details.length
+      ? txn.fee_details.reduce((s, d) => s + Number(d.amount ?? 0), 0)
+      : txn.fee != null
+        ? Number(txn.fee)
+        : null
+  if (minor == null || !Number.isFinite(minor)) return null
+  const saldo = txn.currency?.toLowerCase()
+  const cobro = monedaCobro?.toLowerCase()
+  if (saldo && cobro && saldo !== cobro) {
+    const rate = Number(txn.exchange_rate)
+    if (!Number.isFinite(rate) || rate <= 0) return null
+    return Math.round(minor / rate) / 100
   }
-  return txn.fee != null ? aEuros(txn.fee) : null
+  return aEuros(minor)
 }
+
+type StripeChargeConBalance = { currency?: string | null; balance_transaction?: string | BalanceTxn | null }
+
+const feeDeCharge = (charge: StripeChargeConBalance | null | undefined): number | null =>
+  feeEnMonedaDelCobro(
+    typeof charge?.balance_transaction === 'object' ? (charge.balance_transaction as BalanceTxn) : null,
+    charge?.currency
+  )
 
 /**
  * Lee el balance_transaction de cada charge/pago y devuelve `referencia → fee en euros`.
@@ -116,20 +147,20 @@ export async function fetchStripeFeesForReferences(
         )
         const chargeId = typeof intent.latest_charge === 'object' ? intent.latest_charge?.id : intent.latest_charge
         if (!chargeId) continue
-        const charge = await stripeGet<{
-          balance_transaction?: string | { fee?: number | null; fee_details?: BalanceTxn['fee_details'] } | null
-        }>('charges/' + encodeURIComponent(chargeId), new URLSearchParams({ 'expand[]': 'balance_transaction' }), auth)
-        const fee = feeDeTxn(
-          typeof charge.balance_transaction === 'object' ? (charge.balance_transaction as BalanceTxn) : null
+        const charge = await stripeGet<StripeChargeConBalance>(
+          'charges/' + encodeURIComponent(chargeId),
+          new URLSearchParams({ 'expand[]': 'balance_transaction' }),
+          auth
         )
+        const fee = feeDeCharge(charge)
         if (fee != null) out.set(ref, fee)
       } else if (ref.startsWith('ch_')) {
-        const charge = await stripeGet<{
-          balance_transaction?: string | { fee?: number | null; fee_details?: BalanceTxn['fee_details'] } | null
-        }>('charges/' + encodeURIComponent(ref), new URLSearchParams({ 'expand[]': 'balance_transaction' }), auth)
-        const fee = feeDeTxn(
-          typeof charge.balance_transaction === 'object' ? (charge.balance_transaction as BalanceTxn) : null
+        const charge = await stripeGet<StripeChargeConBalance>(
+          'charges/' + encodeURIComponent(ref),
+          new URLSearchParams({ 'expand[]': 'balance_transaction' }),
+          auth
         )
+        const fee = feeDeCharge(charge)
         if (fee != null) out.set(ref, fee)
       }
     } catch {
@@ -149,10 +180,12 @@ export async function fetchStripeFeeForCharge(
   if (!chargeId) return null
   try {
     const auth = { secretKey, accountId }
-    const charge = await stripeGet<{
-      balance_transaction?: string | { fee?: number | null; fee_details?: BalanceTxn['fee_details'] } | null
-    }>('charges/' + encodeURIComponent(chargeId), new URLSearchParams({ 'expand[]': 'balance_transaction' }), auth)
-    return feeDeTxn(typeof charge.balance_transaction === 'object' ? (charge.balance_transaction as BalanceTxn) : null)
+    const charge = await stripeGet<StripeChargeConBalance>(
+      'charges/' + encodeURIComponent(chargeId),
+      new URLSearchParams({ 'expand[]': 'balance_transaction' }),
+      auth
+    )
+    return feeDeCharge(charge)
   } catch {
     return null
   }

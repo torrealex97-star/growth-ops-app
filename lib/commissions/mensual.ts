@@ -213,3 +213,15 @@ export function construirResumenMensual(
 export function impagosVencidos(future: FilaFutura[]): number {
   return future.reduce((acc, f) => (!f.exento && f.estado === 'overdue' ? acc + Number(f.amount || 0) : acc), 0)
 }
+
+/**
+ * Previsión (sujeta a cobro del cliente) que SE PAGARÁ en `mes` (YYYY-MM): las cuotas que vencen el mes anterior.
+ * Excluye exentas (D9) e impagos (cuotas vencidas). Es la misma regla que `construirResumenMensual`.
+ */
+export function previsionQueSePagaEn(future: FilaFutura[], mes: string): number {
+  return future.reduce(
+    (acc, f) =>
+      !f.exento && f.estado !== 'overdue' && mesDePago(f.dueDate) === mes ? acc + Number(f.amount || 0) : acc,
+    0
+  )
+}

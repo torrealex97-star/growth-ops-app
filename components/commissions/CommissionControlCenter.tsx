@@ -9,9 +9,11 @@ import {
   nextMonthKey,
   type CommissionDashboardRow,
 } from '@/lib/commissions/dashboard'
+import { previsionQueSePagaEn } from '@/lib/commissions/mensual'
+import type { FilaFutura } from '@/lib/commissions/future-response'
 import type { ParticipantType } from '@/lib/types/database'
 
-type FutureCommission = { dueDate: string; amount: number; exento?: boolean }
+type FutureCommission = Pick<FilaFutura, 'dueDate' | 'amount'> & Partial<Pick<FilaFutura, 'exento' | 'estado'>>
 
 const ROLE_LABEL: Record<ParticipantType, string> = {
   setter: 'Setter',
@@ -53,9 +55,9 @@ export function CommissionControlCenter({
   tenant: string
 }) {
   const settlement = commissionSettlementSummary(rows)
-  const nextProjected = future
-    .filter((row) => !row.exento && row.dueDate.slice(0, 7) === nextMonthKey())
-    .reduce((sum, row) => sum + Number(row.amount || 0), 0)
+  // Una cuota se paga el mes SIGUIENTE a su vencimiento (motor: getLiquidationMonth): la previsión del mes que
+  // viene son las que vencen ESTE mes y siguen sin cobrar. Impagos y exentas quedan fuera.
+  const nextProjected = previsionQueSePagaEn(future as FilaFutura[], nextMonthKey())
   const team = buildTeamCommissionSummary(rows)
   const maxCollected = Math.max(...team.map((row) => row.collected), 1)
   const currentObligation = settlement.toApprove + settlement.readyToPay
