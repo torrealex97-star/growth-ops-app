@@ -295,7 +295,9 @@ export function CommissionMonthlyStatement({
         />
       </div>
 
-      {hayAjustes && m.ajuste.amount !== 0 && (
+      {/* Colaboradora: no se muestra nada de ajustes (no aportan claridad ni puede actuar sobre ellos). Siguen
+          dentro del total del mes, que es el importe real. */}
+      {!personal && hayAjustes && m.ajuste.amount !== 0 && (
         <GrupoDetalle
           titulo="Ajustes y devoluciones"
           ayuda="Restan del total. No son venta nueva ni recurrencia."

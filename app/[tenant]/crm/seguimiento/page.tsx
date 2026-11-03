@@ -31,6 +31,7 @@ import { getQualificationEntries, type Qualification } from '@/lib/appointments/
 import { appointmentLeadScore } from '@/lib/appointments/lead-score'
 import type { LeadScore } from '@/lib/metrics/cualificacion'
 import { useSesion, useTenant, useTenantId } from '@/lib/tenant-context'
+import { resolverScopeColaborador, contactIdsDeScope } from '@/lib/collaborators/scope'
 import { SearchBox, normalizeText, phoneMatches } from '@/components/ui/search-box'
 import { DateRangeCalendarPopover } from '@/components/ui/calendar-popover'
 import { getCustomDateRange, inPeriod } from '@/lib/filters/period'
@@ -162,22 +163,45 @@ export default function SeguimientoPage() {
       setCurrentUserName(userData.full_name ?? '')
     }
 
-    let query = supabase
-      .from('appointments')
-      .select('*, contacts(*), setter:setter_id(id, full_name), closer:closer_id(id, full_name)')
-      .eq('tenant_id', tenantId)
-      .or(`needs_followup.eq.true,status.in.(${RELEVANT_STATUSES.join(',')})`)
-      .order('appointment_datetime', { ascending: false })
+    // Los filtros de Supabase se ACUMULAN sobre el mismo objeto: la consulta se construye de nuevo en cada lote
+    // (reutilizarla encadenaría varios `.in()` con AND y devolvería vacío a partir del segundo lote).
+    const armar = (lote?: string[]) => {
+      let q = supabase
+        .from('appointments')
+        .select('*, contacts(*), setter:setter_id(id, full_name), closer:closer_id(id, full_name)')
+        .eq('tenant_id', tenantId)
+        .or(`needs_followup.eq.true,status.in.(${RELEVANT_STATUSES.join(',')})`)
+        .order('appointment_datetime', { ascending: false })
+      // Mismo criterio de scoping que /${tenant}/crm/agendas: liderazgo y quien tiene visibilidad
+      // de equipo (data_scope='team') ven todo; el resto solo lo suyo.
+      if (userId && role && !isLeadership(role as AppRole) && scope !== 'team') {
+        if (role === 'closer') q = q.eq('closer_id', userId)
+        else if (role === 'setter') q = q.eq('setter_id', userId)
+      }
+      return lote ? q.in('contact_id', lote) : q
+    }
 
-    // Mismo criterio de scoping que /${tenant}/crm/agendas: liderazgo y quien tiene visibilidad
-    // de equipo (data_scope='team') ven todo; el resto solo lo suyo.
-    if (userId && role && !isLeadership(role as AppRole) && scope !== 'team') {
-      if (role === 'closer') query = query.eq('closer_id', userId)
-      else if (role === 'setter') query = query.eq('setter_id', userId)
+    // COLABORADORA: solo los seguimientos/pipeline de los contactos atribuidos a ella (fail-closed, por lotes).
+    const scopeColab = userId ? await resolverScopeColaborador(supabase, userId, tenantId) : null
+    const contactIds = scopeColab ? await contactIdsDeScope(supabase, tenantId, scopeColab) : null
+    const leerCitas = async () => {
+      if (!contactIds) return armar()
+      const filas: unknown[] = []
+      for (let i = 0; i < contactIds.length; i += 60) {
+        const { data, error } = await armar(contactIds.slice(i, i + 60))
+        if (error) return { data: null, error }
+        filas.push(...(data ?? []))
+      }
+      filas.sort((x, y) =>
+        String((y as { appointment_datetime?: string }).appointment_datetime ?? '').localeCompare(
+          String((x as { appointment_datetime?: string }).appointment_datetime ?? '')
+        )
+      )
+      return { data: filas, error: null }
     }
 
     const [appRes, usersRes] = await Promise.all([
-      query,
+      leerCitas(),
       supabase.from('users').select('id, full_name, roles(key)').eq('is_active', true),
     ])
 

@@ -105,13 +105,13 @@ export const NAV_SECTIONS: NavSection[] = [
         label: 'CRM',
         href: '/crm/agendas',
         icon: Users,
-        roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller'],
+        roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller', 'affiliate'],
         children: [
           {
             label: 'Agendas',
             href: '/crm/agendas',
             icon: Calendar,
-            roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller'],
+            roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller', 'affiliate'],
           },
           {
             // El pipeline comercial. No es una pantalla nueva: es la vista kanban que ya vivía en
@@ -121,13 +121,13 @@ export const NAV_SECTIONS: NavSection[] = [
             label: 'Pipeline',
             href: '/crm/seguimiento?view=kanban',
             icon: ClipboardList,
-            roles: [...LEAD, 'setter', 'closer', 'cold_caller'],
+            roles: [...LEAD, 'setter', 'closer', 'cold_caller', 'affiliate'],
           },
           {
             label: 'Contactos',
             href: '/crm/contactos',
             icon: UserRound,
-            roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller'],
+            roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller', 'affiliate'],
           },
           {
             // Cola de reuniones de Fathom que el sync no pudo atribuir sin adivinar. Está en el menú
@@ -146,13 +146,13 @@ export const NAV_SECTIONS: NavSection[] = [
         label: 'Métricas y KPIs',
         href: '/analitica/embudo',
         icon: BarChart3,
-        roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller', 'affiliate'],
+        roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller'],
         children: [
           {
             label: 'Embudo',
             href: '/analitica/embudo',
             icon: BarChart3,
-            roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller', 'affiliate'],
+            roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller'],
           },
           {
             label: 'Ranking',
@@ -186,11 +186,21 @@ export const NAV_SECTIONS: NavSection[] = [
             icon: ShoppingCart,
             roles: [...LEAD, 'setter', 'closer', 'affiliate'],
           },
-          { label: 'Pagos', href: '/ventas/pagos', icon: Wallet, roles: [...LEAD, 'setter', 'closer', 'cobros'] },
-          { label: 'Reservas', href: '/ventas/reservas', icon: CreditCard, roles: [...LEAD, 'setter', 'closer'] },
+          {
+            label: 'Pagos',
+            href: '/ventas/pagos',
+            icon: Wallet,
+            roles: [...LEAD, 'setter', 'closer', 'cobros', 'affiliate'],
+          },
+          {
+            label: 'Reservas',
+            href: '/ventas/reservas',
+            icon: CreditCard,
+            roles: [...LEAD, 'setter', 'closer', 'affiliate'],
+          },
         ],
       },
-      { label: 'Comisiones', href: '/comisiones', icon: TrendingUp, roles: [...LEAD, 'setter', 'closer', 'affiliate'] },
+      { label: 'Comisiones', href: '/comisiones', icon: TrendingUp, roles: [...LEAD, 'setter', 'closer'] },
       {
         label: 'Recursos de venta',
         href: '/recursos/enlaces',
