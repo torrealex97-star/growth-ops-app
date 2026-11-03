@@ -4,6 +4,7 @@
 // Integraciones como la pestaña Finanzas › Cobros & Conciliación.
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { stripeList } from '@/lib/stripe/client'
+import { feeEnMonedaDelCobro, type BalanceTxn } from '@/lib/finance/stripeFees'
 
 export type StripeIntent = {
   id: string
@@ -21,7 +22,7 @@ export type StripeIntent = {
         refunded?: boolean
         disputed?: boolean
         billing_details?: { email?: string | null; name?: string | null }
-        balance_transaction?: string | { fee?: number } | null
+        balance_transaction?: string | BalanceTxn | null
       }
     | null
 }
@@ -155,7 +156,7 @@ export async function reconcileStripePayments(
         saleId,
         collectionId: (collection?.id as string) || null,
         internalAmount: collection ? Number(collection.gross_amount) : null,
-        platformFee: balanceTx?.fee != null ? balanceTx.fee / 100 : null,
+        platformFee: feeEnMonedaDelCobro(balanceTx, intent.currency),
         internalProcessingFee: collection ? Number(collection.processing_fee ?? 0) : null,
         reconciliation,
       }

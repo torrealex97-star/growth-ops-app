@@ -5,6 +5,7 @@ import {
   construirResumenMensual,
   impagosVencidos,
   mesDePago,
+  previsionQueSePagaEn,
   primerCobroPorVenta,
   tipoDeComision,
 } from '../lib/commissions/mensual.ts'
@@ -176,4 +177,16 @@ test('una cuota que vence este mes NO suma al «por cobrar» de este mes: se pag
   const meses = construirResumenMensual([], futuras, [], AHORA)
   assert.equal(meses.find((m) => m.month === '2026-11').porCobrar, 0)
   assert.equal(meses.find((m) => m.month === '2026-12').porCobrar, 168)
+})
+
+test('«previsión del mes que viene» = cuotas que vencen ESTE mes (se pagan el siguiente); sin impagos ni exentas', () => {
+  const futuras = [
+    futura({ id: 'i1', fecha: '2026-11-20', amount: 100 }), // vence en noviembre -> se paga en diciembre
+    futura({ id: 'i2', fecha: '2026-12-05', amount: 40 }), // vence en diciembre -> se paga en enero
+    { ...futura({ id: 'i3', fecha: '2026-10-10', amount: 75 }), estado: 'overdue' }, // impago
+    futura({ id: 'i4', fecha: '2026-11-25', amount: 30, exento: true }),
+  ]
+  assert.equal(previsionQueSePagaEn(futuras, '2026-12'), 100)
+  assert.equal(previsionQueSePagaEn(futuras, '2027-01'), 40)
+  assert.equal(previsionQueSePagaEn(futuras, '2026-11'), 0, 'las de octubre vencidas son impagos, no previsión')
 })

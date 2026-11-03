@@ -5,6 +5,7 @@ import { requireTenant } from '@/lib/auth/requireTenant'
 import { getTenantConfigWithFallback } from '@/lib/config'
 import { stripeGet } from '@/lib/stripe/client'
 import type { StripeIntent } from '@/lib/finance/stripeReconciliation'
+import { feeEnMonedaDelCobro, type BalanceTxn } from '@/lib/finance/stripeFees'
 import { readPaymentInbox } from '@/lib/sales/payment-inbox'
 import { addDaysIso, REFUND_WINDOW_DAYS } from '@/lib/finance/stripeImport'
 import { buildRestInstallments } from '@/lib/commissions/calculator'
@@ -69,7 +70,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     )
       return fail('Este pago requiere revisión financiera por su moneda, estado o devolución.')
     const amount = intent.amount_received / 100
-    const fee = txn?.fee == null ? null : txn.fee / 100
+    // El fee viene en la moneda del SALDO de la cuenta: se convierte a la del cobro (MONEY D2).
+    const fee = feeEnMonedaDelCobro(txn as BalanceTxn | null, intent.currency)
     if (!Number.isFinite(amount) || amount <= 0 || fee === null || !Number.isFinite(fee) || fee < 0 || fee > amount)
       return fail('Falta confirmar el importe o la comisión real de Stripe. Reintenta más tarde.')
     const email = (intent.receipt_email || charge.billing_details?.email || '').trim().toLowerCase()

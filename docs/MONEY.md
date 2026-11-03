@@ -107,6 +107,25 @@ Reglas del cuadro:
   (`METRICS.md` §5) ya es neto de fees/impuestos de pasarela y existe para calcular
   comisiones de personas. No se usa como base de métricas de negocio ni se
   renombra: mide sobre qué se liquida a setter/closer/afiliado.
+- **El fee se guarda en la MONEDA DEL COBRO, no en la del saldo de la cuenta.**
+  El `fee` de un `balance_transaction` de Stripe viene en la moneda del SALDO: una
+  cuenta que cobra en EUR y liquida en USD lo recibe en dólares, con `exchange_rate`
+  (importe en moneda del cobro × tipo = importe en moneda del saldo). Se convierte
+  con el tipo del propio cargo (`feeEnMonedaDelCobro`, `lib/finance/stripeFees.ts`):
+  `fee_cobro = fee_saldo / exchange_rate`. Si saldo y cobro coinciden no hay
+  conversión; si difieren y no hay tipo legible, **no se adivina** (`null` y se usa el
+  fallback del plan). Guardarlo sin convertir resta de más y baja la base y la
+  comisión de todo el equipo (incidente de 3-nov).
+- **Corregir un fee ya guardado no reescribe comisiones liquidadas.** Se corrige el
+  fee del espejo y del cobro y se recalculan solo las comisiones `pending`/`approved`
+  que la fórmula (`base = comisionable − fee`, `comisión = base × % / 100`) reproduce
+  al céntimo con el fee anterior. Las `liquidated` ya se pagaron: su diferencia se
+  reporta para decidir el pago, no se edita el histórico. Cada fila corregida deja
+  en `notes` el valor anterior.
+- **Cada mes de comisiones es el MES DE PAGO** (liquidación): el motor liquida el
+  mes siguiente al cobro (`calculator.getLiquidationMonth`). Una cuota futura que
+  vence en octubre se paga en noviembre; las cuotas vencidas sin cobrar (impagos) no
+  caen en ningún mes.
 
 ## 6. Disputas y reembolsos — D5
 
@@ -252,6 +271,10 @@ contaminando `campaign_daily` y `expenses` de este tenant.
 
 ## Changelog
 
+- **v1.2.0 (2026-11-03)** — D4 ampliada: el fee de pasarela se guarda en la moneda
+  del cobro (conversión con el tipo del cargo), la corrección de datos no toca
+  comisiones liquidadas, y el mes de una comisión futura es el de PAGO (siguiente al
+  vencimiento).
 - **v1.1.0 (2026-09-25)** — D8 (reservas: no son venta ni comisionan hasta
   completar el pago), D9 (`pays_commissions` es un veto absoluto, en generación y
   en lectura), D10 (una integración con token compartido nunca sincroniza "todas
