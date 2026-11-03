@@ -8,7 +8,9 @@
 // de empresa (§51) — solo SUS datos.
 //
 // Reutilización estricta (nada de fórmulas nuevas):
-//   · Filtro de periodo GLOBAL: PeriodFilterBar + getPeriodRange/inPeriod (default 'Este mes', §25).
+//   · Filtro de periodo GLOBAL: PeriodFilterBar + getPeriodRange/inPeriod (default 'Este mes', §25),
+//     SOLO para el embudo (contactos/citas/ventas). Las COMISIONES van MES A MES (tabla tipo Excel,
+//     CommissionMonthlyStatement): un colaborador quiere saber cuánto cobra cada mes, no en «30 días».
 //   · Definiciones canónicas de métrica: isActiveSale (lib/analytics), isAttended/isNoShow
 //     (lib/appointments/status), vocabulario pending/approved/liquidated de comisiones.
 //   · SCOPE de datos (§55-57): contactIdsDeScope acota contacts→appointments→sales; las
@@ -20,21 +22,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { PeriodFilterBar } from '@/components/os/PeriodFilterBar'
-import {
-  DEFAULT_PERIOD,
-  getPeriodRange,
-  getPreviousPeriodRange,
-  inPeriod,
-  type PeriodPreset,
-} from '@/lib/filters/period'
-import { isActiveSale, monthLabel } from '@/lib/analytics'
+import { DEFAULT_PERIOD, getPeriodRange, inPeriod, type PeriodPreset } from '@/lib/filters/period'
+import { isActiveSale } from '@/lib/analytics'
 import { isAttended, isNoShow } from '@/lib/appointments/status'
 import { formatCurrency } from '@/lib/utils'
 import { KPICard } from '@/components/os/DashboardKPICard'
 import { contactIdsDeScope, type ScopeColaborador } from '@/lib/collaborators/scope'
 import { interpretarRespuestaFuturas, type FilaFutura } from '@/lib/commissions/future-response'
+import { CommissionMonthlyStatement } from '@/components/commissions/CommissionMonthlyStatement'
+import { impagosVencidos } from '@/lib/commissions/mensual'
+import type { CommissionDashboardRow } from '@/lib/commissions/dashboard'
 import { useTenant, useTenantId, type SesionTenant } from '@/lib/tenant-context'
-import { Users, CalendarCheck, PhoneCall, Trophy, Euro, Clock, BadgeCheck, Banknote } from 'lucide-react'
+import { Users, CalendarCheck, PhoneCall, Trophy } from 'lucide-react'
 
 type ContactoRow = { id: string; full_name: string | null; lead_status: string | null; created_at: string | null }
 type CitaRow = {
@@ -50,13 +49,6 @@ type VentaRow = {
   gross_amount: number | string | null
   status: string | null
   created_at: string | null
-}
-type ComisionRow = {
-  id: string
-  status: string | null
-  commission_amount: number | null
-  created_at: string | null
-  liquidation_month: string | null
 }
 
 type Actividad = {
@@ -98,7 +90,7 @@ export default function ColaboradorDashboard({
   const [contactos, setContactos] = useState<ContactoRow[]>([])
   const [citas, setCitas] = useState<CitaRow[]>([])
   const [ventas, setVentas] = useState<VentaRow[]>([])
-  const [comisiones, setComisiones] = useState<ComisionRow[]>([])
+  const [comisiones, setComisiones] = useState<CommissionDashboardRow[]>([])
   const [futuras, setFuturas] = useState<FilaFutura[]>([])
   // UN ERROR DE CARGA NO ES UN ESTADO VACÍO: la proyección/impagos del colaborador no debe
   // pintarse a 0 cuando /commissions/future falla — se anuncia la fuente ilegible, con reintentar.
@@ -142,10 +134,17 @@ export default function ColaboradorDashboard({
           .select('id, contact_id, gross_amount, status, created_at')
           .eq('tenant_id', tenantId)
           .in('contact_id', contactIds),
-        // Ledger del propio colaborador: participant_type='collaborator' sale de esta query.
+        // Ledger del propio colaborador (user_id = él). Lleva el cliente y el cobro de origen para poder
+        // decir, mes a mes, cuánto es VENTA NUEVA y cuánto RECURRENCIA y de qué clientes viene.
         sb
           .from('commissions')
-          .select('id, status, commission_amount, created_at, liquidation_month')
+          .select(
+            `id, sale_id, collection_id, user_id, participant_type, commission_amount, direction, status,
+             liquidation_month, created_at,
+             users!commissions_user_id_fkey(id, full_name, pays_commissions),
+             sales(id, contacts(full_name)),
+             collections(id, collected_at)`
+          )
           .eq('tenant_id', tenantId)
           .eq('user_id', sesion.userId),
       ])
@@ -160,7 +159,12 @@ export default function ColaboradorDashboard({
       setContactos((resC.data ?? []) as ContactoRow[])
       setCitas((resA.data ?? []) as CitaRow[])
       setVentas((resV.data ?? []) as VentaRow[])
-      setComisiones((resCom.data ?? []) as ComisionRow[])
+      // D9 (docs/MONEY.md): quien tenga pays_commissions=false no comisiona, tampoco en lectura.
+      setComisiones(
+        ((resCom.data ?? []) as unknown as CommissionDashboardRow[]).filter(
+          (c) => (c.users as { pays_commissions?: boolean } | null)?.pays_commissions !== false
+        )
+      )
       setCargando(false)
 
       // COBROS (§25): qué tiene por cobrar (cuotas pendientes/vencidas de SUS
@@ -199,7 +203,6 @@ export default function ColaboradorDashboard({
   }, [tenant])
 
   const rango = useMemo(() => getPeriodRange(preset, customFrom, customTo), [preset, customFrom, customTo])
-  const rangoPrevio = useMemo(() => getPreviousPeriodRange(rango), [rango])
 
   // KPIs del periodo (§23-24) con las definiciones canónicas — sin fórmulas locales nuevas.
   const kpi = useMemo(() => {
@@ -211,10 +214,6 @@ export default function ColaboradorDashboard({
       (v) => isActiveSale({ status: v.status ?? '' }) && inPeriod(v.created_at, rango)
     )
     const revenueP = ventasActivasP.reduce((acc, v) => acc + num(v.gross_amount), 0)
-    const comisionesP = comisiones.filter((c) => c.status !== 'cancelled' && inPeriod(c.created_at, rango))
-    const comisionesPrevias = comisiones.filter((c) => c.status !== 'cancelled' && inPeriod(c.created_at, rangoPrevio))
-    const generadasP = comisionesP.reduce((acc, c) => acc + num(c.commission_amount), 0)
-    const generadasPrev = comisionesPrevias.reduce((acc, c) => acc + num(c.commission_amount), 0)
     return {
       contactos: contactosP.length,
       citas: citasP.length,
@@ -222,84 +221,11 @@ export default function ColaboradorDashboard({
       noShow: noShowP.length,
       ventas: ventasActivasP.length,
       revenue: revenueP,
-      comisionesGeneradas: generadasP,
-      comisionesPendientes: comisionesP
-        .filter((c) => c.status === 'pending')
-        .reduce((acc, c) => acc + num(c.commission_amount), 0),
-      comisionesAprobadas: comisionesP
-        .filter((c) => c.status === 'approved')
-        .reduce((acc, c) => acc + num(c.commission_amount), 0),
-      comisionesLiquidadas: comisionesP
-        .filter((c) => c.status === 'liquidated')
-        .reduce((acc, c) => acc + num(c.commission_amount), 0),
-      deltaComisiones: generadasPrev > 0 ? Math.round(((generadasP - generadasPrev) / generadasPrev) * 100) : undefined,
     }
-  }, [contactos, citas, ventas, comisiones, rango, rangoPrevio])
+  }, [contactos, citas, ventas, rango])
 
-  // COBROS (§25): el resumen de su dinero. Regla dura del propietario: TODO es
-  // sobre cash COLECTADO — nadie comisiona sobre lo que no se ha cobrado. Las
-  // comisiones del ledger nacen SIEMPRE de cobros 'collected' (motor), así que:
-  //   · Cobrado     = liquidadas (pagadas).
-  //   · Pendiente   = generadas sobre cash ya colectado, por aprobar/pagar.
-  //   · A percibir  = las de mes de liquidación el MES QUE VIENE (cash ya
-  //                   colectado; se pagan con la liquidación del mes siguiente).
-  //   · Impagos     = cuotas VENCIDAS sin cobrar de sus ventas (proyección de
-  //                   commissions/future, SU lane). NO es dinero ganado: es lo
-  //                   que puede llegar a ganar si esos leads pagan — visible
-  //                   aparte, nunca mezclado con lo ya colectado.
-  const cobros = useMemo(() => {
-    const noCanceladas = comisiones.filter((c) => c.status !== 'cancelled')
-    const cobrado = noCanceladas
-      .filter((c) => c.status === 'liquidated')
-      .reduce((acc, c) => acc + num(c.commission_amount), 0)
-    const pendiente = noCanceladas
-      .filter((c) => c.status === 'pending' || c.status === 'approved')
-      .reduce((acc, c) => acc + num(c.commission_amount), 0)
-
-    // Mes de liquidación del mes que viene (convención única del ledger: día 1,
-    // formato YYYY-MM-01). El cash colectado ESTE mes lleva liquidation_month del
-    // mes que viene → es lo que le pagarán el mes próximo.
-    const proximo = new Date()
-    proximo.setMonth(proximo.getMonth() + 1, 1)
-    const mesProximoISO = proximo.toISOString().slice(0, 10)
-    const aPercibirProximo = noCanceladas
-      .filter((c) => (c.liquidation_month ?? '').slice(0, 10) === mesProximoISO)
-      .reduce((acc, c) => acc + num(c.commission_amount), 0)
-
-    const importe = (f: FilaFutura) => num(f.amount)
-    const impagos = futuras
-      .filter((f) => f.source === 'installment' && f.estado === 'overdue')
-      .reduce((acc, f) => acc + importe(f), 0)
-    return { cobrado, pendiente, aPercibirProximo, impagos }
-  }, [comisiones, futuras])
-
-  // NUEVO vs RECURRENTE de SU proyección (misma definición canónica que el resto de la app):
-  // primeras cuotas de ventas que aún no han cobrado nada frente a cuotas del plan de ventas
-  // que ya cobraron (el MRR que sostiene su comisión mes a mes).
-  const futurasNuevoVsRecurrente = useMemo(() => {
-    const acc = { nuevo: 0, recurrente: 0 }
-    for (const f of futuras) acc[f.tipo ?? 'recurrente'] += num(f.amount)
-    return acc
-  }, [futuras])
-
-  // COMISIONES A FUTURO MES A MES (§25): de la proyección (SU lane) agrupo por mes de
-  // vencimiento de la cuota. "Confirmado" = cash ya recogido (review o mes pasado); "por
-  // cobrar" = depende de que sus leads paguen. Así responde de un vistazo a cuánto le caerá
-  // cada mes y qué depende del pago de sus referidos.
-  const futurePorMes = useMemo(() => {
-    const mapa = new Map<string, { confirmado: number; porCobrar: number }>()
-    const ymActual = new Date().toISOString().slice(0, 7)
-    for (const f of futuras) {
-      if (f.estado === 'overdue') continue // impagos aparte (KPI de arriba)
-      const ym = (f.dueDate || '').slice(0, 7)
-      if (!ym) continue
-      const e = mapa.get(ym) ?? { confirmado: 0, porCobrar: 0 }
-      if (f.source === 'review' || ym < ymActual) e.confirmado += num(f.amount)
-      else e.porCobrar += num(f.amount)
-      mapa.set(ym, e)
-    }
-    return [...mapa.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([ym, v]) => ({ ym, ...v }))
-  }, [futuras])
+  // Comisión de cuotas VENCIDAS sin cobrar al cliente (impagos): no llega hasta que paguen y NO suma en ningún mes.
+  const impagos = useMemo(() => impagosVencidos(futuras), [futuras])
 
   // CUALIFICACIÓN (§23): lo que respondieron SUS leads en el formulario de agendar
   // (appointments.qualification, escrito por el webhook de GHL/Calendly), agregado
@@ -376,21 +302,9 @@ export default function ColaboradorDashboard({
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-display text-2xl font-semibold text-foreground">Mi actividad</h1>
-          <p className="text-sm text-muted-foreground">
-            Tus contactos, citas, ventas y comisiones · código {scope.code}
-          </p>
-        </div>
-        <PeriodFilterBar
-          preset={preset}
-          onPresetChange={setPreset}
-          customFrom={customFrom}
-          customTo={customTo}
-          onCustomFromChange={setCustomFrom}
-          onCustomToChange={setCustomTo}
-        />
+      <header>
+        <h1 className="font-display text-2xl font-semibold text-foreground">Mi actividad</h1>
+        <p className="text-sm text-muted-foreground">Tus comisiones, contactos, citas y ventas · código {scope.code}</p>
       </header>
 
       {error && (
@@ -409,162 +323,72 @@ export default function ColaboradorDashboard({
         </div>
       )}
 
-      {/* §23-24: embudo del colaborador — contactos → citas → asistencia → venta */}
-      <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <KPICard
-          title="Contactos nuevos"
-          value={kpi.contactos}
-          icon={Users}
-          loading={cargando}
-          description="Atribuidos a ti en el periodo"
-        />
-        <KPICard
-          title="Citas"
-          value={kpi.citas}
-          icon={CalendarCheck}
-          loading={cargando}
-          description={`${kpi.asistidas} asistidas · ${embudo.citaSobreContacto}% de contactos`}
-        />
-        <KPICard
-          title="Asistencia"
-          value={kpi.asistidas}
-          icon={PhoneCall}
-          loading={cargando}
-          description={`${embudo.asistenciaSobreCita}% de citas · ${kpi.noShow} no asistieron · ${kpi.citas - kpi.asistidas - kpi.noShow} canceladas`}
-        />
-        <KPICard
-          title="Ventas"
-          value={kpi.ventas}
-          icon={Trophy}
-          loading={cargando}
-          description={`${eur(kpi.revenue)} · ${embudo.ventaSobreAsistencia}% de asistidas`}
-        />
-      </section>
+      {/* LO PRIMERO, lo que más le importa: cuánto cobra cada mes (tabla tipo Excel), venta nueva vs
+          recurrencia y de qué clientes viene. Sin selector de «30 días»: aquí el eje es el MES. */}
+      <CommissionMonthlyStatement
+        personal
+        rows={comisiones}
+        basis={comisiones}
+        future={futuras}
+        futureError={futurasError}
+        loading={cargando}
+        impagos={impagos}
+        personas={[]}
+        selectedMemberId="all"
+        esEquipo={false}
+        onSelectMember={() => {}}
+        onRetryFuture={reintentarFuturas}
+      />
 
-      {/* §25: su bolsa de comisiones con el vocabulario canónico de estados */}
-      <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <KPICard
-          title="Comisiones generadas"
-          value={eur(kpi.comisionesGeneradas)}
-          icon={Euro}
-          loading={cargando}
-          delta={kpi.deltaComisiones}
-          deltaType={kpi.deltaComisiones === undefined ? 'neutral' : kpi.deltaComisiones >= 0 ? 'up' : 'down'}
-          compareLabel={kpi.deltaComisiones === undefined ? 'Sin datos del periodo anterior' : 'vs periodo anterior'}
-        />
-        <KPICard
-          title="Pendientes"
-          value={eur(kpi.comisionesPendientes)}
-          icon={Clock}
-          loading={cargando}
-          description="Esperando aprobación"
-        />
-        <KPICard
-          title="Aprobadas"
-          value={eur(kpi.comisionesAprobadas)}
-          icon={BadgeCheck}
-          loading={cargando}
-          description="Listas para liquidar"
-        />
-        <KPICard
-          title="Liquidadas"
-          value={eur(kpi.comisionesLiquidadas)}
-          icon={Banknote}
-          loading={cargando}
-          description="Pagadas"
-        />
+      {/* §23-24: embudo del colaborador — contactos → citas → asistencia → venta. Este SÍ se mide por periodo. */}
+      <section className="space-y-4" aria-labelledby="embudo-heading">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 id="embudo-heading" className="font-display text-lg font-semibold text-foreground">
+              Mi embudo
+            </h2>
+            <p className="text-sm text-muted-foreground">De tus contactos a tus ventas, en el periodo que elijas.</p>
+          </div>
+          <PeriodFilterBar
+            preset={preset}
+            onPresetChange={setPreset}
+            customFrom={customFrom}
+            customTo={customTo}
+            onCustomFromChange={setCustomFrom}
+            onCustomToChange={setCustomTo}
+          />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <KPICard
+            title="Contactos nuevos"
+            value={kpi.contactos}
+            icon={Users}
+            loading={cargando}
+            description="Atribuidos a ti en el periodo"
+          />
+          <KPICard
+            title="Citas"
+            value={kpi.citas}
+            icon={CalendarCheck}
+            loading={cargando}
+            description={`${kpi.asistidas} asistidas · ${embudo.citaSobreContacto}% de contactos`}
+          />
+          <KPICard
+            title="Asistencia"
+            value={kpi.asistidas}
+            icon={PhoneCall}
+            loading={cargando}
+            description={`${embudo.asistenciaSobreCita}% de citas · ${kpi.noShow} no asistieron · ${kpi.citas - kpi.asistidas - kpi.noShow} canceladas`}
+          />
+          <KPICard
+            title="Ventas"
+            value={kpi.ventas}
+            icon={Trophy}
+            loading={cargando}
+            description={`${eur(kpi.revenue)} · ${embudo.ventaSobreAsistencia}% de asistidas`}
+          />
+        </div>
       </section>
-
-      {/* §25 COBROS: lo cobrado, lo pendiente y lo que viene (impagos aparte) */}
-      <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <KPICard
-          title="Cobrado"
-          value={eur(cobros.cobrado)}
-          icon={Banknote}
-          loading={cargando}
-          description="Comisiones ya pagadas (hasta agosto)"
-        />
-        <KPICard
-          title="Pendiente de liquidación"
-          value={eur(cobros.pendiente)}
-          icon={Clock}
-          loading={cargando}
-          description="Ganado desde septiembre, por aprobar y pagar — % sobre base neta (bruto − fee pasarela)"
-        />
-        <KPICard
-          title="A percibir el mes que viene"
-          value={eur(cobros.aPercibirProximo)}
-          icon={CalendarCheck}
-          loading={cargando}
-          description="Cash ya colectado que liquida el mes próximo"
-        />
-        <KPICard
-          title="Impagos de tus leads"
-          value={futurasError ? '—' : eur(cobros.impagos)}
-          icon={Euro}
-          loading={cargando}
-          description="Cuotas vencidas sin cobrar — comisión proyectada"
-        />
-        {/* Proyección e impagos dependen de /commissions/future: si la fuente falló, las cifras
-            no se pintan a 0 («no hay nada por cobrar»); el aviso + reintentar lo dejan visto. */}
-        {futurasError && !cargando && (
-          <div
-            className="md:col-span-2 lg:col-span-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm"
-            role="alert"
-          >
-            <span>
-              <span className="font-medium text-red-300">No se pudieron leer tus comisiones futuras</span>{' '}
-              <span className="text-muted-foreground">({futurasError})</span> — proyección y desglose por mes no
-              fiables.
-            </span>
-            <button
-              type="button"
-              onClick={reintentarFuturas}
-              className="text-xs font-medium underline shrink-0 hover:text-foreground"
-            >
-              Reintentar
-            </button>
-          </div>
-        )}
-      </section>
-
-      {/* Desglose mes a mes de SUS comisiones a futuro: qué está confirmado (cash recogido)
-          y qué depende de que sus leads paguen. Misma vista que el dashboard del equipo. */}
-      {!cargando && !futurasError && futurePorMes.length > 0 && (
-        <section className="dashboard-card p-5">
-          <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
-            <h2 className="text-sm font-semibold text-foreground">Comisiones a futuro, mes a mes</h2>
-            <p className="text-xs text-muted-foreground">
-              La comisión de un mes se confirma cuando tus leads pagan su cuota de ese mes.{' '}
-              <span className="text-emerald-400">Nuevo</span> (primeras cuotas de ventas nuevas):{' '}
-              {eur(futurasNuevoVsRecurrente.nuevo)} · <span className="text-sky-400">Recurrente</span> (plan de ventas
-              que ya cobraron): {eur(futurasNuevoVsRecurrente.recurrente)}
-            </p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground">
-                  <th className="py-2 pr-4 font-medium">Mes de cobro</th>
-                  <th className="py-2 pr-4 font-medium text-right">Confirmado</th>
-                  <th className="py-2 pr-4 font-medium text-right">Por cobrar</th>
-                  <th className="py-2 font-medium text-right">Total del mes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {futurePorMes.map((m) => (
-                  <tr key={m.ym} className="border-t border-border">
-                    <td className="py-2 pr-4 font-medium text-foreground">{monthLabel(m.ym)}</td>
-                    <td className="py-2 pr-4 text-right text-emerald-400">{m.confirmado ? eur(m.confirmado) : '—'}</td>
-                    <td className="py-2 pr-4 text-right text-amber-400">{m.porCobrar ? eur(m.porCobrar) : '—'}</td>
-                    <td className="py-2 text-right font-semibold text-foreground">{eur(m.confirmado + m.porCobrar)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
 
       {/* CUALIFICACIÓN: respuestas de SUS leads al formulario de agendar */}
       {cualificacionAgregada.length > 0 && (

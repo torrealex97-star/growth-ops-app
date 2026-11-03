@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { construirResumenMensual, primerCobroPorVenta, tipoDeComision } from '../lib/commissions/mensual.ts'
+import {
+  construirResumenMensual,
+  impagosVencidos,
+  mesDePago,
+  primerCobroPorVenta,
+  tipoDeComision,
+} from '../lib/commissions/mensual.ts'
 
 // Resumen mes a mes de comisiones: nueva venta vs recurrencia, con personas y clientes.
 // Placeholders neutros (Privacidad): ningún tenant ni persona real.
@@ -105,12 +111,12 @@ test('pagado = liquidado; por cobrar = total − pagado', () => {
   assert.equal(mes.porCobrar, 100)
 })
 
-test('las cuotas futuras suman por mes de vencimiento, según su tipo, y se marcan como previsión', () => {
+test('las cuotas futuras suman en el MES DE PAGO (el siguiente al vencimiento), según su tipo, y se marcan como previsión', () => {
   const futuras = [
     futura({ id: 'i1', fecha: '2026-12-10', amount: 40, tipo: 'recurrente' }),
     futura({ id: 'i2', fecha: '2026-12-20', amount: 70, tipo: 'nuevo', sale: 's7', cliente: 'Cliente 7' }),
   ]
-  const dic = construirResumenMensual([], futuras, [], AHORA).find((m) => m.month === '2026-12')
+  const dic = construirResumenMensual([], futuras, [], AHORA).find((m) => m.month === '2027-01')
   assert.equal(dic.recurrente.amount, 40)
   assert.equal(dic.nuevo.amount, 70)
   assert.equal(dic.prevista, 110)
@@ -123,7 +129,7 @@ test('las exentas (D9) y los importes 0 nunca suman', () => {
     futura({ id: 'i1', fecha: '2026-12-10', amount: 40, exento: true }),
     futura({ id: 'i2', fecha: '2026-12-10', amount: 0 }),
   ]
-  const dic = construirResumenMensual([], futuras, [], AHORA).find((m) => m.month === '2026-12')
+  const dic = construirResumenMensual([], futuras, [], AHORA).find((m) => m.month === '2027-01')
   assert.equal(dic, undefined, 'una exenta no debe ni crear el mes')
 })
 
@@ -139,4 +145,35 @@ test('agrupa por persona y cliente, ordenado por importe, y el mes en curso apar
     ['Cliente 2', 'Cliente 1']
   )
   assert.ok(construirResumenMensual([], [], [], AHORA).some((m) => m.month === '2026-11'))
+})
+
+test('las cuotas vencidas sin cobrar (impagos) no suman en ningún mes y se cuentan aparte', () => {
+  const futuras = [
+    { ...futura({ id: 'i1', fecha: '2026-10-10', amount: 60 }), estado: 'overdue' },
+    { ...futura({ id: 'i2', fecha: '2026-12-10', amount: 40 }), estado: 'pending' },
+    { ...futura({ id: 'i3', fecha: '2026-09-10', amount: 500, exento: true }), estado: 'overdue' },
+  ]
+  const meses = construirResumenMensual([], futuras, [], AHORA)
+  assert.equal(
+    meses.find((m) => m.month === '2026-10'),
+    undefined,
+    'un impago no crea ni infla su mes'
+  )
+  assert.equal(meses.find((m) => m.month === '2027-01').porCobrar, 40)
+  assert.equal(impagosVencidos(futuras), 60, 'las exentas tampoco cuentan como impago')
+})
+
+test('mes de pago = mes siguiente al cobro, también en diciembre y con basura', () => {
+  assert.equal(mesDePago('2026-10-26'), '2026-11')
+  assert.equal(mesDePago('2026-12-15T10:00:00Z'), '2027-01')
+  assert.equal(mesDePago(''), '')
+  assert.equal(mesDePago(null), '')
+  assert.equal(mesDePago('2026-13-01'), '')
+})
+
+test('una cuota que vence este mes NO suma al «por cobrar» de este mes: se paga el siguiente', () => {
+  const futuras = [futura({ id: 'i1', fecha: '2026-11-20', amount: 168 })]
+  const meses = construirResumenMensual([], futuras, [], AHORA)
+  assert.equal(meses.find((m) => m.month === '2026-11').porCobrar, 0)
+  assert.equal(meses.find((m) => m.month === '2026-12').porCobrar, 168)
 })

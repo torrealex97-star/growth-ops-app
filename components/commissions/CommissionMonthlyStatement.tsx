@@ -17,12 +17,10 @@ const ROLE_LABEL: Record<ParticipantType, string> = {
   collaborator: 'Colaborador',
 }
 
-const nombreMes = (key: string, largo = true) => {
+const nombreMes = (key: string) => {
   const [y, m] = key.split('-').map(Number)
-  return new Date(y, m - 1, 1).toLocaleDateString('es-ES', {
-    month: largo ? 'long' : 'short',
-    year: largo ? 'numeric' : '2-digit',
-  })
+  const mes = new Date(y, m - 1, 1).toLocaleDateString('es-ES', { month: 'long' })
+  return `${mes.charAt(0).toUpperCase()}${mes.slice(1)} ${y}`
 }
 
 type Persona = { id: string; name: string }
@@ -38,6 +36,7 @@ function GrupoDetalle({
   acento,
   grupo,
   vacio,
+  plano = false,
 }: {
   titulo: string
   ayuda: string
@@ -45,7 +44,18 @@ function GrupoDetalle({
   acento: string
   grupo: GrupoComision
   vacio: string
+  /** Una sola persona (su propia vista): se listan los clientes directamente, sin nivel de persona. */
+  plano?: boolean
 }) {
+  const clientesPlanos = grupo.personas
+    .flatMap((p) => p.clientes)
+    .reduce<{ saleId: string | null; contact: string; amount: number }[]>((acc, c) => {
+      const previo = acc.find((x) => x.saleId === c.saleId && x.contact === c.contact)
+      if (previo) previo.amount += c.amount
+      else acc.push({ ...c })
+      return acc
+    }, [])
+    .sort((a, b) => b.amount - a.amount || a.contact.localeCompare(b.contact))
   return (
     <div className="min-w-0 rounded-xl border border-border bg-background/40">
       <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
@@ -63,6 +73,23 @@ function GrupoDetalle({
 
       {grupo.personas.length === 0 ? (
         <p className="px-4 py-6 text-center text-sm text-muted-foreground">{vacio}</p>
+      ) : plano ? (
+        <ul className="divide-y divide-border">
+          {clientesPlanos.map((c) => (
+            <li
+              key={`${c.saleId ?? 'sin-venta'}-${c.contact}`}
+              className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm"
+            >
+              <span className="truncate text-foreground">{c.contact}</span>
+              <Importe value={c.amount} className="font-medium text-foreground" />
+            </li>
+          ))}
+          {grupo.prevista > 0 && (
+            <li className="px-4 py-2 text-xs text-amber-400">
+              {formatCurrency(grupo.prevista)} son cuotas que el cliente aún tiene que pagar
+            </li>
+          )}
+        </ul>
       ) : (
         <ul className="divide-y divide-border">
           {grupo.personas.map((p) => (
@@ -119,9 +146,12 @@ export function CommissionMonthlyStatement({
   loading,
   personas,
   selectedMemberId,
+  esEquipo,
   onSelectMember,
   onFilterMonth,
   onRetryFuture,
+  personal = false,
+  impagos = 0,
 }: {
   /** Comisiones acotadas por persona/tipo/búsqueda — nunca por fecha: aquí el eje es el mes. */
   rows: CommissionDashboardRow[]
@@ -133,39 +163,122 @@ export function CommissionMonthlyStatement({
   /** Personas elegibles como atajo. Vacío = no se muestra el selector (p. ej. un colaborador). */
   personas: Persona[]
   selectedMemberId: string
+  /** Vista del equipo completo (admin sin persona elegida): se habla de «por pagar», no de «por cobrar». */
+  esEquipo: boolean
   onSelectMember: (id: string) => void
-  /** Filtra el listado de abajo por un mes de liquidación. */
-  onFilterMonth: (month: string) => void
+  /** Filtra el listado de abajo por un mes de liquidación. Si no se pasa, no se muestra el botón. */
+  onFilterMonth?: (month: string) => void
   onRetryFuture: () => void
+  /** Vista de UNA persona sobre sí misma (colaborador): «Mis comisiones», lista plana por cliente. */
+  personal?: boolean
+  /** Comisión proyectada de cuotas vencidas sin cobrar: no suma en ningún mes, se avisa aparte. */
+  impagos?: number
 }) {
   const meses = useMemo(() => construirResumenMensual(rows, future, basis), [rows, future, basis])
   const actual = claveMes()
-  const proximos = meses.filter((m) => m.month >= actual)
+  const futuros = meses.filter((m) => m.month >= actual)
   const pasados = meses.filter((m) => m.month < actual).reverse()
   const [verPasados, setVerPasados] = useState(false)
+  const [verMasFuturos, setVerMasFuturos] = useState(false)
+  // null = por defecto el mes en curso; '' = el usuario cerró el detalle; 'YYYY-MM' = mes elegido.
   const [elegido, setElegido] = useState<string | null>(null)
 
-  const seleccionado: MesComision | undefined =
-    meses.find((m) => m.month === elegido) ?? meses.find((m) => m.month === actual) ?? meses[meses.length - 1]
+  const abierto = elegido === null ? actual : elegido
   const persona = personas.find((p) => p.id === selectedMemberId)
   const hayAjustes = meses.some((m) => m.ajuste.amount !== 0)
+  // Vista de equipo = lo que HAY QUE PAGAR; vista de una persona = lo que ELLA tiene por cobrar.
+  const porX = esEquipo ? 'Por pagar' : 'Por cobrar'
+  const porx = porX.toLowerCase()
+  // Meses futuros: el en curso + 5 más; el resto bajo demanda para no empujar el detalle fuera de pantalla.
+  const LIMITE_FUTUROS = 6
+  const futurosVisibles = verMasFuturos ? futuros : futuros.slice(0, LIMITE_FUTUROS)
+
+  const detalle = (m: MesComision) => (
+    <div className="space-y-4 border-t border-border bg-muted/10 px-5 py-5 sm:px-6">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <CalendarDays className="h-4 w-4" aria-hidden="true" />
+            <span>{nombreMes(m.month)}</span>
+          </p>
+          <p className="mt-1 font-display text-3xl font-semibold tabular-nums text-foreground">
+            {formatCurrency(m.porCobrar)}
+            <span className="ml-2 text-sm font-normal text-muted-foreground">{porx}</span>
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Total {formatCurrency(m.total)} · ya pagado {formatCurrency(m.pagado)}
+            {m.prevista > 0 && ` · ${formatCurrency(m.prevista)} dependen de que el cliente pague su cuota`}
+          </p>
+        </div>
+        {onFilterMonth && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs"
+            onClick={() => onFilterMonth(m.month)}
+          >
+            <Filter className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+            Ver estas comisiones abajo
+          </Button>
+        )}
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <GrupoDetalle
+          titulo="Venta nueva"
+          ayuda="Primer cobro de cada venta: clientes que entran este mes."
+          icono={<Sparkles className="h-4 w-4" aria-hidden="true" />}
+          acento="text-emerald-400"
+          grupo={m.nuevo}
+          vacio="Ninguna venta nueva comisiona este mes."
+          plano={personal}
+        />
+        <GrupoDetalle
+          titulo="Recurrencia"
+          ayuda="Cuotas posteriores de ventas ya cerradas."
+          icono={<Repeat2 className="h-4 w-4" aria-hidden="true" />}
+          acento="text-sky-400"
+          grupo={m.recurrente}
+          vacio="No hay cuotas recurrentes este mes."
+          plano={personal}
+        />
+      </div>
+
+      {hayAjustes && m.ajuste.amount !== 0 && (
+        <GrupoDetalle
+          titulo="Ajustes y devoluciones"
+          ayuda="Restan del total. No son venta nueva ni recurrencia."
+          icono={<Filter className="h-4 w-4" aria-hidden="true" />}
+          acento="text-red-400"
+          grupo={m.ajuste}
+          vacio=""
+          plano={personal}
+        />
+      )}
+    </div>
+  )
 
   const fila = (m: MesComision) => {
-    const activa = seleccionado?.month === m.month
+    const activa = abierto === m.month
     const esActual = m.month === actual
     const esFuturo = m.month > actual
     return (
       <li key={m.month}>
         <button
           type="button"
-          onClick={() => setElegido(m.month)}
-          aria-pressed={activa}
-          className={`grid w-full grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 px-4 py-3 text-left transition-colors sm:grid-cols-[minmax(130px,1.2fr)_repeat(4,minmax(90px,1fr))] ${
-            activa ? 'bg-brand-500/10' : 'hover:bg-muted/40'
+          onClick={() => setElegido(activa ? '' : m.month)}
+          aria-expanded={activa}
+          className={`grid w-full grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 border-l-2 px-4 py-3 text-left transition-colors sm:grid-cols-[minmax(190px,1.6fr)_repeat(4,minmax(90px,1fr))] ${
+            activa ? 'border-l-brand-500 bg-brand-500/10' : 'border-l-transparent hover:bg-muted/40'
           }`}
         >
           <span className="flex min-w-0 items-center gap-2">
-            <span className="truncate text-sm font-medium capitalize text-foreground">{nombreMes(m.month)}</span>
+            <ChevronDown
+              className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${activa ? 'rotate-180' : '-rotate-90'}`}
+              aria-hidden="true"
+            />
+            <span className="whitespace-nowrap text-sm font-medium text-foreground">{nombreMes(m.month)}</span>
             {esActual && (
               <span className="shrink-0 rounded-full bg-brand-500/20 px-2 py-0.5 text-xs text-brand-300">Este mes</span>
             )}
@@ -176,9 +289,19 @@ export function CommissionMonthlyStatement({
           <span className="text-right text-sm font-semibold sm:order-last sm:text-base">
             <Importe value={m.porCobrar} className={m.porCobrar > 0 ? 'text-amber-400' : 'text-muted-foreground'} />
           </span>
-          <span className="col-span-2 text-xs text-muted-foreground sm:hidden">
-            Nueva {formatCurrency(m.nuevo.amount)} · Recurrencia {formatCurrency(m.recurrente.amount)} · Pagado{' '}
-            {formatCurrency(m.pagado)}
+          <span className="col-span-2 grid grid-cols-3 gap-2 pl-6 text-xs sm:hidden">
+            <span>
+              <span className="block text-muted-foreground">Nueva</span>
+              <Importe value={m.nuevo.amount} className="text-emerald-400" />
+            </span>
+            <span>
+              <span className="block text-muted-foreground">Recurrencia</span>
+              <Importe value={m.recurrente.amount} className="text-sky-400" />
+            </span>
+            <span>
+              <span className="block text-muted-foreground">Pagado</span>
+              <Importe value={m.pagado} className="text-muted-foreground" />
+            </span>
           </span>
           <span className="hidden text-right text-sm sm:block">
             <Importe value={m.nuevo.amount} className="text-emerald-400" />
@@ -190,17 +313,18 @@ export function CommissionMonthlyStatement({
             <Importe value={m.pagado} />
           </span>
         </button>
+        {activa && detalle(m)}
       </li>
     )
   }
 
   const cabecera = (
-    <div className="hidden grid-cols-[minmax(130px,1.2fr)_repeat(4,minmax(90px,1fr))] gap-x-4 border-b border-border bg-muted/20 px-4 py-2 text-xs font-medium text-muted-foreground sm:grid">
-      <span>Mes</span>
+    <div className="hidden grid-cols-[minmax(190px,1.6fr)_repeat(4,minmax(90px,1fr))] gap-x-4 border-b border-border bg-muted/20 px-4 py-2 text-xs font-medium text-muted-foreground sm:grid">
+      <span>Mes de pago</span>
       <span className="text-right">Venta nueva</span>
       <span className="text-right">Recurrencia</span>
       <span className="text-right">Ya pagado</span>
-      <span className="text-right">Por cobrar</span>
+      <span className="text-right">{porX}</span>
     </div>
   )
 
@@ -210,11 +334,29 @@ export function CommissionMonthlyStatement({
         <div>
           <p className="text-xs font-medium uppercase tracking-[0.1em] text-brand-400">Mes a mes</p>
           <h2 id="mensual-heading" className="mt-1 font-display text-xl font-semibold text-foreground">
-            {persona ? `Comisión por cobrar de ${persona.name}` : 'Comisión por cobrar'}
+            {personal
+              ? 'Mis comisiones'
+              : persona
+                ? `Comisión por cobrar de ${persona.name}`
+                : esEquipo
+                  ? 'Comisión por pagar al equipo'
+                  : 'Comisión por cobrar'}
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Elige un mes para ver de dónde viene: <span className="text-emerald-400">venta nueva</span> (primer cobro de
-            una venta) o <span className="text-sky-400">recurrencia</span> (cuotas posteriores), y quién la genera.
+            {personal ? (
+              <>
+                Una fila por mes. Pulsa un mes para ver qué clientes te la generan:{' '}
+                <span className="text-emerald-400">venta nueva</span> (su primer pago) o{' '}
+                <span className="text-sky-400">recurrencia</span> (sus pagos siguientes). Cada mes es cuando se paga: lo
+                que tu cliente abona en octubre lo cobras en noviembre.
+              </>
+            ) : (
+              <>
+                Pulsa un mes para ver de dónde viene: <span className="text-emerald-400">venta nueva</span> (primer
+                cobro de una venta) o <span className="text-sky-400">recurrencia</span> (cuotas posteriores), y quién la
+                genera. Cada mes es el de pago: lo que el cliente abona en octubre se paga en noviembre.
+              </>
+            )}
           </p>
         </div>
       </div>
@@ -223,17 +365,19 @@ export function CommissionMonthlyStatement({
         <div className="flex flex-wrap items-center gap-2 border-b border-border px-5 py-3 sm:px-6">
           <span className="text-xs text-muted-foreground">Ver:</span>
           {[{ id: 'all', name: 'Todo el equipo' }, ...personas].map((p) => (
-            <Button
+            <button
               key={p.id}
               type="button"
-              size="sm"
-              variant={selectedMemberId === p.id ? 'default' : 'outline'}
-              className="h-7 rounded-full px-3 text-xs"
               aria-pressed={selectedMemberId === p.id}
               onClick={() => onSelectMember(p.id)}
+              className={`h-7 rounded-full border px-3 text-xs font-medium transition-colors ${
+                selectedMemberId === p.id
+                  ? 'border-brand-500 bg-brand-500 text-white'
+                  : 'border-border bg-transparent text-muted-foreground hover:border-brand-500/50 hover:text-foreground'
+              }`}
             >
               {p.name}
-            </Button>
+            </button>
           ))}
         </div>
       )}
@@ -259,6 +403,16 @@ export function CommissionMonthlyStatement({
         </div>
       )}
 
+      {impagos > 0 && !futureError && (
+        <div role="note" className="border-b border-amber-500/30 bg-amber-500/10 px-5 py-2.5 text-sm sm:px-6">
+          <span className="font-medium text-amber-300">{formatCurrency(impagos)} sin cobrar por impago.</span>{' '}
+          <span className="text-muted-foreground">
+            {personal ? 'Son cuotas vencidas que tus clientes' : 'Son cuotas vencidas que los clientes'} todavía no han
+            pagado. No cuentan en ningún mes hasta que paguen.
+          </span>
+        </div>
+      )}
+
       {loading ? (
         <div className="space-y-2 p-5">
           <Skeleton className="h-10" />
@@ -268,7 +422,18 @@ export function CommissionMonthlyStatement({
       ) : (
         <>
           {cabecera}
-          <ul className="divide-y divide-border">{proximos.map(fila)}</ul>
+          <ul className="divide-y divide-border">{futurosVisibles.map(fila)}</ul>
+          {futuros.length > LIMITE_FUTUROS && (
+            <button
+              type="button"
+              onClick={() => setVerMasFuturos((v) => !v)}
+              className="flex w-full items-center justify-center gap-1.5 border-t border-border px-4 py-2.5 text-xs text-muted-foreground hover:text-foreground"
+              aria-expanded={verMasFuturos}
+            >
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${verMasFuturos ? 'rotate-180' : ''}`} />
+              {verMasFuturos ? 'Ver menos meses' : `Ver ${futuros.length - LIMITE_FUTUROS} meses más`}
+            </button>
+          )}
 
           {pasados.length > 0 && (
             <>
@@ -283,68 +448,6 @@ export function CommissionMonthlyStatement({
               </button>
               {verPasados && <ul className="divide-y divide-border border-t border-border">{pasados.map(fila)}</ul>}
             </>
-          )}
-
-          {seleccionado && (
-            <div className="space-y-4 border-t border-border bg-muted/10 px-5 py-5 sm:px-6">
-              <div className="flex flex-wrap items-end justify-between gap-3">
-                <div>
-                  <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <CalendarDays className="h-4 w-4" aria-hidden="true" />
-                    <span className="capitalize">{nombreMes(seleccionado.month)}</span>
-                  </p>
-                  <p className="mt-1 font-display text-3xl font-semibold tabular-nums text-foreground">
-                    {formatCurrency(seleccionado.porCobrar)}
-                    <span className="ml-2 text-sm font-normal text-muted-foreground">por cobrar</span>
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Total {formatCurrency(seleccionado.total)} · ya pagado {formatCurrency(seleccionado.pagado)}
-                    {seleccionado.prevista > 0 &&
-                      ` · ${formatCurrency(seleccionado.prevista)} dependen de que el cliente pague su cuota`}
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8 text-xs"
-                  onClick={() => onFilterMonth(seleccionado.month)}
-                >
-                  <Filter className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-                  Ver estas comisiones abajo
-                </Button>
-              </div>
-
-              <div className="grid gap-4 lg:grid-cols-2">
-                <GrupoDetalle
-                  titulo="Venta nueva"
-                  ayuda="Primer cobro de cada venta: clientes que entran este mes."
-                  icono={<Sparkles className="h-4 w-4" aria-hidden="true" />}
-                  acento="text-emerald-400"
-                  grupo={seleccionado.nuevo}
-                  vacio="Ninguna venta nueva comisiona este mes."
-                />
-                <GrupoDetalle
-                  titulo="Recurrencia"
-                  ayuda="Cuotas posteriores de ventas ya cerradas."
-                  icono={<Repeat2 className="h-4 w-4" aria-hidden="true" />}
-                  acento="text-sky-400"
-                  grupo={seleccionado.recurrente}
-                  vacio="No hay cuotas recurrentes este mes."
-                />
-              </div>
-
-              {hayAjustes && seleccionado.ajuste.amount !== 0 && (
-                <GrupoDetalle
-                  titulo="Ajustes y devoluciones"
-                  ayuda="Restan del total. No son venta nueva ni recurrencia."
-                  icono={<Filter className="h-4 w-4" aria-hidden="true" />}
-                  acento="text-red-400"
-                  grupo={seleccionado.ajuste}
-                  vacio=""
-                />
-              )}
-            </div>
           )}
         </>
       )}
