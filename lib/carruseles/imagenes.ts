@@ -5,13 +5,14 @@
 // pintado, con espacio para el titular) y se guarda la imagen en Storage: la slide referencia una URL pública estable,
 // no un base64 gigante dentro del HTML.
 
+import { BUCKET_CARRUSELES, subirAlBucket } from './almacen'
 import { createClient } from '@supabase/supabase-js'
 import { geminiImagen } from '@/lib/ai/gemini'
 import { openaiImagen } from '@/lib/ai/openai'
 import { elegirMotorImagen, modeloImagen, type Cfg, type ImagenReferencia } from './motor'
 import type { AspectRatio } from './types'
 
-export const BUCKET_IMAGENES = 'carrusel-uploads'
+export const BUCKET_IMAGENES = BUCKET_CARRUSELES
 export const MAX_IMAGENES_POR_PETICION = 4
 const MAX_PROMPT = 1500
 
@@ -81,7 +82,7 @@ async function subirAStorage(ruta: string, datos: Buffer, mime: string): Promise
   const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
     auth: { persistSession: false },
   })
-  const { error } = await sb.storage.from(BUCKET_IMAGENES).upload(ruta, datos, { contentType: mime, upsert: false })
-  if (error) throw new Error(`No se pudo guardar la imagen generada: ${error.message}`)
-  return sb.storage.from(BUCKET_IMAGENES).getPublicUrl(ruta).data.publicUrl
+  const { error, url } = await subirAlBucket(sb, ruta, datos, mime)
+  if (error) throw new Error(`No se pudo guardar la imagen generada: ${error}`)
+  return url
 }

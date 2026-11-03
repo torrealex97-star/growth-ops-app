@@ -62,10 +62,11 @@ test('las opciones del diálogo cubren «auto» y todas las categorías, con lon
 test('en historias el prompt lista las fotos subidas CON su URL y explica cómo usarlas; en carruseles no', () => {
   const fotos = [{ id: '1', url: 'https://cdn.example.test/a.jpg', name: 'espejo.jpg', addedAt: '' }]
   const h = buildSystemPrompt(marca, proyecto('9:16', fotos))
-  assert.match(h, /Fotos subidas para esta secuencia/)
-  assert.match(h, /"espejo\.jpg": https:\/\/cdn\.example\.test\/a\.jpg/)
-  assert.match(h, /<img class="ig-foto" src="URL">/)
-  assert.match(h, /Usa SOLO las fotos subidas/)
+  assert.match(h, /Fotos y vídeos subidos para esta secuencia/)
+  assert.match(h, /1\. "espejo\.jpg" \(foto\)/)
+  assert.match(h, /campo foto \(su número\)/)
+  assert.doesNotMatch(h, /cdn\.example\.test/, 'las historias se componen en el servidor: la IA no maneja URLs')
+  assert.match(h, /Usa SOLO las fotos y vídeos subidos/)
   const c = buildSystemPrompt(marca, proyecto('4:5', fotos))
   assert.doesNotMatch(c, /cdn\.example\.test/, 'un carrusel no expone las URL en esta sección')
   assert.match(c, /Imágenes de referencia/)
@@ -81,22 +82,20 @@ test('el contexto de negocio y los assets salen de la config PROPIA de la subcue
 
 test('sin fotos subidas el prompt de historias manda fondo liso y prohíbe inventar URLs', () => {
   const p = buildSystemPrompt(marca, proyecto('9:16', []))
-  assert.match(p, /No hay fotos subidas: usa un fondo de color liso/)
+  assert.match(p, /No hay fotos ni vídeos subidos: las historias llevarán fondo liso/)
   assert.match(p, /NUNCA inventes URLs de fotos/)
   const con = buildSystemPrompt(
     marca,
     proyecto('9:16', [{ id: '1', url: 'https://cdn.example.test/a.jpg', name: 'a.jpg', addedAt: '' }])
   )
-  assert.match(con, /Usa SOLO las fotos subidas/)
-  assert.doesNotMatch(con, /No hay fotos subidas/)
+  assert.match(con, /Usa SOLO las fotos y vídeos subidos/)
+  assert.doesNotMatch(con, /No hay fotos ni vídeos subidos/)
 })
 
-test('la etiqueta de fecha usa la fecha de hoy inyectada y la guía no trae una fecha fija de ejemplo', () => {
+test('la fecha, el logo y la marca los pone la app, no la IA (y la fecha sale de hoy)', () => {
   const p = buildSystemPrompt(marca, proyecto('9:16'), null, [], false, new Date(2026, 10, 2))
-  assert.match(p, /<span>2<\/span><span>nov\.<\/span><span>2026<\/span>/)
-  assert.match(p, /Usa esa fecha, no otra/)
-  assert.doesNotMatch(p, /<span>8<\/span><span>ene\.<\/span>/, 'el ejemplo antiguo («8 ene. 2026») ya no aparece')
-  assert.match(p, /nunca una de ejemplo/)
+  assert.match(p, /La fecha, el logo, las tipografías y los colores de la marca los pone la app/)
+  assert.doesNotMatch(p, /<span>8<\/span><span>ene\.<\/span>/, 'sin fecha de ejemplo fija')
 })
 
 test('el diálogo y el chat usan el mismo encargo y el chat no lo envía solo', () => {

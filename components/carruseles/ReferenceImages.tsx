@@ -5,6 +5,7 @@ import { ImagePlus, X, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { ReferenceImage } from '@/lib/carruseles/types'
 import { useTenant } from '@/lib/tenant-context'
+import { tipoDeMedio } from '@/lib/carruseles/almacen'
 
 interface Props {
   projectId: string
@@ -42,9 +43,7 @@ export function ReferenceImages({ projectId, images, onChange }: Props) {
   return (
     <div className="px-4 py-2.5 border-b border-border">
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-3xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Referencias visuales
-        </span>
+        <span className="text-3xs font-semibold uppercase tracking-wider text-muted-foreground">Fotos y vídeos</span>
         <button
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
@@ -56,7 +55,7 @@ export function ReferenceImages({ projectId, images, onChange }: Props) {
         <input
           ref={inputRef}
           type="file"
-          accept="image/png,image/jpeg,image/webp"
+          accept="image/png,image/jpeg,image/webp,video/mp4,video/webm,video/quicktime"
           className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0]
@@ -65,12 +64,28 @@ export function ReferenceImages({ projectId, images, onChange }: Props) {
           }}
         />
       </div>
+      {images.length === 0 && (
+        <p className="text-3xs text-muted-foreground">
+          Sube las fotos y vídeos que quieres detrás de las historias (JPG/PNG/WEBP hasta 15 MB, MP4/WEBM/MOV hasta 50
+          MB).
+        </p>
+      )}
       {images.length > 0 && (
         <div className="flex gap-1.5 flex-wrap">
           {images.map((img) => (
             <div key={img.id} className="relative group">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={img.url} alt={img.name} className="h-11 w-11 rounded object-cover border border-border" />
+              {tipoDeMedio(img.url) === 'video' ? (
+                <video
+                  src={img.url}
+                  muted
+                  preload="metadata"
+                  title={img.name}
+                  className="h-11 w-11 rounded object-cover border border-border"
+                />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={img.url} alt={img.name} className="h-11 w-11 rounded object-cover border border-border" />
+              )}
               <button
                 onClick={() => remove(img.id)}
                 className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"

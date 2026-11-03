@@ -1,4 +1,5 @@
-import { GUIA_COMPONENTES, ZONA_SEGURA } from './estilo-nativo'
+import { ZONA_SEGURA } from './estilo-nativo'
+import type { Layout } from './layouts'
 
 // REGLAS DE SECUENCIAS DE HISTORIAS como datos: categorías, arco por longitud (3, 5 o 7) y, para cada
 // etapa, qué foto, qué velo y dónde va el texto. Salen del análisis de secuencias reales de creadores
@@ -23,6 +24,8 @@ type EspecEtapa = {
   /** Velo oscuro sobre la foto: 0 = limpia, 75 = muy oscura (manda el texto). */
   velo: 0 | 20 | 40 | 60 | 75
   zona: ZonaTexto
+  /** Plantilla de `add_story` que corresponde a esta etapa. */
+  layout: Layout
   /** Componentes del editor nativo que encajan. */
   componentes: string[]
   /** Qué tiene que lograr esta historia. */
@@ -35,6 +38,7 @@ export const ETAPAS: Record<Etapa, EspecEtapa> = {
     foto: 'persona a cámara, plano medio, la más luminosa',
     velo: 20,
     zona: 'arriba',
+    layout: 'portada',
     componentes: ['ig-etiqueta-fecha', 'ig-titulo', 'ig-marcador'],
     objetivo: 'Frenar el dedo en 1,5 s: una afirmación fuerte o una pregunta incómoda, con una palabra de acento.',
   },
@@ -42,6 +46,7 @@ export const ETAPAS: Record<Etapa, EspecEtapa> = {
     foto: 'persona o recurso del día a día',
     velo: 60,
     zona: 'centro',
+    layout: 'texto',
     componentes: ['ig-caja-negra', 'ig-texto', 'ig-marcador'],
     objetivo: 'Que la audiencia se reconozca: el error o el dolor, dicho como lo dice ella.',
   },
@@ -49,6 +54,7 @@ export const ETAPAS: Record<Etapa, EspecEtapa> = {
     foto: 'fondo oscuro o desenfocado',
     velo: 75,
     zona: 'centro',
+    layout: 'comparacion',
     componentes: ['ig-chip', 'ig-recuadro', 'ig-titulo'],
     objetivo: 'Mostrar el contraste (antes/ahora, mal/bien) en recuadros comparables, una idea por historia.',
   },
@@ -56,6 +62,7 @@ export const ETAPAS: Record<Etapa, EspecEtapa> = {
     foto: 'captura, recurso o escena real',
     velo: 60,
     zona: 'centro',
+    layout: 'foto_texto',
     componentes: ['ig-captura', 'ig-caja', 'ig-chip'],
     objetivo: 'Hacerlo concreto con algo que se pueda ver: captura, perfil, escena.',
   },
@@ -63,6 +70,7 @@ export const ETAPAS: Record<Etapa, EspecEtapa> = {
     foto: 'captura de resultados sobre fondo oscuro',
     velo: 75,
     zona: 'centro',
+    layout: 'cifra',
     componentes: ['ig-captura', 'ig-caja-acento', 'ig-texto'],
     objetivo: 'Credibilidad con cifras reales (solo las que dé el negocio): logro y qué se hizo.',
   },
@@ -70,6 +78,7 @@ export const ETAPAS: Record<Etapa, EspecEtapa> = {
     foto: 'persona hablando o pensando',
     velo: 60,
     zona: 'abajo',
+    layout: 'foto_texto',
     componentes: ['ig-texto', 'ig-marcador', 'ig-caja-negra'],
     objetivo: 'Explicar la causa con una frase simple; sin tecnicismos.',
   },
@@ -77,6 +86,7 @@ export const ETAPAS: Record<Etapa, EspecEtapa> = {
     foto: 'persona con gesto expresivo',
     velo: 40,
     zona: 'abajo',
+    layout: 'foto_texto',
     componentes: ['ig-caja', 'ig-texto', 'ig-emoji'],
     objetivo: 'Anticipar la duda más habitual y desactivarla con honestidad.',
   },
@@ -84,6 +94,7 @@ export const ETAPAS: Record<Etapa, EspecEtapa> = {
     foto: 'persona cerca, luz natural, la más cálida',
     velo: 0,
     zona: 'abajo',
+    layout: 'sticker',
     componentes: ['ig-caja-acento', 'ig-sticker-escribe', 'ig-marcador'],
     objetivo:
       'Una sola acción de fricción mínima: una palabra clave por mensaje, una pregunta o un sticker. Cierra con un regalo o la siguiente historia.',
@@ -220,10 +231,7 @@ export function seccionHistoriasPrompt(): string {
     )
     .join('\n')
   const etapas = (Object.entries(ETAPAS) as [Etapa, EspecEtapa][])
-    .map(
-      ([e, s]) =>
-        `- ${e}: foto = ${s.foto}; velo ${s.velo}; texto ${s.zona}; usa ${s.componentes.join(', ')}. ${s.objetivo}`
-    )
+    .map(([e, s]) => `- ${e}: layout «${s.layout}»; foto = ${s.foto}. ${s.objetivo}`)
     .join('\n')
   return `## Cómo trabajas con HISTORIAS (9:16): que parezcan hechas en el editor de Instagram
 Una secuencia son 3, 5 o 7 historias (por defecto 5; usa EXACTAMENTE las que pida el usuario, redondeando a 3/5/7). Elige la categoría que mejor encaje con lo que cuenta el usuario y sigue su arco, una idea por historia, y di cuál has elegido en una frase.
@@ -231,18 +239,24 @@ Una secuencia son 3, 5 o 7 historias (por defecto 5; usa EXACTAMENTE las que pid
 Categorías:
 ${categorias}
 
-Etapas (qué foto, qué velo y dónde va el texto):
+Etapas (qué plantilla usar y qué foto le conviene):
 ${etapas}
 
-Reglas de lo nativo (obligatorias):
-1. NUNCA parezca un diseño externo: nada de degradados decorativos, tarjetas flotantes con sombra, iconos vectoriales de librería, ni tipografías múltiples. El texto va en cajas de fondo (ig-caja, ig-caja-negra, ig-caja-acento) o con marcador, como en el editor de la red.
-2. UN solo color de acento (--ig-acento) y UNA palabra de acento por historia.
-3. La misma persona y el mismo estilo de foto en toda la secuencia: usa las fotos que el usuario subió (referencias) en el orden que mejor sirva al arco; no inventes fotos.
-4. Primera historia: etiqueta de fecha (ig-etiqueta-fecha) y gancho en el tercio superior. Última: una única acción (palabra clave por mensaje, pregunta o sticker) y, si encaja, un regalo.
-5. Cierra cada historia (salvo la última) con un bucle abierto breve hacia la siguiente («te lo cuento en la siguiente»).
-6. Zona segura: deja libres ~${ZONA_SEGURA.arriba}px arriba y ~${ZONA_SEGURA.abajo}px abajo.
-7. Escribe como habla la persona: frases cortas, tuteo, sin jerga, sin promesas de resultados garantizados ni cifras que no estén en el contexto del negocio.
-8. Cada historia: <div class="ig-historia">…</div> a 1080×1920, usando los componentes siguientes.
+Cómo se construye cada historia: llamas a add_story con una PLANTILLA y el texto; la app coloca todo (foto limpia, foto oscurecida o fondo liso; fecha, logo, titular, cajas y stickers sin que se pisen y dentro de la zona segura). NO escribas HTML ni posiciones. Plantillas:
+- portada: gancho con titular grande; foto limpia a pantalla completa. Campos: titulo, acento (palabra a resaltar), texto opcional.
+- texto: una idea en texto sobre foto oscurecida o fondo liso. Campos: titulo y/o texto, acento.
+- foto_texto: la foto manda y el texto va en una caja abajo. Campos: texto (y titulo opcional).
+- comparacion: dos recuadros (❌ antes / ✅ ahora). Campos: items [{icono, titulo, texto}] (máx 2), titulo opcional.
+- sticker: pregunta o llamada a la acción. Campos: sticker {tipo: "pregunta"|"escribe", cabecera, texto}, titulo opcional.
+- cifra: un dato grande. Campos: cifra (ej. "+37%"), titulo o texto que lo explica. Solo cifras que dé el negocio.
+- partida: pantalla partida con dos fotos (foto y foto2). Campos: titulo.
+Campos comunes: foto (número de la lista de fotos/vídeos; si no lo pones se reparte solo), fondo "liso" para dar respiro entre fotos, fecha (true solo en la primera), ultima (true en la de cierre, lleva el logo).
 
-${GUIA_COMPONENTES}`
+Reglas (obligatorias):
+1. UNA palabra de acento por historia (campo acento) y una sola idea por historia; titulares de máximo ~8 palabras, textos de máximo ~25.
+2. Cada foto o vídeo se usa donde encaja: el gancho y el cierre con foto limpia; el desarrollo oscurecido; si hay menos fotos que historias, alterna con fondo liso en vez de repetir.
+3. Primera historia: portada con fecha. Última: sticker (una sola acción: palabra clave por mensaje, pregunta o regalo), con ultima true.
+4. Cierra cada historia (salvo la última) con un bucle abierto breve hacia la siguiente («te lo cuento en la siguiente»).
+5. Escribe como habla la persona: frases cortas, tuteo, sin jerga, sin promesas de resultados garantizados ni cifras que no estén en el contexto del negocio.
+6. Para cambiar una historia usa update_story (misma plantilla de campos); para quitar una, delete_slide.`
 }

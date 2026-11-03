@@ -99,8 +99,9 @@ test('wrapSlideHtml inyecta el estilo nativo y sus fuentes SOLO en 9:16, con pes
 test('el prompt de un proyecto 9:16 usa el estilo nativo y excluye la «inteligencia de diseño» genérica', () => {
   const p = buildSystemPrompt(marca, proyecto('9:16'))
   assert.match(p, /HISTORIAS \(9:16\)/)
-  assert.match(p, /ig-caja-negra/)
-  assert.match(p, /--ig-acento:#c026d3/)
+  assert.match(p, /add_story/)
+  assert.doesNotMatch(p, /Reglas del HTML de cada slide/, 'las historias no llevan HTML escrito por la IA')
+  assert.doesNotMatch(p, /add_slide\(\{ html/, 'las historias no ofrecen add_slide')
   assert.match(p, /opinion_error/)
   assert.doesNotMatch(p, /gradientes para dar profundidad/)
   assert.doesNotMatch(p, /VARIEDAD CREATIVA/)
@@ -113,10 +114,11 @@ test('el prompt de un proyecto 9:16 usa el estilo nativo y excluye la «intelige
 
 test('la sección de historias prohíbe lo que delata un diseño externo y exige una palabra de acento', () => {
   const s = seccionHistoriasPrompt()
-  assert.match(s, /NUNCA parezca un diseño externo/)
+  assert.match(s, /NO escribas HTML ni posiciones/)
   assert.match(s, /UNA palabra de acento por historia/)
-  assert.match(s, /no inventes fotos/)
   assert.match(s, /zona segura/i)
+  for (const l of ['portada', 'texto', 'foto_texto', 'comparacion', 'sticker', 'cifra', 'partida'])
+    assert.match(s, new RegExp(`- ${l}:`))
 })
 
 test('la flecha a mano es un SVG inline con rotación redondeada', () => {

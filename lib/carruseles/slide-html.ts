@@ -27,6 +27,9 @@ export function extractFontFamilies(html: string): string[] {
       if (name && !generics.has(name.toLowerCase())) families.add(name)
     }
   }
+  // Tipografías de marca de las historias, puestas en variables CSS (`--ig-f-titulo:'Poppins'`).
+  const variables = /--ig-f-(?:titulo|cuerpo):\s*['"]?([^;'"}\n]+?)['"]?\s*[;}"]/g
+  while ((match = variables.exec(html)) !== null) families.add(match[1].trim())
   return Array.from(families)
 }
 

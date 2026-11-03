@@ -28,6 +28,24 @@ export function BrandDialog({ open, onOpenChange }: Props) {
   const [brand, setBrand] = useState<BrandConfig>(DEFAULT_BRAND)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [subiendoLogo, setSubiendoLogo] = useState(false)
+
+  const subirLogo = async (file: File) => {
+    setSubiendoLogo(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('purpose', 'brand-logo')
+      const res = await fetch(`/api/${tenant}/evergreen/carruseles/upload`, { method: 'POST', body: fd })
+      const j = (await res.json().catch(() => ({}))) as { url?: string; error?: string }
+      if (!res.ok || !j.url) throw new Error(j.error || 'No se pudo subir el logo')
+      setBrand((b) => ({ ...b, logoUrl: j.url as string }))
+    } catch (e) {
+      toast.error((e as Error).message)
+    } finally {
+      setSubiendoLogo(false)
+    }
+  }
 
   useEffect(() => {
     if (!open) return
@@ -123,6 +141,36 @@ export function BrandDialog({ open, onOpenChange }: Props) {
             <p className="text-3xs text-muted-foreground -mt-2">
               Usa nombres de Google Fonts (ej: Playfair Display, Montserrat).
             </p>
+
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Logo</label>
+              <div className="mt-1 flex items-center gap-3">
+                {brand.logoUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={brand.logoUrl} alt="Logo" className="h-10 max-w-[120px] object-contain" />
+                )}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  disabled={subiendoLogo}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    if (f) void subirLogo(f)
+                    e.target.value = ''
+                  }}
+                  className="text-xs"
+                />
+                {brand.logoUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setBrand({ ...brand, logoUrl: null })}
+                    className="text-3xs text-muted-foreground hover:text-destructive"
+                  >
+                    Quitar
+                  </button>
+                )}
+              </div>
+            </div>
 
             <div>
               <label className="text-xs font-medium text-muted-foreground">Palabras clave de estilo</label>

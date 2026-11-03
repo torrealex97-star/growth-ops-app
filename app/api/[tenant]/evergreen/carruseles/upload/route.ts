@@ -3,12 +3,9 @@ import { createClient } from '@supabase/supabase-js'
 import { getCarruselUser } from '@/lib/carruseles/auth'
 import { requireTenant } from '@/lib/auth/requireTenant'
 import { addReferenceImage } from '@/lib/carruseles/store'
+import { MAX_IMAGEN, MAX_VIDEO, MIME_IMAGEN, MIME_VIDEO, subirAlBucket } from '@/lib/carruseles/almacen'
 
 export const runtime = 'nodejs'
-
-const BUCKET = 'carrusel-uploads'
-const ALLOWED = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml']
-const MAX = 15 * 1024 * 1024
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
   try {
@@ -22,11 +19,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     if (!form) return NextResponse.json({ error: 'Form inválido' }, { status: 400 })
     const file = form.get('file')
     if (!(file instanceof File)) return NextResponse.json({ error: 'file requerido' }, { status: 400 })
-    if (!ALLOWED.includes(file.type)) return NextResponse.json({ error: 'Formato no soportado' }, { status: 400 })
-    if (file.size > MAX) return NextResponse.json({ error: 'Máx 15MB' }, { status: 400 })
+    const esVideo = MIME_VIDEO.includes(file.type)
+    if (!esVideo && !MIME_IMAGEN.includes(file.type))
+      return NextResponse.json(
+        { error: 'Formato no soportado (imágenes PNG/JPG/WEBP o vídeos MP4/WEBM/MOV)' },
+        { status: 400 }
+      )
+    if (file.size > (esVideo ? MAX_VIDEO : MAX_IMAGEN))
+      return NextResponse.json(
+        { error: esVideo ? 'El vídeo pesa más de 50 MB' : 'La imagen pesa más de 15 MB' },
+        { status: 400 }
+      )
 
     const projectId = (form.get('projectId') as string) || ''
-    const purpose = (form.get('purpose') as string) || 'reference'
+    const purpose = String(form.get('purpose') || 'reference').replace(/[^a-z-]/g, '') || 'reference'
 
     const ext = file.name.split('.').pop()?.toLowerCase() || 'png'
     const key = `${tenant}/${purpose}/${crypto.randomUUID()}.${ext}`
@@ -35,14 +41,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
       auth: { persistSession: false },
     })
-    const { error } = await sb.storage.from(BUCKET).upload(key, buf, {
-      contentType: file.type,
-      upsert: false,
-    })
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-    const { data: pub } = sb.storage.from(BUCKET).getPublicUrl(key)
-    const url = pub.publicUrl
+    const { error, url } = await subirAlBucket(sb, key, buf, file.type)
+    if (error) return NextResponse.json({ error }, { status: 500 })
 
     if (purpose === 'reference' && projectId) {
       const image = { id: crypto.randomUUID(), url, name: file.name, addedAt: new Date().toISOString() }

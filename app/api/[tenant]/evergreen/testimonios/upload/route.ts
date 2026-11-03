@@ -1,3 +1,4 @@
+import { subirAlBucket } from '@/lib/carruseles/almacen'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { getTestimonioUser } from '@/lib/testimonios-auth'
@@ -6,7 +7,6 @@ import { requireTenant } from '@/lib/auth/requireTenant'
 export const runtime = 'nodejs'
 
 // Comparte bucket con los carruseles: las fotos de los casos de éxito se usan en ambos sitios.
-const BUCKET = 'carrusel-uploads'
 const ALLOWED = ['image/png', 'image/jpeg', 'image/webp']
 const MAX = 15 * 1024 * 1024
 
@@ -32,13 +32,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
       auth: { persistSession: false },
     })
-    const { error } = await sb.storage.from(BUCKET).upload(key, Buffer.from(await file.arrayBuffer()), {
-      contentType: file.type,
-      upsert: false,
-    })
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    const { error, url } = await subirAlBucket(sb, key, Buffer.from(await file.arrayBuffer()), file.type)
+    if (error) return NextResponse.json({ error }, { status: 500 })
 
-    return NextResponse.json({ url: sb.storage.from(BUCKET).getPublicUrl(key).data.publicUrl })
+    return NextResponse.json({ url })
   } catch (err) {
     console.error('[api/testimonios/upload POST]', err)
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
