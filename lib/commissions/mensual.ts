@@ -10,8 +10,9 @@
 //    originó la comisión; para las futuras ya viene resuelto (`FilaFutura.tipo`).
 //  · AJUSTE = devoluciones (direction='negative') y filas manuales sin cobro. No son ni nueva ni
 //    recurrente: se muestran aparte para que el total cuadre con la tabla de comisiones.
-//  · Mes de una comisión generada = `liquidation_month || created_at` (igual que la liquidación actual).
-//    Mes de una comisión futura = vencimiento de la cuota.
+//  · Cada mes es el MES DE PAGO (liquidación): lo que el cliente abona en octubre se cobra en noviembre
+//    (regla del motor: calculator.getLiquidationMonth). Comisión generada = `liquidation_month || created_at`;
+//    comisión futura = mes SIGUIENTE al vencimiento de la cuota.
 //  · Las exentas (`pays_commissions=false`, D9) y las canceladas NUNCA suman. Las cuotas VENCIDAS sin cobrar
 //    (impagos) tampoco entran en ningún mes: se devuelven aparte con `impagosVencidos`.
 //  · Una cuota futura es una PREVISIÓN sujeta a cobro (D7): suma al "por cobrar" pero se marca aparte.
@@ -60,6 +61,15 @@ const signed = (row: CommissionDashboardRow) =>
 
 export function claveMes(date = new Date()): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+}
+
+/** Mes (YYYY-MM) en que se paga la comisión de un cobro realizado en `fecha`: el mes siguiente. '' si no se lee. */
+export function mesDePago(fecha: string | null | undefined): string {
+  const y = Number(String(fecha ?? '').slice(0, 4))
+  const m = Number(String(fecha ?? '').slice(5, 7))
+  if (!y || !m || m < 1 || m > 12) return ''
+  const d = new Date(Date.UTC(y, m, 1)) // `m` es 1-12: usado como índice de mes = el SIGUIENTE
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`
 }
 
 /** Primer cobro recogido por venta (ISO), a partir de las comisiones positivas que lo originaron. */
@@ -172,7 +182,8 @@ export function construirResumenMensual(
     // Cuota VENCIDA sin cobrar = impago: no es dinero que vaya a llegar en ningún mes concreto.
     // Se cuenta aparte (`impagosVencidos`), igual que hace el dashboard del colaborador.
     if (f.estado === 'overdue') continue
-    const key = String(f.dueDate || '').slice(0, 7)
+    // La comisión de un cobro SE PAGA el mes siguiente (calculator.getLiquidationMonth): igual que las ya generadas.
+    const key = mesDePago(f.dueDate)
     if (!/^\d{4}-\d{2}$/.test(key)) continue
     const amount = Number(f.amount || 0)
     if (!amount) continue

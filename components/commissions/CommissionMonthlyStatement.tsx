@@ -320,7 +320,7 @@ export function CommissionMonthlyStatement({
 
   const cabecera = (
     <div className="hidden grid-cols-[minmax(190px,1.6fr)_repeat(4,minmax(90px,1fr))] gap-x-4 border-b border-border bg-muted/20 px-4 py-2 text-xs font-medium text-muted-foreground sm:grid">
-      <span>Mes</span>
+      <span>Mes de pago</span>
       <span className="text-right">Venta nueva</span>
       <span className="text-right">Recurrencia</span>
       <span className="text-right">Ya pagado</span>
@@ -347,13 +347,14 @@ export function CommissionMonthlyStatement({
               <>
                 Una fila por mes. Pulsa un mes para ver qué clientes te la generan:{' '}
                 <span className="text-emerald-400">venta nueva</span> (su primer pago) o{' '}
-                <span className="text-sky-400">recurrencia</span> (sus pagos siguientes).
+                <span className="text-sky-400">recurrencia</span> (sus pagos siguientes). Cada mes es cuando se paga: lo
+                que tu cliente abona en octubre lo cobras en noviembre.
               </>
             ) : (
               <>
                 Pulsa un mes para ver de dónde viene: <span className="text-emerald-400">venta nueva</span> (primer
                 cobro de una venta) o <span className="text-sky-400">recurrencia</span> (cuotas posteriores), y quién la
-                genera.
+                genera. Cada mes es el de pago: lo que el cliente abona en octubre se paga en noviembre.
               </>
             )}
           </p>
