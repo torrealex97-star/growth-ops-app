@@ -1,7 +1,7 @@
 import type { BrandConfig, CarruselProject } from './types'
 import { DIMENSIONS, MAX_SLIDES } from './types'
 import { seccionHistoriasPrompt } from './historias/categorias'
-import { ESTILO_POR_DEFECTO, seccionEstiloPrompt, type OpcionesEstilo } from './estilos'
+import { estiloPorDefecto, seccionEstiloPrompt, type OpcionesEstilo } from './estilos'
 import { tipoDeMedio } from './almacen'
 
 export interface BrandAsset {
@@ -32,7 +32,10 @@ export function buildSystemPrompt(
   // Un carrusel en formato 9:16 es una secuencia de HISTORIAS: se trabaja con el estilo «editor nativo».
   const esHistorias = !isFlyer && project.aspectRatio === '9:16'
 
-  const opcionesEstilo: OpcionesEstilo = opciones ?? { estilo: ESTILO_POR_DEFECTO, fotosDeFondo: esHistorias }
+  const opcionesEstilo: OpcionesEstilo = opciones ?? {
+    estilo: estiloPorDefecto(esHistorias),
+    fotosDeFondo: esHistorias,
+  }
 
   const brandSection = brand.name
     ? `## Identidad de marca
@@ -94,6 +97,7 @@ Si el usuario especifica un número de slides (ej. "de 6 slides"), usa EXACTAMEN
 - Slide 8 (última): CTA — "Sígueme para más", "Guarda esto", "Comparte con quien lo necesite"
 Si el arco es más corto (ej. 3 slides), comprime: Slide 1 GANCHO, Slide(s) intermedia(s) VALOR, última slide SIEMPRE CTA.
 Si el usuario te da una URL, extrae los puntos clave; si te da texto, úsalo directamente.
+Un carrusel puede ser muy creativo: fondos de color o diseñados, bloques, formas y estructuras llamativas. No hace falta una foto detrás de todas las slides; usa fotos solo donde aporten. Si hay ejemplos de carruseles del tenant, replica su estructura.
 Tras crear todas las slides, ofrece generar el copy (caption + hashtags) con set_caption.`
 
   const estiloSection = isFlyer

@@ -10,6 +10,9 @@ import { fechaEtiqueta } from '../system-prompt'
 export const LAYOUTS = ['portada', 'texto', 'foto_texto', 'comparacion', 'sticker', 'cifra', 'partida'] as const
 export type Layout = (typeof LAYOUTS)[number]
 
+export const FUENTES_IG = ['classic', 'modern', 'neon', 'typewriter', 'strong', 'serif'] as const
+export type FuenteIg = (typeof FUENTES_IG)[number]
+
 export type Medio = { url: string; kind: 'image' | 'video'; name: string }
 
 export type HistoriaSpec = {
@@ -28,6 +31,12 @@ export type HistoriaSpec = {
   fecha?: boolean
   /** Número (desde 1) de la foto o vídeo a usar; sin él se elige solo. */
   foto?: number
+  /** Tipografía del texto, como las del editor de Instagram. */
+  fuente?: FuenteIg
+  /** Fondo del texto: sin caja, caja sólida o caja translúcida (como el botón «A» del editor). */
+  fondoTexto?: 'sin' | 'solido' | 'translucido'
+  /** Color de la caja de texto. */
+  colorTexto?: 'blanco' | 'negro' | 'marca'
   /** Historia de cierre: lleva el logo. */
   ultima?: boolean
   /** Segunda foto para «partida». */
@@ -68,6 +77,11 @@ export function leerSpec(entrada: unknown): { ok: true; spec: HistoriaSpec } | {
     cifra: txt(b.cifra, 14),
     fecha: typeof b.fecha === 'boolean' ? b.fecha : undefined,
     ultima: b.ultima === true ? true : undefined,
+    fuente: (FUENTES_IG as readonly unknown[]).includes(b.fuente) ? (b.fuente as FuenteIg) : undefined,
+    fondoTexto:
+      b.fondoTexto === 'sin' || b.fondoTexto === 'solido' || b.fondoTexto === 'translucido' ? b.fondoTexto : undefined,
+    colorTexto:
+      b.colorTexto === 'blanco' || b.colorTexto === 'negro' || b.colorTexto === 'marca' ? b.colorTexto : undefined,
     foto: num(b.foto),
     foto2: num(b.foto2),
     fondo: b.fondo === 'liso' || b.fondo === 'foto' ? b.fondo : undefined,
@@ -155,9 +169,24 @@ function tituloHtml(spec: HistoriaSpec, estilo: EstiloId): string {
   return `<div class="ig-titulo" style="font-size:${estilo === 'limpio' ? Math.round(px * 0.8) : px}px">${cuerpo}</div>`
 }
 
-function bloqueTexto(texto: string | undefined, estilo: EstiloId): string {
+function bloqueTexto(texto: string | undefined, estilo: EstiloId, spec: HistoriaSpec): string {
   if (!texto) return ''
   const t = esc(texto)
+  if (spec.fondoTexto) {
+    if (spec.fondoTexto === 'sin') return `<div class="ig-texto">${t}</div>`
+    const c = spec.colorTexto ?? 'blanco'
+    const clase =
+      spec.fondoTexto === 'solido'
+        ? c === 'negro'
+          ? 'ig-caja-solida-negra'
+          : c === 'marca'
+            ? 'ig-caja-acento'
+            : 'ig-caja'
+        : c === 'blanco'
+          ? 'ig-caja-vidrio'
+          : 'ig-caja-negra'
+    return `<div><span class="${clase}">${t}</span></div>`
+  }
   if (estilo === 'editorial') return `<div class="ig-texto">${t}</div>`
   if (estilo === 'limpio') return `<div class="ig-franja"><span class="ig-texto">${t}</span></div>`
   return `<div><span class="${estilo === 'marca' ? 'ig-caja-acento' : 'ig-caja-negra'}">${t}</span></div>`
@@ -203,7 +232,7 @@ export function renderHistoria(spec: HistoriaSpec, ctx: ContextoRender): string 
       : ''
 
   const titulo = tituloHtml(spec, estilo)
-  const texto = bloqueTexto(spec.texto, estilo)
+  const texto = bloqueTexto(spec.texto, estilo, spec)
   let zona = 'centro'
   let contenido = `${titulo}${texto}`
   if (layout === 'portada') {
@@ -218,14 +247,16 @@ export function renderHistoria(spec: HistoriaSpec, ctx: ContextoRender): string 
     contenido = `<div class="ig-cifra">${esc(spec.cifra ?? '')}</div>${titulo}${texto}`
   }
   const centrado = zona === 'centro' ? ' ig-centrado' : ''
+  // Tipografía: la del editor de Instagram; solo el estilo «De marca» usa las de la marca (si no se pide otra).
+  const fuente = spec.fuente ?? (estilo === 'editorial' ? 'serif' : estilo === 'marca' ? null : 'classic')
 
   const acento = brand.colors.accent || brand.colors.primary
   const vars = [
     `--ig-acento:${acento}`,
     `--ig-acento-texto:${esOscuro(acento) ? '#ffffff' : '#111111'}`,
-    fuentesDeMarca(brand),
+    estilo === 'marca' ? fuentesDeMarca(brand) : null,
   ]
     .filter(Boolean)
     .join(';')
-  return `<div class="ig-historia" style="${esc(vars)}"><div class="ig-fondo">${fondo}</div>${cabecera}<div class="ig-zona ig-zona-${zona}${centrado}">${contenido}</div></div>`
+  return `<div class="ig-historia" style="${esc(vars)}"><div class="ig-fondo">${fondo}</div>${cabecera}<div class="ig-zona ig-zona-${zona}${centrado}${fuente ? ` ig-f-${fuente}` : ''}">${contenido}</div></div>`
 }

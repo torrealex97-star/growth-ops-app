@@ -250,6 +250,7 @@ Cómo se construye cada historia: llamas a add_story con una PLANTILLA y el text
 - sticker: pregunta o llamada a la acción. Campos: sticker {tipo: "pregunta"|"escribe", cabecera, texto}, titulo opcional.
 - cifra: un dato grande. Campos: cifra (ej. "+37%"), titulo o texto que lo explica. Solo cifras que dé el negocio.
 - partida: pantalla partida con dos fotos (foto y foto2). Campos: titulo.
+Texto como en el editor de Instagram: fuente (classic por defecto; strong para ganchos de impacto; typewriter para confesiones; modern; neon para destacar; serif para titulares elegantes), fondoTexto (sin caja, solido o translucido, como el botón «A» del editor) y colorTexto (blanco, negro o marca). Emojis: los de Instagram en iPhone, escritos como texto (✅ ❌ ⚠️ 🔥 👇 👀 💡 🤯), máximo 1 o 2 por historia y solo con función (señalar, marcar bien/mal); nunca iconos dibujados ni SVG.
 Campos comunes: foto (número de la lista de fotos/vídeos; si no lo pones se reparte solo), fondo "liso" para dar respiro entre fotos, fecha (true solo en la primera), ultima (true en la de cierre, lleva el logo).
 
 Reglas (obligatorias):

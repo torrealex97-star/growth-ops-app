@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
-import { Loader2, LayoutGrid, FileImage } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { AspectRatio, ProjectKind } from '@/lib/carruseles/types'
 import { ASPECT_LABELS } from '@/lib/carruseles/types'
@@ -19,34 +19,37 @@ import {
   type CategoriaElegida,
 } from '@/lib/carruseles/historias/briefing'
 import { claveEncargo } from '@/lib/carruseles/historias/encargo'
+import type { TipoProducto } from '@/lib/carruseles/tipos'
 
 interface Props {
   open: boolean
   onOpenChange: (o: boolean) => void
+  /** Qué se crea: cada producto tiene su propio formulario. */
+  tipo: TipoProducto
 }
 
-const RATIOS_BY_KIND: Record<ProjectKind, AspectRatio[]> = {
-  carousel: ['4:5', '1:1', '9:16'],
+const RATIOS: Record<TipoProducto, AspectRatio[]> = {
+  historias: ['9:16'],
+  carrusel: ['4:5', '1:1'],
   flyer: ['A4', '3:4', '1:1', '9:16'],
 }
+const TITULO: Record<TipoProducto, string> = {
+  historias: 'Nuevas historias',
+  carrusel: 'Nuevo carrusel',
+  flyer: 'Nuevo flyer',
+}
 
-export function CreateProjectDialog({ open, onOpenChange }: Props) {
+export function CreateProjectDialog({ open, onOpenChange, tipo }: Props) {
   const tenant = useTenant()
   const router = useRouter()
   const [title, setTitle] = useState('')
-  const [kind, setKind] = useState<ProjectKind>('carousel')
-  const [ratio, setRatio] = useState<AspectRatio>('4:5')
+  const kind: ProjectKind = tipo === 'flyer' ? 'flyer' : 'carousel'
+  const [ratio, setRatio] = useState<AspectRatio>(RATIOS[tipo][0])
   const [creating, setCreating] = useState(false)
   const [categoria, setCategoria] = useState<CategoriaElegida>('auto')
   const [longitud, setLongitud] = useState<number>(5)
   const [tema, setTema] = useState('')
-  // Un carrusel en formato 9:16 es una secuencia de historias.
-  const esHistorias = kind === 'carousel' && ratio === '9:16'
-
-  const pickKind = (k: ProjectKind) => {
-    setKind(k)
-    setRatio(RATIOS_BY_KIND[k][0])
-  }
+  const esHistorias = tipo === 'historias'
 
   const create = async () => {
     setCreating(true)
@@ -55,8 +58,7 @@ export function CreateProjectDialog({ open, onOpenChange }: Props) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title:
-            title.trim() || (kind === 'flyer' ? 'Nuevo flyer' : esHistorias ? 'Nuevas historias' : 'Nuevo carrusel'),
+          title: title.trim() || TITULO[tipo],
           kind,
           aspectRatio: ratio,
         }),
@@ -82,57 +84,35 @@ export function CreateProjectDialog({ open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Nuevo proyecto</DialogTitle>
+          <DialogTitle>{TITULO[tipo]}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { k: 'carousel' as const, label: 'Carrusel', desc: 'Varias slides', Icon: LayoutGrid },
-              { k: 'flyer' as const, label: 'Flyer', desc: 'Pieza única', Icon: FileImage },
-            ].map(({ k, label, desc, Icon }) => (
-              <button
-                key={k}
-                onClick={() => pickKind(k)}
-                className={cn(
-                  'flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors',
-                  kind === k ? 'border-brand-400 bg-brand-600/10' : 'border-border hover:border-muted-foreground/40'
-                )}
-              >
-                <Icon className={cn('h-5 w-5', kind === k ? 'text-brand-400' : 'text-muted-foreground')} />
-                <span className="text-sm font-medium">{label}</span>
-                <span className="text-2xs text-muted-foreground">{desc}</span>
-              </button>
-            ))}
-          </div>
-
           <div>
             <label className="text-xs font-medium text-muted-foreground">Título</label>
-            <Input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder={kind === 'flyer' ? 'Nuevo flyer' : 'Nuevo carrusel'}
-            />
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={TITULO[tipo]} />
           </div>
 
-          <div>
-            <label className="text-xs font-medium text-muted-foreground">Formato</label>
-            <div className="flex flex-wrap gap-2 mt-1">
-              {RATIOS_BY_KIND[kind].map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setRatio(r)}
-                  className={cn(
-                    'px-3 py-1.5 rounded-md text-xs font-medium border transition-colors',
-                    ratio === r
-                      ? 'border-brand-400 bg-brand-600/10 text-brand-300'
-                      : 'border-border text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  {ASPECT_LABELS[r]}
-                </button>
-              ))}
+          {RATIOS[tipo].length > 1 && (
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Formato</label>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {RATIOS[tipo].map((r) => (
+                  <button
+                    key={r}
+                    onClick={() => setRatio(r)}
+                    className={cn(
+                      'px-3 py-1.5 rounded-md text-xs font-medium border transition-colors',
+                      ratio === r
+                        ? 'border-brand-400 bg-brand-600/10 text-brand-300'
+                        : 'border-border text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    {ASPECT_LABELS[r]}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {esHistorias && (
             <div className="space-y-3 rounded-lg border border-border p-3">

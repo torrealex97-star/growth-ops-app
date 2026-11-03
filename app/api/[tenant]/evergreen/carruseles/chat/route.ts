@@ -5,8 +5,8 @@ import { getCarruselUser } from '@/lib/carruseles/auth'
 import { requireTenant } from '@/lib/auth/requireTenant'
 import { getBrand, getProject, addSlide, updateSlide, deleteSlide, updateProject } from '@/lib/carruseles/store'
 import { buildSystemPrompt, type BrandAsset } from '@/lib/carruseles/system-prompt'
-import { ESTILO_POR_DEFECTO, esEstilo, type EstiloId, type OpcionesEstilo } from '@/lib/carruseles/estilos'
-import { LAYOUTS, leerSpec, renderHistoria, type Medio } from '@/lib/carruseles/historias/layouts'
+import { estiloValido, type EstiloId, type OpcionesEstilo } from '@/lib/carruseles/estilos'
+import { FUENTES_IG, LAYOUTS, leerSpec, renderHistoria, type Medio } from '@/lib/carruseles/historias/layouts'
 import { BUCKET_CARRUSELES, tipoDeMedio } from '@/lib/carruseles/almacen'
 import type { BrandConfig } from '@/lib/carruseles/types'
 import { MAX_SLIDES } from '@/lib/carruseles/types'
@@ -118,6 +118,9 @@ const PROPIEDADES_HISTORIA = {
   foto2: { type: 'integer', description: 'Segunda foto, solo para partida' },
   fotoUrl: { type: 'string', description: 'URL devuelta por generate_image para usarla de fondo' },
   fondo: { type: 'string', enum: ['foto', 'liso'], description: 'liso = fondo de color de la marca sin foto' },
+  fuente: { type: 'string', enum: [...FUENTES_IG], description: 'Tipografía del texto (como las de Instagram)' },
+  fondoTexto: { type: 'string', enum: ['sin', 'solido', 'translucido'], description: 'Caja detrás del texto' },
+  colorTexto: { type: 'string', enum: ['blanco', 'negro', 'marca'], description: 'Color de la caja de texto' },
 }
 
 const TOOL_ADD_STORY: Anthropic.Tool = {
@@ -365,8 +368,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   const brandAssets = parseBrandAssets(propia.IG_BRAND_ASSETS)
   // Estilo y uso de las fotos elegidos en el panel; un valor desconocido cae al estilo por defecto.
   const opciones: OpcionesEstilo = {
-    estilo: esEstilo(body.estilo) ? body.estilo : ESTILO_POR_DEFECTO,
-    fotosDeFondo: body.fotosDeFondo === true || project.aspectRatio === '9:16',
+    estilo: estiloValido(body.estilo, project.aspectRatio === '9:16'),
+    // Historias: siempre con las fotos detrás. Carruseles: solo si se pide (o el estilo «Con foto»).
+    fotosDeFondo: body.fotosDeFondo === true || project.aspectRatio === '9:16' || body.estilo === 'foto',
   }
   const system = buildSystemPrompt(
     brand,

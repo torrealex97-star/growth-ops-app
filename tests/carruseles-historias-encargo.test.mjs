@@ -100,7 +100,7 @@ test('la fecha, el logo y la marca los pone la app, no la IA (y la fecha sale de
 
 test('el diálogo y el chat usan el mismo encargo y el chat no lo envía solo', () => {
   const dlg = readFileSync('components/carruseles/CreateProjectDialog.tsx', 'utf8')
-  assert.match(dlg, /esHistorias = kind === 'carousel' && ratio === '9:16'/)
+  assert.match(dlg, /esHistorias = tipo === 'historias'/)
   assert.match(dlg, /sessionStorage\.setItem\(claveEncargo\(project\.id\)/)
   const chat = readFileSync('components/carruseles/ChatPanel.tsx', 'utf8')
   assert.match(chat, /Generar secuencia/)
