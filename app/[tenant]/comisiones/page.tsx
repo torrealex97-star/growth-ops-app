@@ -11,6 +11,7 @@ import { CommissionsTable } from '@/components/commissions/CommissionsTable'
 import { CommissionInvoicePanel } from '@/components/commissions/CommissionInvoicePanel'
 import { CommissionControlCenter } from '@/components/commissions/CommissionControlCenter'
 import { CommissionMonthlyStatement } from '@/components/commissions/CommissionMonthlyStatement'
+import { impagosVencidos } from '@/lib/commissions/mensual'
 import { CollaboratorSalesReview } from '@/components/commissions/CollaboratorSalesReview'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -637,6 +638,8 @@ export default function CommissionsPage() {
         personas={personasResumen}
         selectedMemberId={filterMember}
         esEquipo={canApprove && filterMember === 'all'}
+        personal={!canApprove}
+        impagos={impagosVencidos(filteredFuture)}
         onSelectMember={setMemberFilter}
         onFilterMonth={filtrarPorMes}
         onRetryFuture={fetchFuture}

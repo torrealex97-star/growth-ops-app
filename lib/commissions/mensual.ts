@@ -12,7 +12,8 @@
 //    recurrente: se muestran aparte para que el total cuadre con la tabla de comisiones.
 //  · Mes de una comisión generada = `liquidation_month || created_at` (igual que la liquidación actual).
 //    Mes de una comisión futura = vencimiento de la cuota.
-//  · Las exentas (`pays_commissions=false`, D9) y las canceladas NUNCA suman.
+//  · Las exentas (`pays_commissions=false`, D9) y las canceladas NUNCA suman. Las cuotas VENCIDAS sin cobrar
+//    (impagos) tampoco entran en ningún mes: se devuelven aparte con `impagosVencidos`.
 //  · Una cuota futura es una PREVISIÓN sujeta a cobro (D7): suma al "por cobrar" pero se marca aparte.
 import type { CommissionDashboardRow } from '@/lib/commissions/dashboard'
 import type { FilaFutura } from '@/lib/commissions/future-response'
@@ -168,6 +169,9 @@ export function construirResumenMensual(
 
   for (const f of future) {
     if (f.exento) continue
+    // Cuota VENCIDA sin cobrar = impago: no es dinero que vaya a llegar en ningún mes concreto.
+    // Se cuenta aparte (`impagosVencidos`), igual que hace el dashboard del colaborador.
+    if (f.estado === 'overdue') continue
     const key = String(f.dueDate || '').slice(0, 7)
     if (!/^\d{4}-\d{2}$/.test(key)) continue
     const amount = Number(f.amount || 0)
@@ -192,4 +196,9 @@ export function construirResumenMensual(
     }
   }
   return out
+}
+
+/** Comisión proyectada de cuotas VENCIDAS sin cobrar al cliente: no llega hasta que pague. No suma en ningún mes. */
+export function impagosVencidos(future: FilaFutura[]): number {
+  return future.reduce((acc, f) => (!f.exento && f.estado === 'overdue' ? acc + Number(f.amount || 0) : acc), 0)
 }

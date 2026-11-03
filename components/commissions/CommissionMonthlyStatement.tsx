@@ -36,6 +36,7 @@ function GrupoDetalle({
   acento,
   grupo,
   vacio,
+  plano = false,
 }: {
   titulo: string
   ayuda: string
@@ -43,7 +44,18 @@ function GrupoDetalle({
   acento: string
   grupo: GrupoComision
   vacio: string
+  /** Una sola persona (su propia vista): se listan los clientes directamente, sin nivel de persona. */
+  plano?: boolean
 }) {
+  const clientesPlanos = grupo.personas
+    .flatMap((p) => p.clientes)
+    .reduce<{ saleId: string | null; contact: string; amount: number }[]>((acc, c) => {
+      const previo = acc.find((x) => x.saleId === c.saleId && x.contact === c.contact)
+      if (previo) previo.amount += c.amount
+      else acc.push({ ...c })
+      return acc
+    }, [])
+    .sort((a, b) => b.amount - a.amount || a.contact.localeCompare(b.contact))
   return (
     <div className="min-w-0 rounded-xl border border-border bg-background/40">
       <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
@@ -61,6 +73,23 @@ function GrupoDetalle({
 
       {grupo.personas.length === 0 ? (
         <p className="px-4 py-6 text-center text-sm text-muted-foreground">{vacio}</p>
+      ) : plano ? (
+        <ul className="divide-y divide-border">
+          {clientesPlanos.map((c) => (
+            <li
+              key={`${c.saleId ?? 'sin-venta'}-${c.contact}`}
+              className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm"
+            >
+              <span className="truncate text-foreground">{c.contact}</span>
+              <Importe value={c.amount} className="font-medium text-foreground" />
+            </li>
+          ))}
+          {grupo.prevista > 0 && (
+            <li className="px-4 py-2 text-xs text-amber-400">
+              {formatCurrency(grupo.prevista)} son cuotas que el cliente aún tiene que pagar
+            </li>
+          )}
+        </ul>
       ) : (
         <ul className="divide-y divide-border">
           {grupo.personas.map((p) => (
@@ -121,6 +150,8 @@ export function CommissionMonthlyStatement({
   onSelectMember,
   onFilterMonth,
   onRetryFuture,
+  personal = false,
+  impagos = 0,
 }: {
   /** Comisiones acotadas por persona/tipo/búsqueda — nunca por fecha: aquí el eje es el mes. */
   rows: CommissionDashboardRow[]
@@ -135,9 +166,13 @@ export function CommissionMonthlyStatement({
   /** Vista del equipo completo (admin sin persona elegida): se habla de «por pagar», no de «por cobrar». */
   esEquipo: boolean
   onSelectMember: (id: string) => void
-  /** Filtra el listado de abajo por un mes de liquidación. */
-  onFilterMonth: (month: string) => void
+  /** Filtra el listado de abajo por un mes de liquidación. Si no se pasa, no se muestra el botón. */
+  onFilterMonth?: (month: string) => void
   onRetryFuture: () => void
+  /** Vista de UNA persona sobre sí misma (colaborador): «Mis comisiones», lista plana por cliente. */
+  personal?: boolean
+  /** Comisión proyectada de cuotas vencidas sin cobrar: no suma en ningún mes, se avisa aparte. */
+  impagos?: number
 }) {
   const meses = useMemo(() => construirResumenMensual(rows, future, basis), [rows, future, basis])
   const actual = claveMes()
@@ -175,16 +210,18 @@ export function CommissionMonthlyStatement({
             {m.prevista > 0 && ` · ${formatCurrency(m.prevista)} dependen de que el cliente pague su cuota`}
           </p>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-8 text-xs"
-          onClick={() => onFilterMonth(m.month)}
-        >
-          <Filter className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-          Ver estas comisiones abajo
-        </Button>
+        {onFilterMonth && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs"
+            onClick={() => onFilterMonth(m.month)}
+          >
+            <Filter className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+            Ver estas comisiones abajo
+          </Button>
+        )}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -195,6 +232,7 @@ export function CommissionMonthlyStatement({
           acento="text-emerald-400"
           grupo={m.nuevo}
           vacio="Ninguna venta nueva comisiona este mes."
+          plano={personal}
         />
         <GrupoDetalle
           titulo="Recurrencia"
@@ -203,6 +241,7 @@ export function CommissionMonthlyStatement({
           acento="text-sky-400"
           grupo={m.recurrente}
           vacio="No hay cuotas recurrentes este mes."
+          plano={personal}
         />
       </div>
 
@@ -214,6 +253,7 @@ export function CommissionMonthlyStatement({
           acento="text-red-400"
           grupo={m.ajuste}
           vacio=""
+          plano={personal}
         />
       )}
     </div>
@@ -294,15 +334,28 @@ export function CommissionMonthlyStatement({
         <div>
           <p className="text-xs font-medium uppercase tracking-[0.1em] text-brand-400">Mes a mes</p>
           <h2 id="mensual-heading" className="mt-1 font-display text-xl font-semibold text-foreground">
-            {persona
-              ? `Comisión por cobrar de ${persona.name}`
-              : esEquipo
-                ? 'Comisión por pagar al equipo'
-                : 'Comisión por cobrar'}
+            {personal
+              ? 'Mis comisiones'
+              : persona
+                ? `Comisión por cobrar de ${persona.name}`
+                : esEquipo
+                  ? 'Comisión por pagar al equipo'
+                  : 'Comisión por cobrar'}
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Pulsa un mes para ver de dónde viene: <span className="text-emerald-400">venta nueva</span> (primer cobro de
-            una venta) o <span className="text-sky-400">recurrencia</span> (cuotas posteriores), y quién la genera.
+            {personal ? (
+              <>
+                Una fila por mes. Pulsa un mes para ver qué clientes te la generan:{' '}
+                <span className="text-emerald-400">venta nueva</span> (su primer pago) o{' '}
+                <span className="text-sky-400">recurrencia</span> (sus pagos siguientes).
+              </>
+            ) : (
+              <>
+                Pulsa un mes para ver de dónde viene: <span className="text-emerald-400">venta nueva</span> (primer
+                cobro de una venta) o <span className="text-sky-400">recurrencia</span> (cuotas posteriores), y quién la
+                genera.
+              </>
+            )}
           </p>
         </div>
       </div>
@@ -346,6 +399,16 @@ export function CommissionMonthlyStatement({
           >
             Reintentar
           </button>
+        </div>
+      )}
+
+      {impagos > 0 && !futureError && (
+        <div role="note" className="border-b border-amber-500/30 bg-amber-500/10 px-5 py-2.5 text-sm sm:px-6">
+          <span className="font-medium text-amber-300">{formatCurrency(impagos)} sin cobrar por impago.</span>{' '}
+          <span className="text-muted-foreground">
+            {personal ? 'Son cuotas vencidas que tus clientes' : 'Son cuotas vencidas que los clientes'} todavía no han
+            pagado. No cuentan en ningún mes hasta que paguen.
+          </span>
         </div>
       )}
 

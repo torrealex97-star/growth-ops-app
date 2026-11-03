@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { construirResumenMensual, primerCobroPorVenta, tipoDeComision } from '../lib/commissions/mensual.ts'
+import {
+  construirResumenMensual,
+  impagosVencidos,
+  primerCobroPorVenta,
+  tipoDeComision,
+} from '../lib/commissions/mensual.ts'
 
 // Resumen mes a mes de comisiones: nueva venta vs recurrencia, con personas y clientes.
 // Placeholders neutros (Privacidad): ningún tenant ni persona real.
@@ -139,4 +144,20 @@ test('agrupa por persona y cliente, ordenado por importe, y el mes en curso apar
     ['Cliente 2', 'Cliente 1']
   )
   assert.ok(construirResumenMensual([], [], [], AHORA).some((m) => m.month === '2026-11'))
+})
+
+test('las cuotas vencidas sin cobrar (impagos) no suman en ningún mes y se cuentan aparte', () => {
+  const futuras = [
+    { ...futura({ id: 'i1', fecha: '2026-10-10', amount: 60 }), estado: 'overdue' },
+    { ...futura({ id: 'i2', fecha: '2026-12-10', amount: 40 }), estado: 'pending' },
+    { ...futura({ id: 'i3', fecha: '2026-09-10', amount: 500, exento: true }), estado: 'overdue' },
+  ]
+  const meses = construirResumenMensual([], futuras, [], AHORA)
+  assert.equal(
+    meses.find((m) => m.month === '2026-10'),
+    undefined,
+    'un impago no crea ni infla su mes'
+  )
+  assert.equal(meses.find((m) => m.month === '2026-12').porCobrar, 40)
+  assert.equal(impagosVencidos(futuras), 60, 'las exentas tampoco cuentan como impago')
 })

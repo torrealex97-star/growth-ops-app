@@ -79,7 +79,18 @@ test('el aviso de fuente ilegible se pinta con reintentar (hueco visible, no cer
   for (const pantalla of CONSUMIDORES) {
     const src = leer(pantalla)
     assert.match(src, /(futurasError|errorFuturas|futureError)/, `${pantalla}: no guarda el estado de error de future`)
-    assert.match(src, /\{(futurasError|errorFuturas|futureError)/, `${pantalla}: el error no llega a pintarse`)
-    assert.match(src, /Reintentar/, `${pantalla}: sin salida para quien lo ve`)
+    if (/<CommissionMonthlyStatement/.test(src)) {
+      // El aviso lo pinta el componente compartido: el consumidor DEBE pasarle el error y la salida (reintentar).
+      assert.match(src, /futureError=\{(futurasError|futureError)\}/, `${pantalla}: no le pasa el error al resumen`)
+      assert.match(src, /onRetryFuture=\{/, `${pantalla}: sin salida (reintentar) para quien lo ve`)
+    } else {
+      assert.match(src, /\{(futurasError|errorFuturas|futureError)/, `${pantalla}: el error no llega a pintarse`)
+      assert.match(src, /Reintentar/, `${pantalla}: sin salida para quien lo ve`)
+    }
   }
+  // Y el componente compartido sí lo pinta, como alerta y con «Reintentar» (nunca un 0 en su lugar).
+  const resumen = leer('components/commissions/CommissionMonthlyStatement.tsx')
+  assert.match(resumen, /\{futureError && \(/, 'el resumen no pinta el error de carga')
+  assert.match(resumen, /role="alert"/)
+  assert.match(resumen, /Reintentar/)
 })
