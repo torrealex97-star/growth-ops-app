@@ -5,7 +5,14 @@ import { CalendarDays, ChevronDown, Filter, Repeat2, Sparkles } from 'lucide-rea
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatCurrency } from '@/lib/utils'
-import { claveMes, construirResumenMensual, type GrupoComision, type MesComision } from '@/lib/commissions/mensual'
+import {
+  claveMes,
+  construirResumenMensual,
+  type BaseMes,
+  type GrupoComision,
+  type MesComision,
+} from '@/lib/commissions/mensual'
+import { etapaDeMes, mesDePagoDe, mesVencido, nombreDeMes } from '@/lib/commissions/meses'
 import type { CommissionDashboardRow } from '@/lib/commissions/dashboard'
 import type { FilaFutura } from '@/lib/commissions/future-response'
 import type { ParticipantType } from '@/lib/types/database'
@@ -152,6 +159,10 @@ export function CommissionMonthlyStatement({
   onRetryFuture,
   personal = false,
   impagos = 0,
+  base = 'pago',
+  mesElegido,
+  onMesChange,
+  soloDetalle = false,
 }: {
   /** Comisiones acotadas por persona/tipo/búsqueda — nunca por fecha: aquí el eje es el mes. */
   rows: CommissionDashboardRow[]
@@ -173,8 +184,26 @@ export function CommissionMonthlyStatement({
   personal?: boolean
   /** Comisión proyectada de cuotas vencidas sin cobrar: no suma en ningún mes, se avisa aparte. */
   impagos?: number
+  /**
+   * A qué mes se imputa cada comisión. 'pago' (admin): el mes en que se paga. 'cobro' (colaborador): el mes de la
+   * ACTIVIDAD — lo que sus clientes pagan en octubre es «octubre» y se le paga en noviembre.
+   */
+  base?: BaseMes
+  /** Mes elegido en el selector ÚNICO de arriba. Si se pasa, el resumen está controlado desde fuera. */
+  mesElegido?: string
+  onMesChange?: (ym: string) => void
+  /** Con el mes controlado: solo la tarjeta del mes elegido (el historial y la previsión se pintan aparte). */
+  soloDetalle?: boolean
 }) {
-  const meses = useMemo(() => construirResumenMensual(rows, future, basis), [rows, future, basis])
+  const controlado = mesElegido !== undefined
+  const meses = useMemo(
+    () =>
+      construirResumenMensual(rows, future, basis, new Date(), {
+        base,
+        incluir: controlado ? [mesElegido as string, claveMes(), mesVencido()] : [],
+      }),
+    [rows, future, basis, base, controlado, mesElegido]
+  )
   const actual = claveMes()
   const futuros = meses.filter((m) => m.month >= actual)
   const pasados = meses.filter((m) => m.month < actual).reverse()
@@ -183,7 +212,15 @@ export function CommissionMonthlyStatement({
   // null = por defecto el mes en curso; '' = el usuario cerró el detalle; 'YYYY-MM' = mes elegido.
   const [elegido, setElegido] = useState<string | null>(null)
 
-  const abierto = elegido === null ? actual : elegido
+  const abierto = controlado ? mesElegido : elegido === null ? actual : elegido
+  const porCobro = base === 'cobro'
+  const seleccionado = controlado ? meses.find((m) => m.month === mesElegido) : undefined
+  // Con base «cobro» solo el mes ACTUAL y los anteriores van en la lista; la previsión de próximos meses, plegada.
+  const proximos = meses.filter((m) => m.month > actual)
+  const recientes = meses.filter((m) => m.month <= actual).reverse()
+  const [verProximos, setVerProximos] = useState(false)
+  const [verAntiguos, setVerAntiguos] = useState(false)
+  const LIMITE_RECIENTES = 6
   const persona = personas.find((p) => p.id === selectedMemberId)
   const hayAjustes = meses.some((m) => m.ajuste.amount !== 0)
   // Vista de equipo = lo que HAY QUE PAGAR; vista de una persona = lo que ELLA tiene por cobrar.
@@ -200,6 +237,12 @@ export function CommissionMonthlyStatement({
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
             <CalendarDays className="h-4 w-4" aria-hidden="true" />
             <span>{nombreMes(m.month)}</span>
+            {porCobro && etapaDeMes(m.month) === 'vencido' && (
+              <span className="rounded-full bg-brand-500/20 px-2 py-0.5 text-xs text-brand-300">Mes vencido</span>
+            )}
+            {porCobro && etapaDeMes(m.month) === 'actual' && (
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">Mes actual</span>
+            )}
           </p>
           <p className="mt-1 font-display text-3xl font-semibold tabular-nums text-foreground">
             {formatCurrency(m.porCobrar)}
@@ -209,6 +252,13 @@ export function CommissionMonthlyStatement({
             Total {formatCurrency(m.total)} · ya pagado {formatCurrency(m.pagado)}
             {m.prevista > 0 && ` · ${formatCurrency(m.prevista)} dependen de que el cliente pague su cuota`}
           </p>
+          {porCobro && (
+            <p className="mt-1 text-xs text-brand-300">
+              Se paga en {nombreDeMes(mesDePagoDe(m.month))}
+              {etapaDeMes(m.month) === 'actual' &&
+                ': aún se está generando, lo que tus clientes paguen hasta fin de mes'}
+            </p>
+          )}
         </div>
         {onFilterMonth && (
           <Button
@@ -267,8 +317,9 @@ export function CommissionMonthlyStatement({
       <li key={m.month}>
         <button
           type="button"
-          onClick={() => setElegido(activa ? '' : m.month)}
-          aria-expanded={activa}
+          onClick={() => (controlado ? onMesChange?.(m.month) : setElegido(activa ? '' : m.month))}
+          aria-expanded={controlado ? undefined : activa}
+          aria-current={controlado && activa ? 'true' : undefined}
           className={`grid w-full grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 border-l-2 px-4 py-3 text-left transition-colors sm:grid-cols-[minmax(190px,1.6fr)_repeat(4,minmax(90px,1fr))] ${
             activa ? 'border-l-brand-500 bg-brand-500/10' : 'border-l-transparent hover:bg-muted/40'
           }`}
@@ -280,7 +331,14 @@ export function CommissionMonthlyStatement({
             />
             <span className="whitespace-nowrap text-sm font-medium text-foreground">{nombreMes(m.month)}</span>
             {esActual && (
-              <span className="shrink-0 rounded-full bg-brand-500/20 px-2 py-0.5 text-xs text-brand-300">Este mes</span>
+              <span className="shrink-0 rounded-full bg-brand-500/20 px-2 py-0.5 text-xs text-brand-300">
+                {porCobro ? 'Mes actual' : 'Este mes'}
+              </span>
+            )}
+            {porCobro && etapaDeMes(m.month) === 'vencido' && (
+              <span className="shrink-0 rounded-full bg-brand-500/20 px-2 py-0.5 text-xs text-brand-300">
+                Mes vencido
+              </span>
             )}
             {esFuturo && m.prevista > 0 && (
               <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs text-amber-400">Prevista</span>
@@ -313,14 +371,14 @@ export function CommissionMonthlyStatement({
             <Importe value={m.pagado} />
           </span>
         </button>
-        {activa && detalle(m)}
+        {!controlado && activa && detalle(m)}
       </li>
     )
   }
 
   const cabecera = (
     <div className="hidden grid-cols-[minmax(190px,1.6fr)_repeat(4,minmax(90px,1fr))] gap-x-4 border-b border-border bg-muted/20 px-4 py-2 text-xs font-medium text-muted-foreground sm:grid">
-      <span>Mes de pago</span>
+      <span>{porCobro ? 'Mes' : 'Mes de pago'}</span>
       <span className="text-right">Venta nueva</span>
       <span className="text-right">Recurrencia</span>
       <span className="text-right">Ya pagado</span>
@@ -343,7 +401,14 @@ export function CommissionMonthlyStatement({
                   : 'Comisión por cobrar'}
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            {personal ? (
+            {personal && porCobro ? (
+              <>
+                Elige el mes arriba. <span className="text-brand-300">Mes vencido</span> = lo que ya generaste y tienes{' '}
+                <strong className="font-medium text-foreground">por cobrar</strong>: lo que tus clientes pagan en un mes
+                lo cobras el siguiente. Verás de dónde viene: <span className="text-emerald-400">venta nueva</span> (su
+                primer pago) o <span className="text-sky-400">recurrencia</span> (sus pagos siguientes).
+              </>
+            ) : personal ? (
               <>
                 Una fila por mes. Pulsa un mes para ver qué clientes te la generan:{' '}
                 <span className="text-emerald-400">venta nueva</span> (su primer pago) o{' '}
@@ -419,6 +484,46 @@ export function CommissionMonthlyStatement({
           <Skeleton className="h-10" />
           <Skeleton className="h-10" />
         </div>
+      ) : controlado && seleccionado && soloDetalle ? (
+        detalle(seleccionado)
+      ) : controlado && seleccionado ? (
+        <>
+          {detalle(seleccionado)}
+          <div className="border-t border-border">
+            <p className="px-5 pb-1 pt-4 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground sm:px-6">
+              Mes a mes
+            </p>
+            {cabecera}
+            <ul className="divide-y divide-border">
+              {(verAntiguos ? recientes : recientes.slice(0, LIMITE_RECIENTES)).map(fila)}
+            </ul>
+            {recientes.length > LIMITE_RECIENTES && (
+              <button
+                type="button"
+                onClick={() => setVerAntiguos((v) => !v)}
+                className="flex w-full items-center justify-center gap-1.5 border-t border-border px-4 py-2.5 text-xs text-muted-foreground hover:text-foreground"
+                aria-expanded={verAntiguos}
+              >
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${verAntiguos ? 'rotate-180' : ''}`} />
+                {verAntiguos ? 'Ver menos' : `Ver meses anteriores (${recientes.length - LIMITE_RECIENTES})`}
+              </button>
+            )}
+            {proximos.length > 0 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setVerProximos((v) => !v)}
+                  className="flex w-full items-center justify-center gap-1.5 border-t border-border px-4 py-2.5 text-xs text-muted-foreground hover:text-foreground"
+                  aria-expanded={verProximos}
+                >
+                  <ChevronDown className={`h-3.5 w-3.5 transition-transform ${verProximos ? 'rotate-180' : ''}`} />
+                  {verProximos ? 'Ocultar previsión' : `Previsión de próximos meses (${proximos.length})`}
+                </button>
+                {verProximos && <ul className="divide-y divide-border border-t border-border">{proximos.map(fila)}</ul>}
+              </>
+            )}
+          </div>
+        </>
       ) : (
         <>
           {cabecera}
