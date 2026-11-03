@@ -28,7 +28,7 @@ export function GraficoMeses({
   const datos = serie.map((s) => ({ ...s, etiqueta: mayus(nombreDeMes(s.month)).slice(0, 3) }))
   const total = serie.reduce((a, s) => a + s.nuevo + s.recurrente, 0)
   return (
-    <section className="dashboard-card" aria-labelledby="grafico-meses">
+    <section className="dashboard-card p-5" aria-labelledby="grafico-meses">
       <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
         <div>
           <h2 id="grafico-meses" className="font-display text-base font-semibold text-foreground">
@@ -67,7 +67,7 @@ export function GraficoMeses({
                 tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
               />
               <YAxis
-                width={44}
+                width={60}
                 tickLine={false}
                 axisLine={false}
                 tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
@@ -85,6 +85,7 @@ export function GraficoMeses({
                 formatter={(v, n) => [eur(Number(v)), n === 'nuevo' ? 'Venta nueva' : 'Recurrencia']}
               />
               <Bar
+                isAnimationActive={false}
                 dataKey="nuevo"
                 stackId="m"
                 fill="hsl(var(--brand-500))"
@@ -96,6 +97,7 @@ export function GraficoMeses({
                 }}
               />
               <Bar
+                isAnimationActive={false}
                 dataKey="recurrente"
                 stackId="m"
                 fill="hsl(var(--brand-500) / 0.35)"
@@ -262,7 +264,7 @@ export function PrevisionPanel({
 }) {
   const max = Math.max(1, ...filas.map((f) => f.importe))
   return (
-    <section className="dashboard-card" aria-labelledby="prevision">
+    <section className="dashboard-card p-5" aria-labelledby="prevision">
       <h2 id="prevision" className="font-display text-base font-semibold text-foreground">
         Previsión
       </h2>
@@ -316,7 +318,7 @@ export type ImpagoVista = {
 export function ClientesConImpago({ filas, cargando }: { filas: ImpagoVista[]; cargando: boolean }) {
   if (!cargando && filas.length === 0) return null
   return (
-    <section className="dashboard-card border-amber-500/30" aria-labelledby="impagos">
+    <section className="dashboard-card border-amber-500/30 p-5" aria-labelledby="impagos">
       <h2 id="impagos" className="flex items-center gap-2 font-display text-base font-semibold text-foreground">
         <AlertTriangle className="h-4 w-4 text-amber-400" aria-hidden /> Clientes con pagos pendientes
       </h2>
@@ -361,7 +363,7 @@ export function EmbudoAgendas({ embudo, mes, cargando }: { embudo: EmbudoMes; me
   ]
   const max = Math.max(1, embudo.agendas)
   return (
-    <section className="dashboard-card" aria-labelledby="embudo-heading" aria-busy={cargando}>
+    <section className="dashboard-card p-5" aria-labelledby="embudo-heading" aria-busy={cargando}>
       <h2 id="embudo-heading" className="font-display text-base font-semibold text-foreground">
         Mi embudo · {mayus(etiquetaMesLarga(mes))}
       </h2>
