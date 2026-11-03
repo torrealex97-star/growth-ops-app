@@ -31,13 +31,13 @@ test('sin asistencias no se inventa una tasa de cierre', () => {
   assert.equal(embudoSimple([{ id: 'a', full_name: null }], [], []).cierre, null)
 })
 
-test('las colaboradoras acceden a tareas, embudo y registro, y a nada más de Ventas', () => {
+test('las colaboradoras acceden a dashboard, tareas, CRM y Ventas (cada pantalla filtra por lo atribuido), sin analítica ni comisiones', () => {
   const p = readFileSync('lib/auth/permissions.ts', 'utf8')
   const base = p.indexOf('const ROLE_ALLOWED_PREFIXES')
   const ini = p.indexOf('affiliate: [', base)
   const bloque = p.slice(ini, p.indexOf('gestoria: [', ini))
-  for (const ruta of ["'/tasks'", "'/analitica/embudo'", "'/ventas/registro'"]) assert.ok(bloque.includes(ruta), ruta)
-  assert.ok(!bloque.includes("'/crm'") && !bloque.includes("'/analitica'"))
+  for (const ruta of ["'/dashboard'", "'/tasks'", "'/crm'", "'/ventas'"]) assert.ok(bloque.includes(ruta), ruta)
+  assert.ok(!bloque.includes("'/analitica") && !bloque.includes("'/comisiones'"))
 })
 
 test('una colaboradora solo crea tareas para sí misma', () => {

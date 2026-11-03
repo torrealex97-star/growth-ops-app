@@ -31,6 +31,7 @@ import { getQualificationEntries, type Qualification } from '@/lib/appointments/
 import { appointmentLeadScore } from '@/lib/appointments/lead-score'
 import type { LeadScore } from '@/lib/metrics/cualificacion'
 import { useSesion, useTenant, useTenantId } from '@/lib/tenant-context'
+import { resolverScopeColaborador, contactIdsDeScope } from '@/lib/collaborators/scope'
 import { SearchBox, normalizeText, phoneMatches } from '@/components/ui/search-box'
 import { DateRangeCalendarPopover } from '@/components/ui/calendar-popover'
 import { getCustomDateRange, inPeriod } from '@/lib/filters/period'
@@ -176,8 +177,27 @@ export default function SeguimientoPage() {
       else if (role === 'setter') query = query.eq('setter_id', userId)
     }
 
+    // COLABORADORA: solo los seguimientos/pipeline de los contactos atribuidos a ella (fail-closed, por lotes).
+    const scopeColab = userId ? await resolverScopeColaborador(supabase, userId, tenantId) : null
+    const contactIds = scopeColab ? await contactIdsDeScope(supabase, tenantId, scopeColab) : null
+    const leerCitas = async () => {
+      if (!contactIds) return query
+      const filas: unknown[] = []
+      for (let i = 0; i < contactIds.length; i += 60) {
+        const { data, error } = await query.in('contact_id', contactIds.slice(i, i + 60))
+        if (error) return { data: null, error }
+        filas.push(...(data ?? []))
+      }
+      filas.sort((x, y) =>
+        String((y as { appointment_datetime?: string }).appointment_datetime ?? '').localeCompare(
+          String((x as { appointment_datetime?: string }).appointment_datetime ?? '')
+        )
+      )
+      return { data: filas, error: null }
+    }
+
     const [appRes, usersRes] = await Promise.all([
-      query,
+      leerCitas(),
       supabase.from('users').select('id, full_name, roles(key)').eq('is_active', true),
     ])
 

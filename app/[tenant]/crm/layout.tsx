@@ -1,7 +1,10 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { useTenant } from '@/lib/tenant-context'
+import { createClient } from '@/lib/supabase/client'
+import { resolverScopeColaborador } from '@/lib/collaborators/scope'
+import { useSesion, useTenant, useTenantId } from '@/lib/tenant-context'
 import { RouteTabs, type RouteTab } from '@/components/os/RouteTabs'
 
 const TABS: RouteTab[] = [
@@ -17,7 +20,24 @@ export default function CrmLayout({ children }: { children: React.ReactNode }) {
   const tenant = useTenant()
   const pathname = usePathname()
   const relPathname = pathname.replace(new RegExp(`^/${tenant}`), '') || '/'
-  const tabs = TABS.map((t) => ({ ...t, href: `/${tenant}${t.href}` }))
+  const tenantId = useTenantId()
+  const sesion = useSesion()
+  // La colaboradora trabaja solo con lo atribuido a ella: la cola de llamadas sin atribuir es de dirección.
+  const [esColab, setEsColab] = useState(false)
+  useEffect(() => {
+    if (!sesion) return
+    let vivo = true
+    resolverScopeColaborador(createClient(), sesion.userId, tenantId).then((sc) => {
+      if (vivo) setEsColab(sc.tipo === 'collaborator')
+    })
+    return () => {
+      vivo = false
+    }
+  }, [sesion, tenantId])
+  const tabs = TABS.filter((t) => !(esColab && t.href === '/crm/fathom-revision')).map((t) => ({
+    ...t,
+    href: `/${tenant}${t.href}`,
+  }))
 
   return (
     <div className="p-6 space-y-6">

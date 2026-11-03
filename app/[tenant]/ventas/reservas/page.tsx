@@ -3,6 +3,7 @@
 import { Skeleton } from '@/components/ui/skeleton'
 
 import { useEffect, useMemo, useState } from 'react'
+import { resolverScopeColaborador, contactIdsDeScope } from '@/lib/collaborators/scope'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -149,29 +150,52 @@ export default function ReservasPage() {
       const cols =
         'id, contact_id, product_id, payment_plan_id, gross_amount, sale_date, reservation_amount, reservation_completed_at, closer_id, setter_id, contacts(full_name,email), products(id,name), payment_plans(method,name)'
 
-      let openQuery = supabase
-        .from('sales')
-        .select(cols.replace('payment_plans(', 'payment_plans!inner('))
-        .eq('tenant_id', tenantId)
-        .eq('payment_plans.method', 'reserva')
-        .in('status', ['active', 'partial_refund'])
-        .is('reservation_completed_at', null)
-        .order('sale_date', { ascending: false })
-      let completedQuery = supabase
-        .from('sales')
-        .select(cols)
-        .eq('tenant_id', tenantId)
-        .not('reservation_completed_at', 'is', null)
-        .order('reservation_completed_at', { ascending: false })
+      // COLABORADORA: ve SOLO las reservas de los contactos atribuidos a ella (no es closer ni setter de nadie, así que
+      // el filtro por closer/setter la dejaba sin nada). Fail-closed: sin contactos, ninguna reserva.
+      const scopeColab = await resolverScopeColaborador(supabase, myId, tenantId)
+      const contactIds = await contactIdsDeScope(supabase, tenantId, scopeColab)
 
-      if (!canViewAll && myId) {
-        openQuery = openQuery.or(`closer_id.eq.${myId},setter_id.eq.${myId}`)
-        completedQuery = completedQuery.or(`closer_id.eq.${myId},setter_id.eq.${myId}`)
+      const abiertas = (lote?: string[]) => {
+        let q = supabase
+          .from('sales')
+          .select(cols.replace('payment_plans(', 'payment_plans!inner('))
+          .eq('tenant_id', tenantId)
+          .eq('payment_plans.method', 'reserva')
+          .in('status', ['active', 'partial_refund'])
+          .is('reservation_completed_at', null)
+          .order('sale_date', { ascending: false })
+        if (lote) q = q.in('contact_id', lote)
+        else if (!canViewAll && myId) q = q.or(`closer_id.eq.${myId},setter_id.eq.${myId}`)
+        return q
+      }
+      const completadas = (lote?: string[]) => {
+        let q = supabase
+          .from('sales')
+          .select(cols)
+          .eq('tenant_id', tenantId)
+          .not('reservation_completed_at', 'is', null)
+          .order('reservation_completed_at', { ascending: false })
+        if (lote) q = q.in('contact_id', lote)
+        else if (!canViewAll && myId) q = q.or(`closer_id.eq.${myId},setter_id.eq.${myId}`)
+        return q
+      }
+      // `.in()` con muchos UUID revienta el límite de URL: por lotes y fusionado.
+      const porLotes = async (
+        consulta: (lote?: string[]) => PromiseLike<{ data: unknown[] | null; error: unknown }>
+      ) => {
+        if (!contactIds) return consulta()
+        const filas: unknown[] = []
+        for (let i = 0; i < contactIds.length; i += 60) {
+          const { data, error } = await consulta(contactIds.slice(i, i + 60))
+          if (error) return { data: null, error }
+          filas.push(...(data ?? []))
+        }
+        return { data: filas, error: null }
       }
 
       const [openRes, completedRes, productsRes] = await Promise.all([
-        openQuery,
-        completedQuery,
+        porLotes(abiertas),
+        porLotes(completadas),
         supabase.from('products').select('id, name').eq('tenant_id', tenantId).eq('is_active', true).order('name'),
       ])
 

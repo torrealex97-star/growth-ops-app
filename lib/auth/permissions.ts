@@ -244,14 +244,14 @@ const ROLE_ALLOWED_PREFIXES: Partial<Record<AppRole, string[]>> = {
   triager: ['/crm', '/analitica', '/tasks', '/recursos/testimonios'],
   cold_caller: ['/crm', '/analitica', '/tasks', '/recursos/enlaces', '/recursos/biblioteca', '/recursos/testimonios'],
   affiliate: [
-    '/dashboard',
+    '/dashboard', // comisiones, facturas, previsión y embudo del mes viven aquí
     '/marketing/afiliados',
-    '/comisiones',
     '/recursos/enlaces',
-    // Vista sencilla de colaboradora: sus tareas, su embudo (agendaron/asistieron/cerraron) y sus pagos.
     '/tasks',
-    '/analitica/embudo',
-    '/ventas/registro',
+    // SOLO lo atribuido a ella: cada pantalla filtra por contactIdsDeScope (contactos, agendas, seguimiento,
+    // registro, pagos y reservas). Sin /analitica ni /comisiones: el dashboard ya lo resume.
+    '/crm',
+    '/ventas',
   ],
   // gestoria antes veía el prefijo completo '/finanzas' (dashboard) + '/facturas' + '/gestoria' +
   // '/pnl' sueltos — ninguno de esos daba acceso a Gastos/Cobros/Devoluciones/Morosidad, así que al

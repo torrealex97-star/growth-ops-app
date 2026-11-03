@@ -6,6 +6,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { SelectorMes } from '@/components/collaborators/SelectorMes'
+import { useMesColaborador } from '@/components/collaborators/useMesColaborador'
+import { limitesDeMes } from '@/lib/commissions/meses'
 import { resolverScopeColaborador, contactIdsDeScope } from '@/lib/collaborators/scope'
 import { PaymentInbox } from '@/components/sales/PaymentInbox'
 import { SalesTable } from '@/components/sales/SalesTable'
@@ -230,10 +233,15 @@ export default function SalesPage() {
     setSales((prev) => prev.filter((s) => s.id !== saleId))
   }, [])
 
-  const periodRange = useMemo(
-    () => getPeriodRange(periodPreset, customFrom, customTo),
-    [periodPreset, customFrom, customTo]
-  )
+  // COLABORADORA: el mismo selector único de mes que su Dashboard (por defecto el mes vencido), no el de «Este mes».
+  const [mesColab, setMesColab] = useMesColaborador(tenant)
+  const periodRange = useMemo(() => {
+    if (esColab) {
+      const { from, to } = limitesDeMes(mesColab)
+      return getPeriodRange('custom', from, to)
+    }
+    return getPeriodRange(periodPreset, customFrom, customTo)
+  }, [esColab, mesColab, periodPreset, customFrom, customTo])
   const directDateRange = useMemo(() => getCustomDateRange(dateFrom, dateTo), [dateFrom, dateTo])
 
   const filteredSales = useMemo(() => {
@@ -363,38 +371,44 @@ export default function SalesPage() {
       <div className="flex flex-wrap gap-3 items-center">
         <SearchBox value={search} onChange={setSearch} placeholder="Buscar por nombre, email o teléfono..." />
 
-        <Select value={periodPreset} onValueChange={(v) => setPeriodPreset(v as PeriodPreset)}>
-          <SelectTrigger className="w-44 bg-card border-border">
-            <SelectValue placeholder="Periodo" />
-          </SelectTrigger>
-          <SelectContent className="bg-card border-border">
-            {PERIOD_PRESETS_STANDARD.map((p) => (
-              <SelectItem key={p} value={p}>
-                {PERIOD_LABELS[p]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {esColab ? (
+          <SelectorMes value={mesColab} onChange={setMesColab} />
+        ) : (
+          <>
+            <Select value={periodPreset} onValueChange={(v) => setPeriodPreset(v as PeriodPreset)}>
+              <SelectTrigger className="w-44 bg-card border-border">
+                <SelectValue placeholder="Periodo" />
+              </SelectTrigger>
+              <SelectContent className="bg-card border-border">
+                {PERIOD_PRESETS_STANDARD.map((p) => (
+                  <SelectItem key={p} value={p}>
+                    {PERIOD_LABELS[p]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-        {periodPreset === 'custom' && (
-          <DateRangeCalendarPopover
-            from={customFrom}
-            to={customTo}
-            onFromChange={setCustomFrom}
-            onToChange={setCustomTo}
-            className="w-full sm:w-72"
-          />
-        )}
+            {periodPreset === 'custom' && (
+              <DateRangeCalendarPopover
+                from={customFrom}
+                to={customTo}
+                onFromChange={setCustomFrom}
+                onToChange={setCustomTo}
+                className="w-full sm:w-72"
+              />
+            )}
 
-        {periodPreset !== 'all' && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-9 text-xs text-muted-foreground hover:text-foreground"
-            onClick={clearPeriod}
-          >
-            Limpiar periodo
-          </Button>
+            {periodPreset !== 'all' && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 text-xs text-muted-foreground hover:text-foreground"
+                onClick={clearPeriod}
+              >
+                Limpiar periodo
+              </Button>
+            )}
+          </>
         )}
 
         <Select value={statusFilter} onValueChange={setStatusFilter}>
