@@ -295,7 +295,15 @@ export function CommissionMonthlyStatement({
         />
       </div>
 
-      {hayAjustes && m.ajuste.amount !== 0 && (
+      {/* Vista de la colaboradora: sin desglose por cliente de ajustes de céntimos (no se entiende y no puede actuar
+          sobre ellos). Una sola línea, con el importe que ya está dentro del total del mes. */}
+      {personal && hayAjustes && m.ajuste.amount !== 0 && (
+        <div className="flex items-center justify-between gap-3 border-t border-border px-5 py-3 text-xs text-muted-foreground sm:px-6">
+          <span>Correcciones de cobros anteriores (ya incluidas en el total)</span>
+          <Importe value={m.ajuste.amount} className="text-sm text-foreground" />
+        </div>
+      )}
+      {!personal && hayAjustes && m.ajuste.amount !== 0 && (
         <GrupoDetalle
           titulo="Ajustes y devoluciones"
           ayuda="Restan del total. No son venta nueva ni recurrencia."
