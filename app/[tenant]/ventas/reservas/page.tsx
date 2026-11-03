@@ -181,7 +181,8 @@ export default function ReservasPage() {
       }
       // `.in()` con muchos UUID revienta el límite de URL: por lotes y fusionado.
       const porLotes = async (
-        consulta: (lote?: string[]) => PromiseLike<{ data: unknown[] | null; error: unknown }>
+        consulta: (lote?: string[]) => PromiseLike<{ data: unknown[] | null; error: unknown }>,
+        ordenarPor: string
       ) => {
         if (!contactIds) return consulta()
         const filas: unknown[] = []
@@ -190,12 +191,15 @@ export default function ReservasPage() {
           if (error) return { data: null, error }
           filas.push(...(data ?? []))
         }
+        // Cada lote viene ordenado por separado: se recompone el orden global (más reciente primero).
+        const clave = (f: unknown) => String((f as Record<string, unknown>)[ordenarPor] ?? '')
+        filas.sort((x, y) => clave(y).localeCompare(clave(x)))
         return { data: filas, error: null }
       }
 
       const [openRes, completedRes, productsRes] = await Promise.all([
-        porLotes(abiertas),
-        porLotes(completadas),
+        porLotes(abiertas, 'sale_date'),
+        porLotes(completadas, 'reservation_completed_at'),
         supabase.from('products').select('id, name').eq('tenant_id', tenantId).eq('is_active', true).order('name'),
       ])
 

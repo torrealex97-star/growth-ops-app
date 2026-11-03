@@ -26,14 +26,6 @@ export const maxDuration = 30
 const LOTE = 25
 const MAX_IDS = 60
 
-type Cuota = {
-  id: string
-  sale_id: string
-  due_date: string | null
-  expected_gross_amount: number | string
-  status: string
-}
-
 async function enLotes<T>(ids: string[], leer: (lote: string[]) => PromiseLike<{ data: T[] | null; error: unknown }>) {
   const out: T[] = []
   for (let i = 0; i < ids.length; i += LOTE) {
@@ -75,14 +67,27 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     const t = await requireTenant(tenant)
     if ('error' in t) return t.error
 
-    const body = (await req.json().catch(() => null)) as { installmentIds?: unknown } | null
-    const ids = Array.isArray(body?.installmentIds)
-      ? [...new Set(body.installmentIds.filter((x): x is string => typeof x === 'string' && x.length < 64))].slice(
-          0,
-          MAX_IDS
-        )
-      : []
-    if (ids.length === 0) return NextResponse.json({ ok: true, estados: {} })
+    // El cliente manda las cuotas vencidas que ve (id, venta, vencimiento, importe base). Nada de lo que manda se
+    // da por bueno salvo el id de venta, que se vuelve a comprobar contra SU atribución: el resto solo sirve para
+    // casar pagos de ESE cliente, así que manipularlo no revela nada ajeno. (Parte de las cuotas llevan un id
+    // sintético `venta#n`, por eso no se consulta la tabla de cuotas por id.)
+    const body = (await req.json().catch(() => null)) as { cuotas?: unknown } | null
+    const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    const pedidas = (Array.isArray(body?.cuotas) ? body.cuotas : [])
+      .map((c) => c as { id?: unknown; saleId?: unknown; vencimiento?: unknown; importe?: unknown })
+      .filter(
+        (c): c is { id: string; saleId: string; vencimiento: string; importe: number } =>
+          typeof c.id === 'string' &&
+          c.id.length < 80 &&
+          typeof c.saleId === 'string' &&
+          UUID.test(c.saleId) &&
+          typeof c.vencimiento === 'string' &&
+          /^\d{4}-\d{2}-\d{2}/.test(c.vencimiento) &&
+          typeof c.importe === 'number' &&
+          Number.isFinite(c.importe)
+      )
+      .slice(0, MAX_IDS)
+    if (pedidas.length === 0) return NextResponse.json({ ok: true, estados: {} })
 
     const sb: SupabaseClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -93,16 +98,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       return NextResponse.json({ error: 'Solo disponible para colaboradores' }, { status: 403 })
     }
 
-    // 1) Cuotas pedidas → ventas → contacto, y de ahí solo las atribuidas a ESTA colaboradora.
-    const cuotas = await enLotes<Cuota>(ids, (lote) =>
-      sb
-        .from('sale_expected_installments')
-        .select('id, sale_id, due_date, expected_gross_amount, status')
-        .in('id', lote)
-    )
-    const ventas = await enLotes<{ id: string; contact_id: string | null; tenant_id: string }>(
-      [...new Set(cuotas.map((c) => c.sale_id))],
-      (lote) => sb.from('sales').select('id, contact_id, tenant_id').in('id', lote).eq('tenant_id', t.tenantId)
+    // 1) Ventas → contacto, y de ahí solo las atribuidas a ESTA colaboradora.
+    const ventas = await enLotes<{ id: string; contact_id: string | null }>(
+      [...new Set(pedidas.map((c) => c.saleId))],
+      (lote) => sb.from('sales').select('id, contact_id').in('id', lote).eq('tenant_id', t.tenantId)
     )
     const contactoDeVenta = new Map(ventas.map((v) => [v.id, v.contact_id]))
     const contactos = [...new Set(ventas.map((v) => v.contact_id).filter((x): x is string => !!x))]
@@ -118,14 +117,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
         )
       ).map((r) => r.contact_id)
     )
-    const propias = cuotas.filter((c) => {
-      const contacto = contactoDeVenta.get(c.sale_id)
-      return !!contacto && atribuidos.has(contacto) && c.status !== 'collected' && c.status !== 'cancelled'
+    const propias = pedidas.filter((c) => {
+      const contacto = contactoDeVenta.get(c.saleId)
+      return !!contacto && atribuidos.has(contacto)
     })
+
+    // Importe BRUTO real de la cuota cuando existe en BD (el que paga el cliente); el «base comisionable» que manda el
+    // cliente puede diferir (IVA, neto). Las cuotas sintéticas (`venta#n`) se quedan con el importe recibido.
+    const idsReales = propias.map((c) => c.id).filter((id) => UUID.test(id))
+    const brutoDeCuota = new Map(
+      (
+        await enLotes<{ id: string; sale_id: string; expected_gross_amount: number | string }>(idsReales, (lote) =>
+          sb.from('sale_expected_installments').select('id, sale_id, expected_gross_amount').in('id', lote)
+        )
+      ).map((r) => [`${r.id}|${r.sale_id}`, Number(r.expected_gross_amount || 0)])
+    )
 
     // 2) Cliente de Stripe de cada contacto y sus pagos ya espejados.
     const clientes = await enLotes<{ contact_id: string | null; stripe_customer_id: string }>(
-      [...new Set(propias.map((c) => contactoDeVenta.get(c.sale_id)!))],
+      [...new Set(propias.map((c) => contactoDeVenta.get(c.saleId)!))],
       (lote) =>
         sb
           .from('stripe_customers')
@@ -153,15 +163,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
 
     const estados: Record<string, EstadoImpago> = {}
     for (const c of propias) {
-      const cliente = clienteDeContacto.get(contactoDeVenta.get(c.sale_id)!)
-      const importe = Number(c.expected_gross_amount || 0)
-      const vencimiento = String(c.due_date ?? '')
+      const cliente = clienteDeContacto.get(contactoDeVenta.get(c.saleId)!)
+      const importe = brutoDeCuota.get(`${c.id}|${c.saleId}`) || c.importe
+      const vencimiento = c.vencimiento
       const suyos = cliente ? pagos.filter((p) => p.customer_id === cliente) : []
       let fallo: IntentoFallido | null = null
       const yaPagado = clasificarImpago({ vencimiento, importe }, suyos, null).tipo === 'pagado_pendiente_registro'
       if (!yaPagado && cliente && auth) {
         if (!fallos.has(cliente) && fallos.size < 20) fallos.set(cliente, await intentoFallido(cliente, auth))
-        fallo = fallos.get(cliente) ?? null
+        const f = fallos.get(cliente) ?? null
+        // Un rechazo anterior al vencimiento de esta cuota es de otro cobro: no se le atribuye.
+        fallo = f && f.fecha && f.fecha.slice(0, 10) >= vencimiento.slice(0, 10) ? f : null
       }
       estados[c.id] = clasificarImpago({ vencimiento, importe }, suyos, fallo)
     }

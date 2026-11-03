@@ -192,7 +192,8 @@ export default function ColaboradorDashboard({
     () => futuras.filter((f) => f.estado === 'overdue' && !f.exento && f.source === 'installment'),
     [futuras]
   )
-  const clavesVencidas = vencidas.map((f) => f.installmentId).join(',')
+  // Firma estable de lo que se consulta (evita relanzar la consulta a Stripe si las cuotas no cambian).
+  const clavesVencidas = vencidas.map((f) => `${f.installmentId}|${f.saleId}|${f.dueDate}|${f.base}`).join(',')
 
   // Estado en Stripe de cada impago (cobrado sin registrar / rechazado y por qué / sin intento).
   useEffect(() => {
@@ -205,7 +206,14 @@ export default function ColaboradorDashboard({
     fetch(`/api/${tenant}/evergreen/commissions/impagos`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ installmentIds: clavesVencidas.split(',') }),
+      body: JSON.stringify({
+        cuotas: vencidas.map((f) => ({
+          id: f.installmentId,
+          saleId: f.saleId,
+          vencimiento: f.dueDate,
+          importe: f.base,
+        })),
+      }),
       signal: ac.signal,
     })
       .then((r) => r.json())
