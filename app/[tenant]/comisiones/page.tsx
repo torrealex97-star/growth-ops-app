@@ -11,7 +11,7 @@ import { CommissionsTable } from '@/components/commissions/CommissionsTable'
 import { CommissionInvoicePanel } from '@/components/commissions/CommissionInvoicePanel'
 import { CommissionControlCenter } from '@/components/commissions/CommissionControlCenter'
 import { CommissionMonthlyStatement } from '@/components/commissions/CommissionMonthlyStatement'
-import { impagosVencidos } from '@/lib/commissions/mensual'
+import { construirResumenMensual, impagosVencidos } from '@/lib/commissions/mensual'
 import { CollaboratorSalesReview } from '@/components/commissions/CollaboratorSalesReview'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -445,6 +445,17 @@ export default function CommissionsPage() {
     return [...byId.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
   }, [canApprove, commissions, future])
 
+  // Importe sugerido para la factura de cada mes (solo quien no administra sube la suya): lo ya generado, sin previsión.
+  const sugerenciasFactura = useMemo(() => {
+    const out: Record<string, number> = {}
+    if (canApprove) return out
+    for (const m of construirResumenMensual(commissions, future, commissions)) {
+      const generado = Math.round((m.total - m.prevista) * 100) / 100
+      if (generado > 0) out[m.month] = generado
+    }
+    return out
+  }, [canApprove, commissions, future])
+
   const filtrarPorMes = (month: string) => {
     setFilterMonth(month)
     setPeriodPreset('all')
@@ -857,6 +868,7 @@ export default function CommissionsPage() {
           currentUserRole={currentUserRole}
           members={members}
           focusUserId={canApprove && filterMember !== 'all' ? filterMember : undefined}
+          sugerencias={sugerenciasFactura}
         />
       )}
 

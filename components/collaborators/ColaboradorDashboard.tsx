@@ -30,7 +30,8 @@ import { KPICard } from '@/components/os/DashboardKPICard'
 import { contactIdsDeScope, type ScopeColaborador } from '@/lib/collaborators/scope'
 import { interpretarRespuestaFuturas, type FilaFutura } from '@/lib/commissions/future-response'
 import { CommissionMonthlyStatement } from '@/components/commissions/CommissionMonthlyStatement'
-import { impagosVencidos } from '@/lib/commissions/mensual'
+import { CommissionInvoicePanel } from '@/components/commissions/CommissionInvoicePanel'
+import { construirResumenMensual, impagosVencidos } from '@/lib/commissions/mensual'
 import type { CommissionDashboardRow } from '@/lib/commissions/dashboard'
 import { useTenant, useTenantId, type SesionTenant } from '@/lib/tenant-context'
 import { Users, CalendarCheck, PhoneCall, Trophy } from 'lucide-react'
@@ -227,6 +228,17 @@ export default function ColaboradorDashboard({
   // Comisión de cuotas VENCIDAS sin cobrar al cliente (impagos): no llega hasta que paguen y NO suma en ningún mes.
   const impagos = useMemo(() => impagosVencidos(futuras), [futuras])
 
+  // Importe sugerido para su factura de cada mes: lo ya generado de comisión (sin la previsión, que aún depende
+  // de que el cliente pague). Evita que lo teclee a mano y se equivoque.
+  const sugerenciasFactura = useMemo(() => {
+    const out: Record<string, number> = {}
+    for (const m of construirResumenMensual(comisiones, futuras, comisiones)) {
+      const generado = Math.round((m.total - m.prevista) * 100) / 100
+      if (generado > 0) out[m.month] = generado
+    }
+    return out
+  }, [comisiones, futuras])
+
   // CUALIFICACIÓN (§23): lo que respondieron SUS leads en el formulario de agendar
   // (appointments.qualification, escrito por el webhook de GHL/Calendly), agregado
   // por pregunta — así sabe CÓMO de cualificados llegan, no solo cuántos.
@@ -338,6 +350,14 @@ export default function ColaboradorDashboard({
         esEquipo={false}
         onSelectMember={() => {}}
         onRetryFuture={reintentarFuturas}
+      />
+
+      {/* Su factura del mes: se sube aquí y llega a finanzas (aparece en Gastos). */}
+      <CommissionInvoicePanel
+        currentUserId={sesion.userId}
+        currentUserRole={sesion.rol ?? 'affiliate'}
+        members={[{ id: sesion.userId, full_name: String(sesion.user.full_name ?? '') }]}
+        sugerencias={sugerenciasFactura}
       />
 
       {/* §23-24: embudo del colaborador — contactos → citas → asistencia → venta. Este SÍ se mide por periodo. */}
