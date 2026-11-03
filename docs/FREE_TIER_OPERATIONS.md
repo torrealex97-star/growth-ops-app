@@ -70,20 +70,21 @@ Fuentes: [plan Hobby](https://vercel.com/docs/plans/hobby) y
 
 ## Cambios aplicados y límite que protegen
 
-| Cambio                                                       | Protección                                                                    |
-| ------------------------------------------------------------ | ----------------------------------------------------------------------------- |
-| `fluid: true` y `maxDuration: 60` global para `app/api/**`   | Tope conservador de tiempo y CPU por invocación                               |
-| Declaraciones de 120/300 s reducidas a 60 s                  | Evita que una ruta contradiga el presupuesto global                           |
-| Webhook de Stripe limitado a 10 s                            | Mantiene rápida la ingesta y permite que Stripe reintente fallos transitorios |
-| Anthropic, DeepSeek, Groq, GA4 y YouTube con timeout ≤45 s   | Reserva tiempo para responder limpiamente antes del límite de la Function     |
-| Pruebas de conectividad de Integraciones con timeout de 10 s | Una API caída no bloquea toda la pantalla                                     |
-| Máximo un reintento del SDK de Anthropic                     | Evita retry storms y consumo multiplicado dentro de una invocación            |
-| Caché privada de 60 s para cuentas activas                   | Reduce lecturas/configuración repetidas sin compartir datos autenticados      |
-| Caché pública de 7 días para CSS de fuentes                  | Reduce invocaciones y transferencia de un recurso casi estático               |
-| `git.deploymentEnabled` desactiva Dependabot                 | Evita despliegues automáticos que no se quieren publicar                      |
-| Preview de solo documentación omite el build                 | Ahorra CPU de build; producción nunca se omite                                |
-| `POSTGRES_URL` documentada para Supavisor transaction pooler | Evita agotar conexiones directas desde serverless                             |
-| Presupuesto global de 48 s en el cron Calendly/GHL           | Impide que cada tenant reinicie 20+18 s y exceda la Function de 60 s          |
+| Cambio                                                       | Protección                                                                         |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| `fluid: true` y `maxDuration: 60` global para `app/api/**`   | Tope conservador de tiempo y CPU por invocación                                    |
+| Declaraciones de 120/300 s reducidas a 60 s                  | Evita que una ruta contradiga el presupuesto global                                |
+| Webhook de Stripe limitado a 10 s                            | Mantiene rápida la ingesta y permite que Stripe reintente fallos transitorios      |
+| Anthropic, DeepSeek, Groq, GA4 y YouTube con timeout ≤45 s   | Reserva tiempo para responder limpiamente antes del límite de la Function          |
+| Pruebas de conectividad de Integraciones con timeout de 10 s | Una API caída no bloquea toda la pantalla                                          |
+| Máximo un reintento del SDK de Anthropic                     | Evita retry storms y consumo multiplicado dentro de una invocación                 |
+| Caché privada de 60 s para cuentas activas                   | Reduce lecturas/configuración repetidas sin compartir datos autenticados           |
+| Caché pública de 7 días para CSS de fuentes                  | Reduce invocaciones y transferencia de un recurso casi estático                    |
+| `git.deploymentEnabled` desactiva Dependabot                 | Evita despliegues automáticos que no se quieren publicar                           |
+| Las ramas `claude/**` SÍ generan preview (3-nov)             | Sin ello ninguna sesión podía enseñar su cambio; el gasto lo acota `ignoreCommand` |
+| Preview de solo documentación omite el build                 | Ahorra CPU de build; producción nunca se omite                                     |
+| `POSTGRES_URL` documentada para Supavisor transaction pooler | Evita agotar conexiones directas desde serverless                                  |
+| Presupuesto global de 48 s en el cron Calendly/GHL           | Impide que cada tenant reinicie 20+18 s y exceda la Function de 60 s               |
 
 `ignoreCommand` no evita que una creación de deployment cuente en todos los casos: un build
 cancelado puede seguir contando. Por eso Dependabot se bloquea además en `git.deploymentEnabled`.

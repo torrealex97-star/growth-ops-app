@@ -37,8 +37,11 @@ test('skills de agente y docs cuentan como cambio sin impacto en la app (CI y Ve
   const vercel = readFileSync(join(root, 'vercel.json'), 'utf8')
   assert.match(vercel, /':!\.agents\/\*\*' ':!\.claude\/skills\/\*\*'/)
   const cfg = JSON.parse(vercel)
-  for (const rama of ['dependabot/**', 'docs/**', 'claude/**', 'feat/**', 'fix/**', 'chore/**'])
+  for (const rama of ['dependabot/**', 'docs/**', 'feat/**', 'fix/**', 'chore/**'])
     assert.equal(cfg.git.deploymentEnabled[rama], false, rama)
+  // `claude/**` SÍ despliega preview (decisión de Alex, 3-nov): sin ello ninguna sesión de Claude podía
+  // enseñar su cambio en Vercel. El gasto lo acota `ignoreCommand` (los cambios solo de docs no construyen).
+  assert.notEqual(cfg.git.deploymentEnabled['claude/**'], false, 'claude/** debe poder generar preview')
 })
 
 test('Vercel compara contra el último despliegue y no solo contra el commit anterior', () => {
