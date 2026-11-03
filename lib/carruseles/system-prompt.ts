@@ -3,6 +3,7 @@ import { DIMENSIONS, MAX_SLIDES } from './types'
 import { seccionHistoriasPrompt } from './historias/categorias'
 import { estiloPorDefecto, seccionEstiloPrompt, type OpcionesEstilo } from './estilos'
 import { tipoDeMedio } from './almacen'
+import { seccionGuiaPrompt } from './ejemplos'
 
 export interface BrandAsset {
   url: string
@@ -25,7 +26,9 @@ export function buildSystemPrompt(
   /** Fecha de hoy (para la etiqueta de fecha de las historias). Se inyecta en los tests. */
   hoy: Date = new Date(),
   /** Estilo elegido en el proyecto y si las fotos subidas van de fondo. Por defecto: nativo; fotos de fondo solo en historias. */
-  opciones?: OpcionesEstilo
+  opciones?: OpcionesEstilo,
+  /** Guía de estilo sacada de los ejemplos del tenant y cuántos de ellos se adjuntan como imagen. */
+  guiaEstilo?: { texto: string; adjuntas: number }
 ): string {
   const dims = DIMENSIONS[project.aspectRatio]
   const isFlyer = project.kind === 'flyer'
@@ -107,7 +110,7 @@ Tras crear todas las slides, ofrece generar el copy (caption + hashtags) con set
         esHistorias,
         brand,
         fotos: project.referenceImages.map((r) => ({ name: r.name, url: r.url })),
-      })}`
+      })}${seccionGuiaPrompt(esHistorias ? 'historias' : 'carrusel', guiaEstilo?.texto, guiaEstilo?.adjuntas ?? 0)}`
 
   const alta = esHistorias ? 'add_story' : 'add_slide'
 

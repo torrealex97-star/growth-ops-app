@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { CreateProjectDialog } from '@/components/carruseles/CreateProjectDialog'
+import { EjemplosDialog } from '@/components/carruseles/EjemplosDialog'
 import { ETIQUETA_TIPO, tipoDeProyecto, type TipoProducto } from '@/lib/carruseles/tipos'
 import { CasoExitoDialog } from '@/components/carruseles/CasoExitoDialog'
 import { BrandDialog } from '@/components/carruseles/BrandDialog'
@@ -22,6 +23,7 @@ export default function CarruselesDashboard() {
   const [templates, setTemplates] = useState<CarruselTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
+  const [ejemplosOpen, setEjemplosOpen] = useState(false)
   const [tipo, setTipo] = useState<TipoProducto>('historias')
   const [casoOpen, setCasoOpen] = useState(false)
   const [brandOpen, setBrandOpen] = useState(false)
@@ -152,6 +154,9 @@ export default function CarruselesDashboard() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setEjemplosOpen(true)} className="gap-1.5">
+            <Sparkles className="h-4 w-4" /> Mis ejemplos
+          </Button>
           <Button variant="outline" onClick={() => setBrandOpen(true)} className="gap-1.5">
             <Palette className="h-4 w-4" /> Marca
           </Button>
@@ -307,6 +312,11 @@ export default function CarruselesDashboard() {
 
       <CreateProjectDialog key={tipo} open={createOpen} onOpenChange={setCreateOpen} tipo={tipo} />
       <CasoExitoDialog open={casoOpen} onOpenChange={setCasoOpen} />
+      <EjemplosDialog
+        open={ejemplosOpen}
+        onOpenChange={setEjemplosOpen}
+        tipoInicial={tipo === 'carrusel' ? 'carrusel' : 'historias'}
+      />
       <BrandDialog open={brandOpen} onOpenChange={setBrandOpen} />
     </div>
   )
