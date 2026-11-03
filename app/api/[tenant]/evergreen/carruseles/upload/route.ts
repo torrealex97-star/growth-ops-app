@@ -5,58 +5,42 @@ import { requireTenant } from '@/lib/auth/requireTenant'
 import { addReferenceImage } from '@/lib/carruseles/store'
 import { limpiarClave } from '@/lib/carruseles/historias/pedidos'
 import { recomponerHistorias } from '@/lib/carruseles/recomponer'
-import { MAX_IMAGEN, MAX_VIDEO, MIME_IMAGEN, MIME_VIDEO, subirAlBucket } from '@/lib/carruseles/almacen'
+import { BUCKET_CARRUSELES, rutaValida } from '@/lib/carruseles/almacen'
 
 export const runtime = 'nodejs'
 
+// POST { projectId, path, name, pedido? } → registra en el proyecto un archivo que el navegador YA subió al almacén
+// (ver /upload-url). Solo se aceptan rutas que el servidor entregó para esta subcuenta.
 export async function POST(req: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
   try {
     const { tenant } = await params
     const t = await requireTenant(tenant)
     if ('error' in t) return t.error
-    const user = await getCarruselUser()
-    if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    if (!(await getCarruselUser())) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-    const form = await req.formData().catch(() => null)
-    if (!form) return NextResponse.json({ error: 'Form inválido' }, { status: 400 })
-    const file = form.get('file')
-    if (!(file instanceof File)) return NextResponse.json({ error: 'file requerido' }, { status: 400 })
-    const esVideo = MIME_VIDEO.includes(file.type)
-    if (!esVideo && !MIME_IMAGEN.includes(file.type))
-      return NextResponse.json(
-        { error: 'Formato no soportado (imágenes PNG/JPG/WEBP o vídeos MP4/WEBM/MOV)' },
-        { status: 400 }
-      )
-    if (file.size > (esVideo ? MAX_VIDEO : MAX_IMAGEN))
-      return NextResponse.json(
-        { error: esVideo ? 'El vídeo pesa más de 50 MB' : 'La imagen pesa más de 15 MB' },
-        { status: 400 }
-      )
+    const body = (await req.json().catch(() => ({}))) as {
+      projectId?: unknown
+      path?: unknown
+      name?: unknown
+      pedido?: unknown
+    }
+    if (typeof body.projectId !== 'string' || !body.projectId || !rutaValida(body.path, tenant, 'referencias'))
+      return NextResponse.json({ error: 'Faltan datos o la ruta no es válida' }, { status: 400 })
 
-    const projectId = (form.get('projectId') as string) || ''
-    const purpose = String(form.get('purpose') || 'reference').replace(/[^a-z-]/g, '') || 'reference'
-
-    const ext = file.name.split('.').pop()?.toLowerCase() || 'png'
-    const key = `${tenant}/${purpose}/${crypto.randomUUID()}.${ext}`
-    const buf = Buffer.from(await file.arrayBuffer())
-
-    const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+    const url = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
       auth: { persistSession: false },
     })
-    const { error, url } = await subirAlBucket(sb, key, buf, file.type)
-    if (error) return NextResponse.json({ error }, { status: 500 })
-
-    if (purpose === 'reference' && projectId) {
-      // Material real que pidió una historia (captura de pago, testimonio…): se etiqueta con su clave y las historias
-      // se recomponen solas con la imagen puesta, sin volver a llamar a la IA.
-      const pedido = limpiarClave(form.get('pedido')) || undefined
-      const image = { id: crypto.randomUUID(), url, name: file.name, addedAt: new Date().toISOString(), pedido }
-      await addReferenceImage(t.tenantId, projectId, image)
-      const recompuestas = pedido ? await recomponerHistorias(t.tenantId, projectId).catch(() => null) : null
-      return NextResponse.json({ ...image, recompuestas: recompuestas?.actualizadas ?? 0 })
-    }
-
-    return NextResponse.json({ url, name: file.name })
+      .storage.from(BUCKET_CARRUSELES)
+      .getPublicUrl(body.path).data.publicUrl
+    // Material real que pidió una historia (captura de pago, testimonio…): se etiqueta con su clave y las historias
+    // se recomponen solas con la imagen puesta, sin volver a llamar a la IA.
+    const pedido = limpiarClave(body.pedido) || undefined
+    const name = typeof body.name === 'string' ? body.name.slice(0, 120) : 'archivo'
+    const image = { id: crypto.randomUUID(), url, name, addedAt: new Date().toISOString(), pedido }
+    if (!(await addReferenceImage(t.tenantId, body.projectId, image)))
+      return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 })
+    const recompuestas = pedido ? await recomponerHistorias(t.tenantId, body.projectId).catch(() => null) : null
+    return NextResponse.json({ ...image, recompuestas: recompuestas?.actualizadas ?? 0 })
   } catch (err) {
     console.error('[api/carruseles/upload POST]', err)
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })

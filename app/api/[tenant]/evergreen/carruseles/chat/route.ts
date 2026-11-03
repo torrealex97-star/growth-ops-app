@@ -397,11 +397,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   // Ejemplos propios del tenant (sus historias/carruseles): guía de estilo + algunos adjuntos como imagen. Los flyers no.
   const tipoEjemplo = project.aspectRatio === '9:16' ? 'historias' : 'carrusel'
   const ejemplosTenant = project.kind === 'flyer' ? null : await leerEjemplos(t.tenantId).catch(() => null)
+  // Las imágenes de ejemplo solo se envían en la primera generación: en cada retoque suman latencia y coste sin aportar.
+  const adjuntarEjemplos = project.slides.length === 0
   const ejemplosAdjuntos = (ejemplosTenant?.ejemplos ?? [])
     .filter((e) => e.tipo === tipoEjemplo)
     .slice(-MAX_EJEMPLOS_ADJUNTOS)
   const guiaEstilo = ejemplosTenant?.guia[tipoEjemplo]
-    ? { texto: ejemplosTenant.guia[tipoEjemplo], adjuntas: ejemplosAdjuntos.length }
+    ? { texto: ejemplosTenant.guia[tipoEjemplo], adjuntas: adjuntarEjemplos ? ejemplosAdjuntos.length : 0 }
     : undefined
   const system = buildSystemPrompt(
     brand,
@@ -455,7 +457,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     if (warning) imageWarnings.push(warning)
   }
 
-  for (const ej of guiaEstilo ? ejemplosAdjuntos : []) {
+  for (const ej of guiaEstilo && adjuntarEjemplos ? ejemplosAdjuntos : []) {
     const { block, warning } = await fetchImageBlock(ej.url, ej.name)
     if (block) userBlocks.push(block)
     if (warning) imageWarnings.push(warning)

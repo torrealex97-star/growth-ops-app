@@ -7,7 +7,7 @@ import {
   planDeSecuencia,
   seccionHistoriasPrompt,
 } from '../lib/carruseles/historias/categorias.ts'
-import { CSS_NATIVO, GUIA_COMPONENTES, ZONA_SEGURA, flechaSvg } from '../lib/carruseles/historias/estilo-nativo.ts'
+import { CSS_NATIVO, ZONA_SEGURA } from '../lib/carruseles/historias/estilo-nativo.ts'
 import { wrapSlideHtml } from '../lib/carruseles/slide-html.ts'
 import { buildSystemPrompt } from '../lib/carruseles/system-prompt.ts'
 
@@ -47,11 +47,9 @@ test('toda categoría tiene arco de 3, 5 y 7 con longitud exacta, empieza en gan
   }
 })
 
-test('cada etapa define foto, velo, zona y componentes que existen en el CSS', () => {
+test('cada etapa define foto, velo y zona, y su velo existe en el CSS', () => {
   for (const [e, s] of Object.entries(ETAPAS)) {
-    assert.ok(s.foto && s.objetivo && s.componentes.length, e)
-    for (const comp of s.componentes)
-      assert.match(CSS_NATIVO, new RegExp(`\\.${comp}\\b`), `${e}: falta .${comp} en el CSS`)
+    assert.ok(s.foto && s.objetivo, e)
     assert.ok([0, 20, 40, 60, 75].includes(s.velo))
     assert.match(CSS_NATIVO, new RegExp(`\\.ig-velo-${s.velo}\\b`))
   }
@@ -68,12 +66,6 @@ test('longitud válida redondea a 3/5/7 y por defecto 5; categoría o longitud i
   assert.equal(longitudValida(12), 7)
   assert.throws(() => planDeSecuencia('inventada', 5), /desconocida/)
   assert.throws(() => planDeSecuencia('opinion_error', 4), /3, 5 o 7/)
-})
-
-test('todas las clases que documenta la guía de componentes están definidas en el CSS', () => {
-  const clases = new Set([...GUIA_COMPONENTES.matchAll(/\b(ig-[a-z-]+)\b/g)].map((m) => m[1]))
-  assert.ok(clases.size > 15)
-  for (const c of clases) assert.match(CSS_NATIVO, new RegExp(`\\.${c}\\b`), `falta .${c}`)
 })
 
 test('el CSS nativo no usa degradados decorativos ni sombras de plantilla en el texto y respeta la zona segura', () => {
@@ -125,12 +117,6 @@ test('la sección de historias prohíbe lo que delata un diseño externo y exige
     assert.match(s, new RegExp(`- ${l}:`))
 })
 
-test('la flecha a mano es un SVG inline con rotación redondeada', () => {
-  const f = flechaSvg(33.6)
-  assert.match(f, /^<svg class="ig-flecha"/)
-  assert.match(f, /rotate\(34deg\)/)
-})
-
 test('la etiqueta de fecha queda por encima de la zona de texto superior (no la tapa el titular)', () => {
   const m = CSS_NATIVO.match(/\.ig-etiqueta-fecha\{[^}]*top:(\d+)px/)
   assert.ok(m, 'la etiqueta de fecha tiene posición superior')
@@ -139,8 +125,4 @@ test('la etiqueta de fecha queda por encima de la zona de texto superior (no la 
     Number(m[1]) + 3 * 26 * 1.1 + 16 <= ZONA_SEGURA.arriba,
     'la etiqueta termina antes de donde empieza el texto'
   )
-})
-
-test('la guía obliga a envolver las cajas de texto en un div para que se ajusten línea a línea', () => {
-  assert.match(GUIA_COMPONENTES, /Envuelve SIEMPRE la caja en su propio <div>/)
 })

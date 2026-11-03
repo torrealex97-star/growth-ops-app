@@ -26,8 +26,6 @@ type EspecEtapa = {
   zona: ZonaTexto
   /** Plantilla de `add_story` que corresponde a esta etapa. */
   layout: Layout
-  /** Componentes del editor nativo que encajan. */
-  componentes: string[]
   /** Qué tiene que lograr esta historia. */
   objetivo: string
 }
@@ -39,7 +37,6 @@ export const ETAPAS: Record<Etapa, EspecEtapa> = {
     velo: 20,
     zona: 'arriba',
     layout: 'portada',
-    componentes: ['ig-etiqueta-fecha', 'ig-titulo', 'ig-marcador'],
     objetivo: 'Frenar el dedo en 1,5 s: una afirmación fuerte o una pregunta incómoda, con una palabra de acento.',
   },
   problema: {
@@ -47,7 +44,6 @@ export const ETAPAS: Record<Etapa, EspecEtapa> = {
     velo: 60,
     zona: 'centro',
     layout: 'texto',
-    componentes: ['ig-caja-negra', 'ig-texto', 'ig-marcador'],
     objetivo: 'Que la audiencia se reconozca: el error o el dolor, dicho como lo dice ella.',
   },
   cambio: {
@@ -55,7 +51,6 @@ export const ETAPAS: Record<Etapa, EspecEtapa> = {
     velo: 75,
     zona: 'centro',
     layout: 'comparacion',
-    componentes: ['ig-chip', 'ig-recuadro', 'ig-titulo'],
     objetivo: 'Mostrar el contraste (antes/ahora, mal/bien) en recuadros comparables, una idea por historia.',
   },
   ejemplo: {
@@ -63,7 +58,6 @@ export const ETAPAS: Record<Etapa, EspecEtapa> = {
     velo: 60,
     zona: 'centro',
     layout: 'foto_texto',
-    componentes: ['ig-captura', 'ig-caja', 'ig-chip'],
     objetivo: 'Hacerlo concreto con algo que se pueda ver: captura, perfil, escena.',
   },
   prueba: {
@@ -71,7 +65,6 @@ export const ETAPAS: Record<Etapa, EspecEtapa> = {
     velo: 75,
     zona: 'centro',
     layout: 'cifra',
-    componentes: ['ig-captura', 'ig-caja-acento', 'ig-texto'],
     objetivo: 'Credibilidad con cifras reales (solo las que dé el negocio): logro y qué se hizo.',
   },
   porque: {
@@ -79,7 +72,6 @@ export const ETAPAS: Record<Etapa, EspecEtapa> = {
     velo: 60,
     zona: 'abajo',
     layout: 'foto_texto',
-    componentes: ['ig-texto', 'ig-marcador', 'ig-caja-negra'],
     objetivo: 'Explicar la causa con una frase simple; sin tecnicismos.',
   },
   objecion: {
@@ -87,7 +79,6 @@ export const ETAPAS: Record<Etapa, EspecEtapa> = {
     velo: 40,
     zona: 'abajo',
     layout: 'foto_texto',
-    componentes: ['ig-caja', 'ig-texto', 'ig-emoji'],
     objetivo: 'Anticipar la duda más habitual y desactivarla con honestidad.',
   },
   cta: {
@@ -95,7 +86,6 @@ export const ETAPAS: Record<Etapa, EspecEtapa> = {
     velo: 0,
     zona: 'abajo',
     layout: 'sticker',
-    componentes: ['ig-caja-acento', 'ig-sticker-escribe', 'ig-marcador'],
     objetivo:
       'Una sola acción de fricción mínima: una palabra clave por mensaje, una pregunta o un sticker. Cierra con un regalo o la siguiente historia.',
   },
@@ -202,7 +192,7 @@ export type PasoSecuencia = EspecEtapa & {
   etapa: Etapa
 }
 
-/** Plan paso a paso de una secuencia: qué etapa, foto, velo, zona y componentes lleva cada historia. */
+/** Plan paso a paso de una secuencia: qué etapa, foto, velo y zona lleva cada historia. */
 export function planDeSecuencia(categoria: CategoriaId, longitud: LongitudSecuencia): PasoSecuencia[] {
   const cat = CATEGORIAS[categoria]
   if (!cat) throw new Error(`Categoría de historias desconocida: ${categoria}`)

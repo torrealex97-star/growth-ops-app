@@ -15,7 +15,11 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     const user = await getCarruselUser()
     if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     const body = await req.json().catch(() => ({}))
-    const slide = await updateSlide(t.tenantId, id, slideId, { html: body.html, notes: body.notes })
+    const slide = await updateSlide(t.tenantId, id, slideId, {
+      html: body.html,
+      notes: body.notes,
+      sinVersion: body.sinVersion === true,
+    })
     if (!slide) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
     return NextResponse.json(slide)
   } catch (err) {

@@ -56,7 +56,9 @@ const CSS_TIPOGRAFIAS_IG = [
   .join('\n')
 
 /**
- * CSS de los componentes. `--ig-acento` y `--ig-acento-texto` se fijan por proyecto (color de marca) y
+ * CSS de los componentes. Las plantillas nuevas (layouts.ts) usan solo una parte; el resto se conserva porque las historias
+ * guardadas antes de las plantillas llevan HTML propio con esas clases (ig-impacto, ig-chip, ig-flecha…).
+ * `--ig-acento` y `--ig-acento-texto` se fijan por proyecto (color de marca) y
  * `--ig-f-titulo` / `--ig-f-cuerpo` con las tipografías de la marca (si no las hay, las del estilo nativo).
  * Dimensiones pensadas para un lienzo de 1080×1920.
  */
@@ -112,23 +114,3 @@ ${CSS_TIPOGRAFIAS_IG}
 .ig-cifra{font-family:var(--ig-f-titulo,'${FUENTES_NATIVAS.titulo}'),Georgia,serif;font-size:230px;line-height:1;color:var(--ig-acento)}
 .ig-franja{background:rgba(0,0,0,.5);padding:28px 40px}
 `
-
-/** Flecha dibujada a mano (SVG inline) para señalar algo, con rotación opcional en grados. */
-export function flechaSvg(rotacion = 0, color = '#ffffff'): string {
-  return `<svg class="ig-flecha" viewBox="0 0 210 150" fill="none" stroke="${color}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(${Math.round(rotacion)}deg)"><path d="M8 118 C 40 30, 120 20, 186 52"/><path d="M158 24 L 188 54 L 152 76"/></svg>`
-}
-
-/** Documentación de los componentes para el agente (nombres de clase y cuándo usarlos). */
-export const GUIA_COMPONENTES = `Componentes del editor nativo (clases CSS ya cargadas; NO redefinas su estilo):
-- Contenedor: <div class="ig-historia"> con <img class="ig-foto" src="URL"> y <div class="ig-velo ig-velo-60"></div> (velos: 0, 20, 40, 60, 75).
-- Zonas de texto (respeta la zona segura: ~${ZONA_SEGURA.arriba}px arriba y ~${ZONA_SEGURA.abajo}px abajo libres): ig-zona ig-zona-arriba | ig-zona-centro | ig-zona-abajo (+ ig-centrado).
-- Titulares: ig-titulo (serif grande), ig-impacto (condensado en mayúsculas), ig-maquina (tipo máquina de escribir). Cuerpo: ig-texto, ig-texto-pequeno.
-- Acento: <span class="ig-acento">palabra</span> o <span class="ig-marcador">palabra</span> (marcador tipo rotulador). UNA sola palabra de acento por historia.
-- Cajas de texto como en el editor: <span class="ig-caja">…</span> (blanca), ig-caja-negra, ig-caja-acento. Úsalas para frases largas sobre foto. Envuelve SIEMPRE la caja en su propio <div> (<div><span class="ig-caja-negra">texto</span></div>): así se ajusta al texto línea a línea como en el editor; directamente dentro de ig-zona se estira a todo el ancho.
-- Número de paso: <span class="ig-chip">1</span>. Comparaciones: <div class="ig-recuadro"><b>2025</b>texto</div>.
-- Etiqueta de fecha en la primera historia: <div class="ig-etiqueta-fecha"><span>DÍA</span><span>MES.</span><span>AÑO</span></div> (usa la fecha de hoy que se te indica, nunca una de ejemplo).
-- Stickers: <div class="ig-sticker-pregunta"><div class="ig-sp-cab">HABLEMOS CLARO 🤩</div><div class="ig-sp-cuerpo">Pregunta…</div></div>; <div class="ig-sticker-escribe">HABLEMOS CLARO<div>Escribe algo…</div></div>.
-- Pantalla partida: <div class="ig-partida"><div>foto arriba</div><div>foto abajo</div></div>.
-- Captura de pantalla / prueba: <div class="ig-captura">…</div> con cifras reales.
-- Emojis grandes (ig-emoji) como adorno funcional (⚠️ ✅ ❌ ☠️), nunca decorativo.
-- Flecha a mano: pega el SVG que devuelve la guía de la tool o escribe <svg class="ig-flecha" …> con trazo blanco.`

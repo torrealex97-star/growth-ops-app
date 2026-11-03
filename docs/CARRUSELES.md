@@ -56,3 +56,10 @@ El resto de slides (carruseles, flyers, historias antiguas) se editan por **list
 - **Instagram o TikTok**: cambia los márgenes de la interfaz de cada red (`SEGURA_POR_PLATAFORMA`, valores aproximados) y recompone las historias sin IA; «Guías de la app» las dibuja sobre la vista previa.
 - **Variantes con IA por historia** (`/carruseles/variantes`): 3 ganchos, otra versión o más corto; la IA solo propone y la persona elige (no guarda sola).
 - **De idea a historias**: «Crear historias con esta idea» en Marketing › Ideas abre el creador con el tema escrito.
+
+### Subida de archivos: directa al almacén
+
+Vercel rechaza cuerpos de más de ~4,5 MB, así que **los archivos no pasan por nuestras rutas**: `/carruseles/upload-url` valida tipo, tamaño (imagen ≤15 MB, vídeo ≤50 MB) y carpeta
+(`referencias`, `ejemplos`, `marca`, `caso-exito`) y entrega una dirección de subida de un solo uso; el navegador sube a ella (`lib/carruseles/subida-cliente.ts`) y después registra la
+ruta (`/carruseles/upload` para proyectos, `/carruseles/ejemplos` con `accion:'registrar'`). Solo se aceptan rutas entregadas para esa subcuenta y carpeta (`rutaValida`). Los ejemplos
+solo los sube liderazgo. El autoguardado del visor no llena el historial de «deshacer» (`sinVersion`) y recomponer escribe todas las historias en una sola operación (`updateSlides`).

@@ -168,7 +168,10 @@ export async function updateSlide(
   tenantId: string,
   projectId: string,
   slideId: string,
-  updates: Partial<Pick<Slide, 'html' | 'notes'>>
+  updates: Partial<Pick<Slide, 'html' | 'notes'>> & {
+    /** Cambio menor del editor (autoguardado): no guarda una versión nueva para «deshacer». */
+    sinVersion?: boolean
+  }
 ): Promise<Slide | null> {
   const project = await getProject(tenantId, projectId)
   if (!project) return null
@@ -177,13 +180,28 @@ export async function updateSlide(
   if (idx === -1) return null
   const slide = { ...slides[idx] }
   if (updates.html !== undefined && updates.html !== slide.html) {
-    slide.previousVersions = [...slide.previousVersions, slide.html].slice(-MAX_VERSIONS)
+    if (!updates.sinVersion) slide.previousVersions = [...slide.previousVersions, slide.html].slice(-MAX_VERSIONS)
     slide.html = updates.html
   }
   if (updates.notes !== undefined) slide.notes = updates.notes
   slides[idx] = slide
   await saveSlides(tenantId, projectId, slides)
   return slide
+}
+
+/** Cambia el HTML de varias slides con UNA lectura y UNA escritura (cada updateSlide lee y escribe todo el proyecto). */
+export async function updateSlides(tenantId: string, projectId: string, cambios: Map<string, string>): Promise<number> {
+  const project = await getProject(tenantId, projectId)
+  if (!project) return 0
+  let n = 0
+  const slides = project.slides.map((s) => {
+    const html = cambios.get(s.id)
+    if (html === undefined || html === s.html) return s
+    n++
+    return { ...s, html, previousVersions: [...s.previousVersions, s.html].slice(-MAX_VERSIONS) }
+  })
+  if (n > 0) await saveSlides(tenantId, projectId, slides)
+  return n
 }
 
 export async function deleteSlide(tenantId: string, projectId: string, slideId: string): Promise<boolean> {

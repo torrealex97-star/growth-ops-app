@@ -15,6 +15,7 @@ import {
   type HistoriaSpec,
 } from '@/lib/carruseles/historias/layouts'
 import { leerSpecDeHtml, pedidosPendientes } from '@/lib/carruseles/historias/pedidos'
+import { debeRecargarFormulario } from '@/lib/carruseles/historias/sincronia'
 import { SEGURA_POR_PLATAFORMA, type Plataforma } from '@/lib/carruseles/historias/estilo-nativo'
 import { SEGUNDOS_POR_HISTORIA, revisarSecuencia } from '@/lib/carruseles/historias/revision'
 import { MODOS_VARIANTE, type ModoVariante, type Variante } from '@/lib/carruseles/historias/variantes'
@@ -76,7 +77,9 @@ export function VisorEditable({
   // Qué slide representa el formulario y qué HTML guardamos nosotros: para recargarlo solo cuando el cambio viene de fuera.
   const formId = useRef<string | null>(null)
   const guardados = useRef(new Set<string>())
-  const pendiente = useRef<(() => void) | null>(null)
+  // Slides que ya tienen su versión para «deshacer» en esta sesión: el autoguardado no llena el historial.
+  const versionadas = useRef(new Set<string>())
+  const pendiente = useRef<((alSalir?: boolean) => void) | null>(null)
 
   useEffect(() => {
     fetch(`/api/${tenant}/evergreen/carruseles/brand`)
@@ -96,7 +99,15 @@ export function VisorEditable({
   // Las lecturas tardías de nuestros propios guardados no lo recargan: así no se pierde lo que se está escribiendo.
   useEffect(() => {
     if (!slide) return
-    if (formId.current === slide.id && guardados.current.has(slide.html)) return
+    if (
+      !debeRecargarFormulario({
+        formId: formId.current,
+        slideId: slide.id,
+        html: slide.html,
+        guardados: guardados.current,
+      })
+    )
+      return
     formId.current = slide.id
     setSpec(previa?.spec ?? null)
     setCambios({})
@@ -110,17 +121,19 @@ export function VisorEditable({
   )
 
   const guardarHtml = useCallback(
-    async (html: string) => {
+    async (html: string, opciones: { alSalir?: boolean } = {}) => {
       if (!slide) return
       setGuardando(true)
       try {
         const res = await fetch(`/api/${tenant}/evergreen/carruseles/${projectId}/slides/${slide.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ html }),
-          keepalive: true,
+          body: JSON.stringify({ html, sinVersion: versionadas.current.has(slide.id) }),
+          // keepalive solo para el guardado al salir: los navegadores lo rechazan con cuerpos de más de 64 KiB.
+          keepalive: opciones.alSalir === true,
         })
         if (!res.ok) throw new Error('No se pudo guardar')
+        versionadas.current.add(slide.id)
         guardados.current.add(html)
         if (guardados.current.size > 30) guardados.current.delete(guardados.current.values().next().value as string)
         onGuardado()
@@ -155,7 +168,7 @@ export function VisorEditable({
     temporizador.current = null
     pendiente.current = null
     if (inmediato) return void guardarHtml(html)
-    pendiente.current = () => void guardarHtml(html)
+    pendiente.current = (alSalir) => void guardarHtml(html, { alSalir })
     temporizador.current = setTimeout(() => {
       temporizador.current = null
       pendiente.current?.()
@@ -167,7 +180,7 @@ export function VisorEditable({
   useEffect(
     () => () => {
       if (temporizador.current) clearTimeout(temporizador.current)
-      pendiente.current?.()
+      pendiente.current?.(true)
     },
     []
   )

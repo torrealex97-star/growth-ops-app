@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import type { ReferenceImage } from '@/lib/carruseles/types'
 import { useTenant } from '@/lib/tenant-context'
 import { tipoDeMedio } from '@/lib/carruseles/almacen'
+import { subirDirecto } from '@/lib/carruseles/subida-cliente'
 import { TIPO_ARRASTRE_MEDIO } from './SlideRenderer'
 
 interface Props {
@@ -22,11 +23,12 @@ export function ReferenceImages({ projectId, images, onChange }: Props) {
   const upload = async (file: File) => {
     setUploading(true)
     try {
-      const fd = new FormData()
-      fd.append('file', file)
-      fd.append('projectId', projectId)
-      fd.append('purpose', 'reference')
-      const res = await fetch(`/api/${tenant}/evergreen/carruseles/upload`, { method: 'POST', body: fd })
+      const { path } = await subirDirecto(tenant, file, 'referencias')
+      const res = await fetch(`/api/${tenant}/evergreen/carruseles/upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, path, name: file.name }),
+      })
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Error')
       onChange()
     } catch (e) {

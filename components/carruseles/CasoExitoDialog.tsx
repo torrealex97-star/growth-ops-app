@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Loader2, ImagePlus, Trophy, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTenant } from '@/lib/tenant-context'
+import { subirDirecto } from '@/lib/carruseles/subida-cliente'
 
 interface Props {
   open: boolean
@@ -47,13 +48,7 @@ export function CasoExitoDialog({ open, onOpenChange }: Props) {
   const upload = async (file: File) => {
     setUploading(true)
     try {
-      const fd = new FormData()
-      fd.append('file', file)
-      fd.append('purpose', 'caso-exito')
-      const res = await fetch(`/api/${tenant}/evergreen/carruseles/upload`, { method: 'POST', body: fd })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || 'Error al subir')
-      setPhotoUrl(data.url)
+      setPhotoUrl((await subirDirecto(tenant, file, 'caso-exito')).url)
     } catch (e) {
       toast.error('No se pudo subir la foto: ' + (e as Error).message)
     } finally {

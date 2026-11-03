@@ -5,6 +5,7 @@ import { Loader2, Paperclip } from 'lucide-react'
 import { toast } from 'sonner'
 import { TIPOS_PEDIDO, pedidosPendientes } from '@/lib/carruseles/historias/pedidos'
 import { useTenant } from '@/lib/tenant-context'
+import { subirDirecto } from '@/lib/carruseles/subida-cliente'
 
 interface Props {
   projectId: string
@@ -26,12 +27,12 @@ export function PedidosPanel({ projectId, slides, onRefresh }: Props) {
     const clave = claveActiva.current
     setSubiendo(clave)
     try {
-      const fd = new FormData()
-      fd.append('file', file)
-      fd.append('projectId', projectId)
-      fd.append('purpose', 'reference')
-      fd.append('pedido', clave)
-      const res = await fetch(`/api/${tenant}/evergreen/carruseles/upload`, { method: 'POST', body: fd })
+      const { path } = await subirDirecto(tenant, file, 'referencias')
+      const res = await fetch(`/api/${tenant}/evergreen/carruseles/upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, path, name: file.name, pedido: clave }),
+      })
       const j = (await res.json().catch(() => ({}))) as { error?: string }
       if (!res.ok) throw new Error(j.error || 'No se pudo subir')
       toast.success('Material subido: la historia se ha actualizado')
