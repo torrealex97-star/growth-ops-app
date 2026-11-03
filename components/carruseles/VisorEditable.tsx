@@ -70,10 +70,13 @@ export function VisorEditable({
   const [aviso, setAviso] = useState<string | null>(null)
   const [guardando, setGuardando] = useState(false)
   const [guias, setGuias] = useState(false)
-  const [variantes, setVariantes] = useState<Variante[] | null>(null)
+  const [variantes, setVariantes] = useState<{ slideId: string; items: Variante[] } | null>(null)
   const [pidiendo, setPidiendo] = useState<ModoVariante | null>(null)
   const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const ultimoHtml = useRef('')
+  // Qué slide representa el formulario y qué HTML guardamos nosotros: para recargarlo solo cuando el cambio viene de fuera.
+  const formId = useRef<string | null>(null)
+  const guardados = useRef(new Set<string>())
+  const pendiente = useRef<(() => void) | null>(null)
 
   useEffect(() => {
     fetch(`/api/${tenant}/evergreen/carruseles/brand`)
@@ -89,9 +92,12 @@ export function VisorEditable({
       .catch(() => {})
   }, [tenant])
 
-  // Al cambiar de slide o llegar un HTML que no es el que acabamos de guardar nosotros, se recarga el formulario.
+  // Se recarga el formulario al cambiar de slide o si el HTML cambia por algo que no hemos guardado nosotros (p. ej. la IA).
+  // Las lecturas tardías de nuestros propios guardados no lo recargan: así no se pierde lo que se está escribiendo.
   useEffect(() => {
-    if (!slide || slide.html === ultimoHtml.current) return
+    if (!slide) return
+    if (formId.current === slide.id && guardados.current.has(slide.html)) return
+    formId.current = slide.id
     setSpec(previa?.spec ?? null)
     setCambios({})
     setAviso(null)
@@ -112,9 +118,11 @@ export function VisorEditable({
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ html }),
+          keepalive: true,
         })
         if (!res.ok) throw new Error('No se pudo guardar')
-        ultimoHtml.current = html
+        guardados.current.add(html)
+        if (guardados.current.size > 30) guardados.current.delete(guardados.current.values().next().value as string)
         onGuardado()
       } catch (e) {
         toast.error((e as Error).message)
@@ -144,11 +152,25 @@ export function VisorEditable({
       total: slides.length,
     })
     if (temporizador.current) clearTimeout(temporizador.current)
-    if (inmediato) void guardarHtml(html)
-    else temporizador.current = setTimeout(() => void guardarHtml(html), 600)
+    temporizador.current = null
+    pendiente.current = null
+    if (inmediato) return void guardarHtml(html)
+    pendiente.current = () => void guardarHtml(html)
+    temporizador.current = setTimeout(() => {
+      temporizador.current = null
+      pendiente.current?.()
+      pendiente.current = null
+    }, 600)
   }
 
-  useEffect(() => () => void (temporizador.current && clearTimeout(temporizador.current)), [])
+  // Al salir, lo que esté esperando su pausa se guarda en vez de perderse.
+  useEffect(
+    () => () => {
+      if (temporizador.current) clearTimeout(temporizador.current)
+      pendiente.current?.()
+    },
+    []
+  )
 
   // Arrastrar el bloque de texto en vertical: solo se recompone al soltar.
   const plataforma: Plataforma = spec?.plataforma ?? 'instagram'
@@ -156,6 +178,7 @@ export function VisorEditable({
     <AsaTexto
       plataforma={plataforma}
       posicion={spec.posicion}
+      posicionInicial={posicionAproximada(spec.layout, medios.length > 0)}
       onSoltar={(p) => cambiarSpec({ ...spec, posicion: p }, true)}
       deshabilitado={bloqueado}
     />
@@ -165,13 +188,20 @@ export function VisorEditable({
       ? (n: number) => cambiarSpec({ ...spec, foto: n, fondo: 'foto' }, true)
       : undefined
   const revision = useMemo(() => {
-    const specs = slides.map((s) => leerSpecDeHtml(s.html)?.spec).filter((x): x is HistoriaSpec => Boolean(x))
+    // La revisión numera solo las historias con especificación; se traduce al número real de slide.
+    const conSpec = slides.flatMap((s, i) => {
+      const sp = leerSpecDeHtml(s.html)?.spec
+      return sp ? [{ i, sp }] : []
+    })
     return {
-      total: specs.length,
-      hallazgos: revisarSecuencia(specs, {
-        hayMedios: medios.length > 0,
-        pendientes: new Set(pedidosPendientes(slides).map((p) => p.clave)).size,
-      }),
+      total: conSpec.length,
+      hallazgos: revisarSecuencia(
+        conSpec.map((x) => x.sp),
+        {
+          hayMedios: medios.length > 0,
+          pendientes: new Set(pedidosPendientes(slides).map((p) => p.clave)).size,
+        }
+      ).map((h) => (h.historia ? { ...h, historia: (conSpec[h.historia - 1]?.i ?? h.historia - 1) + 1 } : h)),
     }
   }, [slides, medios.length])
 
@@ -192,6 +222,7 @@ export function VisorEditable({
 
   const pedirVariantes = async (modo: ModoVariante) => {
     if (!slide) return
+    const id = slide.id
     setPidiendo(modo)
     setVariantes(null)
     try {
@@ -202,7 +233,7 @@ export function VisorEditable({
       })
       const j = (await res.json().catch(() => ({}))) as { opciones?: Variante[]; error?: string }
       if (!res.ok || !j.opciones) throw new Error(j.error || 'No se pudieron generar variantes')
-      setVariantes(j.opciones)
+      setVariantes({ slideId: id, items: j.opciones })
     } catch (e) {
       toast.error((e as Error).message)
     } finally {
@@ -302,9 +333,9 @@ export function VisorEditable({
                   </button>
                 ))}
               </div>
-              {variantes && (
+              {variantes && variantes.slideId === slide.id && (
                 <ul className="mt-2 space-y-1">
-                  {variantes.map((v, i) => (
+                  {variantes.items.map((v, i) => (
                     <li key={i}>
                       <button
                         onClick={() => {
@@ -369,6 +400,10 @@ export function VisorEditable({
   )
 }
 
+/** Posición (0-100) aproximada del bloque de texto antes de que tenga una propia: las plantillas con foto lo ponen abajo. */
+const posicionAproximada = (layout: HistoriaSpec['layout'], hayMedios: boolean): number =>
+  layout === 'foto_texto' || (layout === 'portada' && hayMedios) ? 72 : 38
+
 /** Zonas que la interfaz de cada red tapa: lo que se pone ahí no se ve. Aproximadas (las redes cambian su interfaz). */
 function GuiasSeguras({ plataforma }: { plataforma: Plataforma }) {
   const z = SEGURA_POR_PLATAFORMA[plataforma]
@@ -388,17 +423,20 @@ function GuiasSeguras({ plataforma }: { plataforma: Plataforma }) {
 function AsaTexto({
   plataforma,
   posicion,
+  posicionInicial,
   onSoltar,
   deshabilitado,
 }: {
   plataforma: Plataforma
   posicion: number | undefined
+  /** Dónde está el texto cuando aún no tiene posición propia (aproximado, según la plantilla). */
+  posicionInicial: number
   onSoltar: (p: number) => void
   deshabilitado: boolean
 }) {
   const [arrastrando, setArrastrando] = useState<number | null>(null)
-  // Sin posición propia se muestra hacia el centro; al arrastrar, el texto pasa a la posición elegida.
-  const p = arrastrando ?? posicion ?? 50
+  const actual = posicion ?? posicionInicial
+  const p = arrastrando ?? actual
   const y = posicionPx(p, plataforma)
 
   const calcular = (e: React.PointerEvent<HTMLDivElement>): number => {
@@ -428,13 +466,15 @@ function AsaTexto({
       }}
       onPointerDown={(e) => {
         e.currentTarget.setPointerCapture(e.pointerId)
-        setArrastrando(calcular(e))
+        setArrastrando(actual) // un clic sin mover no cambia nada
       }}
       onPointerMove={(e) => arrastrando !== null && setArrastrando(calcular(e))}
       onPointerUp={(e) => {
-        if (arrastrando !== null) onSoltar(calcular(e))
+        const destino = arrastrando !== null ? calcular(e) : null
         setArrastrando(null)
+        if (destino !== null && Math.abs(destino - actual) >= 2) onSoltar(destino)
       }}
+      onPointerCancel={() => setArrastrando(null)}
       className="absolute left-0 right-0 z-10 flex cursor-ns-resize touch-none items-center"
       style={{ top: `${(y / 1920) * 100}%`, transform: 'translateY(-50%)' }}
       title="Arrastra para mover el texto"

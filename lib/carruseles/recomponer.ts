@@ -1,3 +1,4 @@
+import { tipoDeMedio } from './almacen'
 import { estiloValido } from './estilos'
 import { leerSpecDeHtml } from './historias/pedidos'
 import { renderHistoria } from './historias/layouts'
@@ -20,7 +21,7 @@ export async function recomponerHistorias(
     .map((r) => ({
       url: r.url,
       name: r.name,
-      kind: /\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(r.url) ? ('video' as const) : ('image' as const),
+      kind: tipoDeMedio(r.url),
     }))
   // Si se subió más de una imagen para el mismo pedido, vale la última.
   const pedidos: Record<string, string> = {}

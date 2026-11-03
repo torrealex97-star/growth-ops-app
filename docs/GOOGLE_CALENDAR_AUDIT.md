@@ -25,7 +25,7 @@ Riesgo: **HIGH** (OAuth, credenciales, RLS, multi-tenant e identidad de citas).
 | OAuth Google              | PARTIAL        | state HMAC, refresh token cifrado; solo `ga4`/`gmail`, conexión de tenant            |
 | Google Calendar operativo | MISSING        | sin scopes, CalendarList, events.list, syncToken ni watch                            |
 | Dedupe de agendas         | PARTIAL        | `(tenant_id, external_id)` + helper por ID/contacto+minuto; sin iCal UID/recurrencia |
-| Conciliación Calendar↔CRM | IMPLEMENTED    | reglas explicables, estados persistidos y escritura batch solo por `service_role`     |
+| Conciliación Calendar↔CRM | IMPLEMENTED    | reglas explicables, estados persistidos y escritura batch solo por `service_role`    |
 | Logs de sync              | STABLE         | `integration_sync_runs`, todavía sin job Calendar                                    |
 
 ## Decisiones de arquitectura

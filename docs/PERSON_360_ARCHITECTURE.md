@@ -1,4 +1,5 @@
 # SPEC-06 — Customer Journey Intelligence & Person 360 · Auditoría y línea base (PR-0)
+
 13-oct-2026 · Buffy · rama `feat/spec06-pr0-person360-audit` sobre `origin/main` (`b71dcf55`)
 
 Especificación: SPEC-06. **PRESERVE → DISCOVER → REUSE → EXTEND → TEST → VERIFY es literalmente la
@@ -46,17 +47,17 @@ primer toque de atribución, que es inmutable por diseño (SPEC-05 H-0).
 
 ## 2. Qué YA cumple la spec (verificado)
 
-| Requisito de la SPEC-06 | Implementación actual | Estado |
-|---|---|---|
-| Timeline cronológica por persona con fecha de ocurrencia (§7) | `TimelineEvent.occurredAt` por hecho; los retrasos se ordenan por ocurrencia en cada proveedor (`citas-sync`, `lib/eventos`), y `raw_events` conserva recibido/ocurrido | VERIFICADO |
-| No convertir cambio técnico en evento comercial (§6) | 13 tipos de evento, todos con entidad detrás; sin «session started» ni ruido técnico en la timeline | VERIFICADO |
-| Agendas: reprogramadas/canceladas con historial y sin duplicar KPI (§12) | estados del proveedor en `lib/appointments/status.ts` + actas en `audit_logs`; «dos agendas legítimas» quedó reclamado por SPEC-04 PR-3 | VERIFICADO |
-| Ventas/pagos/refunds sin duplicar importe (§14) | `canonicalCash` deduplica Invoice/PaymentIntent/Charge vía payment_reference/charge_id; venta ≠ pago; refunds separados (`sales.status` refunded/partial_refund/chargeback) | PROBADO (tests de cash-refunds) |
-| Timeline accesible desde la IA con permisos del usuario (§17/§23) | `getContactTimeline` en `lib/ai/agent/tools.ts`: tenant cerrado en `ToolContext` (resuelto por `requireTenant` server-side), solo lectura, LIMIT en cada query, sin capa paralela | VERIFICADO |
-| No usar LLM para calcular revenue (§1.11) | herramientas de solo lectura; el importe sale de las tablas (canonicalCash), la IA solo explica | VERIFICADO |
-| VSL: consumo real sin sumar rebobinados (§10) | `vsl_watch_intervals` por intervalo con `sequence_number`; playheads y duraciones en `vsl_tracking_events`, conceptual con `occurred_at`/`received_at` separados. KPIs por contacto: INSPECCIONADO | VERIFICADO (modelo), INSPECCIONADO (consumo por persona) |
-| Identidad estable con referencias externas (§3/§5) | contacts (CRM) + appointments (external_id) + `stripe_customers(stripe_customer_id, contact_id)` + atribuciones con `evidence_source`; `vsl_viewer_identities` como tabla de identidad del visor | VERIFICADO |
-| Aislamiento tenant (§19-30) | RLS + invariante testada (`tests/esquema-tenant-invariante.test.mjs`, atribucion-aislamiento, colaboradores-aislamiento) | PROBADO |
+| Requisito de la SPEC-06                                                  | Implementación actual                                                                                                                                                                              | Estado                                                   |
+| ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Timeline cronológica por persona con fecha de ocurrencia (§7)            | `TimelineEvent.occurredAt` por hecho; los retrasos se ordenan por ocurrencia en cada proveedor (`citas-sync`, `lib/eventos`), y `raw_events` conserva recibido/ocurrido                            | VERIFICADO                                               |
+| No convertir cambio técnico en evento comercial (§6)                     | 13 tipos de evento, todos con entidad detrás; sin «session started» ni ruido técnico en la timeline                                                                                                | VERIFICADO                                               |
+| Agendas: reprogramadas/canceladas con historial y sin duplicar KPI (§12) | estados del proveedor en `lib/appointments/status.ts` + actas en `audit_logs`; «dos agendas legítimas» quedó reclamado por SPEC-04 PR-3                                                            | VERIFICADO                                               |
+| Ventas/pagos/refunds sin duplicar importe (§14)                          | `canonicalCash` deduplica Invoice/PaymentIntent/Charge vía payment_reference/charge_id; venta ≠ pago; refunds separados (`sales.status` refunded/partial_refund/chargeback)                        | PROBADO (tests de cash-refunds)                          |
+| Timeline accesible desde la IA con permisos del usuario (§17/§23)        | `getContactTimeline` en `lib/ai/agent/tools.ts`: tenant cerrado en `ToolContext` (resuelto por `requireTenant` server-side), solo lectura, LIMIT en cada query, sin capa paralela                  | VERIFICADO                                               |
+| No usar LLM para calcular revenue (§1.11)                                | herramientas de solo lectura; el importe sale de las tablas (canonicalCash), la IA solo explica                                                                                                    | VERIFICADO                                               |
+| VSL: consumo real sin sumar rebobinados (§10)                            | `vsl_watch_intervals` por intervalo con `sequence_number`; playheads y duraciones en `vsl_tracking_events`, conceptual con `occurred_at`/`received_at` separados. KPIs por contacto: INSPECCIONADO | VERIFICADO (modelo), INSPECCIONADO (consumo por persona) |
+| Identidad estable con referencias externas (§3/§5)                       | contacts (CRM) + appointments (external_id) + `stripe_customers(stripe_customer_id, contact_id)` + atribuciones con `evidence_source`; `vsl_viewer_identities` como tabla de identidad del visor   | VERIFICADO                                               |
+| Aislamiento tenant (§19-30)                                              | RLS + invariante testada (`tests/esquema-tenant-invariante.test.mjs`, atribucion-aislamiento, colaboradores-aislamiento)                                                                           | PROBADO                                                  |
 
 ---
 
@@ -87,19 +88,19 @@ primer toque de atribución, que es inmutable por diseño (SPEC-05 H-0).
 
 ## 4. Casos límite (§19) contra lo ya testado
 
-| Caso | Estado hoy |
-|---|---|
-| Anónimo → identificado (1) / nunca identificado (2) | Cubierto por modelo VSL (`vsl_viewer_identities`, `video_viewer_identified`); consumo por persona: PR-3 |
-| Varias sesiones (3), varias agendas (9) | 1:N estructural en tablas; KPI sin colapsar (SPEC-05) |
-| Email compartido (5), duplicados (6), fusionados (7) | Cola humana (fathom) + reglas fuertes (SPEC-04 H-4 email compartido como INSPECCIONADO) |
-| Tres proveedores una agenda (10) | Agenda canónica con referencias ext:source:id — VERIFICADO |
-| Reprogramada (11), cancelada (12), no-show (13) | Extendido a PROBADO (labels + actas) |
-| Venta tras varias agendas (15) | `chooseSaleAppointment` + regla declarada en #478 |
-| Pago antes de sync de venta (17) | Resuelto vía Stripe-first + cola humana (#270) |
-| Pago parcial (18), refund (19), renovación (20) | `canonicalCash` + `sale_expected_installments` — PROBADO parcial |
-| VSL multi-dispositivo (21) | viewer_id + session_id por playback — INSPECCIONADO detalle intervalos |
-| Lead Ads sin web (25), IG DM sin anuncio (26) | Igual que SPEC-05 (no session inventada) |
-| Dos tenants mismo email (30) | PROBADO (aislamiento por tenant en las invariantes) |
+| Caso                                                 | Estado hoy                                                                                              |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Anónimo → identificado (1) / nunca identificado (2)  | Cubierto por modelo VSL (`vsl_viewer_identities`, `video_viewer_identified`); consumo por persona: PR-3 |
+| Varias sesiones (3), varias agendas (9)              | 1:N estructural en tablas; KPI sin colapsar (SPEC-05)                                                   |
+| Email compartido (5), duplicados (6), fusionados (7) | Cola humana (fathom) + reglas fuertes (SPEC-04 H-4 email compartido como INSPECCIONADO)                 |
+| Tres proveedores una agenda (10)                     | Agenda canónica con referencias ext:source:id — VERIFICADO                                              |
+| Reprogramada (11), cancelada (12), no-show (13)      | Extendido a PROBADO (labels + actas)                                                                    |
+| Venta tras varias agendas (15)                       | `chooseSaleAppointment` + regla declarada en #478                                                       |
+| Pago antes de sync de venta (17)                     | Resuelto vía Stripe-first + cola humana (#270)                                                          |
+| Pago parcial (18), refund (19), renovación (20)      | `canonicalCash` + `sale_expected_installments` — PROBADO parcial                                        |
+| VSL multi-dispositivo (21)                           | viewer_id + session_id por playback — INSPECCIONADO detalle intervalos                                  |
+| Lead Ads sin web (25), IG DM sin anuncio (26)        | Igual que SPEC-05 (no session inventada)                                                                |
+| Dos tenants mismo email (30)                         | PROBADO (aislamiento por tenant en las invariantes)                                                     |
 
 La suite completa de 30 se construye como fixtures del §24 en PR-9; no duplicar nada ya testado.
 
@@ -107,18 +108,18 @@ La suite completa de 30 se construye como fixtures del §24 en PR-9; no duplicar
 
 ## 5. Plan por PRs (adaptado: nada de motor nuevo)
 
-| Fase | Cubre | Sobre qué existente |
-|---|---|---|
-| **PR-0** (este) | Auditoría y mapa | docs |
-| PR-1 — Identity Integrity | Email compartido/cambiado, `identity_status` y revisiones | `resolve.ts` + `stripe_customers` (vínculo por email con guard) |
-| PR-2 — Canonical Journey | H-1: timeline consume tracking/VSL/canonical_events; cursor y filtros del §20 | `buildContactTimeline` (único servicio timeline) |
-| PR-3 — Marketing & VSL Journey | VSL por persona (consumo, milestones, CTA), touchpoints en timeline | modelo VSL PR-1b completo |
-| PR-4 — Appointment Journey | Casos 9-15 ya en tabla; UX de agenda asociada | citas-sync + status.ts |
-| PR-5 — Sales & Financial Journey | Cash neto por persona, pagos parciales, refunds | canonicalCash + sales/collections |
-| PR-6 — UX Person 360 | Tarjetas, filtros, journey de etapas, panel de evidencia | página CRM existente |
-| PR-7 — IA Person Intelligence | VSL, pagos y explain_person_attribution | `lib/ai/agent/tools.ts` (tenant cerrado) |
-| PR-8 — Health & Reconciliation | Completitud por persona, vínculos pendientes | data-health |
-| PR-9 — E2E & Hardening | Suite de 30 casos, aislamiento, rendimiento | tests/e2e |
+| Fase                             | Cubre                                                                         | Sobre qué existente                                             |
+| -------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| **PR-0** (este)                  | Auditoría y mapa                                                              | docs                                                            |
+| PR-1 — Identity Integrity        | Email compartido/cambiado, `identity_status` y revisiones                     | `resolve.ts` + `stripe_customers` (vínculo por email con guard) |
+| PR-2 — Canonical Journey         | H-1: timeline consume tracking/VSL/canonical_events; cursor y filtros del §20 | `buildContactTimeline` (único servicio timeline)                |
+| PR-3 — Marketing & VSL Journey   | VSL por persona (consumo, milestones, CTA), touchpoints en timeline           | modelo VSL PR-1b completo                                       |
+| PR-4 — Appointment Journey       | Casos 9-15 ya en tabla; UX de agenda asociada                                 | citas-sync + status.ts                                          |
+| PR-5 — Sales & Financial Journey | Cash neto por persona, pagos parciales, refunds                               | canonicalCash + sales/collections                               |
+| PR-6 — UX Person 360             | Tarjetas, filtros, journey de etapas, panel de evidencia                      | página CRM existente                                            |
+| PR-7 — IA Person Intelligence    | VSL, pagos y explain_person_attribution                                       | `lib/ai/agent/tools.ts` (tenant cerrado)                        |
+| PR-8 — Health & Reconciliation   | Completitud por persona, vínculos pendientes                                  | data-health                                                     |
+| PR-9 — E2E & Hardening           | Suite de 30 casos, aislamiento, rendimiento                                   | tests/e2e                                                       |
 
 ## 6. Limitaciones
 

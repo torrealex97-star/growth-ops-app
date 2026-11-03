@@ -11,13 +11,13 @@ El encargo pide crear `MVP_AUDIT.md`, `MVP_HARDENING_PLAN.md`, `SMOKE_TEST_REPOR
 `UX_UI_AUDIT.md` y `HANDOFF.md`, pero también dice explícitamente **"No duplicar docs
 existentes"**. Este repo ya tiene un ciclo de auditoría MVP completo y reciente:
 
-| Pedido en el encargo | Ya existe en este repo                                                                              |
-| --------------------- | ---------------------------------------------------------------------------------------------------- |
-| `MVP_AUDIT.md`         | `docs/S0-8-GRADUACION.md` (ledger P0–P4, journeys críticos, graduación) + `CAPABILITIES.md`          |
-| `MVP_HARDENING_PLAN.md`| `PENDIENTES.md` (vivo, actualizado 28-sep, con dueño y prioridad por ítem)                           |
-| `SMOKE_TEST_REPORT.md` | `docs/S0-2-JOURNEYS-CRITICOS.md` + 4 specs E2E reales en CI (`tests/e2e/*.spec.mjs`)                  |
-| `UX_UI_AUDIT.md`       | `docs/DASHBOARD_VISUAL_AUDIT.md`, `PROMPT_UXUI_AUDIT.md`, `docs/S0-6-RENDIMIENTO-FRONTEND.md`         |
-| `HANDOFF.md`           | `docs/ACTIVE_HANDOFF.md` (vivo, 1771 líneas, el que ya se usa en esta sesión)                        |
+| Pedido en el encargo    | Ya existe en este repo                                                                        |
+| ----------------------- | --------------------------------------------------------------------------------------------- |
+| `MVP_AUDIT.md`          | `docs/S0-8-GRADUACION.md` (ledger P0–P4, journeys críticos, graduación) + `CAPABILITIES.md`   |
+| `MVP_HARDENING_PLAN.md` | `PENDIENTES.md` (vivo, actualizado 28-sep, con dueño y prioridad por ítem)                    |
+| `SMOKE_TEST_REPORT.md`  | `docs/S0-2-JOURNEYS-CRITICOS.md` + 4 specs E2E reales en CI (`tests/e2e/*.spec.mjs`)          |
+| `UX_UI_AUDIT.md`        | `docs/DASHBOARD_VISUAL_AUDIT.md`, `PROMPT_UXUI_AUDIT.md`, `docs/S0-6-RENDIMIENTO-FRONTEND.md` |
+| `HANDOFF.md`            | `docs/ACTIVE_HANDOFF.md` (vivo, 1771 líneas, el que ya se usa en esta sesión)                 |
 
 Siguiendo **REUSE > CREATE** y **EXTEND > REWRITE**: este documento es la pieza **S1** que falta en
 la serie `S0-*` ya existente — continúa la graduación de S0 (22-sep) con una revalidación a fecha de
@@ -43,19 +43,19 @@ S0-*", es una cita de auditoría previa que no he vuelto a ejecutar yo mismo.
 
 ## 2. Skills usadas (sección 2 del encargo)
 
-| Categoría           | Skill usada                                                      | Resultado                                               |
-| -------------------- | ----------------------------------------------------------------- | -------------------------------------------------------- |
-| Marketing            | `marketing-and-copywriting` (ya instalada)                       | Vocabulario y fórmulas de KPI canónicas — en uso         |
-| Sales / RevOps       | `sales-engineering` (ya instalada)                                | KPIs de ventas (§7) — en uso                             |
-| Analytics/Dashboards | `dataviz`, `data-visualization-pro` (ya instaladas)               | Paleta y heurísticas de gráficos — a aplicar en Fase 10  |
-| Security             | `security-review` (ya instalada)                                 | A ejecutar en Fase 1                                     |
-| QA / Browser         | `browser-testing-with-devtools` (ya instalada)                   | **Requiere Chrome DevTools MCP configurado — no lo está en este entorno** (ver §1) |
-| Supabase/RLS         | `supabase`, `supabase-postgres-best-practices` (ya instaladas)    | En uso para revisión de políticas                        |
-| Next.js              | `nextjs-app-router-patterns` (ya instalada)                       | En uso                                                   |
-| Accesibilidad        | buscada (`npx skills find accessibility`) → **0 resultados**      | Sin skill empaquetada; se audita con criterio WCAG manual |
-| Performance web      | buscada (`npx skills find "web performance"`) → **0 resultados**  | Sin skill empaquetada; se audita con criterio manual      |
-| UX/UI SaaS dashboard | buscada (`npx skills find "saas dashboard design"`) → **0 resultados** | Sin skill empaquetada; se sigue `data-visualization-pro` + criterio propio |
-| RevOps dedicada      | buscada (`npx skills find revops`) → **0 resultados**             | Cubierta por `sales-engineering` + `marketing-and-copywriting` |
+| Categoría            | Skill usada                                                            | Resultado                                                                          |
+| -------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Marketing            | `marketing-and-copywriting` (ya instalada)                             | Vocabulario y fórmulas de KPI canónicas — en uso                                   |
+| Sales / RevOps       | `sales-engineering` (ya instalada)                                     | KPIs de ventas (§7) — en uso                                                       |
+| Analytics/Dashboards | `dataviz`, `data-visualization-pro` (ya instaladas)                    | Paleta y heurísticas de gráficos — a aplicar en Fase 10                            |
+| Security             | `security-review` (ya instalada)                                       | A ejecutar en Fase 1                                                               |
+| QA / Browser         | `browser-testing-with-devtools` (ya instalada)                         | **Requiere Chrome DevTools MCP configurado — no lo está en este entorno** (ver §1) |
+| Supabase/RLS         | `supabase`, `supabase-postgres-best-practices` (ya instaladas)         | En uso para revisión de políticas                                                  |
+| Next.js              | `nextjs-app-router-patterns` (ya instalada)                            | En uso                                                                             |
+| Accesibilidad        | buscada (`npx skills find accessibility`) → **0 resultados**           | Sin skill empaquetada; se audita con criterio WCAG manual                          |
+| Performance web      | buscada (`npx skills find "web performance"`) → **0 resultados**       | Sin skill empaquetada; se audita con criterio manual                               |
+| UX/UI SaaS dashboard | buscada (`npx skills find "saas dashboard design"`) → **0 resultados** | Sin skill empaquetada; se sigue `data-visualization-pro` + criterio propio         |
+| RevOps dedicada      | buscada (`npx skills find revops`) → **0 resultados**                  | Cubierta por `sales-engineering` + `marketing-and-copywriting`                     |
 
 No se inventó ninguna skill inexistente, conforme a la instrucción explícita.
 
@@ -81,17 +81,17 @@ bajo `app/api/[tenant]/evergreen/`.
 
 ## 4. Revalidación del ledger P1/P2 de S0-8 (22-sep) — qué sigue abierto hoy
 
-| Ítem de S0-8                                                  | Estado hoy (10-01)                                                                                   |
-| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| Índices únicos sin `tenant_id` (`campaigns`, `ig_media`)        | **RESUELTO** — verificado en migraciones: `20260914120000_tenant_scope_provider_uniques.sql` dropea los índices globales y crea los tenant-scoped. (La fecha de la migración es ANTERIOR a la graduación de S0; el ledger de S0-8 quedó desactualizado en este punto puntual.) |
-| F6 — política de retención de `raw_events`/transcripciones      | **SIGUE ABIERTO.** Confirmado en `docs/F6-MAPA-PII.md`: "no se puede graduar, política de retención sin definir". Es una decisión de negocio, no de código — **requiere a Alex**. |
-| Token de Instagram caducado                                     | Externo — **requiere a Alex** (reconectar en Meta). No verificable desde este sandbox.                |
-| `RESEND_API_KEY` guardada en claro                              | Externo — **requiere a Alex** (rotar). No verificable desde este sandbox (no hay acceso a Vercel env). |
-| GHL no manda UTMs / sin setter en citas de GHL                  | Externo — **requiere a Alex** (configurar workflows de GHL).                                          |
-| Devolución de Stripe no entra sola / `refunds` vacía            | Pendiente de decisión A5 (`docs/MONEY.md`) — **no tocar sin decisión de Alex**, ya señalado así en `PENDIENTES.md`. |
+| Ítem de S0-8                                                                               | Estado hoy (10-01)                                                                                                                                                                                                                                                                                                                                          |
+| ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Índices únicos sin `tenant_id` (`campaigns`, `ig_media`)                                   | **RESUELTO** — verificado en migraciones: `20260914120000_tenant_scope_provider_uniques.sql` dropea los índices globales y crea los tenant-scoped. (La fecha de la migración es ANTERIOR a la graduación de S0; el ledger de S0-8 quedó desactualizado en este punto puntual.)                                                                              |
+| F6 — política de retención de `raw_events`/transcripciones                                 | **SIGUE ABIERTO.** Confirmado en `docs/F6-MAPA-PII.md`: "no se puede graduar, política de retención sin definir". Es una decisión de negocio, no de código — **requiere a Alex**.                                                                                                                                                                           |
+| Token de Instagram caducado                                                                | Externo — **requiere a Alex** (reconectar en Meta). No verificable desde este sandbox.                                                                                                                                                                                                                                                                      |
+| `RESEND_API_KEY` guardada en claro                                                         | Externo — **requiere a Alex** (rotar). No verificable desde este sandbox (no hay acceso a Vercel env).                                                                                                                                                                                                                                                      |
+| GHL no manda UTMs / sin setter en citas de GHL                                             | Externo — **requiere a Alex** (configurar workflows de GHL).                                                                                                                                                                                                                                                                                                |
+| Devolución de Stripe no entra sola / `refunds` vacía                                       | Pendiente de decisión A5 (`docs/MONEY.md`) — **no tocar sin decisión de Alex**, ya señalado así en `PENDIENTES.md`.                                                                                                                                                                                                                                         |
 | Cobro y comisión sin frontera transaccional / patrón de ~92 escrituras sin comprobar error | **RESUELTO.** Verificado en `git log`: PR #268 "barrido final de escrituras sin comprobar error — 10 hallazgos P0" cerró el patrón, con 29 tests de regresión permanentes (`tests/p0/p1/p2-escrituras-sin-comprobar-error.test.mjs`, los 29 en verde en el baseline de §3). `PENDIENTES.md` tenía esta línea desactualizada — corregida en esta misma fase. |
-| `CRON_SECRET` no existe en Preview                              | Externo — **requiere a Alex** (config de Vercel Preview env).                                         |
-| Contratos: firma concurrente sin CAS                            | **Sigue abierto**, documentado en `PENDIENTES.md` §Deuda técnica — requiere decisión del responsable de contratos antes de tocar código (impacto jurídico). |
+| `CRON_SECRET` no existe en Preview                                                         | Externo — **requiere a Alex** (config de Vercel Preview env).                                                                                                                                                                                                                                                                                               |
+| Contratos: firma concurrente sin CAS                                                       | **Sigue abierto**, documentado en `PENDIENTES.md` §Deuda técnica — requiere decisión del responsable de contratos antes de tocar código (impacto jurídico).                                                                                                                                                                                                 |
 
 **Conclusión de esta revalidación:** de los 9 ítems no-P0 que S0-8 dejó abiertos, **2 ya estaban
 resueltos** (índices tenant-scoped; barrido de escrituras sin comprobar error vía PR #268), **5 son
@@ -105,11 +105,11 @@ necesita una decisión de negocio antes de tocar código** (CAS en firma concurr
 **"Duplicación aparente de afiliados"** — existen tres rutas con ese nombre. Leídas las tres
 (Fase 2): **no es duplicación**, es un flujo de 3 piezas coherente y sin solape:
 
-| Ruta                                      | SCREEN / ROLE                          | PURPOSE                                                                 |
-| ------------------------------------------ | --------------------------------------- | ------------------------------------------------------------------------ |
-| `settings/afiliados`                       | Admin/Director — configuración          | Define el programa: campos del formulario público, % comisión por defecto, intro/mensaje de éxito |
-| `afiliados/registro` (pública, sin login)   | Visitante / afiliado potencial          | Formulario de alta que lee la config de arriba, por link de campaña (`?c=slug`) |
-| `marketing/afiliados/afiliados`            | Admin/Director/el propio colaborador    | Panel de gestión de `collaborator_profiles` ya dados de alta: KPIs, ventas, comisiones — reutiliza las definiciones canónicas del resto del sistema, no inventa fórmulas propias |
+| Ruta                                      | SCREEN / ROLE                        | PURPOSE                                                                                                                                                                          |
+| ----------------------------------------- | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `settings/afiliados`                      | Admin/Director — configuración       | Define el programa: campos del formulario público, % comisión por defecto, intro/mensaje de éxito                                                                                |
+| `afiliados/registro` (pública, sin login) | Visitante / afiliado potencial       | Formulario de alta que lee la config de arriba, por link de campaña (`?c=slug`)                                                                                                  |
+| `marketing/afiliados/afiliados`           | Admin/Director/el propio colaborador | Panel de gestión de `collaborator_profiles` ya dados de alta: KPIs, ventas, comisiones — reutiliza las definiciones canónicas del resto del sistema, no inventa fórmulas propias |
 
 No se toca nada aquí. Queda como ejemplo de por qué la regla "SCREEN/ROLE/PURPOSE antes de actuar"
 de la sección 5 del encargo evita limpiezas erróneas.
@@ -193,7 +193,7 @@ todo el pipeline de métricas de marketing, y que el orgánico no fabrica estima
   divergentes de "cuenta seleccionada".
 - El caso `cuentasAds.length === 0` (sin selección guardada) cae a "todas las cuentas accesibles
   por el token" — es una convención **documentada y deliberada** en todo el módulo
-  (`lib/meta/accounts.ts`: *"Lista vacía = todas las cuentas accesibles por el token"*), no un bug:
+  (`lib/meta/accounts.ts`: _"Lista vacía = todas las cuentas accesibles por el token"_), no un bug:
   antes de tener una cuenta seleccionada, mostrar 0 habría sido peor que mostrar todo lo accesible.
   Un tenant con el token ya conectado y una cuenta efectivamente elegida nunca cae en este caso.
 - Esto es un camino DISTINTO al que motivó `campanasFueraDeSeleccion` en
@@ -215,7 +215,7 @@ todo el pipeline de métricas de marketing, y que el orgánico no fabrica estima
     pide sincronizar. Nunca rellena con ceros falsos.
 - **Hueco real frente al encargo:** el panel solo cubre Instagram. Facebook/YouTube/TikTok NO
   tienen sync oficial propio implementado (el propio comentario de `organic.ts` lo dice:
-  *"TikTok/YouTube por su sync oficial cuando exista"*) — no se muestran (correctamente, no se
+  _"TikTok/YouTube por su sync oficial cuando exista"_) — no se muestran (correctamente, no se
   fabrican), pero tampoco existen. Construir esos syncs es una feature nueva fuera del alcance de
   esta fase; se documenta como brecha de cobertura, no como bug.
 
@@ -225,8 +225,8 @@ todo el pipeline de métricas de marketing, y que el orgánico no fabrica estima
   que sus cifras son "hechos del periodo, NO una cohorte enlazada: no permiten inferir conversiones"
   — exactamente la distinción Actividad-vs-Cohorte que pide el encargo (§10).
 - `components/os/ConnectedFunnel.tsx:113` traslada esa misma advertencia a la UI: cuando la etapa
-  no es comparable como conversión, el pie de la etapa dice literalmente *"Actividad del periodo; no
-  expresa conversión entre personas"*, en vez de mostrar un % de conversión engañoso entre universos
+  no es comparable como conversión, el pie de la etapa dice literalmente _"Actividad del periodo; no
+  expresa conversión entre personas"_, en vez de mostrar un % de conversión engañoso entre universos
   no comparables. Donde SÍ hay cohorte comparable, dice "Conversión respecto a la etapa anterior."
 - No hay funnel falso mezclando denominadores incompatibles sin avisar: el requisito ya está cerrado
   en código, no solo en intención.
@@ -299,12 +299,13 @@ interno ya bien diseñado. Sin bugs adicionales encontrados en lo revisado.
 **Booked/Billed vs Cash vs Refunds vs Expenses vs Profit:** `app/[tenant]/finanzas/analitica/resumen/page.tsx`
 ya distingue cada concepto con su propia tarjeta y etiqueta explícita — "Cash Collected", "Facturación",
 "Gastos totales", "Comisiones plataforma", "Devoluciones del mes", "Resultado neto" (con la fórmula
-citada: *"Mismo cálculo que I&G (Dirección › Métricas): Net Revenue − COGS − OpEx"*, para que no haya
+citada: _"Mismo cálculo que I&G (Dirección › Métricas): Net Revenue − COGS − OpEx"_, para que no haya
 dos definiciones de beneficio en pantallas distintas). No hay ninguna tarjeta "Revenue" ambigua sin
 definición — el requisito del encargo ya está cumplido.
 
 **`pays_commissions=false` como veto (D9 de MONEY.md):** verificado que el veto se aplica en los DOS
 lados que el encargo y `CLAUDE.md` piden explícitamente:
+
 - Generación: `lib/commissions/generate.ts` excluye a quien tenga `pays_commissions=false` tanto al
   generar desde un cobro nuevo como al reconciliar.
 - Lectura: `app/[tenant]/comisiones/page.tsx:141-144` tiene una defensa explícita del lado de lectura
@@ -341,15 +342,15 @@ El encargo pide auditar que "un colaborador solo ve datos atribuibles a él, en 
 RLS/API, no solo en UI". Esto ya estaba cubierto con una profundidad inusual ANTES de esta sesión:
 
 - `tests/colaboradores-aislamiento.test.mjs` (12 tests) + `tests/atribucion-colaborador-ui.test.mjs`
-  + `tests/cadena-contrato-colaborador.test.mjs` — ejecutados en esta sesión: **27/27 OK**. Cubren
-  exactamente los puntos del encargo: scope resuelto en la capa de datos (fail-closed: un error de
-  BD devuelve `[]`, nunca "todo el tenant"), contactos/agendas/ventas/pagos con scope "sin
-  escapatoria" en CADA query (`components/crm/ContactsAllView.tsx`, `crm/agendas`,
-  `ventas/registro`, `ventas/pagos`), RLS como backstop (`is_my_collaborator_row/_sale` con
-  `auth_tenant_ids()` para que ni el propio SECURITY DEFINER escape de subcuenta), override de
-  atribución solo admin/director con motivo obligatorio y auditoría, un único ledger de comisiones
-  (no tablas paralelas) y un test explícito que falla si aparece infraestructura paralela
-  (`affiliate_users`, `collaborator_appointments`, etc.) en cualquier fichero del repo.
+  - `tests/cadena-contrato-colaborador.test.mjs` — ejecutados en esta sesión: **27/27 OK**. Cubren
+    exactamente los puntos del encargo: scope resuelto en la capa de datos (fail-closed: un error de
+    BD devuelve `[]`, nunca "todo el tenant"), contactos/agendas/ventas/pagos con scope "sin
+    escapatoria" en CADA query (`components/crm/ContactsAllView.tsx`, `crm/agendas`,
+    `ventas/registro`, `ventas/pagos`), RLS como backstop (`is_my_collaborator_row/_sale` con
+    `auth_tenant_ids()` para que ni el propio SECURITY DEFINER escape de subcuenta), override de
+    atribución solo admin/director con motivo obligatorio y auditoría, un único ledger de comisiones
+    (no tablas paralelas) y un test explícito que falla si aparece infraestructura paralela
+    (`affiliate_users`, `collaborator_appointments`, etc.) en cualquier fichero del repo.
 - `app/[tenant]/comisiones/page.tsx:87-120` confirma que la pantalla de comisiones también oculta
   los agregados de Setters/Closers a un colaborador (`esColaborador` resuelto vía
   `resolverScopeColaborador`) — el colaborador ve solo su propia lane, no los totales del equipo.
@@ -462,11 +463,11 @@ envía a `Sentry.metrics.distribution`, y el proyecto real es `javascript-nextjs
 `scalix-52` (NO `scalix-systems`, que no tiene datos — dos proyectos de Sentry coexisten, hay que
 usar el correcto). Últimos 30 días:
 
-| Métrica | Media | p75 | Muestras | Umbral Google ("Bueno") | Veredicto |
-| --- | --- | --- | --- | --- | --- |
-| LCP | 2.218 s | 1.971 s | 68 | < 2.5 s | **Bueno** |
-| INP | 65,9 ms | 72 ms | 37 | < 200 ms | **Bueno** |
-| CLS | — | — | 48 (cuenta confirmada, agregado no extraído) | < 0.1 | **Sin verificar** — hay 48 muestras pero la consulta de agregado (`avg`/`p75`) devolvió vacío; posible desajuste de unidad en la query del MCP, no necesariamente un problema del dato. Pendiente de abrir el link de Sentry directamente para leer el número. |
+| Métrica | Media   | p75     | Muestras                                     | Umbral Google ("Bueno") | Veredicto                                                                                                                                                                                                                                                      |
+| ------- | ------- | ------- | -------------------------------------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| LCP     | 2.218 s | 1.971 s | 68                                           | < 2.5 s                 | **Bueno**                                                                                                                                                                                                                                                      |
+| INP     | 65,9 ms | 72 ms   | 37                                           | < 200 ms                | **Bueno**                                                                                                                                                                                                                                                      |
+| CLS     | —       | —       | 48 (cuenta confirmada, agregado no extraído) | < 0.1                   | **Sin verificar** — hay 48 muestras pero la consulta de agregado (`avg`/`p75`) devolvió vacío; posible desajuste de unidad en la query del MCP, no necesariamente un problema del dato. Pendiente de abrir el link de Sentry directamente para leer el número. |
 
 Con solo 37-68 muestras en 30 días el tráfico real medido es bajo — los números son reales pero la
 muestra es pequeña; no se puede hablar de "tendencia" todavía, solo de "estos son los valores que
@@ -523,16 +524,16 @@ El usuario pidió terminar de revisar y **no corregir código**: documentar para
 
 #### Hallazgos que debe corregir el próximo agente
 
-| Prioridad | Hallazgo observado | Corrección propuesta y criterio de cierre |
-| --- | --- | --- |
-| P1 | Recursos/Enlaces sin aislamiento, ya documentado arriba. | Mantener exclusión. Asignar propiedad explícita de registros y migrar RLS con pruebas negativas entre tenants antes de reabrir esa parte. |
-| P2 | `button-name`: Dashboard 2, Registro de ventas 5, Comisiones 6, Seguimiento 4, Cobros 3; también otros filtros. `select-name`: Dashboard 1, Atribución 2, Colaboradores 2, Tramos 2, Socios 1, Contenido 3. | Asociar etiquetas visibles a triggers/selects con id/htmlFor o aria-labelledby, revisar el primitivo compartido. Repetir axe en cada consumidor y teclado; 0 controles sin nombre. No parchear únicamente el selector generado de Radix. |
-| P2 | Métricas: 24 `aria-prohibited-attr`, spans de ayuda con aria-label sin rol permitido. | Revisar los tooltips de KPI; dar semántica y acceso por teclado adecuados sin duplicar etiquetas. Repetir axe y comprobar anuncio del nombre y ayuda. |
-| P2 | Contraste insuficiente recurrente: blanco sobre accent azul QA #0a85f0 ≈3,73:1 en texto pequeño; botones activos de Métricas ≈2,74:1. | Ajustar tokens foreground/background de estados activos respetando branding. Validar AA con diferentes tenants; no extrapolar el color QA al branding de todos. |
-| P2 | Resumen financiero: `aria-hidden-focus` sobre contenedor `.h-72`. Consola de React advierte whitespace bajo `<thead>` en `FinanceEvolution` (`components/finanzas/FinanceCharts.tsx`). | Revisar foco del gráfico/tabla alternativa y quitar nodo de espacio inválido. Confirmar 0 errores de hidratación y ningún foco dentro de aria-hidden. |
-| P2 | Facturas: 1 `label`; configuración de Afiliados: 13 `label`. | Asociar cada campo con su etiqueta visible. Repetir axe con formulario cargado, además de revisión manual de nombres. |
-| P2 | Calendario de Agendas: `scrollable-region-focusable`. | Permitir enfocar y desplazar la región con teclado; comprobar que no atrapa el foco. |
-| Bloqueo local | VSL: GET videos y resumen devuelven 500; la pantalla termina mostrando error de servidor/base de datos. | Revisar configuración local de conexión VSL; no afirmar fallo de producción. Repetir lectura de ambas API antes del journey. No restaurar credenciales ni escribir BD sin autorización aplicable. |
+| Prioridad     | Hallazgo observado                                                                                                                                                                                          | Corrección propuesta y criterio de cierre                                                                                                                                                                                                |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P1            | Recursos/Enlaces sin aislamiento, ya documentado arriba.                                                                                                                                                    | Mantener exclusión. Asignar propiedad explícita de registros y migrar RLS con pruebas negativas entre tenants antes de reabrir esa parte.                                                                                                |
+| P2            | `button-name`: Dashboard 2, Registro de ventas 5, Comisiones 6, Seguimiento 4, Cobros 3; también otros filtros. `select-name`: Dashboard 1, Atribución 2, Colaboradores 2, Tramos 2, Socios 1, Contenido 3. | Asociar etiquetas visibles a triggers/selects con id/htmlFor o aria-labelledby, revisar el primitivo compartido. Repetir axe en cada consumidor y teclado; 0 controles sin nombre. No parchear únicamente el selector generado de Radix. |
+| P2            | Métricas: 24 `aria-prohibited-attr`, spans de ayuda con aria-label sin rol permitido.                                                                                                                       | Revisar los tooltips de KPI; dar semántica y acceso por teclado adecuados sin duplicar etiquetas. Repetir axe y comprobar anuncio del nombre y ayuda.                                                                                    |
+| P2            | Contraste insuficiente recurrente: blanco sobre accent azul QA #0a85f0 ≈3,73:1 en texto pequeño; botones activos de Métricas ≈2,74:1.                                                                       | Ajustar tokens foreground/background de estados activos respetando branding. Validar AA con diferentes tenants; no extrapolar el color QA al branding de todos.                                                                          |
+| P2            | Resumen financiero: `aria-hidden-focus` sobre contenedor `.h-72`. Consola de React advierte whitespace bajo `<thead>` en `FinanceEvolution` (`components/finanzas/FinanceCharts.tsx`).                      | Revisar foco del gráfico/tabla alternativa y quitar nodo de espacio inválido. Confirmar 0 errores de hidratación y ningún foco dentro de aria-hidden.                                                                                    |
+| P2            | Facturas: 1 `label`; configuración de Afiliados: 13 `label`.                                                                                                                                                | Asociar cada campo con su etiqueta visible. Repetir axe con formulario cargado, además de revisión manual de nombres.                                                                                                                    |
+| P2            | Calendario de Agendas: `scrollable-region-focusable`.                                                                                                                                                       | Permitir enfocar y desplazar la región con teclado; comprobar que no atrapa el foco.                                                                                                                                                     |
+| Bloqueo local | VSL: GET videos y resumen devuelven 500; la pantalla termina mostrando error de servidor/base de datos.                                                                                                     | Revisar configuración local de conexión VSL; no afirmar fallo de producción. Repetir lectura de ambas API antes del journey. No restaurar credenciales ni escribir BD sin autorización aplicable.                                        |
 
 #### Lo que falta probar (no marcar PASS)
 
@@ -549,22 +550,22 @@ El usuario pidió terminar de revisar y **no corregir código**: documentar para
 Dado el tamaño real (93 pantallas, 14 fases, 42 secciones del encargo), este es un trabajo
 multi-sesión. Las fases siguientes, en orden:
 
-| Fase | Qué                                                                                   | Estado |
-| ---- | -------------------------------------------------------------------------------------- | ------ |
-| 0    | Baseline + skills + revalidación del ledger S0-8                                       | **Hecho** |
-| 1    | P0/P1 reales de código del ledger de S0-8                                              | **Hecho — resultado: ya no quedaba ninguno sin decisión previa de Alex** |
-| 2    | Confirmar propósito de las 3 rutas "afiliados"                                         | **Hecho — falso positivo, no hay duplicación** |
-| 3    | Seguridad: advisors de Supabase + `SECURITY DEFINER`/RLS                                | **Hecho — 1 vulnerabilidad real cerrada en producción (ver §6.1)** |
-| 4    | Marketing/funnel: filtro de cuentas Meta, orgánico, comparabilidad del funnel conectado         | **Hecho — sin bugs; 2 huecos de cobertura documentados, no corregidos (ver §6.2)** |
-| 5    | CRM/Setting/Sales: terminología, pipeline, asignación de setter                                 | **Hecho — 1 hueco real cerrado y validado con datos reales (ver §6.3)** |
-| 6    | Finanzas/Comisiones: terminología de dinero, veto `pays_commissions` (D9), conciliación Stripe   | **Hecho — sin bugs; 1 hueco de DATOS real encontrado y reportado a Alex, no de código (ver §6.4). Morosidad/socios quedan sin revisar con datos reales** |
-| 7    | Colaboradores: aislamiento frontend + RLS                                                       | **Hecho — sin hallazgos nuevos, 27/27 tests de aislamiento pasan (ver §6.5)** |
-| 8    | Integraciones/Data Health: syncs obsoletas, fallos de job, webhooks                             | **Hecho — sin hallazgos nuevos, diseño ya correcto (ver §6.6)** |
-| 9    | Action Center unificado (9 tipos, escalado por rol)                                              | **Hecho el diagnóstico — hueco real confirmado, NO se construye en esta fase: es feature nueva (ver §6.7)** |
-| 10   | UX/UI: diseño/consistencia                                                                      | **Parcial — hallazgo real por código (Skeleton/EmptyState sin adoptar, ver §6.8); resto necesita navegador** |
-| 11   | Accesibilidad                                                                                    | **Intentado por código, sin resultado fiable — necesita herramienta real (ver §6.8)** |
-| 12   | Performance                                                                                      | **Parcial — sin N+1 en rutas muestreadas (ver §6.8); medición real necesita runtime/navegador** |
-| 13-14 | Smoke test visual, regresión final                                                              | **Bloqueado para esta sesión — ver §1** |
+| Fase  | Qué                                                                                            | Estado                                                                                                                                                   |
+| ----- | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0     | Baseline + skills + revalidación del ledger S0-8                                               | **Hecho**                                                                                                                                                |
+| 1     | P0/P1 reales de código del ledger de S0-8                                                      | **Hecho — resultado: ya no quedaba ninguno sin decisión previa de Alex**                                                                                 |
+| 2     | Confirmar propósito de las 3 rutas "afiliados"                                                 | **Hecho — falso positivo, no hay duplicación**                                                                                                           |
+| 3     | Seguridad: advisors de Supabase + `SECURITY DEFINER`/RLS                                       | **Hecho — 1 vulnerabilidad real cerrada en producción (ver §6.1)**                                                                                       |
+| 4     | Marketing/funnel: filtro de cuentas Meta, orgánico, comparabilidad del funnel conectado        | **Hecho — sin bugs; 2 huecos de cobertura documentados, no corregidos (ver §6.2)**                                                                       |
+| 5     | CRM/Setting/Sales: terminología, pipeline, asignación de setter                                | **Hecho — 1 hueco real cerrado y validado con datos reales (ver §6.3)**                                                                                  |
+| 6     | Finanzas/Comisiones: terminología de dinero, veto `pays_commissions` (D9), conciliación Stripe | **Hecho — sin bugs; 1 hueco de DATOS real encontrado y reportado a Alex, no de código (ver §6.4). Morosidad/socios quedan sin revisar con datos reales** |
+| 7     | Colaboradores: aislamiento frontend + RLS                                                      | **Hecho — sin hallazgos nuevos, 27/27 tests de aislamiento pasan (ver §6.5)**                                                                            |
+| 8     | Integraciones/Data Health: syncs obsoletas, fallos de job, webhooks                            | **Hecho — sin hallazgos nuevos, diseño ya correcto (ver §6.6)**                                                                                          |
+| 9     | Action Center unificado (9 tipos, escalado por rol)                                            | **Hecho el diagnóstico — hueco real confirmado, NO se construye en esta fase: es feature nueva (ver §6.7)**                                              |
+| 10    | UX/UI: diseño/consistencia                                                                     | **Parcial — hallazgo real por código (Skeleton/EmptyState sin adoptar, ver §6.8); resto necesita navegador**                                             |
+| 11    | Accesibilidad                                                                                  | **Intentado por código, sin resultado fiable — necesita herramienta real (ver §6.8)**                                                                    |
+| 12    | Performance                                                                                    | **Parcial — sin N+1 en rutas muestreadas (ver §6.8); medición real necesita runtime/navegador**                                                          |
+| 13-14 | Smoke test visual, regresión final                                                             | **Bloqueado para esta sesión — ver §1**                                                                                                                  |
 
 ## 8. Lo que necesito de Alex (no bloquea el resto, se deja documentado)
 
@@ -581,13 +582,11 @@ multi-sesión. Las fases siguientes, en orden:
 
 Ninguno de estos detiene el resto del trabajo de código (Fases 1-14 siguen sin depender de ellos).
 
-
 ### Reanudación de lectura 3-oct: autenticación bloqueada
 
 Producción: la sesión abierta correspondía a una cuenta personal aunque la ruta era del tenant QA. No equivale a la identidad admin QA de la auditoría anterior. Tras cerrar sesión e introducir las credenciales facilitadas, el login respondió `Invalid login credentials`. No se reseteó ninguna contraseña. Se requiere acceso QA vigente antes de continuar; Fases 10–14 siguen sin cierre.
 
 Comprobaciones parciales previas al logout, limitadas a esa sesión: Dashboard y Agendas a 390×844 sin desbordamiento del documento (390 px); calendario con scroll interno. Escape en notificaciones devuelve foco al disparador. Nueva agenda: recorrido inverso desde primer campo alcanza Cerrar; Escape cierra, pero foco observado en documento (reproducir apertura por teclado con QA). Dashboard con prefers-reduced-motion=reduce no tenía animaciones activas; no demuestra comportamiento de todas las transiciones. Se restauraron ambas emulaciones. No se crearon datos, ventas, cobros ni mensajes y no se modificó código. Los siete journeys no reciben PASS con esta evidencia.
-
 
 ### Ampliación runtime 3-oct — F10–12, evidencia nueva y límites
 
@@ -601,23 +600,24 @@ Comprobaciones parciales previas al logout, limitadas a esa sesión: Dashboard y
 
 **axe-core:** segunda ejecución real en 11 rutas, WCAG 2 A/AA + 2.1 AA. Estas evidencias nuevas son de producción; no sustituyen ni convierten en PASS las 50 rutas de la revisión local anterior. Contadores por regla (una violación agrupa varios nodos):
 
-| Ruta sin tenant | Resultado |
-|---|---|
-| `crm/agendas` | `button-name` × 1; `color-contrast` × 5; `scrollable-region-focusable` × 1 |
-| `crm/contactos` | `color-contrast` × 4; `select-name` × 4 |
-| `ventas/registro` | `button-name` × 5; `color-contrast` × 4 |
-| `finanzas/analitica/resumen` | `aria-hidden-focus` × 1; `color-contrast` × 2 |
-| `finanzas/cobros/cobros` | `button-name` × 3; `color-contrast` × 4 |
-| `comisiones` | `button-name` × 6; `color-contrast` × 2 |
-| `marketing/adquisicion/vsl` | `color-contrast` × 3 |
-| `settings/correos` | `color-contrast` × 2 |
-| `dashboard` | `button-name` × 2; `color-contrast` × 3; `select-name` × 1 |
-| `unit-economics` | `aria-prohibited-attr` × 26; `color-contrast` × 4; `definition-list` × 1; `dlitem` × 4 |
-| `marketing/adquisicion/campanas` | `color-contrast` × 4 |
+| Ruta sin tenant                  | Resultado                                                                              |
+| -------------------------------- | -------------------------------------------------------------------------------------- |
+| `crm/agendas`                    | `button-name` × 1; `color-contrast` × 5; `scrollable-region-focusable` × 1             |
+| `crm/contactos`                  | `color-contrast` × 4; `select-name` × 4                                                |
+| `ventas/registro`                | `button-name` × 5; `color-contrast` × 4                                                |
+| `finanzas/analitica/resumen`     | `aria-hidden-focus` × 1; `color-contrast` × 2                                          |
+| `finanzas/cobros/cobros`         | `button-name` × 3; `color-contrast` × 4                                                |
+| `comisiones`                     | `button-name` × 6; `color-contrast` × 2                                                |
+| `marketing/adquisicion/vsl`      | `color-contrast` × 3                                                                   |
+| `settings/correos`               | `color-contrast` × 2                                                                   |
+| `dashboard`                      | `button-name` × 2; `color-contrast` × 3; `select-name` × 1                             |
+| `unit-economics`                 | `aria-prohibited-attr` × 26; `color-contrast` × 4; `definition-list` × 1; `dlitem` × 4 |
+| `marketing/adquisicion/campanas` | `color-contrast` × 4                                                                   |
 
 Prioridad de corrección: nombres accesibles de filtros; contraste del acento QA; semántica de ayudas en `unit-economics` y listas de definición (nuevos `definition-list`/`dlitem`); eliminar foco de gráficos marcados `aria-hidden` o exponer una alternativa accesible coherente; hacer el scroll del calendario operable por teclado. Los targets concretos están en la evidencia local, no contienen datos de negocio en este informe.
 
 **Teclado y movimiento (muestras, no PASS de todas las pantallas):**
+
 - Emails: las pestañas responden a flechas; Plantillas e Historial cargan. No se guardó configuración ni se envió correo.
 - Nueva agenda: apertura por Enter, 15 avances Tab permanecieron dentro del diálogo; Escape lo cerró y el foco final fue `BODY`, no el disparador. FAIL de devolución de foco. Revisar `app/[tenant]/crm/agendas/page.tsx:1914` y gestión de trigger/restauración. Un control nativo de fecha no marcó `:focus-visible` durante la secuencia: requiere inspección específica antes de etiquetarlo como fallo visual.
 - Notificaciones: Enter abre; panel cabe en móvil; Escape cierra. No atribuir a `outline:none` ausencia de foco visual sin revisar box-shadow/ring.
@@ -630,15 +630,15 @@ VSL en producción carga estado vacío con cero vídeos; el error 500 del entorn
 
 ### Fase 13 — matriz de ejecución manual actualizada (no siete PASS)
 
-| Journey | Estado y evidencia | Falta para cierre |
-|---|---|---|
-| LOGIN → TENANT → DASHBOARD | PARCIAL: login real como admin QA y dashboard visible. Interferencias posteriores de CI y cambio de sesión impiden afirmar estabilidad. | Repetir en QA aislado con consola/red capturadas desde login. |
-| META → LEAD → CRM → BOOKING → SHOW → SALE → PAYMENT | BLOQUEADO/PARCIAL: campañas abiertas, CRM con fixtures y wizard de venta recorrido hasta Confirmar. | Fuente Meta fixture, agenda/show controlados, venta/cobro autorizados y trazabilidad completa. |
-| VSL → VIEW → CONTACT → BOOKING → SALE | BLOQUEADO: VSL carga, pero tiene 0 vídeos. | Vídeo/landing de prueba y resto del recorrido con datos controlados. |
-| CONTACT → OPPORTUNITY → APPOINTMENT → SALE → CASH | PARCIAL: contacto fixture seleccionable; producto/plan/equipo/confirmación navegables; formulario de cobro abierto sin guardar. | Cuenta estable y confirmación de escritura que incluya el cobro automático, después verificar todas las relaciones. |
-| COLLABORATOR → LOGIN → OWN DATA → COMMISSION | BLOQUEADO: usuario indicó que no dispone de cuenta collaborator QA. Fixture existente es closer/firmante, no equivalente. | Cuenta QA del rol correcto y fixture propio/ajeno aislado. No ampliar permisos como atajo. |
-| EMAIL → TEMPLATE → SEND → HISTORY | PARCIAL: Configuración, Plantillas e Historial cargan. | Destinatario de prueba y autorización explícita para enviar; verificar entrega/historial. |
-| STRIPE → PAYMENT → FINANCE | BLOQUEADO: bandeja de cobros pendientes muestra 0. | Evento/pago Stripe de prueba en entorno test y vínculo verificable a finanzas; no ejecutar cobro real. |
+| Journey                                             | Estado y evidencia                                                                                                                      | Falta para cierre                                                                                                   |
+| --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| LOGIN → TENANT → DASHBOARD                          | PARCIAL: login real como admin QA y dashboard visible. Interferencias posteriores de CI y cambio de sesión impiden afirmar estabilidad. | Repetir en QA aislado con consola/red capturadas desde login.                                                       |
+| META → LEAD → CRM → BOOKING → SHOW → SALE → PAYMENT | BLOQUEADO/PARCIAL: campañas abiertas, CRM con fixtures y wizard de venta recorrido hasta Confirmar.                                     | Fuente Meta fixture, agenda/show controlados, venta/cobro autorizados y trazabilidad completa.                      |
+| VSL → VIEW → CONTACT → BOOKING → SALE               | BLOQUEADO: VSL carga, pero tiene 0 vídeos.                                                                                              | Vídeo/landing de prueba y resto del recorrido con datos controlados.                                                |
+| CONTACT → OPPORTUNITY → APPOINTMENT → SALE → CASH   | PARCIAL: contacto fixture seleccionable; producto/plan/equipo/confirmación navegables; formulario de cobro abierto sin guardar.         | Cuenta estable y confirmación de escritura que incluya el cobro automático, después verificar todas las relaciones. |
+| COLLABORATOR → LOGIN → OWN DATA → COMMISSION        | BLOQUEADO: usuario indicó que no dispone de cuenta collaborator QA. Fixture existente es closer/firmante, no equivalente.               | Cuenta QA del rol correcto y fixture propio/ajeno aislado. No ampliar permisos como atajo.                          |
+| EMAIL → TEMPLATE → SEND → HISTORY                   | PARCIAL: Configuración, Plantillas e Historial cargan.                                                                                  | Destinatario de prueba y autorización explícita para enviar; verificar entrega/historial.                           |
+| STRIPE → PAYMENT → FINANCE                          | BLOQUEADO: bandeja de cobros pendientes muestra 0.                                                                                      | Evento/pago Stripe de prueba en entorno test y vínculo verificable a finanzas; no ejecutar cobro real.              |
 
 **Advertencia funcional descubierta antes de guardar:** el plan de pago completo del wizard no es «venta sin cobro»: `tests/e2e/venta-completa.spec.mjs:56` documenta y comprueba que Crear Venta registra también el cobro completo. Se corrigió la descripción dada al usuario y se pidió autorización específica para venta + cobro interno. No se pulsó Crear Venta durante este bloque. La autorización previa de solo venta no se extiende al cobro implícito. Antes de reintentar, comprobar duplicados: el tenant compartido recibió actividad concurrente que luego fue limpiada por CI.
 
@@ -647,7 +647,6 @@ VSL en producción carga estado vacío con cero vídeos; el error 500 del entorn
 No se aplicaron fixes de código, por instrucción del usuario. No se relanzó E2E contra el tenant compartido: su setup/teardown destruye la estabilidad de las pruebas manuales. Como evidencia externa, CI del commit `92e0b1c4516be24d2cd0ec2ff1e8a7d60b922928` terminó SUCCESS en Format/Lint/Typecheck/Unit tests, Build, Smoke E2E y Secretos. Esto **no certifica esta rama ni los siete journeys solicitados**; el conjunto de specs de CI cubre otros flujos concretos. La migración local conserva su validación anterior documentada, no una nueva regresión visual completa.
 
 **Veredicto:** mantener bloqueadores; F10–14 NO cerradas globalmente. A11y FAIL en las rutas con violaciones anteriores; E2E parcial/bloqueado según matriz. El próximo paso es estabilizar QA, completar autorizaciones/fixtures y reproducir hallazgos antes de corregir. La inspección no justifica declarar MVP READY.
-
 
 ### Prueba autorizada de venta y cobro — 3-oct, resultado final del subflujo
 
@@ -661,16 +660,13 @@ La venta/cobro fixture se conserva; no se borró ni se cobró dinero real. Una f
 
 **Nuevo FAIL confirmado, P1 de fiabilidad de métricas: Comisiones futuras.** Tras la venta, abrir `/comisiones` y la pestaña Futuras reproduce HTTP 500 en `/api/[tenant]/evergreen/commissions/future`. Captura nueva sin truncamiento; cuerpo exacto sanitizado: `No se pudieron leer los planes de pago de las ventas sin calendario: column payment_plans.sale_id does not exist`. El código `app/api/[tenant]/evergreen/commissions/future/route.ts:85` selecciona y filtra esa columna. La UI muestra 0 EUR y «No hay comisiones futuras por cobrar» ocultando que falló el cálculo. Propuesta para siguiente agente: relacionar planes por la FK real desde sales, comprobar el esquema antes de cambiar, y distinguir error de consulta de resultado vacío en UI. Validar full-pay sin calendario, cuotas futuras y ausencia real de ventas. No se corrigió en esta auditoría. No afirmar que esta venta de pago completo deba tener comisión futura: el fallo es de fuente/consulta, no un diagnóstico de negocio.
 
-
 **Verificación posterior del mismo 3-oct:** después de capturar 1 venta/1 cobro y los dashboards coincidentes, otra consulta de base de datos devolvió 0 ventas y 0 cobros. El agente no borró esos registros. El QA compartido volvió a ser modificado/limpiado por un proceso externo (autor no identificado en esta última comprobación). No recrear automáticamente la prueba. El PASS acotado describe el estado comprobado inmediatamente después del alta, no persistencia garantizada ni cierre del problema de aislamiento de QA. Finanzas llegó a mostrar facturación anterior con cobros a cero durante este cambio; no usar ese estado para diagnosticar una fórmula incorrecta sin estabilizar las fuentes.
-
 
 ### Continuación de lectura — estados financieros vacíos (3-oct)
 
 Entorno: producción, sesión visible admin QA. Tras la limpieza externa, Resumen financiero presenta Facturación y Cash Collected a cero. Se navegaron las pestañas reales a Proyección de caja, I&G y Cohortes, sin guardar formularios ni exportar datos. Proyección muestra 30/60/90 días a cero y aviso de cobertura de planes; I&G explica libro interno, presenta cero y ratios ausentes; Cohortes muestra visualmente «Sin datos todavía» y explica ventanas de maduración y diferencia con retención. PASS limitado a carga/claridad del estado vacío de estas tres vistas; no certifica sus cálculos con datos ni accesibilidad completa. No se detectó un nuevo fallo concluyente en esta comprobación.
 
 El checkout principal ha avanzado a `ceb18f2` con cambios concurrentes sin commit; no se modificó. La auditoría F01–F25 reconciliada en main y estos resultados runtime tienen distinto alcance. Antes de fusionar esta rama, integrar las notas sin sobrescribir el relevo de main y reproducir los defectos sobre el SHA final desplegado. F10–14 siguen parciales: faltan fixtures/roles/integraciones, QA estable y correcciones documentadas. La autorización del subflujo venta/cobro ya fue consumida con éxito; las filas anteriores que la indicaban pendiente son históricas, no una orden para repetirla.
-
 
 ### Continuación — teclado del menú y acceso público (3-oct)
 
@@ -680,16 +676,15 @@ Al intentar entrar en Analítica desde ese menú, la sesión redirigió a login.
 
 Pruebas posibles sin sesión, sin envío de correo:
 
-| Vista/prueba | Resultado observado | Acción y aceptación |
-|---|---|---|
-| Login móvil, axe WCAG2A/AA y 2.1AA | 0 violaciones automáticas en el estado observado; Tab muestra foco visible y no hay overflow horizontal. | PASS automático acotado, no certificación de lector de pantalla. |
-| Error dinámico de login | Mensaje en inglés; DOM de error sin role/live, foco no dirigido al mensaje. `login/page.tsx:190–193`. | P2: traducir y anunciar el error mediante región accesible o gestión explícita de foco; comprobar anuncio con lector. No se probó lector de pantalla real. |
-| Recuperación móvil, axe | FAIL: texto blanco de Enviar enlace sobre #0a85f0, 14 px normal, contraste 3,73:1 frente a 4,5 requerido. | P2: corregir combinación foreground/acento del Button preservando branding. `recover/page.tsx:116`; no asumir que todos los tenants tienen el mismo contraste. |
-| Recuperación, anchos 390/768/1440 | scrollWidth coincide con viewport en los tres. Botón de 36 px de alto y anchos 308/334/334; captura móvil legible. | PASS de ajuste horizontal; no se envió enlace ni se probó restablecimiento. |
+| Vista/prueba                            | Resultado observado                                                                                                                   | Acción y aceptación                                                                                                                                                                                                                     |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Login móvil, axe WCAG2A/AA y 2.1AA      | 0 violaciones automáticas en el estado observado; Tab muestra foco visible y no hay overflow horizontal.                              | PASS automático acotado, no certificación de lector de pantalla.                                                                                                                                                                        |
+| Error dinámico de login                 | Mensaje en inglés; DOM de error sin role/live, foco no dirigido al mensaje. `login/page.tsx:190–193`.                                 | P2: traducir y anunciar el error mediante región accesible o gestión explícita de foco; comprobar anuncio con lector. No se probó lector de pantalla real.                                                                              |
+| Recuperación móvil, axe                 | FAIL: texto blanco de Enviar enlace sobre #0a85f0, 14 px normal, contraste 3,73:1 frente a 4,5 requerido.                             | P2: corregir combinación foreground/acento del Button preservando branding. `recover/page.tsx:116`; no asumir que todos los tenants tienen el mismo contraste.                                                                          |
+| Recuperación, anchos 390/768/1440       | scrollWidth coincide con viewport en los tres. Botón de 36 px de alto y anchos 308/334/334; captura móvil legible.                    | PASS de ajuste horizontal; no se envió enlace ni se probó restablecimiento.                                                                                                                                                             |
 | Login, Network en recarga independiente | Dos respuestas 200 de `public_tenant_branding`, separadas por ~3 ms; captura no truncada, sin HTTP >=400 en esa recarga (sin submit). | P3: compartir resultado entre layout (línea 124) y login (línea 33), conservando diferenciación tenant inexistente/error. Cierre: una solicitud por carga y mismos estados de acceso/branding. No es evidencia de lentitud perceptible. |
 
 Los cuatro ficheros relevantes (Sidebar, login, recover, commissions/future) no difieren entre esta rama y `origin/main` en `2cfd99f`; por tanto no se observó una corrección de estos hallazgos en ese código. Eso no acredita el SHA desplegado. Evidencia local sanitizada `auth-audit-summary.json` y capturas fuera de Git; viewport restaurado. No se modificaron credenciales, datos, roles ni código. No se repitieron Web Vitals.
-
 
 ## Acceso QA recuperado — 3-oct, corrección operativa
 

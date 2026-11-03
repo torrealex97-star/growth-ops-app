@@ -46,7 +46,7 @@ arriba; contenido en una columna dentro de la zona segura) y la app decide si va
 
 El editor (`components/carruseles/VisorEditable.tsx`) permite retocar sin IA: las **historias nuevas** (con especificación incrustada) se editan por campos —plantilla, titular, palabra
 resaltada, texto, tipografía, caja, color y fondo— y se recomponen en el navegador (`renderHistoria` es código de cliente, sin módulos de servidor). Se **arrastra el bloque de texto**
-en vertical (asa «mover texto», también con flechas del teclado; queda en `spec.posicion`) y se **suelta una foto** de «Fotos y vídeos» sobre la historia para ponerla de fondo.
+en vertical (asa «mover texto», también con flechas del teclado; `spec.posicion` es el borde superior del bloque, siempre debajo de la cabecera de fecha/logo y dentro de la zona segura) y se **suelta una foto** de «Fotos y vídeos» sobre la historia para ponerla de fondo.
 El resto de slides (carruseles, flyers, historias antiguas) se editan por **lista de textos** (`lib/carruseles/historias/edicion.ts`). El reordenado de slides ya existía en el filmstrip.
 
 ### Productividad para producir historias (agencia con muchos clientes)

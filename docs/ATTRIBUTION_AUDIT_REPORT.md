@@ -1,4 +1,5 @@
 # SPEC-05 — Growth Attribution Intelligence Engine · Auditoría y línea base (PR-0)
+
 13-oct-2026 · Buffy · rama `feat/spec05-pr0-attribution-audit` sobre `origin/main` (`b71dcf55`, merge #480)
 
 Especificación: SPEC-05. **Regla aplicada desde el minuto cero: no rehacer lo que funciona.** La capa
@@ -16,19 +17,19 @@ determinísticos (que sí son verificables y del lado del repo).
 
 ## 1. Mapa del sistema de atribución ACTUAL
 
-| Pieza de la SPEC-05 | Implementación actual | Estado |
-|---|---|---|
-| Record Source / First Touch / Last Touch / Booking Touch | `lib/contacts/atribucion.ts` + `contact_attributions`: first/last/booking con primer toque **inmutable** (nunca se sobrescribe), last con fecha, y regla first-collaborator-wins con acta de auditoría | VERIFICADO |
-| Second Known Touch | `leerTrayectoria` solo lo acepta cuando el proveedor lo entrega como `secondAttributionSource`; **no existe almacenamiento** `second_*` (grep: 0 resultados) | VERIFICADO |
-| Click IDs | `ToqueAtribucion` ya tipa `gclid`, `gbraid`, `wbraid`, `fbclid`, `ttclid`, `msclkid`, `ga_client_id`, `ga_session_id`; el pixel (`lib/tracking/tracker-js.ts`) y `leerToque` ya capturan el abanico completo | VERIFICADO |
-| Precedencia por toque | `leerTrayectoria` ordena `attributionSource` → `lastAttributionSource` → `tracking` con `evidence_source` textual (`provider_first`/`provider_last`/`booking`/`flat_payload`/`browser`) | VERIFICADO |
-| Resolución de campaña/anuncio | `lib/meta/ad-attribution.ts`: orden booking → last → first → raw, con `utm_id`/id numérico → catálogo por external_id; `contacts.campaign_id` (via resolver por identidad) como fallback; **sin ad_id el anuncio queda "desconocido" a propósito** | VERIFICADO |
-| Revenue attribution | `lib/meta/revenue-attribution.ts` (PR #478, nuevo): embudo por cohorte de agenda con ventas/cash neto (`canonicalCash` con refunds), ventas ambiguas fuera de la atribución y declaradas en cobertura | VERIFICADO |
-| Catálogo de campañas | `campaigns` viva en sync de Meta (`lib/meta/sync.ts`), con historial de nombres previos (badge «Renombrada» + endpoint `nombres-previos`, PRs #469/#480) | VERIFICADO |
-| Dashboards | Atribución (`app/.../adquisicion/atribucion`), Campañas, Funnels, Operativa (`lib/metrics/operativo.ts` con totales y `atribuidos` separados) | VERIFICADO |
-| Data health | `lib/data-health/cross-source.ts`: `campana_sin_atribucion` (gasto sin nada río abajo), contactos sin atribuir, llamadas sin agenda | VERIFICADO |
-| IA | `lib/ai/agent/tools.ts` incluye herramientas de funnel de ads; reglas anti-invención del repo | VERIFICADO |
-| Touchpoint como contrato | `lib/types/tracking.ts` define `touchpoint_id` en el evento de tracking; **no hay tabla de touchpoints ni reconstrucción de journey** (grep: solo el campo del evento) | VERIFICADO |
+| Pieza de la SPEC-05                                      | Implementación actual                                                                                                                                                                                                                              | Estado     |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| Record Source / First Touch / Last Touch / Booking Touch | `lib/contacts/atribucion.ts` + `contact_attributions`: first/last/booking con primer toque **inmutable** (nunca se sobrescribe), last con fecha, y regla first-collaborator-wins con acta de auditoría                                             | VERIFICADO |
+| Second Known Touch                                       | `leerTrayectoria` solo lo acepta cuando el proveedor lo entrega como `secondAttributionSource`; **no existe almacenamiento** `second_*` (grep: 0 resultados)                                                                                       | VERIFICADO |
+| Click IDs                                                | `ToqueAtribucion` ya tipa `gclid`, `gbraid`, `wbraid`, `fbclid`, `ttclid`, `msclkid`, `ga_client_id`, `ga_session_id`; el pixel (`lib/tracking/tracker-js.ts`) y `leerToque` ya capturan el abanico completo                                       | VERIFICADO |
+| Precedencia por toque                                    | `leerTrayectoria` ordena `attributionSource` → `lastAttributionSource` → `tracking` con `evidence_source` textual (`provider_first`/`provider_last`/`booking`/`flat_payload`/`browser`)                                                            | VERIFICADO |
+| Resolución de campaña/anuncio                            | `lib/meta/ad-attribution.ts`: orden booking → last → first → raw, con `utm_id`/id numérico → catálogo por external_id; `contacts.campaign_id` (via resolver por identidad) como fallback; **sin ad_id el anuncio queda "desconocido" a propósito** | VERIFICADO |
+| Revenue attribution                                      | `lib/meta/revenue-attribution.ts` (PR #478, nuevo): embudo por cohorte de agenda con ventas/cash neto (`canonicalCash` con refunds), ventas ambiguas fuera de la atribución y declaradas en cobertura                                              | VERIFICADO |
+| Catálogo de campañas                                     | `campaigns` viva en sync de Meta (`lib/meta/sync.ts`), con historial de nombres previos (badge «Renombrada» + endpoint `nombres-previos`, PRs #469/#480)                                                                                           | VERIFICADO |
+| Dashboards                                               | Atribución (`app/.../adquisicion/atribucion`), Campañas, Funnels, Operativa (`lib/metrics/operativo.ts` con totales y `atribuidos` separados)                                                                                                      | VERIFICADO |
+| Data health                                              | `lib/data-health/cross-source.ts`: `campana_sin_atribucion` (gasto sin nada río abajo), contactos sin atribuir, llamadas sin agenda                                                                                                                | VERIFICADO |
+| IA                                                       | `lib/ai/agent/tools.ts` incluye herramientas de funnel de ads; reglas anti-invención del repo                                                                                                                                                      | VERIFICADO |
+| Touchpoint como contrato                                 | `lib/types/tracking.ts` define `touchpoint_id` en el evento de tracking; **no hay tabla de touchpoints ni reconstrucción de journey** (grep: solo el campo del evento)                                                                             | VERIFICADO |
 
 ---
 
@@ -43,7 +44,7 @@ La app decide "canal" en tres sitios distintos con criterios distintos:
    `google`; ni referrer ni UTM → `'direct'`. No consulta `utm_medium`, no distingue pago/orgánico.
 2. `isPaidSource` ([lib/ads/funnel.ts](../lib/ads/funnel.ts)):
    lista cerrada `PAID_UTM_SOURCES` de alias de Meta (`facebook|fb|meta|meta_ads|facebook_ads|ig|instagram|instagram_ads|an|audience_network...
-   `). La fuente es `utm_source` únicamente: un `utm_source=instagram` **con `utm_medium=organic`
+`). La fuente es `utm_source` únicamente: un `utm_source=instagram` **con `utm_medium=organic`
    (o sin medium) se clasifica como "Meta Ads (pago)"** — el caso exacto de indeterminación de la
    spec (§2: "un alias de plataforma no determina pagado u orgánico").
 3. `originLabel` ([lib/ads/funnel.ts](../lib/ads/funnel.ts)):
@@ -108,8 +109,8 @@ hito, ni distinción observado/derivado. PR-3 lo define sin tocar el almacenamie
 El sensor de atribución para contactos (`registrarToque`) opera entrega a entrega; la unión de
 `tracking_sessions/visitors` ↔ `contacts` depende de identificarse (email o eventos confirmados por
 calendly). No existe un "graph" revisable de `visitor_id` → contactos. Los casos de email compartido,
-  teléfonos reciclados y evoluciones de identidad quedan pendientes de la evolución de Person 360; quedan
-  como PENDIENTES para PR-3 (la SPEC-04 PR-3 ya reclamó «dos agendas legítimas», no el identity graph).
+teléfonos reciclados y evoluciones de identidad quedan pendientes de la evolución de Person 360; quedan
+como PENDIENTES para PR-3 (la SPEC-04 PR-3 ya reclamó «dos agendas legítimas», no el identity graph).
 
 ### H-8 — Data health de atribución sin señales de coverage (INSPECCIONADO)
 
@@ -122,15 +123,15 @@ campañas/anuncios/ventas/cash — la base existe y se reutiliza (PR-7 la consol
 
 ## 3. Casos del §0 de la spec — estado
 
-| Caso pedido | Estado | Evidencia |
-|---|---|---|
-| `utm_source` publicidad pero `source` organic | INSPECCIONADO (estructura reproducible: H-2) | lectura de la composición `source ‖ first_utm_source` |
-| `fbclid` presente pero orgánico | INSPECCIONADO (posible estructuralmente: `isPaidSource` no mira `fbclid` ni `utm_medium`, H-1) | `lib/ads/funnel.ts` |
-| `gclid` presente pero direct | INSPECCIONADO (idem; `deriveChannel` devuelve direct con referrer vacío aunque la sesión traiga clic ID) | `lib/tracking/ingest.ts` |
-| Primera Meta y agenda organic | INSPECCIONADO (H-2/H-1 en la etiqueta de agendas) | page agends/origen |
-| Venta/pago sin atribución en los informes de cash | VERIFICADO como cubierto por #478 (coverage declarado) | `lib/meta/revenue-attribution.ts` |
-| La misma conversión con atribuciones distintas | VERIFICADO no existe motor plural todavía (H-5), no puede pasar | ausencia |
-| Dashboards incompatibles | INSPECCIONADO (H-1: cuatro criterios de canal) | ficheros citados |
+| Caso pedido                                       | Estado                                                                                                   | Evidencia                                             |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `utm_source` publicidad pero `source` organic     | INSPECCIONADO (estructura reproducible: H-2)                                                             | lectura de la composición `source ‖ first_utm_source` |
+| `fbclid` presente pero orgánico                   | INSPECCIONADO (posible estructuralmente: `isPaidSource` no mira `fbclid` ni `utm_medium`, H-1)           | `lib/ads/funnel.ts`                                   |
+| `gclid` presente pero direct                      | INSPECCIONADO (idem; `deriveChannel` devuelve direct con referrer vacío aunque la sesión traiga clic ID) | `lib/tracking/ingest.ts`                              |
+| Primera Meta y agenda organic                     | INSPECCIONADO (H-2/H-1 en la etiqueta de agendas)                                                        | page agends/origen                                    |
+| Venta/pago sin atribución en los informes de cash | VERIFICADO como cubierto por #478 (coverage declarado)                                                   | `lib/meta/revenue-attribution.ts`                     |
+| La misma conversión con atribuciones distintas    | VERIFICADO no existe motor plural todavía (H-5), no puede pasar                                          | ausencia                                              |
+| Dashboards incompatibles                          | INSPECCIONADO (H-1: cuatro criterios de canal)                                                           | ficheros citados                                      |
 
 No hay correcciones automáticas en este PR: entender antes de tocar es parte de la spec.
 
@@ -138,18 +139,18 @@ No hay correcciones automáticas en este PR: entender antes de tocar es parte de
 
 ## 4. Plan de fases (adaptado a lo que existe)
 
-| Fase | Cubre | Nota |
-|---|---|---|
-| **PR-0** (este) | Auditoría y matriz | sin código |
-| PR-1 — Source Taxonomy | `source_normalization_rules` versionada de la SPEC-04 PR-2 si aún no fusionada; taxonomía canónica (MM internos sobre `lib/contacts/resolver-campana.ts` ya resuelven alias → campañas) | un solo motor de clasificación, compartido por los 4 consumidores |
-| PR-2 — Evidence & Conflicts | Estados de clasificación (`VERIFIED/RULE_DERIVED/PARTIAL/CONFLICTED/UNKNOWN`) y precedencia por campo | no jerarquía universal |
-| PR-3 — Touchpoints & Journey | Second touch, last non-direct, reconstrucción con evidencia, identity graph | |
-| PR-4 — Models | Contrato de modelos con invariantes §9 (pesos suman 1, sin doble contabilidad) y ventanas por tipo de conversión | additivo, no sustitutivo |
-| PR-5 — Campaign Identity | Resolver a Google/TikTok, marcadores de catálogo desactualizado | ya hace Meta con IDs estables |
-| PR-6 — Revenue/Cash attribution | Políticas por pago/renovación; reutiliza `canonicalCash` | |
-| PR-7 — Reporting & Health | Señales de cobertura de atribución, comparaciones cross-platform sin acusar inflación de terceros | |
-| PR-8 — Copilot IA | `explain_attribution`, `compare_attribution_models`, `find_source_conflicts` | reutiliza `lib/ai/agent/tools` y reglas anti-invención |
-| PR-9 — E2E & Hardening | Fixtures A–N de la spec como property tests y e2e | |
+| Fase                            | Cubre                                                                                                                                                                                   | Nota                                                              |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| **PR-0** (este)                 | Auditoría y matriz                                                                                                                                                                      | sin código                                                        |
+| PR-1 — Source Taxonomy          | `source_normalization_rules` versionada de la SPEC-04 PR-2 si aún no fusionada; taxonomía canónica (MM internos sobre `lib/contacts/resolver-campana.ts` ya resuelven alias → campañas) | un solo motor de clasificación, compartido por los 4 consumidores |
+| PR-2 — Evidence & Conflicts     | Estados de clasificación (`VERIFIED/RULE_DERIVED/PARTIAL/CONFLICTED/UNKNOWN`) y precedencia por campo                                                                                   | no jerarquía universal                                            |
+| PR-3 — Touchpoints & Journey    | Second touch, last non-direct, reconstrucción con evidencia, identity graph                                                                                                             |                                                                   |
+| PR-4 — Models                   | Contrato de modelos con invariantes §9 (pesos suman 1, sin doble contabilidad) y ventanas por tipo de conversión                                                                        | additivo, no sustitutivo                                          |
+| PR-5 — Campaign Identity        | Resolver a Google/TikTok, marcadores de catálogo desactualizado                                                                                                                         | ya hace Meta con IDs estables                                     |
+| PR-6 — Revenue/Cash attribution | Políticas por pago/renovación; reutiliza `canonicalCash`                                                                                                                                |                                                                   |
+| PR-7 — Reporting & Health       | Señales de cobertura de atribución, comparaciones cross-platform sin acusar inflación de terceros                                                                                       |                                                                   |
+| PR-8 — Copilot IA               | `explain_attribution`, `compare_attribution_models`, `find_source_conflicts`                                                                                                            | reutiliza `lib/ai/agent/tools` y reglas anti-invención            |
+| PR-9 — E2E & Hardening          | Fixtures A–N de la spec como property tests y e2e                                                                                                                                       |                                                                   |
 
 ---
 

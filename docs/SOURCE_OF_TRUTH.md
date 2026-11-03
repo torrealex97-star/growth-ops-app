@@ -9,13 +9,13 @@
 
 Cada métrica declara en `lib/sources/registry.ts`:
 
-| Campo | Significado |
-|---|---|
-| `primary` | Fuente con autoridad. Si tiene dato, ES el número. |
-| `fallbacks` | Orden de respaldo cuando la primaria no tiene dato. |
-| `dedupKey` | Claves que identifican EL MISMO evento entre fuentes (no se suman nunca). |
-| `manualOverride` | Si un humano puede corregirla (con auditoría de actor/timestamp/old/new/reason). |
-| `what` / `formula` | Texto del tooltip de fuente en la UI (§37). |
+| Campo              | Significado                                                                      |
+| ------------------ | -------------------------------------------------------------------------------- |
+| `primary`          | Fuente con autoridad. Si tiene dato, ES el número.                               |
+| `fallbacks`        | Orden de respaldo cuando la primaria no tiene dato.                              |
+| `dedupKey`         | Claves que identifican EL MISMO evento entre fuentes (no se suman nunca).        |
+| `manualOverride`   | Si un humano puede corregirla (con auditoría de actor/timestamp/old/new/reason). |
+| `what` / `formula` | Texto del tooltip de fuente en la UI (§37).                                      |
 
 **Nunca se suman dos fuentes que pueden representar el mismo evento.** Si la primaria no tiene dato,
 entra el fallback en orden; si dos fuentes discrepan, gana la prioridad y el conflicto se registra
@@ -23,18 +23,18 @@ entra el fallback en orden; si dos fuentes discrepan, gana la prioridad y el con
 
 ## 2. Registro por métrica (resumen; la fuente de verdad ejecutable es el registro TS)
 
-| Métrica (nombre canónico) | Primary | Fallbacks | Dedup key |
-|---|---|---|---|
-| **Cash Collected** | Stripe | Banco › Pagos internos › Manual | payment_id / transaction_id / cliente+importe+timestamp |
-| **Revenue Closed** | Ventas internas | CRM Closed Won › Producto×precio › Manual | sale_id / opportunity_id / lead+fecha+importe |
-| **New Unique Leads** | CRM | Typeform › Native Forms › Calendly › G. Calendar | email › teléfono › external_contact_id |
-| **Form Submissions** | Typeform | Native Forms | form_submission_id |
-| **Booked Appointments** | Calendly | G. Calendar › CRM | calendly_event_id / calendar_event_id / contacto+fecha |
-| **Shows** | CRM | Confirmación manual | appointment_id |
-| **Sales** | Ventas internas | CRM › Manual | sale_id / opportunity_id |
-| **Tráfico (Meta)** | Meta Ads | — | campaign_id+date |
-| **Comportamiento onsite** | First-party | GA4 | session_id / anonymous_id |
-| **Colaboradores** | CRM collaborator_id | Módulo afiliados (relacionado, no duplicado) | collaborator_id / affiliate_id |
+| Métrica (nombre canónico) | Primary             | Fallbacks                                        | Dedup key                                               |
+| ------------------------- | ------------------- | ------------------------------------------------ | ------------------------------------------------------- |
+| **Cash Collected**        | Stripe              | Banco › Pagos internos › Manual                  | payment_id / transaction_id / cliente+importe+timestamp |
+| **Revenue Closed**        | Ventas internas     | CRM Closed Won › Producto×precio › Manual        | sale_id / opportunity_id / lead+fecha+importe           |
+| **New Unique Leads**      | CRM                 | Typeform › Native Forms › Calendly › G. Calendar | email › teléfono › external_contact_id                  |
+| **Form Submissions**      | Typeform            | Native Forms                                     | form_submission_id                                      |
+| **Booked Appointments**   | Calendly            | G. Calendar › CRM                                | calendly_event_id / calendar_event_id / contacto+fecha  |
+| **Shows**                 | CRM                 | Confirmación manual                              | appointment_id                                          |
+| **Sales**                 | Ventas internas     | CRM › Manual                                     | sale_id / opportunity_id                                |
+| **Tráfico (Meta)**        | Meta Ads            | —                                                | campaign_id+date                                        |
+| **Comportamiento onsite** | First-party         | GA4                                              | session_id / anonymous_id                               |
+| **Colaboradores**         | CRM collaborator_id | Módulo afiliados (relacionado, no duplicado)     | collaborator_id / affiliate_id                          |
 
 ### Equivalencias de nomenclatura VIGENTES en la app (mismos conceptos, etiquetas históricas)
 

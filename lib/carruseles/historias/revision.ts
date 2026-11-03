@@ -8,6 +8,9 @@ export type Hallazgo = { nivel: 'error' | 'aviso'; historia: number | null; mens
 export const SEGUNDOS_POR_HISTORIA = 5
 const PALABRAS_POR_SEGUNDO = 3
 export const MAX_PALABRAS_GANCHO = 12
+/** Verbos de acción (cualquier conjugación: «guárdalo», «mándame») y palabras sueltas; siempre al inicio de palabra (sin «dm» dentro de «admito»). */
+const ACCION =
+  /\?|(?<![\p{L}\p{N}])(?:(?:escrib|coment|respond|guard|guárd|compart|mand|mánd|envi|envía|pulsa)\p{L}*|dm|mensaje|link|enlace)(?![\p{L}\p{N}])/iu
 const EMOJI = /\p{Extended_Pictographic}/gu
 
 const palabras = (s: string | undefined) => (s ?? '').trim().split(/\s+/).filter(Boolean).length
@@ -87,9 +90,7 @@ export function revisarSecuencia(
 
   const ultima = specs[n - 1]
   const tieneAccion =
-    ultima.layout === 'sticker' ||
-    ultima.sticker !== undefined ||
-    /\?|escribe|comenta|responde|dm|mensaje|guarda|comparte|link|enlace/i.test(textoDeHistoria(ultima))
+    ultima.layout === 'sticker' || ultima.sticker !== undefined || ACCION.test(textoDeHistoria(ultima))
   if (n > 1 && !tieneAccion)
     h.push({
       nivel: 'aviso',

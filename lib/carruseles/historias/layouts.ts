@@ -266,10 +266,13 @@ function capturaHtml(p: Pedido, url: string | undefined): string {
 const recuadro = (i: NonNullable<HistoriaSpec['items']>[number]) =>
   `<div class="ig-recuadro"><b>${i.icono ? `${esc(i.icono)} ` : ''}${esc(i.titulo)}</b>${esc(i.texto ?? '')}</div>`
 
-/** Altura (px) del centro del bloque de texto para una posición 0-100 dentro de la zona segura. */
+/** Alto mínimo (px) que se deja al bloque de texto al colocarlo abajo del todo. */
+export const ALTO_MINIMO_BLOQUE = 200
+
+/** Altura (px) del BORDE SUPERIOR del bloque de texto para una posición 0-100: siempre debajo de la cabecera y dentro de la zona segura. */
 export const posicionPx = (p: number, plataforma: Plataforma = 'instagram'): number => {
   const z = SEGURA_POR_PLATAFORMA[plataforma]
-  return Math.round(z.arriba + (p / 100) * (1920 - z.arriba - z.abajo))
+  return Math.round(z.arriba + (p / 100) * (1920 - z.arriba - z.abajo - ALTO_MINIMO_BLOQUE))
 }
 
 // ── Composición
@@ -334,5 +337,5 @@ export function renderHistoria(spec: HistoriaSpec, ctx: ContextoRender): string 
     .filter(Boolean)
     .join(';')
   const datos = esc(JSON.stringify({ spec, estilo, hoy: ctx.hoy.toISOString() }))
-  return `<div class="ig-historia" data-spec="${datos}" style="${esc(vars)}"><div class="ig-fondo">${fondo}</div>${cabecera}<div class="ig-zona ig-zona-${spec.posicion === undefined ? zona : 'libre'}${centrado}${fuente ? ` ig-f-${fuente}` : ''}"${spec.posicion === undefined ? '' : ` style="top:${posicionPx(spec.posicion, spec.plataforma)}px"`}>${contenido}</div></div>`
+  return `<div class="ig-historia" data-spec="${datos}" style="${esc(vars)}"><div class="ig-fondo">${fondo}</div>${cabecera}<div class="ig-zona ig-zona-${spec.posicion === undefined ? zona : 'libre'}${centrado}${fuente ? ` ig-f-${fuente}` : ''}"${spec.posicion === undefined ? '' : ` style="--ig-top:${posicionPx(spec.posicion, spec.plataforma)}px"`}>${contenido}</div></div>`
 }

@@ -5,11 +5,13 @@
 A complete system to **verify customer identification documents before sending contracts**, with a **firewall override** for exceptional cases.
 
 **Problem solved:**
+
 - ❌ USA and other countries have strict identity verification requirements
 - ❌ Without docs, contracts can't be legally signed
 - ❌ No way to block contract sending without docs
 
 **Solution:**
+
 - ✓ Blocks contract sending until documents are verified
 - ✓ Allows closers/admins to override in exceptional cases (logged for audit)
 - ✓ Works with any country (Spain, USA, Mexico, etc.)
@@ -18,22 +20,23 @@ A complete system to **verify customer identification documents before sending c
 
 ## 📋 Files Created
 
-| File | Purpose |
-|------|---------|
-| `scripts/migration-v47-document-verification.sql` | Database schema update |
-| `lib/contracts/document-requirements.ts` | Country-specific requirements |
-| `app/api/evergreen/documents/verify/route.ts` | Upload documents endpoint |
-| `app/api/evergreen/documents/override/route.ts` | Firewall override endpoint |
-| `app/api/evergreen/documents/state/route.ts` | Check verification status |
-| `components/sales/DocumentVerificationSection.tsx` | React UI component |
-| `docs/DOCUMENT-VERIFICATION-IMPLEMENTATION.md` | Full technical docs |
-| `docs/DOCUMENT-VERIFICATION-USAGE-EXAMPLES.md` | Code examples & scenarios |
+| File                                               | Purpose                       |
+| -------------------------------------------------- | ----------------------------- |
+| `scripts/migration-v47-document-verification.sql`  | Database schema update        |
+| `lib/contracts/document-requirements.ts`           | Country-specific requirements |
+| `app/api/evergreen/documents/verify/route.ts`      | Upload documents endpoint     |
+| `app/api/evergreen/documents/override/route.ts`    | Firewall override endpoint    |
+| `app/api/evergreen/documents/state/route.ts`       | Check verification status     |
+| `components/sales/DocumentVerificationSection.tsx` | React UI component            |
+| `docs/DOCUMENT-VERIFICATION-IMPLEMENTATION.md`     | Full technical docs           |
+| `docs/DOCUMENT-VERIFICATION-USAGE-EXAMPLES.md`     | Code examples & scenarios     |
 
 ---
 
 ## 🚀 Implementation Steps (15 minutes)
 
 ### Step 1: Run Database Migration
+
 ```bash
 # Open Supabase SQL editor and copy-paste:
 # /scripts/migration-v47-document-verification.sql
@@ -43,7 +46,9 @@ A complete system to **verify customer identification documents before sending c
 ```
 
 ### Step 2: Create Storage Bucket
+
 In Supabase → Storage → New Bucket:
+
 - **Name:** `documentos-verificacion`
 - **Public:** No (private bucket)
 - **File size limit:** 10 MB
@@ -57,7 +62,7 @@ Open `/app/evergreen/sales/[id]/page.tsx` and add:
 import { DocumentVerificationSection } from '@/components/sales/DocumentVerificationSection'
 
 // In the component JSX, add after contract section:
-<DocumentVerificationSection
+;<DocumentVerificationSection
   saleId={saleId}
   contactCountry={sale.contacts?.country}
   contactEmail={sale.contacts?.email}
@@ -68,12 +73,16 @@ import { DocumentVerificationSection } from '@/components/sales/DocumentVerifica
 ### Step 4: Update Contract Sending (Already Done ✓)
 
 The endpoint `/api/evergreen/contracts/student` already checks for:
+
 ```typescript
 // ✓ Modified in step 1
 if (!docsVerified) {
-  return NextResponse.json({
-    error: 'Document verification required'
-  }, { status: 403 })
+  return NextResponse.json(
+    {
+      error: 'Document verification required',
+    },
+    { status: 403 }
+  )
 }
 ```
 
@@ -92,6 +101,7 @@ if (!docsVerified) {
 ## 🎮 Using the System
 
 ### As a Closer (Normal Case)
+
 ```
 1. Customer pays (USA)
 2. System shows: "⚠️ Document Verification Required"
@@ -102,6 +112,7 @@ if (!docsVerified) {
 ```
 
 ### As a Closer (Override Case)
+
 ```
 1. Customer paid but can't upload docs
 2. You need to send contract NOW
@@ -113,6 +124,7 @@ if (!docsVerified) {
 ```
 
 ### As an Admin (Verify Documents)
+
 ```sql
 -- Find pending documents
 SELECT * FROM document_verifications WHERE status = 'pending';
@@ -133,30 +145,33 @@ WHERE id = (SELECT sale_id FROM document_verifications WHERE id = '...');
 
 ## 🔍 What Gets Blocked & Why
 
-| Scenario | Block? | Why |
-|----------|--------|-----|
-| Spain sale, no docs | ❌ Block | ES requires DNI/NIE/Passport |
-| USA sale, no docs | ❌ Block | US requires Passport/ID (strict) |
-| Any sale, docs verified | ✅ Allow | Verification complete |
-| Any sale, override applied | ✅ Allow | Override logged, exception noted |
-| Contract sending with no docs | ❌ Block | Returns 403 error |
+| Scenario                      | Block?   | Why                              |
+| ----------------------------- | -------- | -------------------------------- |
+| Spain sale, no docs           | ❌ Block | ES requires DNI/NIE/Passport     |
+| USA sale, no docs             | ❌ Block | US requires Passport/ID (strict) |
+| Any sale, docs verified       | ✅ Allow | Verification complete            |
+| Any sale, override applied    | ✅ Allow | Override logged, exception noted |
+| Contract sending with no docs | ❌ Block | Returns 403 error                |
 
 ---
 
 ## 🛡️ The Firewall (Override) System
 
 **Who can override?**
+
 - ✓ Admin
 - ✓ Director
 - ✓ Closer
 
 **Why would you override?**
+
 - Customer's technical issue uploading
 - Time-sensitive case (customer ready to start)
 - Documents being prepared (will upload later)
 - Exceptional approval from director/legal
 
 **What's logged?**
+
 ```sql
 -- In sales table:
 documents_verified_override = true          -- Marker
@@ -166,6 +181,7 @@ documents_override_at = "timestamp"         -- When
 ```
 
 **Audit trail example:**
+
 ```
 Override Applied:
 ├─ Reason: "Customer unable to upload - technical issue"
@@ -179,6 +195,7 @@ Override Applied:
 ## 📊 Database Schema
 
 ### New Table: `document_verifications`
+
 ```sql
 id                UUID              -- Document record ID
 sale_id           UUID              -- Which sale
@@ -194,6 +211,7 @@ created_at        TIMESTAMPTZ       -- When uploaded
 ```
 
 ### New Fields in `sales` Table
+
 ```sql
 documents_verified              BOOLEAN       -- Documents OK?
 documents_verified_at           TIMESTAMPTZ   -- When verified
@@ -209,6 +227,7 @@ documents_override_at           TIMESTAMPTZ   -- When overrode
 ## ⚙️ API Reference
 
 ### Upload Document
+
 ```
 POST /api/evergreen/documents/verify
 Content-Type: application/json
@@ -231,6 +250,7 @@ Response: 200
 ```
 
 ### Apply Override
+
 ```
 POST /api/evergreen/documents/override
 Content-Type: application/json
@@ -250,6 +270,7 @@ Response: 200
 ```
 
 ### Check Status
+
 ```
 GET /api/evergreen/documents/state?saleId=uuid
 
@@ -279,18 +300,19 @@ Response: 200
 
 ## 🐛 Troubleshooting
 
-| Problem | Solution |
-|---------|----------|
-| "Storage bucket not found" | Create `documentos-verificacion` in Supabase Storage |
-| Override button not showing | Check user role is admin/director/closer |
+| Problem                              | Solution                                                                   |
+| ------------------------------------ | -------------------------------------------------------------------------- |
+| "Storage bucket not found"           | Create `documentos-verificacion` in Supabase Storage                       |
+| Override button not showing          | Check user role is admin/director/closer                                   |
 | Contract still blocks after override | Verify `documents_verified` or `documents_verified_override` is true in DB |
-| Documents not uploading | Check bucket exists and file size < 10MB |
+| Documents not uploading              | Check bucket exists and file size < 10MB                                   |
 
 ---
 
 ## 📞 Support
 
 For questions:
+
 - **Technical details:** See `DOCUMENT-VERIFICATION-IMPLEMENTATION.md`
 - **Code examples:** See `DOCUMENT-VERIFICATION-USAGE-EXAMPLES.md`
 - **Database:** Check `scripts/migration-v47-document-verification.sql`

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { conTextosEditados, textosEditables } from '../lib/carruseles/historias/edicion.ts'
-import { leerSpec, posicionPx, renderHistoria } from '../lib/carruseles/historias/layouts.ts'
+import { ALTO_MINIMO_BLOQUE, leerSpec, posicionPx, renderHistoria } from '../lib/carruseles/historias/layouts.ts'
 import { leerSpecDeHtml } from '../lib/carruseles/historias/pedidos.ts'
 import { DEFAULT_BRAND } from '../lib/carruseles/types.ts'
 
@@ -35,14 +35,19 @@ test('una historia con especificación se edita por campos: la posición libre m
   assert.equal(leerSpec({ layout: 'foto_texto', texto: 'Hola', posicion: -3 }).spec.posicion, 6)
   const ctx = { brand: DEFAULT_BRAND, estilo: 'nativo', media: [], hoy: new Date(2026, 10, 3), indice: 1, total: 5 }
   const h = renderHistoria({ ...r.spec, posicion: 50 }, ctx)
-  assert.match(h, new RegExp(`ig-zona-libre[^"]*" style="top:${posicionPx(50)}px"`))
+  assert.match(h, new RegExp(`ig-zona-libre[^"]*" style="--ig-top:${posicionPx(50)}px"`))
   assert.doesNotMatch(
     renderHistoria(r.spec, ctx).replace(/posicion[^,]*,/, ''),
     /ig-zona-abajo/,
     'con posición ya no usa la zona fija'
   )
   assert.equal(leerSpecDeHtml(h).spec.posicion, 50, 'la posición viaja en la especificación incrustada')
-  assert.ok(posicionPx(0) >= 250 && posicionPx(100) <= 1920 - 340, 'siempre dentro de la zona segura')
+  assert.ok(
+    posicionPx(0) >= 250 && posicionPx(100) + ALTO_MINIMO_BLOQUE <= 1920 - 340,
+    'el bloque siempre cabe en la zona segura'
+  )
+  assert.ok(posicionPx(0, 'tiktok') >= 234, 'ni en TikTok puede subir sobre la cabecera (fecha y logo)')
+  assert.ok(posicionPx(100, 'tiktok') + ALTO_MINIMO_BLOQUE <= 1920 - 480)
 })
 
 test('el renderizador funciona en el navegador: no importa módulos de servidor', () => {
@@ -174,4 +179,41 @@ test('de idea a historias: la idea abre el creador con el tema escrito y el viso
   const v = readFileSync('components/carruseles/VisorEditable.tsx', 'utf8')
   for (const t of ['Revisión de la secuencia', 'Guías de la app', 'Variantes con IA', 'aria-label="Publicar en"'])
     assert.ok(v.includes(t), t)
+})
+
+test('revisión: la llamada a la acción se detecta por palabras enteras («admito» no es «dm»)', async () => {
+  const { revisarSecuencia } = await import('../lib/carruseles/historias/revision.ts')
+  const s = (texto, o = {}) => ({ layout: 'foto_texto', texto, ...o })
+  const base = [s('Uno', { layout: 'portada', titulo: 'Gancho corto', acento: 'corto' }), s('Dos'), s('Tres')]
+  const sinAccion = revisarSecuencia([...base, s('Lo admito, me equivoqué')], { hayMedios: true, pendientes: 0 })
+  assert.ok(
+    sinAccion.some((h) => /no pide una acción/.test(h.mensaje)),
+    '«admito» no cuenta como «dm»'
+  )
+  for (const t of ['Escribe CLOSER', 'Mándame un DM', 'Guárdalo']) {
+    const conAccion = revisarSecuencia([...base, s(t)], { hayMedios: true, pendientes: 0 })
+    assert.ok(!conAccion.some((h) => /no pide una acción/.test(h.mensaje)), t)
+  }
+})
+
+test('la posición libre no puede subir sobre la cabecera: arranca debajo de la fecha y el logo en ambas redes', async () => {
+  const { SEGURA_POR_PLATAFORMA, CSS_NATIVO } = await import('../lib/carruseles/historias/estilo-nativo.ts')
+  const CABECERA_FIN = 104 + 130 // top de .ig-cabecera + alto de la etiqueta de fecha
+  for (const p of ['instagram', 'tiktok']) assert.ok(SEGURA_POR_PLATAFORMA[p].arriba >= CABECERA_FIN, p)
+  assert.match(
+    CSS_NATIVO,
+    /\.ig-zona\.ig-zona-libre\{top:var\(--ig-top\)/,
+    'la posición es el borde superior, sin translateY(-50%)'
+  )
+  assert.doesNotMatch(CSS_NATIVO, /ig-zona-libre\{transform/)
+})
+
+test('el visor no pierde lo que se escribe: el formulario se recarga por slide y por cambios ajenos, y se guarda al salir', () => {
+  const v = readFileSync('components/carruseles/VisorEditable.tsx', 'utf8')
+  assert.match(v, /formId\.current === slide\.id && guardados\.current\.has\(slide\.html\)/)
+  assert.match(v, /pendiente\.current\?\.\(\)/, 'al desmontar se ejecuta el guardado pendiente')
+  assert.match(v, /keepalive: true/)
+  assert.match(v, /variantes\.slideId === slide\.id/, 'las variantes solo se ofrecen en la historia que las pidió')
+  assert.match(v, /conSpec\[h\.historia - 1\]/, 'los avisos se traducen al número real de slide')
+  assert.match(v, /onPointerCancel/)
 })

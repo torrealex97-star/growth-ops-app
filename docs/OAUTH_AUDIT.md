@@ -15,15 +15,15 @@
 
 ## 1. Google (arquitectura vigente desde 13-oct-2026)
 
-| Dato                          | Valor                                                                                              |
-| ----------------------------- | -------------------------------------------------------------------------------------------------- |
-| Cliente OAuth                 | Uno global, propiedad de la plataforma; env `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` |
-| Redirect URI                  | `https://app.scalixsystems.com/api/oauth/google/callback` (cadena exacta)                           |
-| Identidad multi-tenant        | Refresh/access token cifrados por subcuenta en `google_oauth_connections`                          |
-| Protección del flujo          | `state` HMAC con tenant+usuario+servicio+TTL, PKCE S256 y sesión verificada en callback             |
-| Consentimientos               | GA4, Calendar, YouTube lectura/analytics y YouTube publicación separados                           |
-| Refresco y desconexión        | Automático con refresh token; revocación en Google y borrado tenant-scoped                          |
-| Gmail                         | No se usa Gmail API ni scopes restringidos; el correo saliente permanece en Resend                 |
+| Dato                   | Valor                                                                                               |
+| ---------------------- | --------------------------------------------------------------------------------------------------- |
+| Cliente OAuth          | Uno global, propiedad de la plataforma; env `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` |
+| Redirect URI           | `https://app.scalixsystems.com/api/oauth/google/callback` (cadena exacta)                           |
+| Identidad multi-tenant | Refresh/access token cifrados por subcuenta en `google_oauth_connections`                           |
+| Protección del flujo   | `state` HMAC con tenant+usuario+servicio+TTL, PKCE S256 y sesión verificada en callback             |
+| Consentimientos        | GA4, Calendar, YouTube lectura/analytics y YouTube publicación separados                            |
+| Refresco y desconexión | Automático con refresh token; revocación en Google y borrado tenant-scoped                          |
+| Gmail                  | No se usa Gmail API ni scopes restringidos; el correo saliente permanece en Resend                  |
 
 YouTube ya no usa OAuth Playground ni credenciales pegadas por cada cliente. `youtube.readonly` y
 `yt-analytics.readonly` permiten consultar canal/analítica; `youtube.upload` se solicita únicamente
@@ -82,14 +82,14 @@ rotación son los tokens y los webhooks de la tabla de arriba.
 
 ## Cobertura de tests de integraciones (aplicando integration-testing)
 
-| Área               | Tests existentes                                                                                                              |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| Webhooks entrantes | `webhooks-entrantes.test.mjs`, `webhook-ghl.test.mjs`, `stripe-webhook-route.test.mjs`, `webhook-secret-diagnostico.test.mjs` |
-| Crons              | `cron-calendly-ghl.test.mjs`, `cron-stripe-payments.test.mjs`                                                                 |
+| Área               | Tests existentes                                                                                                                      |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Webhooks entrantes | `webhooks-entrantes.test.mjs`, `webhook-ghl.test.mjs`, `stripe-webhook-route.test.mjs`, `webhook-secret-diagnostico.test.mjs`         |
+| Crons              | `cron-calendly-ghl.test.mjs`, `cron-stripe-payments.test.mjs`                                                                         |
 | Google/YouTube     | `google-oauth.test.mjs` (state, PKCE, scopes, cifrado, refresh, revocación), `youtube-oauth.test.mjs` (lectura/publicación separadas) |
-| Apify              | `social-research.test.mjs` (guards de cuenta propia, webhook)                                                                 |
-| Stripe             | `stripe-backfill-route.test.mjs`, `salud-pagos-stripe-sin-cobro.test.mjs`                                                     |
-| Meta               | `tests/meta/` (fixtures y sincronización)                                                                                     |
+| Apify              | `social-research.test.mjs` (guards de cuenta propia, webhook)                                                                         |
+| Stripe             | `stripe-backfill-route.test.mjs`, `salud-pagos-stripe-sin-cobro.test.mjs`                                                             |
+| Meta               | `tests/meta/` (fixtures y sincronización)                                                                                             |
 
 Hueco conocido y asumido: CI no consume cuentas reales de Google. Tras aplicar la migración y
 configurar el cliente global hay que ejecutar un smoke de consentimiento, refresco y revocación con

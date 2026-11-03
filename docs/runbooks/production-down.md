@@ -5,10 +5,12 @@ deploy que rompió algo (deployment-regression, external-api-failure y login-fai
 archivos separados — su contenido real es una variante de este mismo flujo).
 
 ## 1. DETECT
+
 - ¿Cómo te enteraste? (usuario reportando / tú lo viste / GitHub Actions falló)
 - Confirma con una prueba directa (no solo "alguien dijo"): abre `/​<tenant>/login`, intenta entrar, mira `/​<tenant>/dashboard`.
 
 ## 2. TRIAGE
+
 - ¿Afecta a **ambos tenants** (Evergreen y WDC) o solo a uno? → si es solo uno, revisa datos/config de ESE tenant
   antes de asumir que es un bug de código compartido.
 - ¿Empezó justo después de un deploy? → `git log --oneline -5` en `main`, mira qué se desplegó.
@@ -16,6 +18,7 @@ archivos separados — su contenido real es una variante de este mismo flujo).
   de la app; si responde pero con error 500, es más probable que sea Supabase/DB.
 
 ## 3. CONTAIN
+
 - Si es un deploy roto: revertir ES la contención. No intentes "arreglarlo hacia adelante" bajo presión.
   ```
   vercel rollback   # o: Vercel › proyecto › Deployments › el anterior en verde › Instant Rollback
@@ -25,17 +28,21 @@ archivos separados — su contenido real es una variante de este mismo flujo).
   `docs/PRODUCTION_READINESS.md`) mientras se investiga, salvo que esté generando coste/spam.
 
 ## 4. MITIGATE
+
 - Con el rollback ya aplicado (o la causa identificada), aplica el fix mínimo necesario, no un refactor.
 - Si es un dato corrupto puntual (una fila, no un bug de código), corregir el dato es más seguro que un hotfix de
   código bajo presión.
 
 ## 5. RECOVER
+
 - Vuelve a desplegar (`workflow_dispatch` en `main`) y espera a que `ci.yml` esté verde antes.
 
 ## 6. VERIFY
+
 - No basta con "ya no da error". Repite la prueba de DETECT con datos reales: login, dashboard, y la operación
   concreta que falló (crear venta, marcar cobro, etc.) en AMBOS tenants si el incidente los afectaba a los dos.
 
 ## 7. POSTMORTEM
+
 - Solo para SEV0/SEV1 (ver `docs/PRODUCTION_READINESS.md` sección de severidades). Qué pasó, por qué no lo detectó
   nadie antes que el usuario, qué constraint/test/alerta lo habría evitado.

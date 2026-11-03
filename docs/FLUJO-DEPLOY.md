@@ -4,10 +4,10 @@ Objetivo: **nada llega a los clientes reales sin probarse antes en staging**.
 
 ## Los dos entornos
 
-| Entorno        | URL                                   | Base de datos (Supabase)     | Acceso                         |
-|----------------|---------------------------------------|------------------------------|--------------------------------|
-| **Producción** | `[tenant]`                       | Producción (datos reales)    | Clientes / equipo real         |
-| **Staging**    | `<proyecto>-staging.vercel.app`        | Staging `xryk…` (aislada)    | El equipo prueba aquí (QA)     |
+| Entorno        | URL                             | Base de datos (Supabase)  | Acceso                     |
+| -------------- | ------------------------------- | ------------------------- | -------------------------- |
+| **Producción** | `[tenant]`                      | Producción (datos reales) | Clientes / equipo real     |
+| **Staging**    | `<proyecto>-staging.vercel.app` | Staging `xryk…` (aislada) | El equipo prueba aquí (QA) |
 
 > Staging tiene **su propia base de datos** (proyecto Supabase `xrykcqwjubthptkgecyb`, región eu-central-1).
 > El equipo puede crear, editar y borrar sin miedo: **no afecta a datos reales**.
@@ -17,7 +17,7 @@ Objetivo: **nada llega a los clientes reales sin probarse antes en staging**.
 Solo necesitan esto — nada de GitHub, Vercel ni Supabase:
 
 - **URL:** https://<proyecto>-staging.vercel.app
-- **Login de la app (usuario):** en el gestor de contraseñas  (rol admin)
+- **Login de la app (usuario):** en el gestor de contraseñas (rol admin)
 - **Password del panel simple** (secciones tipo `/login`, coldcalling): `[en el gestor de contraseñas]`
 
 ## Cómo circula un cambio
