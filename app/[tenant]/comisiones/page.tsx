@@ -628,6 +628,20 @@ export default function CommissionsPage() {
         </p>
       )}
 
+      <CommissionMonthlyStatement
+        rows={scopedCommissions}
+        basis={commissions}
+        future={filteredFuture}
+        futureError={futureError}
+        loading={loading}
+        personas={personasResumen}
+        selectedMemberId={filterMember}
+        esEquipo={canApprove && filterMember === 'all'}
+        onSelectMember={setMemberFilter}
+        onFilterMonth={filtrarPorMes}
+        onRetryFuture={fetchFuture}
+      />
+
       {linkOwner && (selectedMember || !canApprove) && (
         <section className="rounded-2xl border border-brand-500/30 bg-card p-5" aria-labelledby="member-link-title">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -698,19 +712,6 @@ export default function CommissionsPage() {
           </div>
         </section>
       )}
-
-      <CommissionMonthlyStatement
-        rows={scopedCommissions}
-        basis={commissions}
-        future={filteredFuture}
-        futureError={futureError}
-        loading={loading}
-        personas={personasResumen}
-        selectedMemberId={filterMember}
-        onSelectMember={setMemberFilter}
-        onFilterMonth={filtrarPorMes}
-        onRetryFuture={fetchFuture}
-      />
 
       {/* Filtros */}
       <div className="rounded-lg border border-border bg-card/50 p-4 space-y-3">
