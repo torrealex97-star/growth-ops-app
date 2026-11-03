@@ -49,6 +49,8 @@ export type PnlCommissionRow = {
   direction: string
   collection_id: string | null
   liquidation_month: string | null
+  /** Una comisión `cancelled` (p. ej. sustituida por un ajuste manual) no es coste: no se cuenta. */
+  status?: string | null
 }
 
 export interface MonthlyPnl {
@@ -116,7 +118,7 @@ export function computeMonthlyPnl(
     c.direction === 'negative'
       ? ymOf(c.liquidation_month)
       : ((c.collection_id ? collMonth.get(c.collection_id) : undefined) ?? ymOf(c.liquidation_month))
-  const monthCommissions = commissions.filter((c) => includes(commissionYm(c)))
+  const monthCommissions = commissions.filter((c) => c.status !== 'cancelled' && includes(commissionYm(c)))
 
   const contractedRevenue = monthSales.reduce((a, s) => a + num(s.gross_amount), 0)
   const grossRevenue = monthCollections.reduce((a, c) => a + num(c.gross_amount), 0)

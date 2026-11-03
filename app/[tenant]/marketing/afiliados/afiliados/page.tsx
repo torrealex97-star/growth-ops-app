@@ -46,6 +46,7 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 import { enlaceDeColaborador, enlaceDeRol } from '@/lib/tracking/enlaces'
 import { PeriodFilterBar } from '@/components/os/PeriodFilterBar'
 import { DEFAULT_PERIOD, getPeriodRange, inPeriod, PERIOD_LABELS, type PeriodPreset } from '@/lib/filters/period'
+import { fechaDeImputacion } from '@/lib/commissions/imputacion'
 import { useTenant, useTenantId, useSesion } from '@/lib/tenant-context'
 import { toast } from 'sonner'
 import { ROLE_LABELS, type AppRole } from '@/lib/auth/permissions'
@@ -95,6 +96,7 @@ type ComisionRow = {
   commission_amount: number | string | null
   status: string | null
   created_at: string | null
+  liquidation_month?: string | null
   collection_id: string | null
 }
 type ContactoRow = { id: string; full_name: string | null; lead_status: string | null; created_at: string | null }
@@ -296,7 +298,7 @@ export default function AfiliadosPage() {
           sb
             .from('commissions')
             .select(
-              'id, user_id, participant_type, percent, commission_amount, direction, status, created_at, collection_id'
+              'id, user_id, participant_type, percent, commission_amount, direction, status, created_at, liquidation_month, collection_id'
             )
             .eq('tenant_id', tenantId)
             .in('user_id', userIds)
@@ -408,6 +410,9 @@ export default function AfiliadosPage() {
     return map
   }, [atribuciones])
 
+  // Fecha del cobro por id: con ella se imputan las comisiones al periodo (ver lib/commissions/imputacion).
+  const fechaCobroPorId = useMemo(() => new Map(cobros.map((c) => [c.id, c.collected_at])), [cobros])
+
   const kpiDePerfil = useCallback(
     (p: PerfilColaborador): KpiColaborador => {
       const contactos = contactosPorPerfil.get(p.id) ?? []
@@ -438,8 +443,15 @@ export default function AfiliadosPage() {
         )
         .reduce((acc, c) => acc + num(c.gross_amount), 0)
       // Comisiones: el LEDGER real del motor (lane 'collaborator' o legacy), no un % estimado.
+      // Se imputa a la fecha del COBRO que la generó (la misma que el cash de arriba y que el P&L), NO a la de creación
+      // de la fila: una reparación o un ajuste la mueve (lib/commissions/imputacion).
       const comisionesP = comisiones
-        .filter((c) => c.user_id === p.user_id && c.status !== 'cancelled' && inPeriod(c.created_at, rango))
+        .filter(
+          (c) =>
+            c.user_id === p.user_id &&
+            c.status !== 'cancelled' &&
+            inPeriod(fechaDeImputacion(c, fechaCobroPorId), rango)
+        )
         .reduce((acc, c) => acc + (c.direction === 'negative' ? -1 : 1) * num(c.commission_amount), 0)
       return {
         contactos: ids.size,
@@ -452,7 +464,7 @@ export default function AfiliadosPage() {
         comisiones: comisionesP,
       }
     },
-    [contactosPorPerfil, citas, ventas, cobros, comisiones, rango]
+    [contactosPorPerfil, citas, ventas, cobros, comisiones, rango, fechaCobroPorId]
   )
 
   // Desglose de la comisión completa (TODO el ledger del colaborador, no el periodo
@@ -1055,7 +1067,12 @@ export default function AfiliadosPage() {
                       <th className="px-4 py-2 font-medium text-right">Ventas</th>
                       <th className="px-4 py-2 font-medium text-right">Facturación</th>
                       <th className="px-4 py-2 font-medium text-right">Cash</th>
-                      <th className="px-4 py-2 font-medium text-right">Comisiones</th>
+                      <th
+                        className="px-4 py-2 font-medium text-right"
+                        title="Comisión generada por el cash cobrado en el periodo (misma fecha que el P&L). Lo que se paga cada mes está en Comisiones."
+                      >
+                        Comisiones
+                      </th>
                       <th className="px-4 py-2 font-medium text-right">%</th>
                     </tr>
                   </thead>

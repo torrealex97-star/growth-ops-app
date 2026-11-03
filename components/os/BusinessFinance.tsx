@@ -58,7 +58,7 @@ export function BusinessFinance({ tenantId, from, to }: { tenantId: string; from
             .range(0, FINANCE_QUERY_ROW_CAP),
           db
             .from('commissions')
-            .select('commission_amount, direction, collection_id, liquidation_month, participant_type', {
+            .select('commission_amount, direction, collection_id, liquidation_month, participant_type, status', {
               count: 'exact',
             })
             .eq('tenant_id', tenantId)

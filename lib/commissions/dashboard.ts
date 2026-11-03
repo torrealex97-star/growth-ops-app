@@ -49,6 +49,9 @@ export function buildTeamCommissionSummary(rows: CommissionDashboardRow[]): Team
   const groups = new Map<string, TeamCommissionSummary & { seenSales: Set<string>; seenCollections: Set<string> }>()
 
   for (const row of rows) {
+    // Una comisión cancelada (p. ej. sustituida por un ajuste manual) no es generada, ni pendiente, ni cuenta como venta o
+    // cobro atribuido a la persona.
+    if (row.status === 'cancelled') continue
     const key = `${row.user_id}:${row.participant_type}`
     const group = groups.get(key) ?? {
       userId: row.user_id,
