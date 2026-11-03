@@ -90,6 +90,10 @@ export const CSS_NATIVO = `
 ${CSS_TIPOGRAFIAS_IG}
 .ig-caja-solida-negra{display:inline;background:#000;color:#fff;padding:6px 24px;border-radius:12px;font-size:56px;line-height:1.7;-webkit-box-decoration-break:clone;box-decoration-break:clone}
 .ig-caja-vidrio{display:inline;background:rgba(255,255,255,.55);color:#111;padding:6px 24px;border-radius:12px;font-size:56px;line-height:1.7;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+.ig-captura-real{background:#fff;border-radius:26px;padding:14px;box-shadow:0 4px 18px rgba(0,0,0,.3)}
+.ig-captura-real img{display:block;max-width:100%;max-height:820px;border-radius:16px;object-fit:contain}
+.ig-pedido{width:720px;border:6px dashed var(--ig-acento);border-radius:32px;padding:44px;text-align:center;color:#fff;font-family:system-ui,sans-serif;font-size:42px;line-height:1.3;background:rgba(0,0,0,.35)}
+.ig-pedido b{display:block;font-size:30px;letter-spacing:.12em;color:var(--ig-acento);margin:8px 0}
 .ig-fondo{position:absolute;inset:0;overflow:hidden}
 .ig-zona{max-height:${1920 - ZONA_SEGURA.arriba - ZONA_SEGURA.abajo}px;overflow:hidden}
 .ig-cabecera{position:absolute;top:104px;left:54px;right:54px;display:flex;justify-content:space-between;align-items:flex-start}

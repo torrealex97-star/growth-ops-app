@@ -15,6 +15,8 @@ export interface ReferenceImage {
   url: string // URL pública (Supabase Storage)
   name: string
   addedAt: string
+  /** Si es material real pedido por una historia (captura de pago, testimonio…): la clave del pedido. */
+  pedido?: string
 }
 
 export interface CarruselProject {

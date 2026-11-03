@@ -3,6 +3,8 @@ import { createClient } from '@supabase/supabase-js'
 import { getCarruselUser } from '@/lib/carruseles/auth'
 import { requireTenant } from '@/lib/auth/requireTenant'
 import { addReferenceImage } from '@/lib/carruseles/store'
+import { limpiarClave } from '@/lib/carruseles/historias/pedidos'
+import { recomponerHistorias } from '@/lib/carruseles/recomponer'
 import { MAX_IMAGEN, MAX_VIDEO, MIME_IMAGEN, MIME_VIDEO, subirAlBucket } from '@/lib/carruseles/almacen'
 
 export const runtime = 'nodejs'
@@ -45,9 +47,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     if (error) return NextResponse.json({ error }, { status: 500 })
 
     if (purpose === 'reference' && projectId) {
-      const image = { id: crypto.randomUUID(), url, name: file.name, addedAt: new Date().toISOString() }
+      // Material real que pidió una historia (captura de pago, testimonio…): se etiqueta con su clave y las historias
+      // se recomponen solas con la imagen puesta, sin volver a llamar a la IA.
+      const pedido = limpiarClave(form.get('pedido')) || undefined
+      const image = { id: crypto.randomUUID(), url, name: file.name, addedAt: new Date().toISOString(), pedido }
       await addReferenceImage(t.tenantId, projectId, image)
-      return NextResponse.json(image)
+      const recompuestas = pedido ? await recomponerHistorias(t.tenantId, projectId).catch(() => null) : null
+      return NextResponse.json({ ...image, recompuestas: recompuestas?.actualizadas ?? 0 })
     }
 
     return NextResponse.json({ url, name: file.name })

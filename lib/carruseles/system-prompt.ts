@@ -56,13 +56,24 @@ Usa valores por defecto profesionales: texto oscuro sobre fondos claros, tipogra
       ? project.slides.map((s, i) => `  - Slide ${i + 1} (id: ${s.id})${s.notes ? ` — ${s.notes}` : ''}`).join('\n')
       : '  (todavía sin slides)'
 
-  const refImages =
-    project.referenceImages.length > 0
-      ? esHistorias
-        ? `\n## Fotos y vídeos subidos para esta secuencia (las imágenes se adjuntan en el chat; los vídeos no se ven pero se reproducen de fondo)
-${project.referenceImages.map((r, i) => `${i + 1}. "${r.name}" (${tipoDeMedio(r.url) === 'video' ? 'vídeo' : 'foto'})`).join('\n')}
+  // En historias, las imágenes etiquetadas con un pedido son MATERIAL REAL (capturas, testimonios…) y no fondos.
+  const medios = project.referenceImages.filter((r) => !r.pedido)
+  const reales = project.referenceImages.filter((r) => r.pedido)
+  const refImages = esHistorias
+    ? `${
+        medios.length > 0
+          ? `\n## Fotos y vídeos subidos para esta secuencia (las imágenes se adjuntan en el chat; los vídeos no se ven pero se reproducen de fondo)
+${medios.map((r, i) => `${i + 1}. "${r.name}" (${tipoDeMedio(r.url) === 'video' ? 'vídeo' : 'foto'})`).join('\n')}
 Indica cuál va en cada historia con el campo foto (su número). Asigna la más luminosa al gancho, la más cálida al cierre y las oscuras al desarrollo; los vídeos, a las historias donde la persona habla. Si no pones foto, la app reparte sola.`
-        : `\n## Imágenes de referencia (se adjuntan como imágenes en el chat cuando existen)
+          : ''
+      }${
+        reales.length > 0
+          ? `\n## Material real ya subido (úsalo con la plantilla captura y su misma clave)
+${reales.map((r) => `- clave «${r.pedido}»: ${r.name}`).join('\n')}`
+          : ''
+      }`
+    : project.referenceImages.length > 0
+      ? `\n## Imágenes de referencia (se adjuntan como imágenes en el chat cuando existen)
 ${project.referenceImages.map((r) => `- "${r.name}"`).join('\n')}
 Estudia colores, tipografía, composición y estilo de estas referencias y replica ese estilo visual.
 Si el usuario pide usar una imagen concreta (ej. "una foto de X"), usa la referencia más reciente que encaje con esa descripción.`
@@ -83,7 +94,7 @@ Usa estas URLs completas en etiquetas <img src="..."> dentro del HTML de las sli
       : ''
 
   const arc = esHistorias
-    ? `${seccionHistoriasPrompt()}\n- ${project.referenceImages.length > 0 ? 'Usa SOLO las fotos y vídeos subidos que aparecen arriba; nunca inventes URLs.' : 'No hay fotos ni vídeos subidos: las historias llevarán fondo liso del color de la marca. Dilo en una frase y sugiere subir fotos o vídeos de la persona para un resultado más real; NUNCA inventes URLs de fotos.'}\n- La fecha, el logo, las tipografías y los colores de la marca los pone la app: no los escribas.\nTras crear todas las historias, ofrece el copy del post con set_caption.`
+    ? `${seccionHistoriasPrompt()}\n- ${medios.length > 0 ? 'Usa SOLO las fotos y vídeos subidos que aparecen arriba; nunca inventes URLs.' : 'No hay fotos ni vídeos subidos: las historias llevarán fondo liso del color de la marca. Dilo en una frase y sugiere subir fotos o vídeos de la persona para un resultado más real; NUNCA inventes URLs de fotos.'}\n- La fecha, el logo, las tipografías y los colores de la marca los pone la app: no los escribas.\nTras crear todas las historias, ofrece el copy del post con set_caption.`
     : isFlyer
       ? `## Cómo trabajas con FLYERS
 Un flyer es UNA sola pieza de diseño de alto impacto (no un carrusel). Cuando el usuario te dé un tema:

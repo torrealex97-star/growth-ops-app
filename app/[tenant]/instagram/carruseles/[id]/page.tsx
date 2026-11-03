@@ -168,7 +168,7 @@ export default function CarruselEditorPage() {
               projectId={id}
               referenceImages={project.referenceImages}
               aspectRatio={project.aspectRatio}
-              numSlides={project.slides.length}
+              slides={project.slides}
               onStreamStart={() => setIsGenerating(true)}
               onRefresh={fetchProject}
               onStreamEnd={() => setIsGenerating(false)}
