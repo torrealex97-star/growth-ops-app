@@ -10,6 +10,10 @@
 //    registro de la factura y del pago, no un coste nuevo.
 //  · Quien ya tiene sueldo fijo tiene un gasto automático `salary:<usuario>` (fijo + comisión) en el cron
 //    mensual: ahí se ADJUNTA la factura, no se crea otro gasto (sería contar dos veces el mismo pago).
+//  · Se analiza con IA igual que en Gastos (lib/ai/invoice-analysis): emisor, NIF, dirección, IBAN/banco del emisor,
+//    nº y vencimiento de factura, fecha e importe (siempre EUR). La extracción es una SUGERENCIA: `needs_review`.
+//    La categoría se FUERZA a `comisiones` (la IA podría clasificarla como `otros`, que SÍ entra en el opex del P&L y
+//    duplicaría el coste de la comisión) y la persona es la que sube, nunca la `suggested_person` de la IA.
 //  · Idempotente por (auto_source, period): re-subir la factura del mes actualiza, no duplica. El índice
 //    único de `expenses` es global, así que `auto_source` lleva la subcuenta y la persona.
 
@@ -91,6 +95,98 @@ export function etiquetaMes(ym: string): string {
   return `${MESES[(m ?? 1) - 1] ?? ym} ${y}`
 }
 
+/** Tamaño máximo de archivo que se manda a analizar (el resto se registra igual, sin IA). */
+export const TAMANO_MAX_ANALISIS = 8 * 1024 * 1024
+
+/** Tipo de contenido que entiende el lector de facturas, o null si no se puede analizar (p. ej. HEIC). */
+export function mediaTypeDeArchivo(nombre: string): string | null {
+  const ext = nombre.split('.').pop()?.toLowerCase() ?? ''
+  if (ext === 'pdf') return 'application/pdf'
+  if (ext === 'png') return 'image/png'
+  if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg'
+  if (ext === 'webp') return 'image/webp'
+  return null
+}
+
+/** Lo que devuelve el lector de IA (subconjunto estructural; ver lib/ai/claude.ts InvoiceExtract). */
+export type ExtractoFactura = {
+  concept?: string | null
+  amount?: number | null
+  currency?: string | null
+  counterparty?: string | null
+  invoice_number?: string | null
+  invoice_due_date?: string | null
+  counterparty_tax_id?: string | null
+  counterparty_address?: string | null
+  counterparty_bank_account?: string | null
+  counterparty_bank_name?: string | null
+  expense_date?: string | null
+  original_amount?: number
+  original_currency?: string
+  fx_rate?: number
+}
+
+const texto = (v: unknown): string | null => {
+  if (typeof v !== 'string') return null
+  const t = v.trim()
+  return t ? t : null
+}
+
+/** Fecha YYYY-MM-DD real (no 2026-02-31) o null. */
+export function fechaIso(v: unknown): string | null {
+  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return null
+  const d = new Date(`${v}T00:00:00Z`)
+  return Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== v ? null : v
+}
+
+const eur = (n: number) => `${n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+
+/** Nota que deja constancia de una conversión de moneda automática (misma redacción que en Gastos). */
+export function notaConversion(e: ExtractoFactura | null | undefined): string | null {
+  if (!e || !e.original_currency || typeof e.original_amount !== 'number' || typeof e.amount !== 'number') return null
+  const original = e.original_amount.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const tasa =
+    e.fx_rate == null ? '?' : e.fx_rate.toLocaleString('es-ES', { minimumFractionDigits: 4, maximumFractionDigits: 4 })
+  return `Factura original en ${e.original_currency} ${original} · convertido a ${eur(e.amount)} (tasa ${tasa})`
+}
+
+/**
+ * Importe del gasto: lo que dice la factura (IA, ya en EUR) manda; si la IA no lo leyó, el que declara la persona.
+ * Si hay ambos y difieren de verdad se devuelve una nota para que finanzas lo contraste.
+ */
+export function resolverImporte(
+  extraido: ExtractoFactura | null | undefined,
+  declarado: number | null
+): { amount: number; origen: 'factura' | 'declarado'; nota: string | null } | null {
+  const leido = importeValido(extraido?.amount)
+  if (leido !== null) {
+    const difiere = declarado !== null && Math.abs(declarado - leido) > Math.max(0.01, leido * 0.01)
+    return {
+      amount: leido,
+      origen: 'factura',
+      nota: difiere ? `Importe declarado por la persona: ${eur(declarado!)}; la factura dice ${eur(leido)}.` : null,
+    }
+  }
+  if (declarado !== null) return { amount: declarado, origen: 'declarado', nota: null }
+  return null
+}
+
+/** Campos de identidad/trazabilidad de la factura que se vuelcan a un gasto ya existente (solo los que hay). */
+export function camposDeFactura(extraido: ExtractoFactura | null | undefined) {
+  if (!extraido) return {}
+  const campos: Record<string, unknown> = { ai_extracted: extraido }
+  const pares: [string, string | null][] = [
+    ['invoice_number', texto(extraido.invoice_number)],
+    ['invoice_due_date', fechaIso(extraido.invoice_due_date)],
+    ['counterparty_tax_id', texto(extraido.counterparty_tax_id)],
+    ['counterparty_address', texto(extraido.counterparty_address)],
+    ['counterparty_bank_account', texto(extraido.counterparty_bank_account)],
+    ['counterparty_bank_name', texto(extraido.counterparty_bank_name)],
+  ]
+  for (const [k, v] of pares) if (v !== null) campos[k] = v
+  return campos
+}
+
 /** Fila de `expenses` para una factura de comisiones de colaborador que NO tiene gasto de sueldo en ese mes. */
 export function construirGastoFactura(args: {
   tenantId: string
@@ -99,30 +195,45 @@ export function construirGastoFactura(args: {
   periodo: PeriodoFactura
   amount: number
   rutaFactura: string
+  /** Lo que extrajo la IA de la factura (opcional: sin IA se crea con los datos mínimos). */
+  extraido?: ExtractoFactura | null
+  /** Notas adicionales (p. ej. importe declarado ≠ factura). */
+  notasExtra?: (string | null)[]
 }) {
-  const { tenantId, userId, nombre, periodo, amount, rutaFactura } = args
+  const { tenantId, userId, nombre, periodo, amount, rutaFactura, extraido } = args
   const quien = nombre.trim() || 'Colaborador'
+  const emisor = texto(extraido?.counterparty) ?? quien
+  const notas = [
+    notaConversion(extraido),
+    ...(args.notasExtra ?? []),
+    extraido
+      ? 'Subida por la propia persona y leída con IA: revisar los datos extraídos antes de pagar.'
+      : 'Subida por la propia persona desde su panel. Sin lectura de IA: contrastar el importe con sus comisiones.',
+  ].filter((n): n is string => !!n)
   return {
     tenant_id: tenantId,
-    concept: `Factura de comisiones · ${quien} · ${etiquetaMes(periodo.ym)}`,
+    concept: texto(extraido?.concept) ?? `Factura de comisiones · ${quien} · ${etiquetaMes(periodo.ym)}`,
+    // FORZADA: la IA podría decir `otros`, que sí entra en el opex del P&L y duplicaría la comisión.
     category: 'comisiones' as const,
-    subcategory: quien,
+    subcategory: emisor,
     amount,
-    expense_date: periodo.periodMonth,
+    expense_date: fechaIso(extraido?.expense_date) ?? periodo.periodMonth,
     recurring: false,
     frequency: null,
     payment_method: 'transferencia',
-    // Pendiente de pago; `needs_review` porque el importe lo declara la propia persona y finanzas debe
-    // contrastarlo con lo liquidado antes de pagar.
+    // Pendiente de pago; `needs_review` porque el importe y los datos bancarios los lee una IA / los declara la
+    // propia persona y finanzas debe contrastarlos antes de pagar.
     status: 'pendiente' as const,
-    counterparty: quien,
+    counterparty: emisor,
     person_id: userId,
-    notes: 'Subida por la propia persona desde su panel. Importe declarado por ella: contrastar con sus comisiones.',
+    notes: notas.join(' · '),
     created_by: userId,
     invoice_url: rutaFactura,
     needs_review: true,
-    ai_extracted: null,
     auto_source: autoSourceFactura(tenantId, userId),
     period: periodo.ym,
+    ...camposDeFactura(extraido),
+    // Sin extracción las columnas de identidad quedan null (no se rellenan con basura).
+    ai_extracted: extraido ?? null,
   }
 }

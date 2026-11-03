@@ -119,10 +119,12 @@ export function CommissionInvoicePanel({
 
   const handleUpload = async (file: File) => {
     if (!file) return
-    // El importe es obligatorio: sin él no hay gasto que registrar en finanzas.
-    const importe = parseFloat(amount.replace(',', '.'))
-    if (!Number.isFinite(importe) || importe <= 0) {
-      toast.error('Indica el importe de tu factura', { description: 'Es el total que facturas por ese mes.' })
+    // El importe es OPCIONAL: si lo dejas vacío lo lee la IA de la factura (igual que en Gastos); si lo escribes,
+    // se contrasta con lo que dice la factura.
+    const texto = amount.trim()
+    const importe = texto ? parseFloat(texto.replace(',', '.')) : undefined
+    if (importe !== undefined && (!Number.isFinite(importe) || importe <= 0)) {
+      toast.error('El importe no es válido', { description: 'Debe ser mayor que 0, o déjalo vacío.' })
       if (fileRef.current) fileRef.current.value = ''
       return
     }
@@ -144,14 +146,23 @@ export function CommissionInvoicePanel({
       const res = await fetch(`/api/${tenant}/evergreen/commissions/invoices`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ period, amount: importe, path }),
+        body: JSON.stringify({ period, ...(importe !== undefined ? { amount: importe } : {}), path }),
       })
-      const data = (await res.json().catch(() => ({}))) as { error?: string }
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string
+        importe?: number
+        analizadaConIa?: boolean
+        avisoIa?: string | null
+      }
       if (!res.ok) {
         toast.error('No se pudo registrar la factura', { description: data.error })
         return
       }
-      toast.success('Factura enviada', { description: 'El departamento financiero ya la tiene en Gastos.' })
+      toast.success('Factura enviada', {
+        description: data.analizadaConIa
+          ? `Leída con IA${data.importe != null ? ` (${formatCurrency(data.importe)})` : ''}. Finanzas ya la tiene en Gastos.`
+          : `Finanzas ya la tiene en Gastos${data.avisoIa ? ` (sin lectura automática: ${data.avisoIa})` : ''}.`,
+      })
       setAmount('')
       if (fileRef.current) fileRef.current.value = ''
       fetchInvoices()
@@ -187,8 +198,8 @@ export function CommissionInvoicePanel({
             <h3 className="text-sm font-semibold text-foreground">Mi factura de comisiones</h3>
           </div>
           <p className="text-xs text-muted-foreground">
-            Adjunta tu factura del mes cerrado. Llega directamente al departamento financiero (aparece en Gastos); el
-            resto del equipo no la ve.
+            Adjunta tu factura del mes cerrado. Se analiza con IA y llega directamente al departamento financiero
+            (aparece en Gastos); el resto del equipo no la ve.
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -208,7 +219,7 @@ export function CommissionInvoicePanel({
               </Select>
             </div>
             <div className="space-y-1">
-              <Label className="text-muted-foreground text-xs">Importe de tu factura (€)</Label>
+              <Label className="text-muted-foreground text-xs">Importe de tu factura (€) — opcional</Label>
               <Input
                 type="number"
                 inputMode="decimal"
@@ -227,6 +238,9 @@ export function CommissionInvoicePanel({
                 >
                   Usar {formatCurrency(sugerido)} (tus comisiones de ese mes)
                 </button>
+              )}
+              {!amount.trim() && (
+                <p className="text-xs text-muted-foreground">Si lo dejas vacío, lo lee la IA de la factura.</p>
               )}
             </div>
             <div className="space-y-1">
@@ -251,7 +265,7 @@ export function CommissionInvoicePanel({
                 {uploading ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Subiendo…
+                    Subiendo y analizando…
                   </>
                 ) : (
                   <>

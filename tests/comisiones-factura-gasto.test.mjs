@@ -7,10 +7,15 @@ import { fileURLToPath } from 'node:url'
 import {
   autoSourceFactura,
   autoSourceSueldo,
+  camposDeFactura,
   construirGastoFactura,
   etiquetaMes,
+  fechaIso,
   importeValido,
+  mediaTypeDeArchivo,
+  notaConversion,
   periodoValido,
+  resolverImporte,
   rutaFacturaValida,
 } from '../lib/commissions/invoice-expense.ts'
 import { computeMonthlyPnl } from '../lib/finance/pnl.ts'
@@ -143,14 +148,193 @@ test('la ruta registra con la clave de servicio, solo para la propia persona y a
   assert.ok(escrituras.length >= 2, 'las escrituras sobre expenses deben llevar tenant_id')
 })
 
-test('el panel registra por la ruta de servidor (no escribe en commission_invoices desde el navegador) y exige importe', () => {
+test('el panel registra por la ruta de servidor (no escribe en commission_invoices desde el navegador); el importe es opcional', () => {
   const panel = leer('components/commissions/CommissionInvoicePanel.tsx')
   assert.match(panel, /\/evergreen\/commissions\/invoices/)
   assert.doesNotMatch(panel, /from\('commission_invoices'\)\.upsert/)
-  assert.match(panel, /Indica el importe de tu factura/)
+  assert.doesNotMatch(panel, /Indica el importe de tu factura/, 'ya no es obligatorio: lo lee la IA')
+  assert.match(panel, /opcional/)
+  assert.match(panel, /lo lee la IA/)
 })
 
 test('el dashboard del colaborador lleva el panel de facturas', () => {
   const dash = leer('components/collaborators/ColaboradorDashboard.tsx')
   assert.match(dash, /<CommissionInvoicePanel/)
+})
+
+// ── LECTURA CON IA: la factura del colaborador hace lo mismo que cuando se sube y analiza en Gastos ──
+
+const EXTRACTO = {
+  concept: 'Servicios de captación octubre',
+  amount: 1149.42,
+  currency: 'EUR',
+  category: 'otros', // la IA podría clasificarla mal: se fuerza a comisiones
+  counterparty: 'Emisora Demo SL',
+  invoice_number: 'F-2026-0042',
+  invoice_due_date: '2026-11-15',
+  counterparty_tax_id: 'B12345678',
+  counterparty_address: 'Calle Falsa 1, Madrid',
+  counterparty_bank_account: 'ES0000000000000000000000',
+  counterparty_bank_name: 'Banco Demo',
+  expense_date: '2026-10-31',
+  suggested_person: 'Otra Persona',
+}
+const periodoOct = periodoValido('2026-10', AHORA)
+const rutaOk = `${T}/comisiones/${U}/2026-10-1.pdf`
+
+test('el gasto con extracción usa los datos leídos de la factura (emisor, NIF, IBAN, nº, vencimiento, fecha)', () => {
+  const g = construirGastoFactura({
+    tenantId: T,
+    userId: U,
+    nombre: 'Persona Demo',
+    periodo: periodoOct,
+    amount: 1149.42,
+    rutaFactura: rutaOk,
+    extraido: EXTRACTO,
+  })
+  assert.equal(g.concept, 'Servicios de captación octubre')
+  assert.equal(g.counterparty, 'Emisora Demo SL')
+  assert.equal(g.subcategory, 'Emisora Demo SL')
+  assert.equal(g.invoice_number, 'F-2026-0042')
+  assert.equal(g.invoice_due_date, '2026-11-15')
+  assert.equal(g.counterparty_tax_id, 'B12345678')
+  assert.equal(g.counterparty_address, 'Calle Falsa 1, Madrid')
+  assert.equal(g.counterparty_bank_account, 'ES0000000000000000000000')
+  assert.equal(g.counterparty_bank_name, 'Banco Demo')
+  assert.equal(g.expense_date, '2026-10-31')
+  assert.deepEqual(g.ai_extracted, EXTRACTO, 'queda la instantánea de la extracción')
+  assert.match(g.notes, /leída con IA/)
+})
+
+test('la IA NO decide la categoría ni la persona: siempre «comisiones» y quien sube (no el suggested_person)', () => {
+  const g = construirGastoFactura({
+    tenantId: T,
+    userId: U,
+    nombre: 'Persona Demo',
+    periodo: periodoOct,
+    amount: 10,
+    rutaFactura: rutaOk,
+    extraido: { ...EXTRACTO, category: 'otros', suggested_person: 'Otra Persona' },
+  })
+  assert.equal(g.category, 'comisiones', '`otros` entraría en el opex del P&L y duplicaría la comisión')
+  assert.equal(g.person_id, U)
+  assert.equal(g.status, 'pendiente')
+  assert.equal(g.needs_review, true, 'la extracción es una sugerencia: revisión humana')
+})
+
+test('sin extracción (IA caída) el gasto se crea con lo mínimo y sin campos de identidad inventados', () => {
+  const g = construirGastoFactura({
+    tenantId: T,
+    userId: U,
+    nombre: 'Persona Demo',
+    periodo: periodoOct,
+    amount: 500,
+    rutaFactura: rutaOk,
+    extraido: null,
+  })
+  assert.equal(g.ai_extracted, null)
+  assert.equal('invoice_number' in g, false)
+  assert.equal('counterparty_bank_account' in g, false)
+  assert.equal(g.expense_date, '2026-10-01')
+  assert.match(g.notes, /Sin lectura de IA/)
+})
+
+test('una fecha extraída imposible (2026-02-31) no se usa; se cae a la del periodo', () => {
+  assert.equal(fechaIso('2026-02-31'), null)
+  assert.equal(fechaIso('2026-10-31'), '2026-10-31')
+  assert.equal(fechaIso('31/10/2026'), null)
+  const g = construirGastoFactura({
+    tenantId: T,
+    userId: U,
+    nombre: 'P',
+    periodo: periodoOct,
+    amount: 1,
+    rutaFactura: rutaOk,
+    extraido: { expense_date: '2026-02-31', invoice_due_date: '2026-13-01' },
+  })
+  assert.equal(g.expense_date, '2026-10-01')
+  assert.equal('invoice_due_date' in g, false)
+})
+
+test('el importe: manda la factura (ya en EUR); si la IA no lo leyó, el declarado; si discrepan, nota', () => {
+  assert.deepEqual(resolverImporte({ amount: 100 }, null), { amount: 100, origen: 'factura', nota: null })
+  assert.deepEqual(
+    resolverImporte({ amount: 100 }, 100.5),
+    { amount: 100, origen: 'factura', nota: null },
+    '≤1 %: sin nota'
+  )
+  const dif = resolverImporte({ amount: 100 }, 150)
+  assert.equal(dif.amount, 100)
+  assert.match(dif.nota, /declarado .*150,00.*factura dice .*100,00/)
+  assert.deepEqual(resolverImporte(null, 80), { amount: 80, origen: 'declarado', nota: null })
+  assert.deepEqual(resolverImporte({ amount: null }, 80), { amount: 80, origen: 'declarado', nota: null })
+  assert.equal(resolverImporte(null, null), null)
+  assert.equal(resolverImporte({ amount: -5 }, null), null)
+})
+
+test('conversión de moneda: nota idéntica a la de Gastos', () => {
+  const nota = notaConversion({ amount: 90.5, original_amount: 100, original_currency: 'USD', fx_rate: 0.905 })
+  assert.equal(nota, 'Factura original en USD 100,00 · convertido a 90,50 € (tasa 0,9050)')
+  assert.equal(notaConversion({ amount: 10 }), null)
+  assert.equal(notaConversion(null), null)
+})
+
+test('formatos analizables: PDF e imágenes; el resto se registra sin IA', () => {
+  assert.equal(mediaTypeDeArchivo('f.PDF'), 'application/pdf')
+  assert.equal(mediaTypeDeArchivo('f.jpg'), 'image/jpeg')
+  assert.equal(mediaTypeDeArchivo('f.jpeg'), 'image/jpeg')
+  assert.equal(mediaTypeDeArchivo('f.png'), 'image/png')
+  assert.equal(mediaTypeDeArchivo('f.webp'), 'image/webp')
+  assert.equal(mediaTypeDeArchivo('f.heic'), null)
+  assert.equal(mediaTypeDeArchivo('sinextension'), null)
+})
+
+test('camposDeFactura: solo vuelca lo que hay (para adjuntar a un gasto de sueldo ya existente)', () => {
+  assert.deepEqual(camposDeFactura(null), {})
+  const c = camposDeFactura({ invoice_number: ' F-1 ', counterparty_tax_id: '', invoice_due_date: '2026-11-15' })
+  assert.equal(c.invoice_number, 'F-1')
+  assert.equal(c.invoice_due_date, '2026-11-15')
+  assert.equal('counterparty_tax_id' in c, false)
+  assert.ok(c.ai_extracted)
+})
+
+test('Gastos y la factura del colaborador comparten UNA implementación del análisis con IA', () => {
+  const gastos = leer('app/api/[tenant]/evergreen/ai/invoice/route.ts')
+  const colab = leer('app/api/[tenant]/evergreen/commissions/invoices/route.ts')
+  assert.match(gastos, /analizarFactura\(/)
+  assert.match(colab, /analizarFactura\(/)
+  assert.doesNotMatch(gastos, /extractInvoice\(/, 'la ruta de Gastos ya no duplica la lectura')
+  const lib = leer('lib/ai/invoice-analysis.ts')
+  assert.match(lib, /tenantAiEnv\(tenantId\)/, 'con la clave de IA de la subcuenta')
+  assert.match(lib, /tenantActiveUserNames\(sb, tenantId\)/, 'solo el equipo de ESTA subcuenta')
+  assert.match(lib, /convertToEur\(/, 'importe siempre en EUR')
+  // la ruta de Gastos sigue siendo solo para finanzas
+  assert.match(gastos, /\['admin', 'director', 'manager'\]/)
+})
+
+test('la ruta del colaborador: comprueba estados ANTES de gastar la IA y un fallo de IA no bloquea el registro', () => {
+  const ruta = leer('app/api/[tenant]/evergreen/commissions/invoices/route.ts')
+  const iaPos = ruta.indexOf('await leerConIa(')
+  assert.ok(iaPos > 0)
+  assert.ok(ruta.indexOf("'pagada'") < iaPos, 'una factura pagada se rechaza antes de llamar a la IA')
+  assert.ok(ruta.indexOf("'pagado'") < iaPos, 'un gasto pagado se rechaza antes de llamar a la IA')
+  assert.match(ruta, /catch \(e\)[\s\S]{0,160}extraido: null/, 'si la IA falla se sigue sin extracción')
+  assert.match(ruta, /resolverImporte\(extraido, declarado\)/)
+  assert.match(ruta, /status: 422/, 'sin importe (ni IA ni declarado) se pide a mano')
+  assert.match(ruta, /maxDuration = 60/)
+})
+
+test('migración de Storage: facturas por carpeta (finanzas todo, el resto solo la suya) y contratos sin cambios', () => {
+  const sql = leer('supabase/migrations/20261103130000_facturas_storage_por_carpeta.sql')
+  for (const op of ['select', 'insert', 'update', 'delete'])
+    assert.match(sql, new RegExp(`CREATE POLICY tenant_files_${op} ON storage\\.objects`), op)
+  assert.match(sql, /get_my_role\(\) IN \('admin', 'director', 'manager'\)/, 'finanzas = igual que la RLS de expenses')
+  assert.match(sql, /\(storage\.foldername\(name\)\)\[2\] = 'comisiones'/)
+  assert.match(sql, /\(storage\.foldername\(name\)\)\[3\] = \(SELECT auth\.uid\(\)\)::text/)
+  assert.match(sql, /bucket_id = 'contratos'/, 'contratos se conserva')
+  // la ruta que sube el panel cuelga de <subcuenta>/comisiones/<persona>/, que es lo que exige la política
+  assert.match(
+    leer('components/commissions/CommissionInvoicePanel.tsx'),
+    /`\$\{tenantId\}\/comisiones\/\$\{currentUserId\}\//
+  )
 })
