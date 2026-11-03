@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { FileText, Upload, Loader2, CheckCircle2, ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
-import { useTenantId } from '@/lib/tenant-context'
+import { useTenant, useTenantId } from '@/lib/tenant-context'
 import { formatCurrency } from '@/lib/utils'
 import { openSignedStorageFile } from '@/lib/storage/signed-url'
 
@@ -29,6 +29,9 @@ function monthStart(year: number, monthIdx0: number): string {
   const m = String(monthIdx0 + 1).padStart(2, '0')
   return `${year}-${m}-01`
 }
+
+// Solo la inicial en mayúscula («Octubre de 2026»): el `capitalize` de CSS pondría también «De».
+const mayuscula = (t: string) => t.charAt(0).toUpperCase() + t.slice(1)
 
 function monthLabel(period: string): string {
   const d = new Date(period)
@@ -52,12 +55,16 @@ export function CommissionInvoicePanel({
   currentUserRole,
   members,
   focusUserId,
+  sugerencias,
 }: {
   currentUserId: string
   currentUserRole: string
   members: SimpleMember[]
   focusUserId?: string
+  /** Importe sugerido por mes (clave YYYY-MM): lo ya generado de comisión ese mes, para no teclearlo. */
+  sugerencias?: Record<string, number>
 }) {
+  const tenant = useTenant()
   const tenantId = useTenantId()
   const isAdmin = ['admin', 'director'].includes(currentUserRole)
   const months = useMemo(() => recentMonths(), [])
@@ -102,6 +109,8 @@ export function CommissionInvoicePanel({
   const focusedMember = focusUserId ? (members.find((member) => member.id === focusUserId) ?? null) : null
   const visibleTeamInvoices = focusUserId ? invoices.filter((invoice) => invoice.user_id === focusUserId) : invoices
   const showOwnUploader = !isAdmin || !focusUserId || focusUserId === currentUserId
+  const misFacturas = invoices.filter((inv) => inv.user_id === currentUserId)
+  const sugerido = sugerencias?.[period.slice(0, 7)]
 
   const openInvoice = (path: string) =>
     openSignedStorageFile('facturas', path, (message) =>
@@ -110,6 +119,15 @@ export function CommissionInvoicePanel({
 
   const handleUpload = async (file: File) => {
     if (!file) return
+    // El importe es OPCIONAL: si lo dejas vacío lo lee la IA de la factura (igual que en Gastos); si lo escribes,
+    // se contrasta con lo que dice la factura.
+    const texto = amount.trim()
+    const importe = texto ? parseFloat(texto.replace(',', '.')) : undefined
+    if (importe !== undefined && (!Number.isFinite(importe) || importe <= 0)) {
+      toast.error('El importe no es válido', { description: 'Debe ser mayor que 0, o déjalo vacío.' })
+      if (fileRef.current) fileRef.current.value = ''
+      return
+    }
     setUploading(true)
     const supabase = createClient()
     try {
@@ -123,23 +141,28 @@ export function CommissionInvoicePanel({
         toast.error('No se pudo subir la factura', { description: upErr.message })
         return
       }
-      const { error: dbErr } = await supabase.from('commission_invoices').upsert(
-        {
-          tenant_id: tenantId,
-          user_id: currentUserId,
-          period_month: period,
-          // Se guarda la RUTA del objeto, no una URL pública: la descarga se firma al abrirla.
-          invoice_url: path,
-          amount: amount.trim() ? parseFloat(amount) : null,
-          status: 'recibida',
-        },
-        { onConflict: 'user_id,period_month' }
-      )
-      if (dbErr) {
-        toast.error('No se pudo registrar la factura', { description: dbErr.message })
+      // El registro (factura + gasto en finanzas) lo hace el servidor: el colaborador no puede escribir en
+      // Gastos, y así la factura queda en un solo paso tanto aquí como en la sección de gastos.
+      const res = await fetch(`/api/${tenant}/evergreen/commissions/invoices`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ period, ...(importe !== undefined ? { amount: importe } : {}), path }),
+      })
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string
+        importe?: number
+        analizadaConIa?: boolean
+        avisoIa?: string | null
+      }
+      if (!res.ok) {
+        toast.error('No se pudo registrar la factura', { description: data.error })
         return
       }
-      toast.success('Factura enviada al departamento financiero')
+      toast.success('Factura enviada', {
+        description: data.analizadaConIa
+          ? `Leída con IA${data.importe != null ? ` (${formatCurrency(data.importe)})` : ''}. Finanzas ya la tiene en Gastos.`
+          : `Finanzas ya la tiene en Gastos${data.avisoIa ? ` (sin lectura automática: ${data.avisoIa})` : ''}.`,
+      })
       setAmount('')
       if (fileRef.current) fileRef.current.value = ''
       fetchInvoices()
@@ -175,7 +198,8 @@ export function CommissionInvoicePanel({
             <h3 className="text-sm font-semibold text-foreground">Mi factura de comisiones</h3>
           </div>
           <p className="text-xs text-muted-foreground">
-            Adjunta tu factura del mes cerrado. Solo la ve el departamento financiero; el resto del equipo no.
+            Adjunta tu factura del mes cerrado. Se analiza con IA y llega directamente al departamento financiero
+            (aparece en Gastos); el resto del equipo no la ve.
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -195,14 +219,29 @@ export function CommissionInvoicePanel({
               </Select>
             </div>
             <div className="space-y-1">
-              <Label className="text-muted-foreground text-xs">Importe (€) — opcional</Label>
+              <Label className="text-muted-foreground text-xs">Importe de tu factura (€) — opcional</Label>
               <Input
                 type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.00"
                 className="bg-muted border-border"
               />
+              {sugerido != null && sugerido > 0 && !amount.trim() && (
+                <button
+                  type="button"
+                  onClick={() => setAmount(String(sugerido))}
+                  className="text-xs text-brand-400 hover:text-brand-300"
+                >
+                  Usar {formatCurrency(sugerido)} (tus comisiones de ese mes)
+                </button>
+              )}
+              {!amount.trim() && (
+                <p className="text-xs text-muted-foreground">Si lo dejas vacío, lo lee la IA de la factura.</p>
+              )}
             </div>
             <div className="space-y-1">
               <Label className="text-muted-foreground text-xs">Archivo (PDF/imagen)</Label>
@@ -226,7 +265,7 @@ export function CommissionInvoicePanel({
                 {uploading ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Subiendo…
+                    Subiendo y analizando…
                   </>
                 ) : (
                   <>
@@ -254,6 +293,35 @@ export function CommissionInvoicePanel({
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Mis facturas, mes a mes (quien no administra no ve la tabla del equipo) */}
+      {showOwnUploader && !isAdmin && misFacturas.length > 0 && (
+        <div className="rounded-xl border border-border bg-card/50 p-5 space-y-3">
+          <h3 className="text-sm font-semibold text-foreground">Mis facturas</h3>
+          <ul className="divide-y divide-border">
+            {misFacturas.map((inv) => (
+              <li key={inv.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                <span className="text-foreground">{mayuscula(monthLabel(inv.period_month))}</span>
+                <span className="flex items-center gap-4">
+                  <span className="tabular-nums text-foreground">{formatCurrency(inv.amount)}</span>
+                  <span className={inv.status === 'pagada' ? 'text-emerald-400' : 'text-amber-400'}>
+                    {inv.status === 'pagada' ? 'Pagada' : 'Recibida'}
+                  </span>
+                  {inv.invoice_url && (
+                    <button
+                      type="button"
+                      onClick={() => void openInvoice(inv.invoice_url!)}
+                      className="inline-flex items-center gap-1 text-brand-400 hover:text-brand-300"
+                    >
+                      Ver <ExternalLink className="w-3 h-3" />
+                    </button>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
