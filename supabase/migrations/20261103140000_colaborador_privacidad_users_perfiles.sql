@@ -1,6 +1,7 @@
--- ⚠️ ESTADO: PENDIENTE DE PROBAR Y DE APLICAR. No está aplicada en producción. Antes de aplicarla hay que probarla en una
--- transacción revertida con tres sesiones (colaboradora, setter y admin): colaboradora ve 3 usuarios (ella + closer/setter
--- de sus ventas) y 1 perfil; setter y admin siguen viendo 7 usuarios y 3 perfiles.
+-- ESTADO: APLICADA en producción el 2026-11-03, tras probarla en una transacción revertida con tres sesiones: la
+-- colaboradora pasa de ver 7 usuarios a 3 (ella + closer/setter de sus ventas) y de 3 perfiles a 1, y conserva sus
+-- 21 ventas y 38 comisiones (también con el cruce a `users`); un setter y una administradora siguen viendo 7 usuarios
+-- y 3 perfiles. Verificada de nuevo en producción después de aplicarla. Es idempotente (CREATE OR REPLACE / DROP IF EXISTS).
 --
 -- PRIVACIDAD DEL COLABORADOR: ya no ve a todo el equipo ni los perfiles de otros colaboradores.
 --
