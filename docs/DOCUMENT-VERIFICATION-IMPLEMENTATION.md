@@ -5,7 +5,6 @@
 This system ensures that customers provide proper identification documents before contracts are sent, especially for sales in the USA and other countries with strict regulations. It includes a **firewall override** allowing closers and admins to proceed in exceptional cases (technical issues, customer unavailability).
 
 **Flow:**
-
 ```
 Sale Created → [Document Verification Required] → Contract Sending → Signature
 ```
@@ -19,7 +18,6 @@ Sale Created → [Document Verification Required] → Contract Sending → Signa
 **File:** `scripts/migration-v47-document-verification.sql`
 
 Creates:
-
 - `document_verifications` table: Records all uploaded documents
 - New fields in `sales` table:
   - `documents_verified` (boolean): Whether verification is complete
@@ -31,7 +29,6 @@ Creates:
   - `documents_override_at` (timestamp): When override applied
 
 **Run the migration:**
-
 ```bash
 # Copy the migration file to Supabase SQL editor or:
 psql -h <supabase-host> -U postgres -d postgres < scripts/migration-v47-document-verification.sql
@@ -42,7 +39,6 @@ psql -h <supabase-host> -U postgres -d postgres < scripts/migration-v47-document
 **File:** `lib/contracts/document-requirements.ts`
 
 Defines document types required by country:
-
 - **Spain (ES):** DNI, NIE, Passport
 - **USA (US):** Passport, Driver's License, State ID
 - **Mexico (MX):** Passport, IFE, Cédula
@@ -53,7 +49,6 @@ Defines document types required by country:
 - **Default:** Passport (for unlisted countries)
 
 Includes helper functions:
-
 ```typescript
 getDocumentRequirement(country?: string | null)  // Get requirements by country
 getCountryCode(countryName?: string | null)      // Normalize country name to ISO code
@@ -66,7 +61,6 @@ getCountryCode(countryName?: string | null)      // Normalize country name to IS
 **Endpoint:** `POST /api/evergreen/documents/verify`
 
 **Request:**
-
 ```json
 {
   "saleId": "uuid",
@@ -79,7 +73,6 @@ getCountryCode(countryName?: string | null)      // Normalize country name to IS
 ```
 
 **Process:**
-
 1. Validates sale and contact exist
 2. Converts base64 file to buffer
 3. Uploads to Supabase Storage bucket: `documentos-verificacion/{saleId}/{contactId}/{timestamp}-{fileName}`
@@ -87,7 +80,6 @@ getCountryCode(countryName?: string | null)      // Normalize country name to IS
 5. Creates record in `document_verifications` table (status: "pending")
 
 **Response:**
-
 ```json
 {
   "success": true,
@@ -105,7 +97,6 @@ getCountryCode(countryName?: string | null)      // Normalize country name to IS
 **Access:** Admin, Director, Closer roles only
 
 **Request:**
-
 ```json
 {
   "saleId": "uuid",
@@ -115,7 +106,6 @@ getCountryCode(countryName?: string | null)      // Normalize country name to IS
 ```
 
 **Process:**
-
 1. Validates user role (admin/director/closer)
 2. Marks sale as `documents_verified_override = true`
 3. Sets `documents_verified = true` to allow contract sending
@@ -123,7 +113,6 @@ getCountryCode(countryName?: string | null)      // Normalize country name to IS
 5. Logs action in audit_logs table
 
 **Response:**
-
 ```json
 {
   "success": true,
@@ -139,7 +128,6 @@ getCountryCode(countryName?: string | null)      // Normalize country name to IS
 **Endpoint:** `GET /api/evergreen/documents/state?saleId={uuid}`
 
 Returns current document verification state with user details:
-
 ```json
 {
   "documents_verified": true,
@@ -159,12 +147,12 @@ Returns current document verification state with user details:
 **Added validation** before generating contracts:
 
 ```typescript
-const docsVerified = sale.documents_verified === true || sale.documents_verified_override === true
+const docsVerified = (sale.documents_verified === true) || (sale.documents_verified_override === true)
 if (!docsVerified) {
   return NextResponse.json(
     {
       error: 'Document verification required',
-      message: 'This sale requires document verification before sending the contract...',
+      message: 'This sale requires document verification before sending the contract...'
     },
     { status: 403 }
   )
@@ -172,11 +160,9 @@ if (!docsVerified) {
 ```
 
 Blocks contract sending if:
-
 - ✗ `documents_verified = false` AND `documents_verified_override = false`
 
 Allows contract sending if:
-
 - ✓ `documents_verified = true` (normal verification completed)
 - ✓ `documents_verified_override = true` (firewall override applied)
 
@@ -185,7 +171,6 @@ Allows contract sending if:
 **File:** `components/sales/DocumentVerificationSection.tsx`
 
 React component showing:
-
 - ✅ Green indicator when verified
 - ⚠️ Amber indicator when pending
 - Verification timestamps and who verified
@@ -193,7 +178,6 @@ React component showing:
 - Modal to enter override reason with audit warning
 
 **Integration:** Add to sales detail page:
-
 ```tsx
 <DocumentVerificationSection
   saleId={saleId}
@@ -208,7 +192,6 @@ React component showing:
 ## Implementation Checklist
 
 - [ ] **1. Run migration**
-
   ```bash
   # Execute migration-v47-document-verification.sql in Supabase SQL editor
   ```
@@ -224,7 +207,6 @@ React component showing:
 - [ ] **3. Update sales detail page** to include `<DocumentVerificationSection />`
 
 - [ ] **4. Create Supabase Storage bucket** named `documentos-verificacion`
-
   ```
   Name: documentos-verificacion
   Public: No (documents are private, served via signed URLs)
@@ -246,7 +228,6 @@ React component showing:
 ## Usage Scenarios
 
 ### Scenario 1: Normal Flow (Document Verified)
-
 1. Sale created for USA customer
 2. System marks `documents_verified = false`
 3. Closer asks customer to upload ID (via email/link)
@@ -255,7 +236,6 @@ React component showing:
 6. Closer can now send contract ✓
 
 ### Scenario 2: Firewall Override (Technical Issues)
-
 1. Sale created for USA customer
 2. Customer cannot upload document (app crashes, file too large, etc.)
 3. Closer clicks **"Apply Override"** button
@@ -266,7 +246,6 @@ React component showing:
 8. **Later:** Customer can still upload document manually for records
 
 ### Scenario 3: Firewall Override (Urgent Case)
-
 1. Sale created, payment received, onboarding pending
 2. Customer is ready to start but documents still being prepared
 3. Closer applies override with reason: "Urgent - customer ready to start, documents in preparation"
@@ -281,19 +260,16 @@ React component showing:
 All document actions are logged:
 
 **Override actions** → recorded in `sales` table:
-
 - `documents_override_by` (user ID)
 - `documents_override_reason` (text)
 - `documents_override_at` (timestamp)
 
 **Verification actions** → recorded in `document_verifications` table:
-
 - `verified_by` (user ID)
 - `verified_at` (timestamp)
 - `status` (pending/verified/rejected)
 
 **Additional audit** (optional):
-
 - Create `audit_logs` entry with action: `document_verification_override`
 
 ---
@@ -322,19 +298,18 @@ All document actions are logged:
 
 ## Troubleshooting
 
-| Issue                          | Solution                                                             |
-| ------------------------------ | -------------------------------------------------------------------- |
-| Storage bucket not found       | Create `documentos-verificacion` bucket in Supabase Storage          |
-| Override button doesn't appear | Check user role in database; must be admin/director/closer           |
-| Contract still blocks          | Verify `documents_verified` or `documents_verified_override` is true |
-| Signed URL expires             | URLs are 10 years; regenerate if needed via `createSignedUrl()`      |
+| Issue | Solution |
+|-------|----------|
+| Storage bucket not found | Create `documentos-verificacion` bucket in Supabase Storage |
+| Override button doesn't appear | Check user role in database; must be admin/director/closer |
+| Contract still blocks | Verify `documents_verified` or `documents_verified_override` is true |
+| Signed URL expires | URLs are 10 years; regenerate if needed via `createSignedUrl()` |
 
 ---
 
 ## Contact & Support
 
 For questions about this implementation, refer to:
-
 - Document requirements: `lib/contracts/document-requirements.ts`
 - Database schema: `scripts/migration-v47-document-verification.sql`
 - API endpoints: `/app/api/evergreen/documents/`

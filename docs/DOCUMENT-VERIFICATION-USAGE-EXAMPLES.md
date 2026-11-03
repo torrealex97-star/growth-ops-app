@@ -101,15 +101,19 @@ async function checkDocumentStatus(saleId: string) {
 ### Example 3: Apply Firewall Override (Closer/Admin)
 
 ```typescript
-async function applyDocumentOverride(saleId: string, userId: string, reason: string) {
+async function applyDocumentOverride(
+  saleId: string,
+  userId: string,
+  reason: string
+) {
   const res = await fetch('/api/evergreen/documents/override', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       saleId,
       userId,
-      reason,
-    }),
+      reason
+    })
   })
 
   if (res.ok) {
@@ -307,7 +311,6 @@ export default function DocumentVerifyPage({ token }: { token: string }) {
    - Applies override
 
 4. **Override recorded:**
-
    ```sql
    -- Updated in sales table:
    documents_verified_override = true

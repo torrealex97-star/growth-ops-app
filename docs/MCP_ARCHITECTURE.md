@@ -1,5 +1,4 @@
 # SPEC-11 — Secure Multi-Tenant MCP Gateway · Auditoría y línea base (PR-0)
-
 13-oct-2026 · Buffy · rama `feat/spec11-pr0-mcp-audit` sobre `origin/main` (`b71dcf55`)
 
 Especificación: SPEC-11. **Un servidor MCP YA existe, completo y documentado** ([mcp-server.md](mcp-server.md) +
@@ -12,19 +11,19 @@ cliente en la sesión (eso exige sesión real de ChatGPT/Claude — PR-10).
 
 ## 1. Qué existe (VERIFICADO — cimentación sólida)
 
-| Requisito de la SPEC-11   | Implementación actual                                                                                                                                                                                                                                                                                                     | Estado           |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
-| Servidor MCP remoto       | `app/api/mcp/route.ts`: JSON-RPC 2.0 HTTP streamable, protocolo `2025-06-18`, `initialize`/`tools/list`/`tools/call`/`ping`                                                                                                                                                                                               | VERIFICADO       |
-| Transporte                | mismo fichero: timeout, errores JSON-RPC estructurados, sin autenticación por query params                                                                                                                                                                                                                                | VERIFICADO       |
-| OAuth 2.1                 | `lib/mcp/oauth.ts` + `app/api/mcp/oauth/*`: authorization_code + PKCE S256 obligatorio, registro dinámico (RFC 7591), códigos 60 s de UN solo uso con canje atómico (`used_at`), tokens access 15 min HS256 con `jti` revocable en BD, refresh 30 d con ROTACIÓN (reuso revoca la sesión), state y redirect_uri validados | VERIFICADO       |
-| Discovery                 | `/.well-known/oauth-protected-resource` (RFC 9728) y `/.well-known/oauth-authorization-server` (RFC 8414)                                                                                                                                                                                                                 | VERIFICADO       |
-| Tenant isolation          | El JWT lleva el `sub` real del usuario; el ejecutor lo inyecta en `request.jwt.claims` y RLS limita cada fila a las subcuentas del usuario — el modelo ve exactamente lo que ve su sesión web                                                                                                                             | VERIFICADO       |
-| Límites de datos          | `lib/mcp/sql-executor.ts`: rol `mcp_reader` (NOLOGIN) con whitelist `GRANT SELECT`, transacción `READ ONLY`, 8 s timeout, máx 500 filas / 20.000 chars por sentencia, errores SQL truncados (sin reflexión con datos)                                                                                                     | VERIFICADO       |
-| Catálogo sincronizado     | Migración `20261010140000`: whitelist corregidota contra catálogo vivo (6 tablas retiradas por desaparecidas, `vsl_embed_locations` añadida) y EXCEPTION si la lista deriva — detección de deriva del esquema                                                                                                             | VERIFICADO       |
-| Token storage             | `lib/mcp/store.ts`: códigos/tokens/secretos solo como SHA-256; tablas `mcp_oauth_*` (migración `20261009160000`)                                                                                                                                                                                                          | VERIFICADO       |
-| Revocación                | acceso al revocar de sesiones por `jti` en BD — robusta: la validación canónica consulta la BD, la revocación es inmediata sin esperar caducidad                                                                                                                                                                          | VERIFICADO       |
-| Consentimiento            | pantalla de consentimiento exige sesión Supabase y fija `owner_user_id`; cliente dinámico no lee nada hasta aprobación                                                                                                                                                                                                    | VERIFICADO       |
-| Documentación de conexión | `docs/mcp-server.md`: pasos reales para ChatGPT (Connectors) y Claude (custom connector) con URL y flujo                                                                                                                                                                                                                  | VERIFICADO (doc) |
+| Requisito de la SPEC-11 | Implementación actual | Estado |
+|---|---|---|
+| Servidor MCP remoto | `app/api/mcp/route.ts`: JSON-RPC 2.0 HTTP streamable, protocolo `2025-06-18`, `initialize`/`tools/list`/`tools/call`/`ping` | VERIFICADO |
+| Transporte | mismo fichero: timeout, errores JSON-RPC estructurados, sin autenticación por query params | VERIFICADO |
+| OAuth 2.1 | `lib/mcp/oauth.ts` + `app/api/mcp/oauth/*`: authorization_code + PKCE S256 obligatorio, registro dinámico (RFC 7591), códigos 60 s de UN solo uso con canje atómico (`used_at`), tokens access 15 min HS256 con `jti` revocable en BD, refresh 30 d con ROTACIÓN (reuso revoca la sesión), state y redirect_uri validados | VERIFICADO |
+| Discovery | `/.well-known/oauth-protected-resource` (RFC 9728) y `/.well-known/oauth-authorization-server` (RFC 8414) | VERIFICADO |
+| Tenant isolation | El JWT lleva el `sub` real del usuario; el ejecutor lo inyecta en `request.jwt.claims` y RLS limita cada fila a las subcuentas del usuario — el modelo ve exactamente lo que ve su sesión web | VERIFICADO |
+| Límites de datos | `lib/mcp/sql-executor.ts`: rol `mcp_reader` (NOLOGIN) con whitelist `GRANT SELECT`, transacción `READ ONLY`, 8 s timeout, máx 500 filas / 20.000 chars por sentencia, errores SQL truncados (sin reflexión con datos) | VERIFICADO |
+| Catálogo sincronizado | Migración `20261010140000`: whitelist corregidota contra catálogo vivo (6 tablas retiradas por desaparecidas, `vsl_embed_locations` añadida) y EXCEPTION si la lista deriva — detección de deriva del esquema | VERIFICADO |
+| Token storage | `lib/mcp/store.ts`: códigos/tokens/secretos solo como SHA-256; tablas `mcp_oauth_*` (migración `20261009160000`) | VERIFICADO |
+| Revocación | acceso al revocar de sesiones por `jti` en BD — robusta: la validación canónica consulta la BD, la revocación es inmediata sin esperar caducidad | VERIFICADO |
+| Consentimiento | pantalla de consentimiento exige sesión Supabase y fija `owner_user_id`; cliente dinámico no lee nada hasta aprobación | VERIFICADO |
+| Documentación de conexión | `docs/mcp-server.md`: pasos reales para ChatGPT (Connectors) y Claude (custom connector) con URL y flujo | VERIFICADO (doc) |
 
 ## 2. Huecos (delta que la SPEC-11 exige)
 
@@ -62,19 +61,19 @@ cliente en la sesión (eso exige sesión real de ChatGPT/Claude — PR-10).
 
 ## 3. Plan de fases (adaptado: solo delta)
 
-| Fase                                     | Cubre                                                                                                                                 | Sobre qué existente    |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
-| **PR-0** (este)                          | Auditoría y diseño                                                                                                                    | docs                   |
-| PR-1 — Canonical Tool Adapter            | Primeras 3-5 tools canónicas (ventas/cash/campañas) consumiendo lib/metrics + SPEC-07; cortesía de esquema data_status/metric_version | mismo servidor MCP     |
-| PR-2 — Auth & Scopes                     | Scopes granulares + binding workspace×autorización + consentimiento visible                                                           | oauth.ts + consent UI  |
-| PR-3 — Marketing/Funnels/VSL/Sales Tools | Catálogo de SPEC-07/08/09 convertido en tools MCP                                                                                     | adapters               |
-| PR-4 — Data Health & Person Tools        | Tools de salud agregadas; Person restringido al rol autorizado y por ID, sin enumeración                                              | data-health + timeline |
-| PR-5 — Deprecación de query_db           | Migrar a tools canónicas y retirar (o degradar) el SQL libre                                                                          | sql-executor           |
-| PR-6 — Rate limits & Audit log           | Limites por conexión + tablas de auditoría MCP                                                                                        | sql-executor pattern   |
-| PR-7 — UI AI Connections                 | Conexiones, consentimiento, revocación, reconexión                                                                                    | store revocación       |
-| PR-8 — Observabilidad                    | Métricas de herramientas, latencia, abuso                                                                                             | TurnUsage pattern      |
-| PR-9 — Security battery                  | 20 escenarios adversariales del §25                                                                                                   | tests                  |
-| PR-10 — Compatibilidad real              | ChatGPT + Claude + cliente de pruebas, con evidencia conectada de sesiones reales                                                     | docs actualizados      |
+| Fase | Cubre | Sobre qué existente |
+|---|---|---|
+| **PR-0** (este) | Auditoría y diseño | docs |
+| PR-1 — Canonical Tool Adapter | Primeras 3-5 tools canónicas (ventas/cash/campañas) consumiendo lib/metrics + SPEC-07; cortesía de esquema data_status/metric_version | mismo servidor MCP |
+| PR-2 — Auth & Scopes | Scopes granulares + binding workspace×autorización + consentimiento visible | oauth.ts + consent UI |
+| PR-3 — Marketing/Funnels/VSL/Sales Tools | Catálogo de SPEC-07/08/09 convertido en tools MCP | adapters |
+| PR-4 — Data Health & Person Tools | Tools de salud agregadas; Person restringido al rol autorizado y por ID, sin enumeración | data-health + timeline |
+| PR-5 — Deprecación de query_db | Migrar a tools canónicas y retirar (o degradar) el SQL libre | sql-executor |
+| PR-6 — Rate limits & Audit log | Limites por conexión + tablas de auditoría MCP | sql-executor pattern |
+| PR-7 — UI AI Connections | Conexiones, consentimiento, revocación, reconexión | store revocación |
+| PR-8 — Observabilidad | Métricas de herramientas, latencia, abuso | TurnUsage pattern |
+| PR-9 — Security battery | 20 escenarios adversariales del §25 | tests |
+| PR-10 — Compatibilidad real | ChatGPT + Claude + cliente de pruebas, con evidencia conectada de sesiones reales | docs actualizados |
 
 ## 4. Limitaciones
 

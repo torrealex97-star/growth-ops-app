@@ -17,7 +17,7 @@ Reglas transversales ya decidas y aplicadas en todo lo que se porte:
   `raw_events` antes de procesar (idempotente por id de evento o hash del cuerpo), proyección
   idempotente, hecho al final. Respuesta genérica cuando falta el secreto (no filtra subcuentas).
 - **Efecto externo o escritura irreversible ⇒ claim atómico ANTES** (`UPDATE … WHERE estado_previo
-RETURNING`; sigue solo si la fila es tuya).
+  RETURNING`; sigue solo si la fila es tuya).
 - **Un hueco no es un cero**: null es "todavía no hay", un error de consulta nunca se pinta como 0,
   y en pantalla hay estado de error con Reintentar.
 - **Ante la duda, no se decide: cola/revisión manual.** Ni contactos "por si acaso", ni importes
@@ -27,14 +27,14 @@ RETURNING`; sigue solo si la fila es tuya).
 
 Lo que había acoplado al negocio de origen y cómo se expone ahora:
 
-| En iawinners (hardcode)                                                            | En Scalix (por subcuenta)                                                                                                                          |
-| ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| En iawinners (hardcode) | En Scalix (por subcuenta) |
+| --- | --- |
 | Calendario de lanzamientos en `lib/launch/config.ts` + tabla `launches` sin tenant | Tabla `launches` con `tenant_id`; activo = el abierto con fecha más reciente; se abre/programa desde el panel `/lanzamiento` (solo admin/director) |
-| Webhook GHL con ruta fija `launch-2026` y lanzamiento por constante                | `POST /api/[tenant]/evergreen/webhooks/lanzamiento?evento=…` con secreto por subcuenta                                                             |
-| Tramos y textos de cold caller como constantes (`COLD_CALLING`)                    | **Pendiente**: tabla de configuración por subcuenta cuando se porte el módulo de cold callers                                                      |
-| Enlaces de invitación y closer→URL fijados por id de usuario (`enlacesPorCloser`)  | **Pendiente**: no se portan; irán a `integration_settings` o a un panel de colaboradores                                                           |
-| Credenciales (Apify, Stripe, Sequra, YouTube OAuth, GHL…) en env                   | `integration_settings` cifradas por subcuenta (patrón existente)                                                                                   |
-| Una BD, sin aislamiento                                                            | Supabase multitenant: `tenant_id` explícito en cada consulta + RLS RESTRICTIVE                                                                     |
+| Webhook GHL con ruta fija `launch-2026` y lanzamiento por constante | `POST /api/[tenant]/evergreen/webhooks/lanzamiento?evento=…` con secreto por subcuenta |
+| Tramos y textos de cold caller como constantes (`COLD_CALLING`) | **Pendiente**: tabla de configuración por subcuenta cuando se porte el módulo de cold callers |
+| Enlaces de invitación y closer→URL fijados por id de usuario (`enlacesPorCloser`) | **Pendiente**: no se portan; irán a `integration_settings` o a un panel de colaboradores |
+| Credenciales (Apify, Stripe, Sequra, YouTube OAuth, GHL…) en env | `integration_settings` cifradas por subcuenta (patrón existente) |
+| Una BD, sin aislamiento | Supabase multitenant: `tenant_id` explícito en cada consulta + RLS RESTRICTIVE |
 
 ## Fase 2 — Arquitectura por módulo (flujo UI → API → cola/worker → BD)
 

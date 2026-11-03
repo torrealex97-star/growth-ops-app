@@ -14,28 +14,27 @@ infraestructura de alto tráfico (canary, circuit breakers, error budgets formal
 
 ## 1. Production Readiness Score
 
-| Categoría           | Score                                       | Blocker                                      |
-| ------------------- | ------------------------------------------- | -------------------------------------------- |
-| Architecture        | 62/100                                      | No                                           |
-| Data Integrity      | 68/100                                      | No                                           |
-| Metrics Correctness | 45/100                                      | **Sí (P0)**                                  |
-| Security            | 58/100                                      | **Sí (P1)**                                  |
-| Multi-tenancy       | 78/100                                      | No                                           |
-| Testing             | 22/100                                      | No (pero es el riesgo silencioso más grande) |
-| Reliability         | 60/100                                      | No                                           |
-| Performance         | 55/100                                      | No                                           |
-| Observability       | 15/100                                      | No (mismo caso que Testing)                  |
-| CI/CD               | 70/100                                      | No                                           |
-| Deployment Safety   | 40/100                                      | No                                           |
-| Backups             | 50/100 (NEEDS_VERIFICATION en el proveedor) | No                                           |
-| Disaster Recovery   | 25/100                                      | No                                           |
-| UX Resilience       | 65/100                                      | No                                           |
-| Maintainability     | 64/100                                      | No                                           |
+| Categoría | Score | Blocker |
+|---|---|---|
+| Architecture | 62/100 | No |
+| Data Integrity | 68/100 | No |
+| Metrics Correctness | 45/100 | **Sí (P0)** |
+| Security | 58/100 | **Sí (P1)** |
+| Multi-tenancy | 78/100 | No |
+| Testing | 22/100 | No (pero es el riesgo silencioso más grande) |
+| Reliability | 60/100 | No |
+| Performance | 55/100 | No |
+| Observability | 15/100 | No (mismo caso que Testing) |
+| CI/CD | 70/100 | No |
+| Deployment Safety | 40/100 | No |
+| Backups | 50/100 (NEEDS_VERIFICATION en el proveedor) | No |
+| Disaster Recovery | 25/100 | No |
+| UX Resilience | 65/100 | No |
+| Maintainability | 64/100 | No |
 
 **Promedio: 51/100 — "funciona, pero no está verificadamente listo para escalar sin supervisión."**
 
 ### Architecture — 62/100
-
 - EVIDENCE: capa de servicio real y factorizada (`lib/finance/pnl.ts`, `lib/commissions/*`, `lib/analytics.ts`); RLS
   como backstop real, no decorativo (verificado en la auditoría de seguridad de esta sesión); multi-tenant con
   política `RESTRICTIVE` uniforme sobre ~50 tablas.
@@ -47,7 +46,6 @@ infraestructura de alto tráfico (canary, circuit breakers, error budgets formal
   cuando el volumen de incidentes lo justifique; no antes (evitar sobrearquitectura sin retorno demostrado).
 
 ### Data Integrity — 68/100 (antes de esta sesión: más bajo)
-
 - EVIDENCE: `NUMERIC(12,2)` en todos los importes (nunca `float`); esta sesión añadió UNIQUE reales en
   `collections`/`commissions`/`appointments` y CHECK en `expenses.status`/`campaigns.status`.
 - RISKS: FKs sin `ON DELETE` explícito en `sales`/`collections`/`commissions` (no genera huérfanos, pero bloquea
@@ -59,7 +57,6 @@ infraestructura de alto tráfico (canary, circuit breakers, error budgets formal
   añadidos hoy (ver comentario al final de la migración `20260911200000`).
 
 ### Metrics Correctness — 45/100 — **BLOCKER (P0)**
-
 - EVIDENCE (confirmado por auditoría de métricas de esta sesión): "ventas del mes" tiene **2 fórmulas incompatibles**
   — con filtro `status IN ('active','partial_refund')` (Dashboard, `lib/analytics.ts`) vs. sin filtro (`pnl.ts`,
   Finanzas Resumen, Cohortes) — mismo periodo, mismo nombre, cifras distintas. "Net Revenue" tiene otra fórmula
@@ -74,7 +71,6 @@ infraestructura de alto tráfico (canary, circuit breakers, error budgets formal
   golden dataset antes de tocar las fórmulas.
 
 ### Security — 58/100 — **BLOCKER (P1)**
-
 - EVIDENCE: los 3 P0 históricos (RLS de sales/contacts/collections, tablas Instagram sin RLS, `documents/state` sin
   auth) están **FIXED y confirmados en código** con defensa en profundidad (política RESTRICTIVE por tenant además
   del scoping por rol). Rate limiting: 0 en todo el repo (confirmado por grep). Fallbacks de secretos hardcodeados:
@@ -91,9 +87,8 @@ infraestructura de alto tráfico (canary, circuit breakers, error budgets formal
   desplegar.
 
 ### Multi-tenancy — 78/100
-
 - EVIDENCE: política `RESTRICTIVE` uniforme sobre ~50 tablas (`tenant_id IN (SELECT auth_tenant_ids()) OR
-is_super_admin()`) — verificado que cubre las tablas de negocio críticas. Tenant WDC existe realmente
+  is_super_admin()`) — verificado que cubre las tablas de negocio críticas. Tenant WDC existe realmente
   (`women-digital-closer`, seedeado desde `20260911140000`).
 - RISKS: cero infraestructura de branding por tenant (confirmado — "Scalix Systems" hardcodeado en 8+ archivos, sin
   columna de branding en `tenants`). Aplicación de esa política RESTRICTIVE depende de un `DO $$ FOREACH` dinámico —
@@ -104,7 +99,6 @@ is_super_admin()`) — verificado que cubre las tablas de negocio críticas. Ten
   falle en CI en vez de en producción.
 
 ### Testing — 22/100
-
 - EVIDENCE: un único archivo de test (`tests/marketing-navigation.test.mjs`, 9 tests, todo sobre navegación) en todo
   el repo. Cero tests de comisiones, P&L, RLS/multi-tenancy o flujo de venta/cobro.
 - RISKS: "¿qué se puede romper mañana sin que ningún test se entere?" — la fórmula de comisiones, el cálculo de P&L,
@@ -114,7 +108,6 @@ is_super_admin()`) — verificado que cubre las tablas de negocio críticas. Ten
   dataset es la Fase 5 ya identificada en este proyecto.
 
 ### Reliability — 60/100
-
 - EVIDENCE (esta sesión): doble-cobro y comisiones duplicadas ahora tienen UNIQUE real en DB, no solo guard de
   aplicación. Webhooks Calendly/GHL ahora son idempotentes de verdad (upsert, no INSERT plano).
 - RISKS: `lib/meta/client.ts`/`lib/sequra/client.ts` hacen `fetch` sin timeout ni `AbortController` — un cron con
@@ -125,7 +118,6 @@ is_super_admin()`) — verificado que cubre las tablas de negocio críticas. Ten
 - RECOMMENDATIONS: replicar el patrón de timeout de `lib/calendly.ts` en `lib/meta/client.ts` y `lib/sequra/client.ts`.
 
 ### Performance — 55/100
-
 - EVIDENCE (esta sesión): 6 páginas financieras/dashboard que traían tablas completas sin límite ahora tienen
   `.range()` explícito (`FINANCE_QUERY_ROW_CAP`), cerrando el riesgo de truncado silencioso de PostgREST.
 - RISKS: siguen sin índices las columnas por las que se filtra en `crm/agendas` (búsqueda `ilike` triple sin
@@ -134,7 +126,6 @@ is_super_admin()`) — verificado que cubre las tablas de negocio críticas. Ten
 - RECOMMENDATIONS: paginar `crm/agendas` cuando el volumen de citas lo justifique (no antes).
 
 ### Observability — 15/100
-
 - EVIDENCE: cero Sentry/error-tracking, cero endpoint de health-check, cero alertas de ningún tipo (confirmado, sin
   ambigüedad, por grep exhaustivo en la auditoría anterior).
 - RISKS: hoy, si algo falla en producción, el equipo se entera por un usuario que se queja, no por una alerta.
@@ -142,7 +133,6 @@ is_super_admin()`) — verificado que cubre las tablas de negocio críticas. Ten
 - RECOMMENDATIONS: ver sección 6 (Observabilidad) más abajo — es la inversión de mayor retorno de todo este informe.
 
 ### CI/CD — 70/100 (antes de esta sesión: 10/100)
-
 - EVIDENCE: `.github/workflows/ci.yml` (añadido en esta sesión) corre format/lint/typecheck/dead-code/test/build en
   cada push y PR; antes solo existía un deploy manual sin ningún check.
 - RISKS: `deploy.yml` sigue sin depender de que `ci.yml` esté verde (requiere branch protection, configuración de
@@ -152,14 +142,12 @@ is_super_admin()`) — verificado que cubre las tablas de negocio críticas. Ten
   `quality` de `ci.yml`.
 
 ### Deployment Safety — 40/100
-
 - EVIDENCE: `deploy.yml` es `workflow_dispatch` manual, sin smoke test posterior, sin rollback automatizado.
 - RISKS: un deploy roto a producción no se detecta hasta que alguien lo nota manualmente.
 - BLOCKERS: ninguno para un deploy puntual bien vigilado, pero sí para operar sin supervisión constante.
 - RECOMMENDATIONS: ver `docs/runbooks/deployment-regression.md`.
 
 ### Backups — 50/100
-
 - EVIDENCE: no hay ningún script/documentación de backup en el repo — **correcto**, Supabase gestiona backups a
   nivel de plataforma (PITR/snapshots según plan). NEEDS_VERIFICATION: qué plan de Supabase está contratado y si
   PITR está activo — no verificable desde el repositorio.
@@ -168,14 +156,12 @@ is_super_admin()`) — verificado que cubre las tablas de negocio críticas. Ten
 - RECOMMENDATIONS: confirmar plan de Supabase + hacer un restore drill una vez (ver runbook).
 
 ### Disaster Recovery — 25/100
-
 - EVIDENCE: RPO/RTO nunca definidos por el equipo (esta sesión los propone en la sección 3 más abajo).
 - RISKS: sin RPO/RTO documentados, cualquier incidente grave se gestiona improvisando.
 - BLOCKERS: no bloquea el día a día.
 - RECOMMENDATIONS: adoptar los RPO/RTO propuestos abajo como objetivo mínimo, y hacer un restore drill una vez.
 
 ### UX Resilience — 65/100
-
 - EVIDENCE: patrón dominante es `toast.error` visible al usuario (`sonner`), no solo `console.error` silencioso —
   mejor que lo típico. Empty states existen en los listados principales revisados.
 - RISKS: algunos `catch {}` vacíos puntuales en `crm/agendas/page.tsx`.
@@ -183,7 +169,6 @@ is_super_admin()`) — verificado que cubre las tablas de negocio críticas. Ten
 - RECOMMENDATIONS: revisar esos catches vacíos puntuales cuando se toque ese archivo por otra razón.
 
 ### Maintainability — 64/100
-
 - EVIDENCE (esta sesión): ESLint/Prettier/Knip configurados y en verde; 8 archivos de código muerto confirmado
   eliminados; 2 lockfiles duplicados resueltos a 1.
 - RISKS: `crm/agendas/page.tsx` (2211 líneas), `ventas/registro/[id]/page.tsx` (1366 líneas) siguen siendo monolitos.
@@ -194,15 +179,15 @@ is_super_admin()`) — verificado que cubre las tablas de negocio críticas. Ten
 
 ## 2. Release Blockers
 
-| #   | Severidad | Hallazgo                                                                                               | Estado                                                |
-| --- | --------- | ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
-| 1   | **P0**    | Fórmulas de métricas incompatibles entre Dashboard/Finanzas/Analítica de ventas para el mismo concepto | Pendiente (Fase 5 ya planificada)                     |
-| 2   | **P1**    | Bucket `contratos`/`facturas` público con PII de alumnos, sin expiración                               | Documentado, no ejecutado a ciegas                    |
-| 3   | **P1**    | Sin rate limiting en login/recover (más allá de lo opaco que Supabase Auth pueda aplicar)              | Pendiente                                             |
-| 4   | **P1**    | Cero error tracking/alertas — cualquier fallo en producción es silencioso hasta que alguien se queja   | Pendiente                                             |
-| 5   | **P2**    | `crm/agendas.page.tsx` sin índice `pg_trgm` para su búsqueda `ilike` triple                            | Pendiente                                             |
-| 6   | **P2**    | `deploy.yml` no depende de que `ci.yml` pase (requiere branch protection en GitHub)                    | Pendiente, acción manual                              |
-| 7   | **P3**    | `worker/` (transcripción de llamadas) huérfano, nunca desplegado, sin dueño claro                      | Decisión de producto pendiente (¿archivar o retomar?) |
+| # | Severidad | Hallazgo | Estado |
+|---|---|---|---|
+| 1 | **P0** | Fórmulas de métricas incompatibles entre Dashboard/Finanzas/Analítica de ventas para el mismo concepto | Pendiente (Fase 5 ya planificada) |
+| 2 | **P1** | Bucket `contratos`/`facturas` público con PII de alumnos, sin expiración | Documentado, no ejecutado a ciegas |
+| 3 | **P1** | Sin rate limiting en login/recover (más allá de lo opaco que Supabase Auth pueda aplicar) | Pendiente |
+| 4 | **P1** | Cero error tracking/alertas — cualquier fallo en producción es silencioso hasta que alguien se queja | Pendiente |
+| 5 | **P2** | `crm/agendas.page.tsx` sin índice `pg_trgm` para su búsqueda `ilike` triple | Pendiente |
+| 6 | **P2** | `deploy.yml` no depende de que `ci.yml` pase (requiere branch protection en GitHub) | Pendiente, acción manual |
+| 7 | **P3** | `worker/` (transcripción de llamadas) huérfano, nunca desplegado, sin dueño claro | Decisión de producto pendiente (¿archivar o retomar?) |
 
 **P0/P1 corregidos en esta sesión** (ya no bloquean): doble-cobro sin UNIQUE, comisiones duplicables, unique global
 de `external_id` entre tenants, webhook GHL no idempotente, truncado silencioso de queries financieras, signed URLs
@@ -212,30 +197,30 @@ de 10 años en pagos/documentos, tooling de calidad inexistente.
 
 ## 3. SLOs (propuestos, calibrados a la escala real — 2 tenants, sin guardia 24/7)
 
-| SLO                                                                                | Objetivo                                                  | Justificación                                                                                |
-| ---------------------------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| Dashboard availability                                                             | ≥ 99.0% mensual                                           | Vercel + Supabase ya dan esto por defecto sin esfuerzo extra; no es una app de guardia 24/7. |
-| Critical API error rate                                                            | < 2% en `sales`, `collections`, `payments/mark`, webhooks | Son las rutas con dinero real de por medio.                                                  |
-| Critical workflow success rate (registrar venta → marcar cobro → generar comisión) | ≥ 99%                                                     | Con las UNIQUE de esta sesión, el fallo esperado es casi nulo salvo error de usuario.        |
-| Metric freshness (Dashboard/Finanzas)                                              | ≤ 5 minutos desde el último cobro/venta                   | Todo es consulta directa a Supabase, no hay caché — ya se cumple hoy por diseño.             |
-| Webhook success rate (Calendly/GHL)                                                | ≥ 99% de entregas procesadas sin error 500                | Con la idempotencia añadida esta sesión, un reintento ya no debería fallar.                  |
-| Background job (cron) success rate                                                 | ≥ 95% por ejecución mensual/diaria/semanal                | 3 crons de bajo volumen; un fallo aislado no es crítico si se reintenta al día siguiente.    |
-| Database p95 latency (queries core)                                                | < 300ms                                                   | Generoso para Supabase gestionado con los índices ya añadidos.                               |
+| SLO | Objetivo | Justificación |
+|---|---|---|
+| Dashboard availability | ≥ 99.0% mensual | Vercel + Supabase ya dan esto por defecto sin esfuerzo extra; no es una app de guardia 24/7. |
+| Critical API error rate | < 2% en `sales`, `collections`, `payments/mark`, webhooks | Son las rutas con dinero real de por medio. |
+| Critical workflow success rate (registrar venta → marcar cobro → generar comisión) | ≥ 99% | Con las UNIQUE de esta sesión, el fallo esperado es casi nulo salvo error de usuario. |
+| Metric freshness (Dashboard/Finanzas) | ≤ 5 minutos desde el último cobro/venta | Todo es consulta directa a Supabase, no hay caché — ya se cumple hoy por diseño. |
+| Webhook success rate (Calendly/GHL) | ≥ 99% de entregas procesadas sin error 500 | Con la idempotencia añadida esta sesión, un reintento ya no debería fallar. |
+| Background job (cron) success rate | ≥ 95% por ejecución mensual/diaria/semanal | 3 crons de bajo volumen; un fallo aislado no es crítico si se reintenta al día siguiente. |
+| Database p95 latency (queries core) | < 300ms | Generoso para Supabase gestionado con los índices ya añadidos. |
 
 **No se define** un SLO de "page load" estricto (Core Web Vitals) todavía — no hay Lighthouse CI ni baseline medido;
 definir un número antes de medir sería inventarlo, no un objetivo real.
 
 ## 4. SLIs (cómo se mediría cada SLO)
 
-| SLO                            | SLI                                                            | Cómo medirlo hoy                                                                                   |
-| ------------------------------ | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| Dashboard availability         | % de checks sintéticos con 200 en `/dashboard`                 | NOT AVAILABLE — requiere monitoring sintético (sección 9), no existe hoy                           |
-| Critical API error rate        | 5xx / total requests en rutas críticas                         | NOT AVAILABLE — requiere error tracking (sección 6), no existe hoy                                 |
-| Critical workflow success rate | `commissionsGenerated` real vs. esperado en `payments/mark`    | Parcialmente medible ya (el endpoint ya devuelve ese dato); falta agregarlo en un log estructurado |
-| Metric freshness               | timestamp de la fila más reciente vs. `now()`                  | Medible con una query directa hoy mismo, sin tooling nuevo                                         |
-| Webhook success rate           | % de respuestas no-500 de `webhooks/calendly` y `webhooks/ghl` | NOT AVAILABLE sin logging estructurado (sección 7)                                                 |
-| Background job success rate    | resultado de cada cron guardado en una tabla propia            | NOT AVAILABLE — no existe tabla de resultado de crons hoy                                          |
-| Database p95 latency           | Supabase Dashboard → Database → Query Performance              | Disponible ya en la plataforma, sin cambios de código                                              |
+| SLO | SLI | Cómo medirlo hoy |
+|---|---|---|
+| Dashboard availability | % de checks sintéticos con 200 en `/dashboard` | NOT AVAILABLE — requiere monitoring sintético (sección 9), no existe hoy |
+| Critical API error rate | 5xx / total requests en rutas críticas | NOT AVAILABLE — requiere error tracking (sección 6), no existe hoy |
+| Critical workflow success rate | `commissionsGenerated` real vs. esperado en `payments/mark` | Parcialmente medible ya (el endpoint ya devuelve ese dato); falta agregarlo en un log estructurado |
+| Metric freshness | timestamp de la fila más reciente vs. `now()` | Medible con una query directa hoy mismo, sin tooling nuevo |
+| Webhook success rate | % de respuestas no-500 de `webhooks/calendly` y `webhooks/ghl` | NOT AVAILABLE sin logging estructurado (sección 7) |
+| Background job success rate | resultado de cada cron guardado en una tabla propia | NOT AVAILABLE — no existe tabla de resultado de crons hoy |
+| Database p95 latency | Supabase Dashboard → Database → Query Performance | Disponible ya en la plataforma, sin cambios de código |
 
 ## 5. Error Budget
 
@@ -255,7 +240,6 @@ si fue frontend/backend/DB/API externa — todo depende de que alguien mire logs
 
 **NOT ADDED en esta sesión** (requiere una cuenta/servicio real que no puedo crear desde aquí, y el propio prompt
 pide no añadir dependencias sin justificar el coste de mantenimiento):
-
 - Sentry (o equivalente) para error tracking frontend+backend, con tenant y release como tags.
 - Source maps + release tracking en Vercel.
 
@@ -267,11 +251,9 @@ cada handler).
 ## 7. Logging estructurado (propuesta, no implementada — requiere decidir formato con el equipo)
 
 Ejemplo concreto para `payments/mark` (la ruta con más dinero en juego):
-
 ```
 { ts, env, release, tenant_id, operation: "payments.mark", status: "ok"|"duplicate"|"error", duration_ms, installment_id, error_code? }
 ```
-
 Nunca: `password`, `access_token`, `refresh_token`, `service_role`, DNI/documento completo.
 
 ## 8. Alertas (propuestas — requieren el error tracking de la sección 6 primero)
@@ -292,7 +274,6 @@ proceso responde?) vs. readiness (¿puede hablar con Supabase?).
 ## 11-17. Data Quality
 
 Invariantes verificados como YA GARANTIZADOS por la política RESTRICTIVE + esta sesión:
-
 - Registros privados siempre tienen tenant → **DATABASE CONSTRAINT** (`tenant_id NOT NULL` + RLS RESTRICTIVE).
 - Estados pertenecen a un conjunto permitido → **DATABASE CONSTRAINT** (CHECK ya existente en sales/collections/
   commissions/refunds/appointments; añadido esta sesión en expenses/campaigns).
@@ -300,7 +281,6 @@ Invariantes verificados como YA GARANTIZADOS por la política RESTRICTIVE + esta
 - Cantidades monetarias en formato correcto → **DATABASE CONSTRAINT** (`NUMERIC`, nunca float).
 
 Invariantes que hoy dependen SOLO de disciplina de aplicación (sin red de seguridad automática):
-
 - "Registros cancelados no cuentan como ingresos" → depende de que cada query recuerde filtrar `status` — **TEST**
   pendiente (Fase 5), no vale la pena una `MONITORING CHECK` periódica cuando un test unitario lo cubre mejor y más
   barato.
@@ -312,12 +292,10 @@ Invariantes que hoy dependen SOLO de disciplina de aplicación (sin red de segur
 No se ejecutó un audit de datos en vivo (no hay acceso a la Supabase real desde este entorno). Si se quiere un
 informe real de huérfanos, la consulta más valiosa y de bajo riesgo para correr manualmente en producción (solo
 lectura) sería:
-
 ```sql
 SELECT s.id FROM sales s LEFT JOIN contacts c ON c.id = s.contact_id WHERE c.id IS NULL; -- huérfanos reales
 SELECT * FROM commissions WHERE sale_id NOT IN (SELECT id FROM sales); -- imposible hoy por FK, pero verificar histórico pre-FK
 ```
-
 **No se ejecuta ninguna limpieza automática** — esto es explícitamente un informe, no una acción, tal como se pidió.
 
 ## 15-17. Validación de métricas en producción / Freshness / Reconciliación
@@ -345,7 +323,6 @@ correr, y no depende de que existan datos "raros" reales para detectarlos.
 ## 22-26. Runbooks e Incident Response
 
 Creados en `docs/runbooks/` (solo los que aportan valor real a esta escala — no los 8 completos del prompt):
-
 - `production-down.md`
 - `metrics-wrong.md` (el que se pidió explícitamente con más detalle)
 - `tenant-data-leak.md`
@@ -357,7 +334,6 @@ como archivos separados — su contenido real cabe como una sección dentro de `
 no tener runbook.
 
 Flujo de incidentes (simple, sin proceso corporativo):
-
 ```
 DETECT → TRIAGE (¿qué tenant, qué endpoint, desde cuándo?) → CONTAIN (¿hay que desactivar algo ya?)
 → MITIGATE → RECOVER → VERIFY (con datos reales, no solo "ya no da error")
@@ -365,7 +341,6 @@ DETECT → TRIAGE (¿qué tenant, qué endpoint, desde cuándo?) → CONTAIN (¿
 ```
 
 **Severidades**:
-
 - **SEV0**: pérdida o fuga de datos, o la app entera caída. Todo se detiene hasta resolver.
 - **SEV1**: una función crítica (ventas, cobros, login) rota para todos o para un tenant entero.
 - **SEV2**: función no crítica rota, o crítica rota para un usuario aislado.
@@ -417,37 +392,35 @@ CODE → CI (ci.yml, añadido esta sesión) → [PREVIEW: NOT AVAILABLE, sin int
 
 ## TOP 20 IMPROVEMENTS (P0→P3)
 
-| #   | P   | Problema                                              | Impacto                           | Dificultad           | Estado                          |
-| --- | --- | ----------------------------------------------------- | --------------------------------- | -------------------- | ------------------------------- |
-| 1   | P0  | Fórmulas de métricas incompatibles Dashboard/Finanzas | Confianza en el producto          | Media                | Pendiente (Fase 5)              |
-| 2   | P1  | Bucket contratos/facturas público con PII             | Legal/privacidad                  | Media-alta           | Documentado                     |
-| 3   | P1  | Cero error tracking                                   | Tiempo de detección de incidentes | Baja (con cuenta)    | NOT ADDED (necesita cuenta)     |
-| 4   | P1  | Doble-cobro sin UNIQUE en DB                          | Dinero real duplicado             | Baja                 | **Resuelto esta sesión**        |
-| 5   | P1  | Comisiones duplicables                                | Dinero real duplicado             | Baja                 | **Resuelto esta sesión**        |
-| 6   | P1  | Webhook GHL no idempotente                            | Citas duplicadas                  | Baja                 | **Resuelto esta sesión**        |
-| 7   | P1  | Truncado silencioso en P&L                            | Cifras financieras erróneas       | Baja                 | **Resuelto esta sesión**        |
-| 8   | P1  | Signed URLs de 10 años (pagos/DNI)                    | Exposición de PII prolongada      | Baja-media           | **Resuelto esta sesión**        |
-| 9   | P1  | appointments_external_id_key global                   | Bloqueo cruzado entre tenants     | Baja                 | **Resuelto esta sesión**        |
-| 10  | P1  | Sin rate limiting en login                            | Fuerza bruta                      | Media                | Pendiente                       |
-| 11  | P2  | Índices faltantes en columnas core                    | Rendimiento a escala              | Baja                 | **Resuelto esta sesión**        |
-| 12  | P2  | CI sin quality gate                                   | Regresiones a producción          | Baja                 | **Resuelto esta sesión**        |
-| 13  | P2  | 2 lockfiles (npm+pnpm)                                | Instalación no reproducible       | Baja                 | **Resuelto esta sesión**        |
-| 14  | P2  | Sin dead-code tooling                                 | Deuda técnica invisible           | Baja                 | **Resuelto esta sesión**        |
-| 15  | P2  | deploy.yml no depende de ci.yml                       | Deploy roto sin aviso             | Baja (config GitHub) | Pendiente, manual               |
-| 16  | P2  | fetch sin timeout en Meta/seQura                      | Cron colgado                      | Baja                 | Pendiente                       |
-| 17  | P2  | Sin índice pg_trgm en búsqueda CRM                    | Rendimiento de búsqueda           | Media                | Pendiente                       |
-| 18  | P3  | worker/ huérfano sin dueño                            | Confusión de mantenimiento        | Baja (decisión)      | Pendiente, decisión de producto |
-| 19  | P3  | crm/agendas.page.tsx 2211 líneas                      | Mantenibilidad                    | Alta                 | Pendiente (Fase 6)              |
-| 20  | P3  | Sin health checks                                     | Diagnóstico de incidentes         | Baja                 | NOT ADDED                       |
+| # | P | Problema | Impacto | Dificultad | Estado |
+|---|---|---|---|---|---|
+| 1 | P0 | Fórmulas de métricas incompatibles Dashboard/Finanzas | Confianza en el producto | Media | Pendiente (Fase 5) |
+| 2 | P1 | Bucket contratos/facturas público con PII | Legal/privacidad | Media-alta | Documentado |
+| 3 | P1 | Cero error tracking | Tiempo de detección de incidentes | Baja (con cuenta) | NOT ADDED (necesita cuenta) |
+| 4 | P1 | Doble-cobro sin UNIQUE en DB | Dinero real duplicado | Baja | **Resuelto esta sesión** |
+| 5 | P1 | Comisiones duplicables | Dinero real duplicado | Baja | **Resuelto esta sesión** |
+| 6 | P1 | Webhook GHL no idempotente | Citas duplicadas | Baja | **Resuelto esta sesión** |
+| 7 | P1 | Truncado silencioso en P&L | Cifras financieras erróneas | Baja | **Resuelto esta sesión** |
+| 8 | P1 | Signed URLs de 10 años (pagos/DNI) | Exposición de PII prolongada | Baja-media | **Resuelto esta sesión** |
+| 9 | P1 | appointments_external_id_key global | Bloqueo cruzado entre tenants | Baja | **Resuelto esta sesión** |
+| 10 | P1 | Sin rate limiting en login | Fuerza bruta | Media | Pendiente |
+| 11 | P2 | Índices faltantes en columnas core | Rendimiento a escala | Baja | **Resuelto esta sesión** |
+| 12 | P2 | CI sin quality gate | Regresiones a producción | Baja | **Resuelto esta sesión** |
+| 13 | P2 | 2 lockfiles (npm+pnpm) | Instalación no reproducible | Baja | **Resuelto esta sesión** |
+| 14 | P2 | Sin dead-code tooling | Deuda técnica invisible | Baja | **Resuelto esta sesión** |
+| 15 | P2 | deploy.yml no depende de ci.yml | Deploy roto sin aviso | Baja (config GitHub) | Pendiente, manual |
+| 16 | P2 | fetch sin timeout en Meta/seQura | Cron colgado | Baja | Pendiente |
+| 17 | P2 | Sin índice pg_trgm en búsqueda CRM | Rendimiento de búsqueda | Media | Pendiente |
+| 18 | P3 | worker/ huérfano sin dueño | Confusión de mantenimiento | Baja (decisión) | Pendiente, decisión de producto |
+| 19 | P3 | crm/agendas.page.tsx 2211 líneas | Mantenibilidad | Alta | Pendiente (Fase 6) |
+| 20 | P3 | Sin health checks | Diagnóstico de incidentes | Baja | NOT ADDED |
 
 ## QUICK WINS (bajo riesgo, alto impacto — ya priorizados sobre los demás por eso)
-
 Todo lo marcado "**Resuelto esta sesión**" arriba era, precisamente, un quick win: cambios acotados, sin
 credenciales externas, validables con `npm run quality`+`build` en este mismo entorno. El siguiente quick win real y
 pendiente: activar "Require status checks" en GitHub para `ci.yml` (5 minutos, cero código).
 
 ## HIGH-RISK AREAS (las 10 partes con más probabilidad de causar bugs/pérdida de datos/vulnerabilidades/incidencias)
-
 1. `lib/commissions/generate.ts` — dinero real, sin transacción real, la pieza con más impacto económico directo.
 2. Bucket `contratos`/`facturas` — PII de alumnos expuesta.
 3. Cualquier fórmula de "revenue"/"net revenue" repetida en 3+ sitios con definiciones distintas.
@@ -461,7 +434,6 @@ pendiente: activar "Require status checks" en GitHub para `ci.yml` (5 minutos, c
 10. Cualquier migración `ADD CONSTRAINT` sin `NOT VALID` sobre una tabla grande en producción sin datos verificados.
 
 ## PRODUCT OPPORTUNITIES (solo respaldadas por la estructura real de la app)
-
 - El endpoint nuevo `payment-proof-url` (signed URL fresca bajo demanda) es el patrón correcto para CUALQUIER
   documento sensible futuro — reutilizarlo en vez de inventar uno nuevo cada vez.
 - `lib/finance/pnl.ts` ya demuestra que centralizar una fórmula financiera reduce bugs (su propio comentario lo dice:

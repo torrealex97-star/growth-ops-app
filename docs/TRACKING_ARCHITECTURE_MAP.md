@@ -19,13 +19,13 @@ Las cinco tablas del pipeline tienen 0 filas.
 
 ### Modelo canónico (tablas, con RLS correcta)
 
-| Tabla                   | Filas hoy | Para qué                              |
-| ----------------------- | --------- | ------------------------------------- |
-| `canonical_events`      | 0         | Evento normalizado de negocio         |
-| `analytics_touchpoints` | 0         | Touchpoints de atribución             |
-| `identity_matches`      | 0         | Resolución de identidad con confianza |
-| `delivery_attempts`     | 0         | Intentos de entrega a destinos        |
-| `contact_attributions`  | 0         | First/last touch por contacto         |
+| Tabla | Filas hoy | Para qué |
+|---|---|---|
+| `canonical_events` | 0 | Evento normalizado de negocio |
+| `analytics_touchpoints` | 0 | Touchpoints de atribución |
+| `identity_matches` | 0 | Resolución de identidad con confianza |
+| `delivery_attempts` | 0 | Intentos de entrega a destinos |
+| `contact_attributions` | 0 | First/last touch por contacto |
 
 `canonical_events` ya trae: `tenant_id, event_id, event_name, occurred_at, received_at, source,
 schema_version, idempotency_key, visitor_id, session_id, touchpoint_id, contact_id, appointment_id,
@@ -92,19 +92,19 @@ Las cuatro tablas llevan el mismo trío verificado:
 
 ## MISSING — lo que el brief pide y no existe
 
-| # brief       | Falta                                                         | Impacto                                                                    |
-| ------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| §10, §15, §16 | **Concepto de `site` + public write key + domain allowlist**  | Bloquea el píxel entero. Ver "BROKEN"                                      |
-| §3, §28       | **Capa RAW** (payload original, replay, reparación de parser) | Sin ella no hay replay ni corrección de parser a posteriori                |
-| §8            | **Persistencia de rechazos**                                  | Hoy un payload inválido devuelve 422 y no deja rastro                      |
-| §22, §25      | **Webhook de Stripe**                                         | No existe ninguno. Todo Stripe es pull (backfill/cron)                     |
-| §17, §18      | Rate limiting y clasificación de bots                         | —                                                                          |
-| §26           | Checkpoints de ingesta (cursor, resumible)                    | Un timeout de Vercel pierde el progreso                                    |
-| §44–§52       | Destination engine y adapters (Meta CAPI, Google, TikTok)     | `delivery_attempts` existe pero nadie escribe en ella                      |
-| §55           | Config de destinos por tenant                                 | —                                                                          |
-| §69           | `earliest/latest_available` vs `_ingested` por fuente         | "Desde el lanzamiento" puede mentir                                        |
-| §70           | Job de reconciliación (webhooks perdidos)                     | —                                                                          |
-| §27           | Colas                                                         | No hay `pgmq` ni `pg_cron`. Habrá que batear con Vercel cron + checkpoints |
+| # brief | Falta | Impacto |
+|---|---|---|
+| §10, §15, §16 | **Concepto de `site` + public write key + domain allowlist** | Bloquea el píxel entero. Ver "BROKEN" |
+| §3, §28 | **Capa RAW** (payload original, replay, reparación de parser) | Sin ella no hay replay ni corrección de parser a posteriori |
+| §8 | **Persistencia de rechazos** | Hoy un payload inválido devuelve 422 y no deja rastro |
+| §22, §25 | **Webhook de Stripe** | No existe ninguno. Todo Stripe es pull (backfill/cron) |
+| §17, §18 | Rate limiting y clasificación de bots | — |
+| §26 | Checkpoints de ingesta (cursor, resumible) | Un timeout de Vercel pierde el progreso |
+| §44–§52 | Destination engine y adapters (Meta CAPI, Google, TikTok) | `delivery_attempts` existe pero nadie escribe en ella |
+| §55 | Config de destinos por tenant | — |
+| §69 | `earliest/latest_available` vs `_ingested` por fuente | "Desde el lanzamiento" puede mentir |
+| §70 | Job de reconciliación (webhooks perdidos) | — |
+| §27 | Colas | No hay `pgmq` ni `pg_cron`. Habrá que batear con Vercel cron + checkpoints |
 
 ### Nota sobre los crons
 
@@ -183,15 +183,15 @@ lo nuevo entra por aquí.
 El del §107, con una corrección: la Fase B debe resolver **primero** la clave pública y la entidad
 `site`, porque la Fase C (píxel) está bloqueada por ella.
 
-| Fase | Contenido                                                              | Estado            |
-| ---- | ---------------------------------------------------------------------- | ----------------- |
-| A    | Mapa del sistema existente                                             | ✅ este documento |
-| B    | Sites + public key + allowlist + capa RAW + rechazos + constraints     | siguiente         |
-| C    | Píxel first-party `page_view`                                          | bloqueada por B   |
-| D    | Stripe authoritative (webhook + firma), sobre el backfill ya existente |                   |
-| E    | Identity stitch anon → conocido                                        |                   |
-| F    | Touchpoints + first/last click                                         |                   |
-| G    | Destination engine + Meta CAPI                                         |                   |
-| H    | Funnel visual                                                          |                   |
-| I    | Calendly/GHL/formularios                                               |                   |
-| J    | Resto de destinos y proveedores                                        |                   |
+| Fase | Contenido | Estado |
+|---|---|---|
+| A | Mapa del sistema existente | ✅ este documento |
+| B | Sites + public key + allowlist + capa RAW + rechazos + constraints | siguiente |
+| C | Píxel first-party `page_view` | bloqueada por B |
+| D | Stripe authoritative (webhook + firma), sobre el backfill ya existente | |
+| E | Identity stitch anon → conocido | |
+| F | Touchpoints + first/last click | |
+| G | Destination engine + Meta CAPI | |
+| H | Funnel visual | |
+| I | Calendly/GHL/formularios | |
+| J | Resto de destinos y proveedores | |

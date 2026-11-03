@@ -26,12 +26,12 @@ marcado como decisión abierta, no como hecho.
 
 ## 1. Las cuatro palabras
 
-| Término                     | Qué es                                                                           | Mapeo en este repo                                                               | Estado                                    |
-| --------------------------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ----------------------------------------- |
-| **Booked** (contratado)     | Valor de ventas activas cerradas en el periodo, por su fecha de venta            | `Contracted Revenue` (`METRICS.md` §2) — `computeMonthlyPnl().contractedRevenue` | Existe. NO se crea un segundo nombre      |
-| **Collected** (cobrado)     | Dinero efectivamente entrado en el periodo, sea cual sea la venta que lo originó | `Cash Collected` (`METRICS.md` §3) + módulo canónico `lib/canonical/cash.ts`     | Existe                                    |
-| **Billed** (facturado)      | Importe de facturas emitidas al cliente, por fecha de emisión, con o sin cobro   | No existe como métrica                                                           | **Abierta** (A1) — no se calcula a medias |
-| **Recognized** (reconocido) | Reparto contable del booked a lo largo de la prestación del servicio             | No existe como métrica                                                           | **Abierta** (A2) — no se calcula a medias |
+| Término | Qué es | Mapeo en este repo | Estado |
+|---|---|---|---|
+| **Booked** (contratado) | Valor de ventas activas cerradas en el periodo, por su fecha de venta | `Contracted Revenue` (`METRICS.md` §2) — `computeMonthlyPnl().contractedRevenue` | Existe. NO se crea un segundo nombre |
+| **Collected** (cobrado) | Dinero efectivamente entrado en el periodo, sea cual sea la venta que lo originó | `Cash Collected` (`METRICS.md` §3) + módulo canónico `lib/canonical/cash.ts` | Existe |
+| **Billed** (facturado) | Importe de facturas emitidas al cliente, por fecha de emisión, con o sin cobro | No existe como métrica | **Abierta** (A1) — no se calcula a medias |
+| **Recognized** (reconocido) | Reparto contable del booked a lo largo de la prestación del servicio | No existe como métrica | **Abierta** (A2) — no se calcula a medias |
 
 Reglas del cuadro:
 
@@ -233,14 +233,14 @@ contaminando `campaign_daily` y `expenses` de este tenant.
 
 ## 12. Decisiones abiertas (requieren a Alex)
 
-| Id  | Decisión                                                           | Qué bloquea                       | Riesgo de decidir mal                           |
-| --- | ------------------------------------------------------------------ | --------------------------------- | ----------------------------------------------- |
-| A1  | Existe "billed" como métrica y qué fuente la alimenta              | Nada hoy; evita métrica a medias  | Contar facturas emitidas como dinero            |
-| A2  | Política de reconocimiento contable (recognized)                   | Nada hoy                          | Inventar un reparto mensual sin política        |
-| A3  | Modo oficial del consolidado: bruto o atribuible                   | Etiqueta "oficial" de F9          | Publicar una cifra como oficial a las dos voces |
-| A4  | Fuente de tipos de cambio (ECB, pasarela, otra) y con qué frescura | Conversiones FX (D2)              | Tipos fijados a mano sin fecha                  |
-| A5  | Clawback de comisiones tras refund                                 | Liquidaciones de colaboradores    | Comisiones pagadas sobre dinero devuelto        |
-| A6  | Partida contable para el coste de financiación                     | P&L de financiación que paga neto | Margen inflado silenciosamente                  |
+| Id | Decisión | Qué bloquea | Riesgo de decidir mal |
+|---|---|---|---|
+| A1 | Existe "billed" como métrica y qué fuente la alimenta | Nada hoy; evita métrica a medias | Contar facturas emitidas como dinero |
+| A2 | Política de reconocimiento contable (recognized) | Nada hoy | Inventar un reparto mensual sin política |
+| A3 | Modo oficial del consolidado: bruto o atribuible | Etiqueta "oficial" de F9 | Publicar una cifra como oficial a las dos voces |
+| A4 | Fuente de tipos de cambio (ECB, pasarela, otra) y con qué frescura | Conversiones FX (D2) | Tipos fijados a mano sin fecha |
+| A5 | Clawback de comisiones tras refund | Liquidaciones de colaboradores | Comisiones pagadas sobre dinero devuelto |
+| A6 | Partida contable para el coste de financiación | P&L de financiación que paga neto | Margen inflado silenciosamente |
 
 ---
 
