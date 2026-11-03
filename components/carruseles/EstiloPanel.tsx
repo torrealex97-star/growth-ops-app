@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Palette, Wand2 } from 'lucide-react'
 import { BrandDialog } from './BrandDialog'
+import { EjemplosDialog } from './EjemplosDialog'
 import { ESTILOS, estilosDe, marcaConColores, type EstiloId } from '@/lib/carruseles/estilos'
 import { DEFAULT_BRAND, type BrandConfig } from '@/lib/carruseles/types'
 import { useTenant } from '@/lib/tenant-context'
@@ -24,6 +25,8 @@ export function EstiloPanel(p: Props) {
   const tenant = useTenant()
   const [brand, setBrand] = useState<BrandConfig>(DEFAULT_BRAND)
   const [marcaOpen, setMarcaOpen] = useState(false)
+  const [ejemplosOpen, setEjemplosOpen] = useState(false)
+  const [conGuia, setConGuia] = useState(false)
 
   const cargarMarca = useCallback(() => {
     fetch(`/api/${tenant}/evergreen/carruseles/brand`)
@@ -39,9 +42,17 @@ export function EstiloPanel(p: Props) {
       .catch(() => {})
   }, [tenant])
 
+  const cargarGuia = useCallback(() => {
+    fetch(`/api/${tenant}/evergreen/carruseles/ejemplos`)
+      .then((r) => r.json())
+      .then((d) => setConGuia(Boolean(d?.guia?.[p.esHistorias ? 'historias' : 'carrusel'])))
+      .catch(() => {})
+  }, [tenant, p.esHistorias])
+
   useEffect(() => {
     cargarMarca()
-  }, [cargarMarca])
+    cargarGuia()
+  }, [cargarMarca, cargarGuia])
 
   const configurada = marcaConColores(brand)
   const colores = [brand.colors.primary, brand.colors.secondary, brand.colors.accent]
@@ -82,7 +93,15 @@ export function EstiloPanel(p: Props) {
       </div>
 
       <div>
-        <span className="text-3xs font-semibold uppercase tracking-wider text-muted-foreground">Estilo</span>
+        <div className="flex items-center justify-between">
+          <span className="text-3xs font-semibold uppercase tracking-wider text-muted-foreground">Estilo</span>
+          <button
+            onClick={() => setEjemplosOpen(true)}
+            className="text-3xs text-muted-foreground hover:text-foreground"
+          >
+            {conGuia ? 'Mis ejemplos ✓' : 'Añadir mis ejemplos'}
+          </button>
+        </div>
         <div className="mt-1.5 grid grid-cols-2 gap-1.5">
           {estilosDe(p.esHistorias).map((id) => (
             <button
@@ -131,6 +150,12 @@ export function EstiloPanel(p: Props) {
         </button>
       )}
 
+      <EjemplosDialog
+        open={ejemplosOpen}
+        onOpenChange={setEjemplosOpen}
+        tipoInicial={p.esHistorias ? 'historias' : 'carrusel'}
+        onCambio={cargarGuia}
+      />
       <BrandDialog
         open={marcaOpen}
         onOpenChange={(o) => {

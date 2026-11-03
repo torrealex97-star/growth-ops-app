@@ -6,6 +6,8 @@ import { requireTenant } from '@/lib/auth/requireTenant'
 import { getBrand, getProject, addSlide, updateSlide, deleteSlide, updateProject } from '@/lib/carruseles/store'
 import { buildSystemPrompt, type BrandAsset } from '@/lib/carruseles/system-prompt'
 import { estiloValido, type EstiloId, type OpcionesEstilo } from '@/lib/carruseles/estilos'
+import { MAX_EJEMPLOS_ADJUNTOS } from '@/lib/carruseles/ejemplos'
+import { leerEjemplos } from '@/lib/carruseles/ejemplos-store'
 import { FUENTES_IG, LAYOUTS, leerSpec, renderHistoria, type Medio } from '@/lib/carruseles/historias/layouts'
 import { BUCKET_CARRUSELES, tipoDeMedio } from '@/lib/carruseles/almacen'
 import type { BrandConfig } from '@/lib/carruseles/types'
@@ -372,6 +374,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     // Historias: siempre con las fotos detrás. Carruseles: solo si se pide (o el estilo «Con foto»).
     fotosDeFondo: body.fotosDeFondo === true || project.aspectRatio === '9:16' || body.estilo === 'foto',
   }
+  // Ejemplos propios del tenant (sus historias/carruseles): guía de estilo + algunos adjuntos como imagen. Los flyers no.
+  const tipoEjemplo = project.aspectRatio === '9:16' ? 'historias' : 'carrusel'
+  const ejemplosTenant = project.kind === 'flyer' ? null : await leerEjemplos(t.tenantId).catch(() => null)
+  const ejemplosAdjuntos = (ejemplosTenant?.ejemplos ?? [])
+    .filter((e) => e.tipo === tipoEjemplo)
+    .slice(-MAX_EJEMPLOS_ADJUNTOS)
+  const guiaEstilo = ejemplosTenant?.guia[tipoEjemplo]
+    ? { texto: ejemplosTenant.guia[tipoEjemplo], adjuntas: ejemplosAdjuntos.length }
+    : undefined
   const system = buildSystemPrompt(
     brand,
     project,
@@ -379,7 +390,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     brandAssets,
     imagenesIA,
     new Date(),
-    opciones
+    opciones,
+    guiaEstilo
   )
   const client = new Anthropic({ apiKey: anthropicKey || 'sin-clave' })
   const esHistorias = project.aspectRatio === '9:16' && project.kind !== 'flyer'
@@ -413,6 +425,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   const recentRefs = project.referenceImages.filter((r) => tipoDeMedio(r.url) === 'image').slice(-MAX_REFERENCE_IMAGES)
   for (const ref of recentRefs) {
     const { block, warning } = await fetchImageBlock(ref.url, ref.name)
+    if (block) userBlocks.push(block)
+    if (warning) imageWarnings.push(warning)
+  }
+
+  for (const ej of guiaEstilo ? ejemplosAdjuntos : []) {
+    const { block, warning } = await fetchImageBlock(ej.url, ej.name)
     if (block) userBlocks.push(block)
     if (warning) imageWarnings.push(warning)
   }
