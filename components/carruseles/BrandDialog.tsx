@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import type { BrandConfig } from '@/lib/carruseles/types'
 import { DEFAULT_BRAND } from '@/lib/carruseles/types'
 import { useTenant } from '@/lib/tenant-context'
+import { subirDirecto } from '@/lib/carruseles/subida-cliente'
 
 interface Props {
   open: boolean
@@ -33,13 +34,8 @@ export function BrandDialog({ open, onOpenChange }: Props) {
   const subirLogo = async (file: File) => {
     setSubiendoLogo(true)
     try {
-      const fd = new FormData()
-      fd.append('file', file)
-      fd.append('purpose', 'brand-logo')
-      const res = await fetch(`/api/${tenant}/evergreen/carruseles/upload`, { method: 'POST', body: fd })
-      const j = (await res.json().catch(() => ({}))) as { url?: string; error?: string }
-      if (!res.ok || !j.url) throw new Error(j.error || 'No se pudo subir el logo')
-      setBrand((b) => ({ ...b, logoUrl: j.url as string }))
+      const { url } = await subirDirecto(tenant, file, 'marca')
+      setBrand((b) => ({ ...b, logoUrl: url }))
     } catch (e) {
       toast.error((e as Error).message)
     } finally {

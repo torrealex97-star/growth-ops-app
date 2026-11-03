@@ -103,8 +103,8 @@ test('el material real no cuenta como foto de fondo en el prompt y se lista apar
 
 test('la subida etiqueta el pedido y recompone; la pantalla pide el material y avisa al exportar', () => {
   const up = readFileSync('app/api/[tenant]/evergreen/carruseles/upload/route.ts', 'utf8')
-  assert.match(up, /limpiarClave\(form\.get\('pedido'\)\)/)
-  assert.match(up, /recomponerHistorias\(t\.tenantId, projectId\)/)
+  assert.match(up, /limpiarClave\(body\.pedido\)/)
+  assert.match(up, /recomponerHistorias\(t\.tenantId, body\.projectId\)/)
   const chat = readFileSync('components/carruseles/ChatPanel.tsx', 'utf8')
   assert.match(chat, /<PedidosPanel projectId=\{projectId\} slides=\{slides\}/)
   assert.match(chat, /carruseles\/recomponer/)

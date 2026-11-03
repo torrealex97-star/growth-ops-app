@@ -1,5 +1,6 @@
 'use client'
 
+import { subirDirecto } from '@/lib/carruseles/subida-cliente'
 import { useCallback, useEffect, useState } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ImagePlus, Loader2, Save, Sparkles, X } from 'lucide-react'
@@ -92,13 +93,8 @@ export function BusinessContextCard() {
   const uploadAsset = async (file: File) => {
     setUploading(true)
     try {
-      const fd = new FormData()
-      fd.append('file', file)
-      fd.append('purpose', 'brand-asset')
-      const res = await fetch(`/api/${tenant}/evergreen/carruseles/upload`, { method: 'POST', body: fd })
-      const j = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(j.error || 'Error al subir')
-      if (await saveAssets([...assets, { url: j.url, name: j.name || file.name }])) {
+      const { url } = await subirDirecto(tenant, file, 'marca')
+      if (await saveAssets([...assets, { url, name: file.name }])) {
         toast.success('Asset de marca añadido')
       }
     } catch (e) {

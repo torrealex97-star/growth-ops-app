@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { useTenant } from '@/lib/tenant-context'
+import { subirDirecto } from '@/lib/carruseles/subida-cliente'
 import { MAX_EJEMPLOS_POR_TIPO, type EjemplosTenant, type TipoEjemplo } from '@/lib/carruseles/ejemplos'
 
 interface Props {
@@ -56,10 +57,15 @@ export function EjemplosDialog({ open, onOpenChange, tipoInicial = 'historias', 
     setOcupado('subiendo')
     try {
       for (const file of Array.from(files)) {
-        const fd = new FormData()
-        fd.append('file', file)
-        fd.append('tipo', tipo)
-        await aplicar(await fetch(base, { method: 'POST', body: fd }), '')
+        const { path } = await subirDirecto(tenant, file, 'ejemplos')
+        await aplicar(
+          await fetch(base, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accion: 'registrar', tipo, path, name: file.name }),
+          }),
+          ''
+        )
       }
       toast.success('Ejemplos subidos. Pulsa «Analizar» para que la app aprenda su estilo.')
     } catch (e) {

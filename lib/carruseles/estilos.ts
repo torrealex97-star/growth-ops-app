@@ -131,12 +131,6 @@ export function seccionEstiloPrompt(p: {
     )
   }
 
-  const fuentes = esHistorias ? fuentesDeMarca(brand) : null
-  if (fuentes) {
-    lineas.push(
-      `La marca tiene tipografías propias: añade ${fuentes} al style del contenedor ig-historia y NO uses ig-impacto ni ig-maquina (usan tipografías ajenas a la marca).`
-    )
-  }
   lineas.push('Mantén siempre colores, tipografías y logo de la marca; el estilo solo cambia la composición.')
   return lineas.join('\n')
 }

@@ -208,11 +208,28 @@ test('la posición libre no puede subir sobre la cabecera: arranca debajo de la 
   assert.doesNotMatch(CSS_NATIVO, /ig-zona-libre\{transform/)
 })
 
-test('el visor no pierde lo que se escribe: el formulario se recarga por slide y por cambios ajenos, y se guarda al salir', () => {
+test('el formulario del visor solo se recarga al cambiar de slide o por cambios ajenos, nunca por lecturas de lo que guardamos', async () => {
+  const { debeRecargarFormulario } = await import('../lib/carruseles/historias/sincronia.ts')
+  const guardados = new Set(['A1', 'A2'])
+  const r = (formId, slideId, html) => debeRecargarFormulario({ formId, slideId, html, guardados })
+  assert.equal(r('A', 'A', 'A1'), false, 'lectura de algo que guardamos: no se recarga')
+  assert.equal(r('A', 'A', 'A1-ya-superado'), true, 'cambio ajeno (p. ej. la IA): se recarga')
+  assert.equal(
+    r('B', 'A', 'A1'),
+    true,
+    'volver a A desde B: el formulario era el de B, se recarga aunque A1 sea nuestro'
+  )
+  assert.equal(r(null, 'A', 'A2'), true, 'primera carga')
+  assert.equal(r('A', 'A', 'A2'), false, 'lectura tardía de un guardado anterior mientras ya hay otro más nuevo')
   const v = readFileSync('components/carruseles/VisorEditable.tsx', 'utf8')
-  assert.match(v, /formId\.current === slide\.id && guardados\.current\.has\(slide\.html\)/)
-  assert.match(v, /pendiente\.current\?\.\(\)/, 'al desmontar se ejecuta el guardado pendiente')
-  assert.match(v, /keepalive: true/)
+  assert.match(v, /debeRecargarFormulario\(/)
+  assert.match(v, /pendiente\.current\?\.\(true\)/, 'al salir se guarda lo pendiente')
+  assert.match(v, /keepalive: opciones\.alSalir === true/, 'keepalive solo al salir (límite de 64 KiB)')
+  assert.match(
+    v,
+    /sinVersion: versionadas\.current\.has\(slide\.id\)/,
+    'el autoguardado no llena el historial de deshacer'
+  )
   assert.match(v, /variantes\.slideId === slide\.id/, 'las variantes solo se ofrecen en la historia que las pidió')
   assert.match(v, /conSpec\[h\.historia - 1\]/, 'los avisos se traducen al número real de slide')
   assert.match(v, /onPointerCancel/)

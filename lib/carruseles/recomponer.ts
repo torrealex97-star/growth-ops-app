@@ -2,7 +2,7 @@ import { tipoDeMedio } from './almacen'
 import { estiloValido } from './estilos'
 import { leerSpecDeHtml } from './historias/pedidos'
 import { renderHistoria } from './historias/layouts'
-import { getBrand, getProject, updateSlide } from './store'
+import { getBrand, getProject, updateSlides } from './store'
 
 // Recompone las historias de un proyecto a partir de la especificación incrustada en su HTML, SIN llamar a la IA:
 // al subir el material real que faltaba, al cambiar de estilo o al cambiar las fotos. Las historias antiguas (sin
@@ -27,7 +27,7 @@ export async function recomponerHistorias(
   const pedidos: Record<string, string> = {}
   for (const r of project.referenceImages) if (r.pedido) pedidos[r.pedido] = r.url
 
-  let actualizadas = 0
+  const cambios = new Map<string, string>()
   let sinEspecificacion = 0
   for (const [i, slide] of project.slides.entries()) {
     const previa = leerSpecDeHtml(slide.html)
@@ -48,9 +48,8 @@ export async function recomponerHistorias(
       indice: i,
       total: project.slides.length,
     })
-    if (html === slide.html) continue
-    await updateSlide(tenantId, projectId, slide.id, { html })
-    actualizadas++
+    if (html !== slide.html) cambios.set(slide.id, html)
   }
-  return { actualizadas, sinEspecificacion }
+  // Una sola escritura para todas: así no se pisa con un autoguardado del editor a mitad de camino.
+  return { actualizadas: await updateSlides(tenantId, projectId, cambios), sinEspecificacion }
 }
