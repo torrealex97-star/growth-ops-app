@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Palette, Wand2 } from 'lucide-react'
 import { BrandDialog } from './BrandDialog'
-import { ESTILOS, ESTILO_IDS, marcaConColores, type EstiloId } from '@/lib/carruseles/estilos'
+import { ESTILOS, estilosDe, marcaConColores, type EstiloId } from '@/lib/carruseles/estilos'
 import { DEFAULT_BRAND, type BrandConfig } from '@/lib/carruseles/types'
 import { useTenant } from '@/lib/tenant-context'
 
@@ -84,7 +84,7 @@ export function EstiloPanel(p: Props) {
       <div>
         <span className="text-3xs font-semibold uppercase tracking-wider text-muted-foreground">Estilo</span>
         <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-          {ESTILO_IDS.map((id) => (
+          {estilosDe(p.esHistorias).map((id) => (
             <button
               key={id}
               onClick={() => p.onEstilo(id)}

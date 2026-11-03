@@ -79,7 +79,11 @@ test('todas las clases que documenta la guía de componentes están definidas en
 test('el CSS nativo no usa degradados decorativos ni sombras de plantilla en el texto y respeta la zona segura', () => {
   const sinMarcador = CSS_NATIVO.replace(/\.ig-marcador\{[^}]*\}/, '')
   assert.doesNotMatch(sinMarcador, /linear-gradient|radial-gradient/)
-  assert.doesNotMatch(CSS_NATIVO, /text-shadow/)
+  assert.doesNotMatch(
+    CSS_NATIVO.replace(/\.ig-f-neon[^\n]*/, ''),
+    /text-shadow/,
+    'solo el brillo de la fuente neón lleva sombra'
+  )
   assert.match(CSS_NATIVO, new RegExp(`top:${ZONA_SEGURA.arriba}px`))
   assert.match(CSS_NATIVO, new RegExp(`bottom:${ZONA_SEGURA.abajo}px`))
 })

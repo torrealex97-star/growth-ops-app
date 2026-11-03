@@ -48,7 +48,16 @@ test('se limita el número de familias por petición', async () => {
 })
 
 test('la exportación incluye las fuentes nativas en historias 9:16 y el proxy usa el helper', () => {
-  assert.deepEqual(FAMILIAS_NATIVAS.sort(), ['Anton', 'DM Serif Display', 'Newsreader', 'Space Mono'])
+  assert.deepEqual(FAMILIAS_NATIVAS.sort(), [
+    'Anton',
+    'Courier Prime',
+    'DM Serif Display',
+    'Inter',
+    'Montserrat',
+    'Newsreader',
+    'Quicksand',
+    'Space Mono',
+  ])
   const exp = readFileSync('lib/carruseles/export-client.ts', 'utf8')
   assert.match(exp, /aspectRatio === '9:16'/)
   const ruta = readFileSync('app/api/[tenant]/evergreen/carruseles/fonts/route.ts', 'utf8')

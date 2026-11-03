@@ -6,7 +6,7 @@ import { ChatMessage } from './ChatMessage'
 import { ChatInput } from './ChatInput'
 import { ReferenceImages } from './ReferenceImages'
 import { EstiloPanel } from './EstiloPanel'
-import { ESTILO_POR_DEFECTO, ESTILOS, esEstilo, type EstiloId } from '@/lib/carruseles/estilos'
+import { ESTILOS, estiloPorDefecto, estiloValido, type EstiloId } from '@/lib/carruseles/estilos'
 import { AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import type { ReferenceImage } from '@/lib/carruseles/types'
@@ -48,19 +48,20 @@ export function ChatPanel({
   // Encargo de historias elegido al crear el proyecto: se ofrece como botón para poder subir fotos antes.
   const [encargo, setEncargo] = useState<string | null>(null)
   // Estilo y uso de las fotos elegidos para este proyecto (se recuerdan en el navegador y viajan con cada mensaje).
-  const [estilo, setEstilo] = useState<EstiloId>(ESTILO_POR_DEFECTO)
-  const [fotosDeFondo, setFotosDeFondo] = useState(true)
   const esHistorias = aspectRatio === '9:16'
+  const [estilo, setEstilo] = useState<EstiloId>(estiloPorDefecto(esHistorias))
+  // Las historias llevan siempre las fotos detrás; en los carruseles es opcional (por defecto, no).
+  const [fotosDeFondo, setFotosDeFondo] = useState(esHistorias)
 
   useEffect(() => {
     try {
       const g = JSON.parse(localStorage.getItem(`carrusel-estilo-${projectId}`) || 'null')
-      if (g && esEstilo(g.estilo)) setEstilo(g.estilo)
+      if (g) setEstilo(estiloValido(g.estilo, esHistorias))
       if (g && typeof g.fotosDeFondo === 'boolean') setFotosDeFondo(g.fotosDeFondo)
     } catch {
       /* sin preferencia guardada */
     }
-  }, [projectId])
+  }, [projectId, esHistorias])
 
   const guardarEstilo = (e: EstiloId, f: boolean) => {
     setEstilo(e)
@@ -215,8 +216,12 @@ export function ChatPanel({
     <div className="h-full flex flex-col">
       <div className="px-4 py-3 border-b border-border flex items-start justify-between">
         <div>
-          <h2 className="text-sm font-semibold">Asistente IA</h2>
-          <p className="text-xs text-muted-foreground">Describe el diseño que quieres crear</p>
+          <h2 className="text-sm font-semibold">
+            {esHistorias ? 'Asistente de historias' : 'Asistente de carruseles'}
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            {esHistorias ? 'Cuéntame de qué van las historias' : 'Describe el carrusel que quieres crear'}
+          </p>
         </div>
         {messages.length > 0 && (
           <button
@@ -268,7 +273,11 @@ export function ChatPanel({
         {messages.length === 0 && (
           <div className="p-6 text-center text-muted-foreground">
             <p className="text-sm mb-1">Sin mensajes todavía</p>
-            <p className="text-xs">Dime qué carrusel o flyer quieres crear.</p>
+            <p className="text-xs">
+              {esHistorias
+                ? 'Dime de qué quieres hablar y armo la secuencia.'
+                : 'Dime qué carrusel o flyer quieres crear.'}
+            </p>
           </div>
         )}
         {messages.map((msg) => (

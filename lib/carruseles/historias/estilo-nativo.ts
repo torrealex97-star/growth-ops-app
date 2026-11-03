@@ -20,10 +20,32 @@ export const FUENTES_NATIVAS = {
   cuerpo: 'Newsreader',
   impacto: 'Anton',
   maquina: 'Space Mono',
+  // Parecidas a las del editor de texto de Instagram (Instagram no publica las suyas): se afinan con los ejemplos del tenant.
+  classic: 'Inter',
+  modern: 'Montserrat',
+  neon: 'Quicksand',
+  typewriter: 'Courier Prime',
 } as const
 
 /** Nombres de las familias nativas, para incrustarlas al exportar. */
 export const FAMILIAS_NATIVAS: string[] = Object.values(FUENTES_NATIVAS)
+
+/** Tipografías del editor de texto de Instagram: una clase `ig-f-*` en la zona de texto las aplica a todo su contenido. */
+const SELECTOR_TEXTO =
+  ':is(.ig-titulo,.ig-texto,.ig-texto-pequeno,.ig-caja,.ig-caja-negra,.ig-caja-acento,.ig-caja-solida-negra,.ig-caja-vidrio,.ig-recuadro,.ig-recuadro b,.ig-cifra)'
+const CSS_TIPOGRAFIAS_IG = [
+  ['classic', `'${FUENTES_NATIVAS.classic}',system-ui,sans-serif;font-weight:700`],
+  ['modern', `'${FUENTES_NATIVAS.modern}',system-ui,sans-serif;font-weight:600`],
+  [
+    'neon',
+    `'${FUENTES_NATIVAS.neon}',system-ui,sans-serif;font-weight:700;text-shadow:0 0 14px var(--ig-acento),0 0 3px var(--ig-acento)`,
+  ],
+  ['typewriter', `'${FUENTES_NATIVAS.typewriter}',monospace;font-weight:700`],
+  ['strong', `'${FUENTES_NATIVAS.impacto}',Impact,sans-serif;font-weight:400;text-transform:uppercase`],
+  ['serif', `var(--ig-f-titulo,'${FUENTES_NATIVAS.titulo}'),Georgia,serif;font-weight:400`],
+]
+  .map(([n, css]) => `.ig-f-${n} ${SELECTOR_TEXTO}{font-family:${css}}`)
+  .join('\n')
 
 /**
  * CSS de los componentes. `--ig-acento` y `--ig-acento-texto` se fijan por proyecto (color de marca) y
@@ -65,6 +87,9 @@ export const CSS_NATIVO = `
 .ig-flecha{position:absolute;width:210px;height:150px;pointer-events:none}
 .ig-captura{background:#fff;color:#111;border-radius:26px;padding:26px 30px;box-shadow:0 4px 18px rgba(0,0,0,.3);font-family:system-ui,sans-serif;font-size:40px}
 .ig-emoji{font-size:84px;line-height:1}
+${CSS_TIPOGRAFIAS_IG}
+.ig-caja-solida-negra{display:inline;background:#000;color:#fff;padding:6px 24px;border-radius:12px;font-size:56px;line-height:1.7;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+.ig-caja-vidrio{display:inline;background:rgba(255,255,255,.55);color:#111;padding:6px 24px;border-radius:12px;font-size:56px;line-height:1.7;-webkit-box-decoration-break:clone;box-decoration-break:clone}
 .ig-fondo{position:absolute;inset:0;overflow:hidden}
 .ig-zona{max-height:${1920 - ZONA_SEGURA.arriba - ZONA_SEGURA.abajo}px;overflow:hidden}
 .ig-cabecera{position:absolute;top:104px;left:54px;right:54px;display:flex;justify-content:space-between;align-items:flex-start}

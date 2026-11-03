@@ -52,7 +52,7 @@ export function wrapSlideHtml(slideHtml: string, aspectRatio: AspectRatio): stri
   // solo usa clases `ig-*`. Cada familia pide solo los pesos que existen (Google responde 400 si no).
   const esHistoria = aspectRatio === '9:16'
   const fuentesNativas = esHistoria
-    ? '<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Anton&family=Newsreader:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">'
+    ? '<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Anton&family=Newsreader:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Inter:wght@700&family=Montserrat:wght@600&family=Quicksand:wght@700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">'
     : ''
 
   return `<!DOCTYPE html>

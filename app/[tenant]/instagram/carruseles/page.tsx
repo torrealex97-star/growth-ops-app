@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { CreateProjectDialog } from '@/components/carruseles/CreateProjectDialog'
+import { ETIQUETA_TIPO, tipoDeProyecto, type TipoProducto } from '@/lib/carruseles/tipos'
 import { CasoExitoDialog } from '@/components/carruseles/CasoExitoDialog'
 import { BrandDialog } from '@/components/carruseles/BrandDialog'
 import { SlideRenderer } from '@/components/carruseles/SlideRenderer'
@@ -21,6 +22,7 @@ export default function CarruselesDashboard() {
   const [templates, setTemplates] = useState<CarruselTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
+  const [tipo, setTipo] = useState<TipoProducto>('historias')
   const [casoOpen, setCasoOpen] = useState(false)
   const [brandOpen, setBrandOpen] = useState(false)
 
@@ -80,8 +82,12 @@ export default function CarruselesDashboard() {
   }
 
   // Los casos de éxito se agrupan por el prefijo del título que pone el generador.
-  const casos = projects.filter((p) => p.title.toUpperCase().startsWith(CASO_TITLE_PREFIX))
-  const others = projects.filter((p) => !p.title.toUpperCase().startsWith(CASO_TITLE_PREFIX))
+  const casos = projects.filter(
+    (p) => tipoDeProyecto(p) === 'carrusel' && p.title.toUpperCase().startsWith(CASO_TITLE_PREFIX)
+  )
+  const delTipo = projects.filter((p) => tipoDeProyecto(p) === tipo)
+  const others = delTipo.filter((p) => !p.title.toUpperCase().startsWith(CASO_TITLE_PREFIX))
+  const cuenta = (t: TipoProducto) => projects.filter((p) => tipoDeProyecto(p) === t).length
 
   const projectCard = (p: CarruselProject) => (
     <Link
@@ -125,8 +131,8 @@ export default function CarruselesDashboard() {
       <div className="p-3">
         <p className="text-sm font-medium text-foreground truncate">{p.title}</p>
         <p className="text-2xs text-muted-foreground mt-0.5">
-          {p.kind === 'flyer' ? 'Flyer' : 'Carrusel'} · {ASPECT_LABELS[p.aspectRatio]} · {p.slides.length}{' '}
-          {p.slides.length === 1 ? 'slide' : 'slides'}
+          {{ historias: 'Historias', carrusel: 'Carrusel', flyer: 'Flyer' }[tipoDeProyecto(p)]} ·{' '}
+          {ASPECT_LABELS[p.aspectRatio]} · {p.slides.length} {p.slides.length === 1 ? 'slide' : 'slides'}
         </p>
       </div>
     </Link>
@@ -139,10 +145,10 @@ export default function CarruselesDashboard() {
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Sparkles className="h-6 w-6 text-brand-400" />
-            Carruseles &amp; Flyers
+            Historias, carruseles &amp; flyers
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Diseña carruseles de Instagram y flyers con IA. Chatea, previsualiza y exporta en PNG.
+            Cada formato con su propio estilo. Chatea, previsualiza y exporta en PNG.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -157,9 +163,25 @@ export default function CarruselesDashboard() {
             <Trophy className="h-4 w-4" /> Caso de éxito
           </Button>
           <Button onClick={() => setCreateOpen(true)} className="bg-brand-600 hover:bg-brand-500 text-white gap-1.5">
-            <Plus className="h-4 w-4" /> Nuevo
+            <Plus className="h-4 w-4" /> Nuevo {{ historias: 'historias', carrusel: 'carrusel', flyer: 'flyer' }[tipo]}
           </Button>
         </div>
+      </div>
+
+      <div className="mb-6 inline-flex rounded-lg border border-border p-0.5" role="tablist" aria-label="Producto">
+        {(['historias', 'carrusel', 'flyer'] as const).map((t) => (
+          <button
+            key={t}
+            role="tab"
+            aria-selected={tipo === t}
+            onClick={() => setTipo(t)}
+            className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+              tipo === t ? 'bg-brand-600 text-white' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {ETIQUETA_TIPO[t]} <span className="text-2xs opacity-70 tabular-nums">{cuenta(t)}</span>
+          </button>
+        ))}
       </div>
 
       {loading ? (
@@ -168,43 +190,45 @@ export default function CarruselesDashboard() {
         </div>
       ) : (
         <>
-          {/* Casos de éxito */}
-          <div className="mb-10">
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h2 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-                  <Trophy className="h-4 w-4 text-brand-400" /> Casos de éxito
-                </h2>
-                <p className="text-2xs text-muted-foreground mt-0.5">
-                  Sube la foto del alumno y pega la explicación: se monta el carrusel entero solo.
-                </p>
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setCasoOpen(true)}
-                className="gap-1.5 border-brand-500/40 text-brand-300 hover:text-brand-200"
-              >
-                <Plus className="h-3.5 w-3.5" /> Nuevo caso
-              </Button>
-            </div>
-            {casos.length === 0 ? (
-              <button
-                onClick={() => setCasoOpen(true)}
-                className="w-full border border-dashed border-border rounded-xl py-10 text-center hover:border-brand-400/50 transition-colors"
-              >
-                <div className="w-12 h-12 rounded-2xl bg-brand-600/10 border border-brand-500/20 flex items-center justify-center mx-auto mb-3">
-                  <Trophy className="h-6 w-6 text-brand-400" />
+          {/* Casos de éxito (son carruseles) */}
+          {tipo === 'carrusel' && (
+            <div className="mb-10">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                    <Trophy className="h-4 w-4 text-brand-400" /> Casos de éxito
+                  </h2>
+                  <p className="text-2xs text-muted-foreground mt-0.5">
+                    Sube la foto del alumno y pega la explicación: se monta el carrusel entero solo.
+                  </p>
                 </div>
-                <p className="text-sm font-medium text-foreground">Crea tu primer caso de éxito</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Foto + explicación → carrusel con punto A, punto B, cifra, vehículo y CTA.
-                </p>
-              </button>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">{casos.map(projectCard)}</div>
-            )}
-          </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setCasoOpen(true)}
+                  className="gap-1.5 border-brand-500/40 text-brand-300 hover:text-brand-200"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Nuevo caso
+                </Button>
+              </div>
+              {casos.length === 0 ? (
+                <button
+                  onClick={() => setCasoOpen(true)}
+                  className="w-full border border-dashed border-border rounded-xl py-10 text-center hover:border-brand-400/50 transition-colors"
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-brand-600/10 border border-brand-500/20 flex items-center justify-center mx-auto mb-3">
+                    <Trophy className="h-6 w-6 text-brand-400" />
+                  </div>
+                  <p className="text-sm font-medium text-foreground">Crea tu primer caso de éxito</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Foto + explicación → carrusel con punto A, punto B, cifra, vehículo y CTA.
+                  </p>
+                </button>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">{casos.map(projectCard)}</div>
+              )}
+            </div>
+          )}
 
           {/* Proyectos */}
           {others.length > 0 && (
@@ -212,18 +236,24 @@ export default function CarruselesDashboard() {
               <LayoutGrid className="h-4 w-4 text-brand-400" /> Otros proyectos
             </h2>
           )}
-          {projects.length === 0 ? (
+          {delTipo.length === 0 ? (
             <div className="border border-dashed border-border rounded-xl py-16 text-center">
               <div className="w-14 h-14 rounded-2xl bg-brand-600/10 border border-brand-500/20 flex items-center justify-center mx-auto mb-4">
                 <LayoutGrid className="h-7 w-7 text-brand-400" />
               </div>
-              <p className="font-medium text-foreground">Todavía no tienes proyectos</p>
-              <p className="text-sm text-muted-foreground mt-1 mb-4">Crea tu primer carrusel o flyer con IA.</p>
+              <p className="font-medium text-foreground">Todavía no tienes {ETIQUETA_TIPO[tipo].toLowerCase()}</p>
+              <p className="text-sm text-muted-foreground mt-1 mb-4">
+                {tipo === 'historias'
+                  ? 'Crea una secuencia de historias con el estilo del editor de Instagram.'
+                  : tipo === 'carrusel'
+                    ? 'Crea un carrusel con diseño propio y la estructura de tus ejemplos.'
+                    : 'Crea un flyer con IA.'}
+              </p>
               <Button
                 onClick={() => setCreateOpen(true)}
                 className="bg-brand-600 hover:bg-brand-500 text-white gap-1.5"
               >
-                <Plus className="h-4 w-4" /> Crear proyecto
+                <Plus className="h-4 w-4" /> Crear
               </Button>
             </div>
           ) : (
@@ -275,7 +305,7 @@ export default function CarruselesDashboard() {
         </>
       )}
 
-      <CreateProjectDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <CreateProjectDialog key={tipo} open={createOpen} onOpenChange={setCreateOpen} tipo={tipo} />
       <CasoExitoDialog open={casoOpen} onOpenChange={setCasoOpen} />
       <BrandDialog open={brandOpen} onOpenChange={setBrandOpen} />
     </div>

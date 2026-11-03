@@ -1,7 +1,15 @@
+import { CSS_NATIVO } from '../lib/carruseles/historias/estilo-nativo.ts'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { esVideoUrl, tipoDeMedio } from '../lib/carruseles/almacen.ts'
-import { ESTILO_IDS, fuentesDeMarca, marcaConColores, seccionEstiloPrompt } from '../lib/carruseles/estilos.ts'
+import {
+  estiloPorDefecto,
+  estiloValido,
+  estilosDe,
+  fuentesDeMarca,
+  marcaConColores,
+  seccionEstiloPrompt,
+} from '../lib/carruseles/estilos.ts'
 import { ETAPAS } from '../lib/carruseles/historias/categorias.ts'
 import {
   LAYOUTS,
@@ -93,9 +101,14 @@ test('el logo sale en la primera, la última y (estilo marca) en todas; las tipo
   assert.doesNotMatch(renderHistoria(spec({}), ctx({ indice: 2 })), /class="ig-logo"/)
   assert.match(renderHistoria(spec({ ultima: true }), ctx({ indice: 2 })), /class="ig-logo"/)
   assert.match(renderHistoria(spec({}), ctx({ indice: 2, estilo: 'marca' })), /class="ig-logo"/)
-  const h = renderHistoria(spec({}), ctx())
+  const h = renderHistoria(spec({}), ctx({ estilo: 'marca' }))
   assert.match(h, /--ig-acento:#e11d74/)
   assert.match(h, /--ig-f-titulo:&#39;Poppins&#39;/)
+  assert.doesNotMatch(
+    renderHistoria(spec({}), ctx()),
+    /--ig-f-titulo/,
+    'fuera del estilo de marca el texto usa las tipografías de Instagram'
+  )
   assert.equal(fuentesDeMarca(DEFAULT_BRAND), null, 'marca sin configurar: tipografías del estilo nativo')
 })
 
@@ -139,7 +152,11 @@ test('comparación, sticker, cifra y partida se componen con sus piezas', () => 
 })
 
 test('los estilos cambian la composición, no la marca', () => {
-  assert.deepEqual(ESTILO_IDS, ['nativo', 'editorial', 'limpio', 'marca'])
+  assert.deepEqual(estilosDe(true), ['nativo', 'editorial', 'limpio', 'marca'])
+  assert.deepEqual(estilosDe(false), ['disenado', 'foto', 'minimal', 'marca'])
+  assert.equal(estiloValido('nativo', false), 'disenado', 'un estilo de historias no vale en un carrusel')
+  assert.equal(estiloValido('disenado', true), 'nativo')
+  assert.equal(estiloPorDefecto(false), 'disenado')
   const t = spec({ texto: 'Frase' })
   assert.match(renderHistoria(t, ctx({ estilo: 'nativo' })), /ig-caja-negra/)
   assert.match(renderHistoria(t, ctx({ estilo: 'marca' })), /ig-caja-acento/)
@@ -163,4 +180,42 @@ test('las tipografías de marca puestas en variables CSS se detectan para cargar
     'Lora',
     'Poppins',
   ])
+})
+
+test('el texto usa las tipografías y los fondos de caja del editor de Instagram', () => {
+  assert.match(renderHistoria(spec({}), ctx()), /ig-zona ig-zona-abajo ig-f-classic/)
+  assert.match(renderHistoria(spec({ fuente: 'typewriter' }), ctx()), /ig-f-typewriter/)
+  assert.match(renderHistoria(spec({ estilo: 'editorial' }), ctx({ estilo: 'editorial' })), /ig-f-serif/)
+  assert.doesNotMatch(
+    renderHistoria(spec({}), ctx({ estilo: 'marca' })),
+    /ig-f-(classic|modern|neon|typewriter|strong|serif)/,
+    'estilo de marca: tipografías de la marca'
+  )
+  assert.match(renderHistoria(spec({ fondoTexto: 'sin' }), ctx()), /<div class="ig-texto">Hola/)
+  assert.match(renderHistoria(spec({ fondoTexto: 'solido', colorTexto: 'negro' }), ctx()), /ig-caja-solida-negra/)
+  assert.match(renderHistoria(spec({ fondoTexto: 'solido' }), ctx()), /class="ig-caja"/)
+  assert.match(renderHistoria(spec({ fondoTexto: 'translucido', colorTexto: 'blanco' }), ctx()), /ig-caja-vidrio/)
+  assert.equal(
+    leerSpec({ layout: 'texto', texto: 'x', fuente: 'comic' }).spec.fuente,
+    undefined,
+    'fuente desconocida se ignora'
+  )
+  assert.match(CSS_NATIVO, /\.ig-f-neon :is\([^)]*\)\{font-family:'Quicksand'/)
+  assert.match(CSS_NATIVO, /\.ig-f-strong :is\([^)]*\)\{font-family:'Anton'[^}]*uppercase/)
+})
+
+test('los emojis son texto Unicode (los pinta la fuente de emojis del dispositivo, la de Apple en iPhone/Mac)', () => {
+  const h = renderHistoria(spec({ texto: '✅ Así 🔥' }), ctx())
+  assert.match(h, /✅ Así 🔥/)
+  assert.doesNotMatch(h, /twemoji|emoji\.png|<svg/i, 'sin imágenes ni SVG de emojis')
+})
+
+test('historias y carruseles son productos separados: tipo por formato, formulario y estilos propios', async () => {
+  const { tipoDeProyecto } = await import('../lib/carruseles/tipos.ts')
+  assert.equal(tipoDeProyecto({ kind: 'carousel', aspectRatio: '9:16' }), 'historias')
+  assert.equal(tipoDeProyecto({ kind: 'carousel', aspectRatio: '4:5' }), 'carrusel')
+  assert.equal(tipoDeProyecto({ kind: 'flyer', aspectRatio: '9:16' }), 'flyer', 'un flyer vertical no es una historia')
+  const dlg = (await import('node:fs')).readFileSync('components/carruseles/CreateProjectDialog.tsx', 'utf8')
+  assert.match(dlg, /historias: \['9:16'\]/)
+  assert.match(dlg, /carrusel: \['4:5', '1:1'\]/, 'un carrusel ya no ofrece el formato de historia')
 })
