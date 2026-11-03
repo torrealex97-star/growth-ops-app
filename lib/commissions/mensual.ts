@@ -19,6 +19,7 @@
 import type { CommissionDashboardRow } from '@/lib/commissions/dashboard'
 import type { FilaFutura } from '@/lib/commissions/future-response'
 import type { ParticipantType } from '@/lib/types/database'
+import { sumarMeses } from '@/lib/commissions/meses'
 
 export type TipoComision = 'nuevo' | 'recurrente' | 'ajuste'
 
@@ -136,13 +137,23 @@ function sumar(
  * @param basis       todas las comisiones visibles, para decidir cuál fue el primer cobro de cada venta
  *                    aunque la fila del primer cobro haya quedado fuera del acotado por persona.
  * @param now         se asegura que el mes en curso aparezca siempre, aunque esté vacío.
+ * @param opts.base   a qué mes se imputa cada comisión:
+ *                    · 'pago'  (por defecto, el admin: «qué hay que pagar este mes») = el mes de liquidación;
+ *                    · 'cobro' (el colaborador: «mi mes») = el mes de la ACTIVIDAD, uno antes del pago: lo que sus
+ *                      clientes pagaron en octubre es «octubre» y se le paga en noviembre. Una cuota futura cae en el
+ *                      mes en que vence (cuando el cliente paga).
+ * @param opts.incluir meses que deben existir aunque estén vacíos (p. ej. el elegido en el selector).
  */
+export type BaseMes = 'pago' | 'cobro'
+
 export function construirResumenMensual(
   rows: CommissionDashboardRow[],
   future: FilaFutura[],
   basis: CommissionDashboardRow[] = rows,
-  now = new Date()
+  now = new Date(),
+  opts: { base?: BaseMes; incluir?: string[] } = {}
 ): MesComision[] {
+  const base: BaseMes = opts.base ?? 'pago'
   const meses = new Map<string, MesComision>()
   const mes = (key: string) => {
     let m = meses.get(key)
@@ -153,13 +164,16 @@ export function construirResumenMensual(
     return m
   }
   mes(claveMes(now))
+  for (const extra of opts.incluir ?? []) if (/^\d{4}-\d{2}$/.test(extra)) mes(extra)
 
   const primeros = primerCobroPorVenta(basis)
 
   for (const row of rows) {
     if (row.status === 'cancelled') continue
-    const key = String(row.liquidation_month || row.created_at || '').slice(0, 7)
-    if (!/^\d{4}-\d{2}$/.test(key)) continue
+    const pago = String(row.liquidation_month || row.created_at || '').slice(0, 7)
+    if (!/^\d{4}-\d{2}$/.test(pago)) continue
+    // El motor liquida el mes SIGUIENTE al cobro: el mes de la actividad es el anterior al de pago.
+    const key = base === 'cobro' ? sumarMeses(pago, -1) : pago
     const amount = signed(row)
     const m = mes(key)
     const tipo = tipoDeComision(row, primeros)
@@ -182,8 +196,9 @@ export function construirResumenMensual(
     // Cuota VENCIDA sin cobrar = impago: no es dinero que vaya a llegar en ningún mes concreto.
     // Se cuenta aparte (`impagosVencidos`), igual que hace el dashboard del colaborador.
     if (f.estado === 'overdue') continue
-    // La comisión de un cobro SE PAGA el mes siguiente (calculator.getLiquidationMonth): igual que las ya generadas.
-    const key = mesDePago(f.dueDate)
+    // Base 'pago': la comisión de un cobro SE PAGA el mes siguiente (calculator.getLiquidationMonth). Base 'cobro': el
+    // mes en que vence la cuota, que es cuando el cliente paga.
+    const key = base === 'cobro' ? String(f.dueDate || '').slice(0, 7) : mesDePago(f.dueDate)
     if (!/^\d{4}-\d{2}$/.test(key)) continue
     const amount = Number(f.amount || 0)
     if (!amount) continue

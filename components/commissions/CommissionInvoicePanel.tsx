@@ -56,6 +56,8 @@ export function CommissionInvoicePanel({
   members,
   focusUserId,
   sugerencias,
+  mes,
+  onSubida,
 }: {
   currentUserId: string
   currentUserRole: string
@@ -63,6 +65,13 @@ export function CommissionInvoicePanel({
   focusUserId?: string
   /** Importe sugerido por mes (clave YYYY-MM): lo ya generado de comisión ese mes, para no teclearlo. */
   sugerencias?: Record<string, number>
+  /**
+   * Mes (YYYY-MM) elegido en el selector ÚNICO de la pantalla. Si se pasa, el panel NO tiene selector propio: factura
+   * ese mes. Sin él (p. ej. admin), mantiene su selector de «Mes facturado».
+   */
+  mes?: string
+  /** Aviso al subir una factura con éxito (el padre refresca su registro). */
+  onSubida?: () => void
 }) {
   const tenant = useTenant()
   const tenantId = useTenantId()
@@ -74,7 +83,8 @@ export function CommissionInvoicePanel({
   const [invoices, setInvoices] = useState<CommissionInvoice[]>([])
   // null = aún no comprobado; false = la tabla no existe todavía (migración v35 pendiente).
   const [available, setAvailable] = useState<boolean | null>(null)
-  const [period, setPeriod] = useState<string>(defaultMonth)
+  const [periodoPropio, setPeriod] = useState<string>(defaultMonth)
+  const period = mes ? `${mes}-01` : periodoPropio
   const [amount, setAmount] = useState<string>('')
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -166,6 +176,7 @@ export function CommissionInvoicePanel({
       setAmount('')
       if (fileRef.current) fileRef.current.value = ''
       fetchInvoices()
+      onSubida?.()
     } finally {
       setUploading(false)
     }
@@ -205,18 +216,25 @@ export function CommissionInvoicePanel({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-1">
               <Label className="text-muted-foreground text-xs">Mes facturado</Label>
-              <Select value={period} onValueChange={setPeriod}>
-                <SelectTrigger className="bg-muted border-border">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {months.map((m) => (
-                    <SelectItem key={m.value} value={m.value}>
-                      {m.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {mes ? (
+                <div className="flex h-9 items-center rounded-md border border-border bg-muted px-3 text-sm text-foreground">
+                  {mayuscula(monthLabel(period))}
+                  <span className="ml-2 text-xs text-muted-foreground">(se cambia arriba)</span>
+                </div>
+              ) : (
+                <Select value={period} onValueChange={setPeriod}>
+                  <SelectTrigger className="bg-muted border-border">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {months.map((m) => (
+                      <SelectItem key={m.value} value={m.value}>
+                        {m.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <div className="space-y-1">
               <Label className="text-muted-foreground text-xs">Importe de tu factura (€) — opcional</Label>
@@ -297,7 +315,8 @@ export function CommissionInvoicePanel({
       )}
 
       {/* Mis facturas, mes a mes (quien no administra no ve la tabla del equipo) */}
-      {showOwnUploader && !isAdmin && misFacturas.length > 0 && (
+      {/* Con el selector único de mes, el registro de facturas vive en el historial del panel */}
+      {!mes && showOwnUploader && !isAdmin && misFacturas.length > 0 && (
         <div className="rounded-xl border border-border bg-card/50 p-5 space-y-3">
           <h3 className="text-sm font-semibold text-foreground">Mis facturas</h3>
           <ul className="divide-y divide-border">
