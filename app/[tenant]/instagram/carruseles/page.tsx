@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { CreateProjectDialog } from '@/components/carruseles/CreateProjectDialog'
 import { EjemplosDialog } from '@/components/carruseles/EjemplosDialog'
@@ -19,12 +19,21 @@ import { useTenant } from '@/lib/tenant-context'
 export default function CarruselesDashboard() {
   const tenant = useTenant()
   const router = useRouter()
+  const params = useSearchParams()
+  const temaInicial = params.get('tema') ?? ''
   const [projects, setProjects] = useState<CarruselProject[]>([])
   const [templates, setTemplates] = useState<CarruselTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
   const [ejemplosOpen, setEjemplosOpen] = useState(false)
+  // Viene de una idea de contenido: abre «Nuevas historias» con el tema ya escrito.
   const [tipo, setTipo] = useState<TipoProducto>('historias')
+  useEffect(() => {
+    if (params.get('nuevo') === 'historias') {
+      setTipo('historias')
+      setCreateOpen(true)
+    }
+  }, [params])
   const [casoOpen, setCasoOpen] = useState(false)
   const [brandOpen, setBrandOpen] = useState(false)
 
@@ -310,7 +319,13 @@ export default function CarruselesDashboard() {
         </>
       )}
 
-      <CreateProjectDialog key={tipo} open={createOpen} onOpenChange={setCreateOpen} tipo={tipo} />
+      <CreateProjectDialog
+        key={`${tipo}-${temaInicial}`}
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        tipo={tipo}
+        temaInicial={temaInicial}
+      />
       <CasoExitoDialog open={casoOpen} onOpenChange={setCasoOpen} />
       <EjemplosDialog
         open={ejemplosOpen}

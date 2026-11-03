@@ -10,7 +10,7 @@ import { getBrand, getProject, updateSlide } from './store'
 export async function recomponerHistorias(
   tenantId: string,
   projectId: string,
-  opciones: { estilo?: string } = {}
+  opciones: { estilo?: string; plataforma?: 'instagram' | 'tiktok' } = {}
 ): Promise<{ actualizadas: number; sinEspecificacion: number }> {
   const project = await getProject(tenantId, projectId)
   if (!project) throw new Error('Proyecto no encontrado')
@@ -34,7 +34,11 @@ export async function recomponerHistorias(
       sinEspecificacion++
       continue
     }
-    const html = renderHistoria(previa.spec, {
+    // Cambiar de red no vuelve a pedir nada a la IA: solo cambian los márgenes de la interfaz.
+    const spec = opciones.plataforma
+      ? { ...previa.spec, plataforma: opciones.plataforma === 'tiktok' ? ('tiktok' as const) : undefined }
+      : previa.spec
+    const html = renderHistoria(spec, {
       brand,
       estilo: estiloValido(opciones.estilo ?? previa.estilo, true),
       media,

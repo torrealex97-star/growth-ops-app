@@ -1,6 +1,7 @@
 import type { BrandConfig } from '../types'
+import { SEGURA_POR_PLATAFORMA, type Plataforma } from './estilo-nativo'
 import { fuentesDeMarca, type EstiloId } from '../estilos'
-import { fechaEtiqueta } from '../system-prompt'
+import { fechaEtiqueta } from './fecha'
 import { TIPOS_PEDIDO, esTipoPedido, limpiarClave, type Pedido } from './pedidos'
 
 // PLANTILLAS DE HISTORIA: el código, no la IA, decide dónde va cada cosa. La IA elige el tipo de historia y
@@ -49,6 +50,10 @@ export type HistoriaSpec = {
   fondoTexto?: 'sin' | 'solido' | 'translucido'
   /** Color de la caja de texto. */
   colorTexto?: 'blanco' | 'negro' | 'marca'
+  /** Posición vertical del bloque de texto (0 = arriba, 100 = abajo), p. ej. al arrastrarlo. Sin ella, la de la plantilla. */
+  posicion?: number
+  /** Red donde se publica: cambia los márgenes de la interfaz que hay que respetar. Por defecto, Instagram. */
+  plataforma?: Plataforma
   /** Historia de cierre: lleva el logo. */
   ultima?: boolean
   /** Segunda foto para «partida». */
@@ -91,6 +96,11 @@ export function leerSpec(entrada: unknown): { ok: true; spec: HistoriaSpec } | {
     cifra: txt(b.cifra, 14),
     fecha: typeof b.fecha === 'boolean' ? b.fecha : undefined,
     ultima: b.ultima === true ? true : undefined,
+    plataforma: b.plataforma === 'tiktok' ? 'tiktok' : undefined,
+    posicion:
+      typeof b.posicion === 'number' && Number.isFinite(b.posicion)
+        ? Math.min(94, Math.max(6, Math.round(b.posicion)))
+        : undefined,
     fuente: (FUENTES_IG as readonly unknown[]).includes(b.fuente) ? (b.fuente as FuenteIg) : undefined,
     fondoTexto:
       b.fondoTexto === 'sin' || b.fondoTexto === 'solido' || b.fondoTexto === 'translucido' ? b.fondoTexto : undefined,
@@ -126,6 +136,30 @@ export function leerSpec(entrada: unknown): { ok: true; spec: HistoriaSpec } | {
   if (!spec.titulo && !spec.texto && !spec.items?.length && !spec.sticker && !spec.cifra && !spec.pedido)
     return { ok: false, error: 'la historia no tiene ningún texto' }
   return { ok: true, spec }
+}
+
+/** Cambia de plantilla rellenando lo que la nueva exige (para que el cambio desde el editor siempre sea válido). */
+export function conLayout(spec: HistoriaSpec, layout: Layout): HistoriaSpec {
+  const siguiente: HistoriaSpec = { ...spec, layout }
+  if (layout === 'comparacion' && !siguiente.items?.length)
+    siguiente.items = [
+      { icono: '❌', titulo: 'Antes' },
+      { icono: '✅', titulo: 'Ahora' },
+    ]
+  if (layout === 'sticker' && !siguiente.sticker) siguiente.sticker = { tipo: 'escribe', cabecera: 'ESCRIBE AQUÍ' }
+  if (layout === 'cifra' && !siguiente.cifra) siguiente.cifra = '100%'
+  if (layout === 'captura' && !siguiente.pedido)
+    siguiente.pedido = { clave: 'material', tipo: 'otro', titulo: TIPOS_PEDIDO.otro.etiqueta }
+  if (
+    !siguiente.titulo &&
+    !siguiente.texto &&
+    !siguiente.items?.length &&
+    !siguiente.sticker &&
+    !siguiente.cifra &&
+    !siguiente.pedido
+  )
+    siguiente.texto = 'Escribe aquí'
+  return siguiente
 }
 
 // ── Color
@@ -232,6 +266,12 @@ function capturaHtml(p: Pedido, url: string | undefined): string {
 const recuadro = (i: NonNullable<HistoriaSpec['items']>[number]) =>
   `<div class="ig-recuadro"><b>${i.icono ? `${esc(i.icono)} ` : ''}${esc(i.titulo)}</b>${esc(i.texto ?? '')}</div>`
 
+/** Altura (px) del centro del bloque de texto para una posición 0-100 dentro de la zona segura. */
+export const posicionPx = (p: number, plataforma: Plataforma = 'instagram'): number => {
+  const z = SEGURA_POR_PLATAFORMA[plataforma]
+  return Math.round(z.arriba + (p / 100) * (1920 - z.arriba - z.abajo))
+}
+
 // ── Composición
 export function renderHistoria(spec: HistoriaSpec, ctx: ContextoRender): string {
   const { brand, estilo } = ctx
@@ -287,9 +327,12 @@ export function renderHistoria(spec: HistoriaSpec, ctx: ContextoRender): string 
     `--ig-acento:${acento}`,
     `--ig-acento-texto:${esOscuro(acento) ? '#ffffff' : '#111111'}`,
     estilo === 'marca' ? fuentesDeMarca(brand) : null,
+    spec.plataforma === 'tiktok'
+      ? `--ig-seg-arriba:${SEGURA_POR_PLATAFORMA.tiktok.arriba}px;--ig-seg-abajo:${SEGURA_POR_PLATAFORMA.tiktok.abajo}px;--ig-seg-derecha:${SEGURA_POR_PLATAFORMA.tiktok.derecha}px`
+      : null,
   ]
     .filter(Boolean)
     .join(';')
   const datos = esc(JSON.stringify({ spec, estilo, hoy: ctx.hoy.toISOString() }))
-  return `<div class="ig-historia" data-spec="${datos}" style="${esc(vars)}"><div class="ig-fondo">${fondo}</div>${cabecera}<div class="ig-zona ig-zona-${zona}${centrado}${fuente ? ` ig-f-${fuente}` : ''}">${contenido}</div></div>`
+  return `<div class="ig-historia" data-spec="${datos}" style="${esc(vars)}"><div class="ig-fondo">${fondo}</div>${cabecera}<div class="ig-zona ig-zona-${spec.posicion === undefined ? zona : 'libre'}${centrado}${fuente ? ` ig-f-${fuente}` : ''}"${spec.posicion === undefined ? '' : ` style="top:${posicionPx(spec.posicion, spec.plataforma)}px"`}>${contenido}</div></div>`
 }

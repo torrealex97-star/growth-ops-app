@@ -26,6 +26,8 @@ interface Props {
   onOpenChange: (o: boolean) => void
   /** Qué se crea: cada producto tiene su propio formulario. */
   tipo: TipoProducto
+  /** Tema ya escrito (p. ej. viene de una idea de contenido). */
+  temaInicial?: string
 }
 
 const RATIOS: Record<TipoProducto, AspectRatio[]> = {
@@ -39,7 +41,7 @@ const TITULO: Record<TipoProducto, string> = {
   flyer: 'Nuevo flyer',
 }
 
-export function CreateProjectDialog({ open, onOpenChange, tipo }: Props) {
+export function CreateProjectDialog({ open, onOpenChange, tipo, temaInicial = '' }: Props) {
   const tenant = useTenant()
   const router = useRouter()
   const [title, setTitle] = useState('')
@@ -48,7 +50,7 @@ export function CreateProjectDialog({ open, onOpenChange, tipo }: Props) {
   const [creating, setCreating] = useState(false)
   const [categoria, setCategoria] = useState<CategoriaElegida>('auto')
   const [longitud, setLongitud] = useState<number>(5)
-  const [tema, setTema] = useState('')
+  const [tema, setTema] = useState(temaInicial.slice(0, MAX_TEMA))
   const esHistorias = tipo === 'historias'
 
   const create = async () => {

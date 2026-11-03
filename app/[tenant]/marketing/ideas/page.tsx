@@ -89,6 +89,12 @@ export default function IdeasContenidoPage() {
                     <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
                       {i.tema} · {i.dato}
                     </p>
+                    <Link
+                      href={`/${tenant}/instagram/carruseles?nuevo=historias&tema=${encodeURIComponent(`${i.titulo}. ${i.gancho}`.slice(0, 400))}`}
+                      className="mt-1 inline-block text-xs font-medium text-brand-400 hover:underline"
+                    >
+                      Crear historias con esta idea →
+                    </Link>
                   </li>
                 ))}
               </ul>
