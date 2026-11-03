@@ -6,6 +6,7 @@ import { ChatMessage } from './ChatMessage'
 import { ChatInput } from './ChatInput'
 import { ReferenceImages } from './ReferenceImages'
 import { EstiloPanel } from './EstiloPanel'
+import { PedidosPanel } from './PedidosPanel'
 import { ESTILOS, estiloPorDefecto, estiloValido, type EstiloId } from '@/lib/carruseles/estilos'
 import { AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
@@ -22,7 +23,7 @@ interface Props {
   projectId: string
   referenceImages: ReferenceImage[]
   aspectRatio: string
-  numSlides: number
+  slides: { id: string; html: string }[]
   onStreamStart?: () => void
   onRefresh?: () => void
   onStreamEnd?: () => void
@@ -33,7 +34,7 @@ export function ChatPanel({
   projectId,
   referenceImages,
   aspectRatio,
-  numSlides,
+  slides,
   onStreamStart,
   onRefresh,
   onStreamEnd,
@@ -192,6 +193,41 @@ export function ChatPanel({
     [isStreaming, messages, projectId, onStreamStart, onStreamEnd, onRefresh, persist, tenant, estilo, fotosDeFondo]
   )
 
+  const aplicarConIa = () =>
+    void handleSend(
+      `Rehaz TODAS las ${esHistorias ? 'historias' : 'slides'} actuales con el estilo «${ESTILOS[estilo].nombre}», conservando el texto de cada una, con mis fotos y vídeos de fondo y la marca de la subcuenta. ${esHistorias ? 'Usa update_story con el id de cada historia.' : 'Usa update_slide con el id de cada slide.'}`
+    )
+
+  // Cambiar de estilo: las historias con especificación se recomponen al instante y sin IA; las antiguas, con la IA.
+  const aplicarEstilo = async () => {
+    if (esHistorias) {
+      try {
+        const res = await fetch(`/api/${tenant}/evergreen/carruseles/recomponer`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectId, estilo }),
+        })
+        const r = (await res.json().catch(() => ({}))) as {
+          actualizadas?: number
+          sinEspecificacion?: number
+          error?: string
+        }
+        if (!res.ok) throw new Error(r.error || 'No se pudo recomponer')
+        if (r.actualizadas) {
+          toast.success(
+            `${r.actualizadas} historia${r.actualizadas === 1 ? '' : 's'} recompuesta${r.actualizadas === 1 ? '' : 's'}`
+          )
+          onRefresh?.()
+        }
+        if (!r.sinEspecificacion) return
+      } catch (e) {
+        toast.error((e as Error).message)
+        return
+      }
+    }
+    aplicarConIa()
+  }
+
   const generarEncargo = async () => {
     if (!encargo || isStreaming) return
     const texto = encargo
@@ -241,14 +277,12 @@ export function ChatPanel({
         fotosDeFondo={fotosDeFondo}
         onFotosDeFondo={(f) => guardarEstilo(estilo, f)}
         numMedios={referenceImages.length}
-        numSlides={numSlides}
+        numSlides={slides.length}
         ocupado={isStreaming}
-        onAplicar={() =>
-          void handleSend(
-            `Rehaz TODAS las ${esHistorias ? 'historias' : 'slides'} actuales con el estilo «${ESTILOS[estilo].nombre}», conservando el texto de cada una, con mis fotos y vídeos de fondo y la marca de la subcuenta. ${esHistorias ? 'Usa update_story con el id de cada historia.' : 'Usa update_slide con el id de cada slide.'}`
-          )
-        }
+        onAplicar={() => void aplicarEstilo()}
       />
+
+      <PedidosPanel projectId={projectId} slides={slides} onRefresh={() => onRefresh?.()} />
 
       {encargo && (
         <div className="mx-4 mt-3 rounded-lg border border-brand-400/40 bg-brand-600/10 p-3">

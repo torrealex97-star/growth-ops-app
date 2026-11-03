@@ -21,6 +21,12 @@ export function ExportButton({ title, slides, aspectRatio }: ExportButtonProps) 
 
   const handleExport = async () => {
     if (busy || slides.length === 0) return
+    // Un hueco de material real sin rellenar saldría como recuadro «FALTA» en la imagen exportada.
+    if (
+      slides.some((s) => s.html.includes('data-pedido=')) &&
+      !window.confirm('Aún falta material real en alguna historia: saldrá un recuadro «FALTA». ¿Exportar igualmente?')
+    )
+      return
     setBusy(true)
     setProgress({ c: 0, t: slides.length })
     try {

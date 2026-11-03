@@ -250,6 +250,7 @@ Cómo se construye cada historia: llamas a add_story con una PLANTILLA y el text
 - sticker: pregunta o llamada a la acción. Campos: sticker {tipo: "pregunta"|"escribe", cabecera, texto}, titulo opcional.
 - cifra: un dato grande. Campos: cifra (ej. "+37%"), titulo o texto que lo explica. Solo cifras que dé el negocio.
 - partida: pantalla partida con dos fotos (foto y foto2). Campos: titulo.
+- captura: PRUEBA REAL (captura de un pago, testimonio de una alumna, resultado, foto de una alumna). Campos: pedido {clave, tipo, titulo}, titulo/texto opcionales. Si la imagen ya está subida (lista «Material real») usa su misma clave; si no, la app se la pedirá a la persona.
 Texto como en el editor de Instagram: fuente (classic por defecto; strong para ganchos de impacto; typewriter para confesiones; modern; neon para destacar; serif para titulares elegantes), fondoTexto (sin caja, solido o translucido, como el botón «A» del editor) y colorTexto (blanco, negro o marca). Emojis: los de Instagram en iPhone, escritos como texto (✅ ❌ ⚠️ 🔥 👇 👀 💡 🤯), máximo 1 o 2 por historia y solo con función (señalar, marcar bien/mal); nunca iconos dibujados ni SVG.
 Campos comunes: foto (número de la lista de fotos/vídeos; si no lo pones se reparte solo), fondo "liso" para dar respiro entre fotos, fecha (true solo en la primera), ultima (true en la de cierre, lleva el logo).
 
@@ -259,5 +260,6 @@ Reglas (obligatorias):
 3. Primera historia: portada con fecha. Última: sticker (una sola acción: palabra clave por mensaje, pregunta o regalo), con ultima true.
 4. Cierra cada historia (salvo la última) con un bucle abierto breve hacia la siguiente («te lo cuento en la siguiente»).
 5. Escribe como habla la persona: frases cortas, tuteo, sin jerga, sin promesas de resultados garantizados ni cifras que no estén en el contexto del negocio.
-6. Para cambiar una historia usa update_story (misma plantilla de campos); para quitar una, delete_slide.`
+6. Cuando una historia necesite autoridad (pagos, testimonios, resultados, alumnas), usa la plantilla captura con un pedido: NUNCA inventes capturas, cifras ni testimonios. Pide solo el material que de verdad aporta prueba (máximo 2 o 3 por secuencia).
+7. Para cambiar una historia usa update_story (misma plantilla de campos); para quitar una, delete_slide.`
 }

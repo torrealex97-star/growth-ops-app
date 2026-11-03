@@ -119,6 +119,17 @@ const PROPIEDADES_HISTORIA = {
   foto: { type: 'integer', description: 'Número (desde 1) de la foto o vídeo de la lista' },
   foto2: { type: 'integer', description: 'Segunda foto, solo para partida' },
   fotoUrl: { type: 'string', description: 'URL devuelta por generate_image para usarla de fondo' },
+  pedido: {
+    type: 'object',
+    description:
+      'Para captura: el material REAL que hace falta (captura de pago, testimonio, resultado, foto de alumna). Si ya está subido (ver «Material real»), usa su misma clave; si no, la app lo pedirá.',
+    properties: {
+      clave: { type: 'string', description: 'Identificador corto, p. ej. pago-marta' },
+      tipo: { type: 'string', enum: ['captura_pago', 'testimonio', 'resultado', 'alumna', 'otro'] },
+      titulo: { type: 'string', description: 'Qué material es, p. ej. «Captura del pago de Marta»' },
+    },
+    required: ['clave', 'tipo'],
+  },
   fondo: { type: 'string', enum: ['foto', 'liso'], description: 'liso = fondo de color de la marca sin foto' },
   fuente: { type: 'string', enum: [...FUENTES_IG], description: 'Tipografía del texto (como las de Instagram)' },
   fondoTexto: { type: 'string', enum: ['sin', 'solido', 'translucido'], description: 'Caja detrás del texto' },
@@ -142,7 +153,14 @@ const TOOL_UPDATE_STORY: Anthropic.Tool = {
   },
 }
 
-type ContextoHistorias = { brand: BrandConfig; estilo: EstiloId; media: Medio[]; hoy: Date; total: number }
+type ContextoHistorias = {
+  brand: BrandConfig
+  estilo: EstiloId
+  media: Medio[]
+  pedidos: Record<string, string>
+  hoy: Date
+  total: number
+}
 
 // Herramienta de imágenes con IA: solo se ofrece si hay clave de Gemini u OpenAI.
 const TOOL_IMAGEN: Anthropic.Tool = {
@@ -221,7 +239,7 @@ async function executeTool(
       if (!actual) return 'ERROR: proyecto inexistente.'
       const notes = `${r.spec.layout}: ${r.spec.titulo ?? r.spec.texto ?? ''}`.slice(0, 120)
       if (name === 'add_story') {
-        const html = renderHistoria(r.spec, { ...hctx, indice: actual.slides.length })
+        const html = renderHistoria(r.spec, { ...hctx, indice: actual.slides.length, total: 0 })
         const slide = await addSlide(tenantId, projectId, html, notes)
         if (!slide) return `ERROR: no se pudo añadir la historia (límite ${MAX_SLIDES} alcanzado).`
         return `OK: historia añadida con id ${slide.id}.`
@@ -403,7 +421,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     ? {
         brand,
         estilo: opciones.estilo,
-        media: project.referenceImages.map((r) => ({ url: r.url, name: r.name, kind: tipoDeMedio(r.url) })),
+        media: project.referenceImages
+          .filter((r) => !r.pedido)
+          .map((r) => ({ url: r.url, name: r.name, kind: tipoDeMedio(r.url) })),
+        pedidos: Object.fromEntries(
+          project.referenceImages.filter((r) => r.pedido).map((r) => [r.pedido as string, r.url])
+        ),
         hoy: new Date(),
         total: 0,
       }

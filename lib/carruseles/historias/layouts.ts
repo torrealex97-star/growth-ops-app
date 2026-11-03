@@ -1,13 +1,23 @@
 import type { BrandConfig } from '../types'
 import { fuentesDeMarca, type EstiloId } from '../estilos'
 import { fechaEtiqueta } from '../system-prompt'
+import { TIPOS_PEDIDO, esTipoPedido, limpiarClave, type Pedido } from './pedidos'
 
 // PLANTILLAS DE HISTORIA: el código, no la IA, decide dónde va cada cosa. La IA elige el tipo de historia y
 // el texto; aquí se decide si va foto limpia, foto oscurecida o fondo liso, y se colocan fecha, logo, titular
 // y stickers en zonas que no se pisan (cabecera arriba; el contenido, en una columna dentro de la zona segura).
 // Todo texto se escapa y se acota para que nunca desborde ni inyecte HTML.
 
-export const LAYOUTS = ['portada', 'texto', 'foto_texto', 'comparacion', 'sticker', 'cifra', 'partida'] as const
+export const LAYOUTS = [
+  'portada',
+  'texto',
+  'foto_texto',
+  'comparacion',
+  'sticker',
+  'cifra',
+  'partida',
+  'captura',
+] as const
 export type Layout = (typeof LAYOUTS)[number]
 
 export const FUENTES_IG = ['classic', 'modern', 'neon', 'typewriter', 'strong', 'serif'] as const
@@ -31,6 +41,8 @@ export type HistoriaSpec = {
   fecha?: boolean
   /** Número (desde 1) de la foto o vídeo a usar; sin él se elige solo. */
   foto?: number
+  /** Para «captura»: el material real que hace falta (captura de pago, testimonio…). */
+  pedido?: Pedido
   /** Tipografía del texto, como las del editor de Instagram. */
   fuente?: FuenteIg
   /** Fondo del texto: sin caja, caja sólida o caja translúcida (como el botón «A» del editor). */
@@ -50,6 +62,8 @@ export type ContextoRender = {
   estilo: EstiloId
   media: Medio[]
   hoy: Date
+  /** Imágenes reales ya subidas para los pedidos, por clave. */
+  pedidos?: Record<string, string>
   /** Posición de esta historia en la secuencia (desde 0) y total. */
   indice: number
   total: number
@@ -97,10 +111,19 @@ export function leerSpec(entrada: unknown): { ok: true; spec: HistoriaSpec } | {
   const s = (b.sticker && typeof b.sticker === 'object' ? b.sticker : null) as Record<string, unknown> | null
   if (s && (s.tipo === 'pregunta' || s.tipo === 'escribe'))
     spec.sticker = { tipo: s.tipo, cabecera: txt(s.cabecera, 30), texto: txt(s.texto, 120) }
+  const p = (b.pedido && typeof b.pedido === 'object' ? b.pedido : null) as Record<string, unknown> | null
+  if (p && esTipoPedido(p.tipo) && limpiarClave(p.clave))
+    spec.pedido = {
+      clave: limpiarClave(p.clave),
+      tipo: p.tipo,
+      titulo: txt(p.titulo, 80) ?? TIPOS_PEDIDO[p.tipo].etiqueta,
+    }
+  if (spec.layout === 'captura' && !spec.pedido)
+    return { ok: false, error: 'captura necesita el campo pedido {clave, tipo, titulo}' }
   if (spec.layout === 'comparacion' && !spec.items?.length) return { ok: false, error: 'comparacion necesita items' }
   if (spec.layout === 'sticker' && !spec.sticker) return { ok: false, error: 'sticker necesita el campo sticker' }
   if (spec.layout === 'cifra' && !spec.cifra) return { ok: false, error: 'cifra necesita el campo cifra' }
-  if (!spec.titulo && !spec.texto && !spec.items?.length && !spec.sticker && !spec.cifra)
+  if (!spec.titulo && !spec.texto && !spec.items?.length && !spec.sticker && !spec.cifra && !spec.pedido)
     return { ok: false, error: 'la historia no tiene ningún texto' }
   return { ok: true, spec }
 }
@@ -130,6 +153,7 @@ const VELO_BASE: Record<Layout, number> = {
   sticker: 60,
   cifra: 75,
   partida: 40,
+  captura: 75,
 }
 export function veloDe(layout: Layout, estilo: EstiloId): number {
   const i = ESCALA.indexOf(VELO_BASE[layout] as (typeof ESCALA)[number])
@@ -199,6 +223,12 @@ function stickerHtml(s: NonNullable<HistoriaSpec['sticker']>): string {
     : `<div class="ig-sticker-escribe">${cab}<div>Escribe algo…</div></div>`
 }
 
+/** La imagen real subida o, si falta, un hueco marcado que la pantalla convierte en «Falta material». */
+function capturaHtml(p: Pedido, url: string | undefined): string {
+  if (url) return `<div class="ig-captura-real"><img src="${esc(url)}" alt="${esc(p.titulo)}"></div>`
+  return `<div class="ig-pedido" data-pedido="${esc(p.clave)}" data-tipo="${esc(p.tipo)}" data-titulo="${esc(p.titulo)}"><span class="ig-emoji">📎</span><b>FALTA</b>${esc(p.titulo)}</div>`
+}
+
 const recuadro = (i: NonNullable<HistoriaSpec['items']>[number]) =>
   `<div class="ig-recuadro"><b>${i.icono ? `${esc(i.icono)} ` : ''}${esc(i.titulo)}</b>${esc(i.texto ?? '')}</div>`
 
@@ -243,6 +273,8 @@ export function renderHistoria(spec: HistoriaSpec, ctx: ContextoRender): string 
     contenido = `${titulo}${(spec.items ?? []).map(recuadro).join('')}${texto}`
   } else if (layout === 'sticker') {
     contenido = `${titulo}${texto}${spec.sticker ? stickerHtml(spec.sticker) : ''}`
+  } else if (layout === 'captura' && spec.pedido) {
+    contenido = `${titulo}${texto}${capturaHtml(spec.pedido, ctx.pedidos?.[spec.pedido.clave])}`
   } else if (layout === 'cifra') {
     contenido = `<div class="ig-cifra">${esc(spec.cifra ?? '')}</div>${titulo}${texto}`
   }
@@ -258,5 +290,6 @@ export function renderHistoria(spec: HistoriaSpec, ctx: ContextoRender): string 
   ]
     .filter(Boolean)
     .join(';')
-  return `<div class="ig-historia" style="${esc(vars)}"><div class="ig-fondo">${fondo}</div>${cabecera}<div class="ig-zona ig-zona-${zona}${centrado}${fuente ? ` ig-f-${fuente}` : ''}">${contenido}</div></div>`
+  const datos = esc(JSON.stringify({ spec, estilo, hoy: ctx.hoy.toISOString() }))
+  return `<div class="ig-historia" data-spec="${datos}" style="${esc(vars)}"><div class="ig-fondo">${fondo}</div>${cabecera}<div class="ig-zona ig-zona-${zona}${centrado}${fuente ? ` ig-f-${fuente}` : ''}">${contenido}</div></div>`
 }
