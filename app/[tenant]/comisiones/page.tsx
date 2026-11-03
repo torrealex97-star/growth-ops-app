@@ -10,6 +10,7 @@ import { interpretarRespuestaFuturas, type FilaFutura } from '@/lib/commissions/
 import { CommissionsTable } from '@/components/commissions/CommissionsTable'
 import { CommissionInvoicePanel } from '@/components/commissions/CommissionInvoicePanel'
 import { CommissionControlCenter } from '@/components/commissions/CommissionControlCenter'
+import { CommissionMonthlyStatement } from '@/components/commissions/CommissionMonthlyStatement'
 import { CollaboratorSalesReview } from '@/components/commissions/CollaboratorSalesReview'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -22,7 +23,7 @@ import { SearchBox, normalizeText } from '@/components/ui/search-box'
 import type { ParticipantType } from '@/lib/types/database'
 import { useSesion, useTenant, useTenantId } from '@/lib/tenant-context'
 import { resolverScopeColaborador } from '@/lib/collaborators/scope'
-import { DEFAULT_PERIOD, getCustomDateRange, inPeriod } from '@/lib/filters/period'
+import { DEFAULT_PERIOD } from '@/lib/filters/period'
 import { getPeriodRange, PERIOD_LABELS, PERIOD_PRESETS_STANDARD, type PeriodPreset } from '@/lib/filters/period'
 import { DateRangeCalendarPopover } from '@/components/ui/calendar-popover'
 import { tenantActiveUsers } from '@/lib/users'
@@ -102,8 +103,6 @@ export default function CommissionsPage() {
   // Filtros
   const [q, setQ] = useState('')
   const [filterMonth, setFilterMonth] = useState<string>('all')
-  const [filterFrom, setFilterFrom] = useState<string>('')
-  const [filterTo, setFilterTo] = useState<string>('')
   const [filterMember, setFilterMember] = useState<string>('all')
   const [filterType, setFilterType] = useState<string>('all')
   const [periodPreset, setPeriodPreset] = useState<PeriodPreset>(DEFAULT_PERIOD)
@@ -387,7 +386,6 @@ export default function CommissionsPage() {
     () => getPeriodRange(periodPreset, customFrom, customTo),
     [periodPreset, customFrom, customTo]
   )
-  const directDateRange = useMemo(() => getCustomDateRange(filterFrom, filterTo), [filterFrom, filterTo])
 
   const filteredCommissions = useMemo(() => {
     const nq = normalizeText(q.trim())
@@ -404,8 +402,6 @@ export default function CommissionsPage() {
 
       if (filterMonth !== 'all' && monthKey !== filterMonth) return false
 
-      if ((filterFrom || filterTo) && !inPeriod(c.created_at, directDateRange)) return false
-
       if (filterMember !== 'all' && c.user_id !== filterMember) return false
 
       if (filterType !== 'all' && c.participant_type !== filterType) return false
@@ -419,33 +415,47 @@ export default function CommissionsPage() {
 
       return true
     })
-  }, [
-    commissions,
-    q,
-    filterMonth,
-    filterFrom,
-    filterTo,
-    directDateRange,
-    filterMember,
-    filterType,
-    periodPreset,
-    periodRange,
-  ])
+  }, [commissions, q, filterMonth, filterMember, filterType, periodPreset, periodRange])
+
+  // Base del resumen MES A MES: persona/tipo/búsqueda sí, fecha NO (el eje del resumen es el mes).
+  const scopedCommissions = useMemo(() => {
+    const nq = normalizeText(q.trim())
+    return commissions.filter((c) => {
+      if (nq) {
+        const sales = c.sales as { contacts?: { full_name?: string } | null } | null
+        if (
+          !normalizeText(c.users?.full_name || '').includes(nq) &&
+          !normalizeText(sales?.contacts?.full_name || '').includes(nq)
+        )
+          return false
+      }
+      if (filterMember !== 'all' && c.user_id !== filterMember) return false
+      if (filterType !== 'all' && c.participant_type !== filterType) return false
+      return true
+    })
+  }, [commissions, q, filterMember, filterType])
+
+  // Atajos de persona del resumen: quien tiene comisiones generadas o por cobrar (solo admin/director).
+  const personasResumen = useMemo(() => {
+    if (!canApprove) return []
+    const byId = new Map<string, string>()
+    for (const c of commissions) if (c.user_id) byId.set(c.user_id, c.users?.full_name || 'Sin nombre')
+    for (const f of future) if (!f.exento && f.userId) byId.set(f.userId, f.userName || 'Sin nombre')
+    return [...byId.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
+  }, [canApprove, commissions, future])
+
+  const filtrarPorMes = (month: string) => {
+    setFilterMonth(month)
+    setPeriodPreset('all')
+    document.getElementById('listado-comisiones')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   const hasActiveFilters =
-    !!q ||
-    filterMonth !== 'all' ||
-    filterFrom ||
-    filterTo ||
-    filterMember !== 'all' ||
-    filterType !== 'all' ||
-    periodPreset !== 'all'
+    !!q || filterMonth !== 'all' || filterMember !== 'all' || filterType !== 'all' || periodPreset !== 'all'
 
   const clearFilters = () => {
     setQ('')
     setFilterMonth('all')
-    setFilterFrom('')
-    setFilterTo('')
     setMemberFilter('all')
     setFilterType('all')
     setPeriodPreset('all')
@@ -689,6 +699,19 @@ export default function CommissionsPage() {
         </section>
       )}
 
+      <CommissionMonthlyStatement
+        rows={scopedCommissions}
+        basis={commissions}
+        future={filteredFuture}
+        futureError={futureError}
+        loading={loading}
+        personas={personasResumen}
+        selectedMemberId={filterMember}
+        onSelectMember={setMemberFilter}
+        onFilterMonth={filtrarPorMes}
+        onRetryFuture={fetchFuture}
+      />
+
       {/* Filtros */}
       <div className="rounded-lg border border-border bg-card/50 p-4 space-y-3">
         <div className="flex items-center justify-between">
@@ -746,7 +769,7 @@ export default function CommissionsPage() {
           )}
 
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Mes de liquidacion</Label>
+            <Label className="text-xs text-muted-foreground">Mes de liquidación</Label>
             <Select value={filterMonth} onValueChange={setFilterMonth}>
               <SelectTrigger className="bg-muted border-border h-9">
                 <SelectValue />
@@ -760,17 +783,6 @@ export default function CommissionsPage() {
                 ))}
               </SelectContent>
             </Select>
-          </div>
-
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label className="text-xs text-muted-foreground">Fechas de comisión</Label>
-            <DateRangeCalendarPopover
-              from={filterFrom}
-              to={filterTo}
-              onFromChange={setFilterFrom}
-              onToChange={setFilterTo}
-              className="h-9"
-            />
           </div>
 
           {canApprove && (
@@ -844,7 +856,7 @@ export default function CommissionsPage() {
         />
       )}
 
-      <Tabs defaultValue="pending">
+      <Tabs defaultValue="pending" id="listado-comisiones" className="scroll-mt-4">
         <TabsList className="bg-card border border-border">
           <TabsTrigger value="pending">
             Pendientes

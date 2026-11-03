@@ -10,7 +10,6 @@
     "deploymentEnabled": {
       "dependabot/**": false,
       "docs/**": false,
-      "claude/**": false,
       "feat/**": false,
       "fix/**": false,
       "chore/**": false
