@@ -199,6 +199,8 @@ export function construirGastoFactura(args: {
   extraido?: ExtractoFactura | null
   /** Notas adicionales (p. ej. importe declarado ≠ factura). */
   notasExtra?: (string | null)[]
+  /** Día de subida YYYY-MM-DD (inyectable para tests). */
+  hoy?: string
 }) {
   const { tenantId, userId, nombre, periodo, amount, rutaFactura, extraido } = args
   const quien = nombre.trim() || 'Colaborador'
@@ -217,7 +219,8 @@ export function construirGastoFactura(args: {
     category: 'comisiones' as const,
     subcategory: emisor,
     amount,
-    expense_date: fechaIso(extraido?.expense_date) ?? periodo.periodMonth,
+    // Cuenta en el MES DE SUBIDA (decisión de finanzas), no en el de la comisión ni en la fecha impresa en la factura.
+    expense_date: args.hoy ?? new Date().toISOString().slice(0, 10),
     recurring: false,
     frequency: null,
     payment_method: 'transferencia',
