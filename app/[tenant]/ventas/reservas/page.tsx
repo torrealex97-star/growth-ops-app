@@ -269,7 +269,6 @@ export default function ReservasPage() {
       setReservations([])
       setLoading(false)
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sesion, tenantId, reload])
 
   // Búsqueda de contactos para el alta manual (mismo patrón que nueva venta).

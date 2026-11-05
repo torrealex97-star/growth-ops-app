@@ -86,7 +86,6 @@ export default function CampanasAfiliadosPage() {
     setLoading(false)
     // `sesion` entra en las dependencias: sin ella, la carga se quedaría con el valor capturado en el
     // primer render. Está memorizada en el layout, así que no provoca bucle.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId, sesion])
 
   useEffect(() => {

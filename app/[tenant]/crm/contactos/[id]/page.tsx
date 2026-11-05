@@ -255,7 +255,6 @@ export default function ContactDetailPage() {
       const comisiones = commissionsContacto.filter((c) => c.sale_id === venta.id)
       return { venta, plan, comisiones }
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ventasConPlan, installmentsContacto, collectionsContacto, commissionsContacto])
 
   const load = async () => {

@@ -148,7 +148,6 @@ export default function NewSalePage() {
       }
     }
     fetchData()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId, sesion])
 
   // Prefill desde query params (?contact=&reserva=&product=&reservationId=&plan=) al venir de

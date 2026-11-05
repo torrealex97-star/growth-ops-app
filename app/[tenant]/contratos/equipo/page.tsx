@@ -3,6 +3,7 @@
 import { Skeleton } from '@/components/ui/skeleton'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -36,6 +37,7 @@ export default function ContratosEquipoPage() {
   const [templates, setTemplates] = useState<ContractTemplate[]>([])
   const [contracts, setContracts] = useState<TeamContract[]>([])
   const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
   const [openingPdfId, setOpeningPdfId] = useState<string | null>(null)
 
@@ -186,7 +188,7 @@ export default function ContratosEquipoPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => (window.location.href = `/${tenant}/contratos/plantillas`)}>
+          <Button variant="outline" onClick={() => router.push(`/${tenant}/contratos/plantillas`)}>
             Plantillas
           </Button>
           <Button onClick={() => setDialog(true)}>

@@ -929,6 +929,9 @@ export function VslPlayer({
           className="group absolute inset-0 z-30 flex items-center justify-center overflow-hidden bg-black text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white"
         >
           {poster && (
+            // Póster del player: prioridad de red manual (fetchPriority) y sin pipeline de
+            // optimización de Vercel (coste de egress por viewer de una landing pública).
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={poster}
               alt=""
@@ -938,6 +941,8 @@ export function VslPlayer({
             />
           )}
           {posterIntentReady && motionPoster && cfg.animationSource !== 'custom' && (
+            // Animación decorativa: se sirve del CDN del propio vídeo, sin optimizador.
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={motionPoster}
               alt=""

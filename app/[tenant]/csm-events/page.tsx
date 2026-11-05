@@ -2,7 +2,7 @@
 
 import { Skeleton } from '@/components/ui/skeleton'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { activeUserNamesQuery } from '@/lib/users'
 import { CalendarCheck, Plus } from 'lucide-react'
@@ -80,7 +80,8 @@ export default function CsmEventsPage() {
     )
   }, [filteredItems, q])
 
-  const load = async () => {
+  // Estable entre renders: los handlers lo comparten y el efecto solo lo recarga si cambia la subcuenta.
+  const load = useCallback(async () => {
     const supabase = createClient()
     const [eRes, uRes] = await Promise.all([
       supabase
@@ -111,10 +112,10 @@ export default function CsmEventsPage() {
     setContacts((cData as DbContact[]) || [])
 
     setLoading(false)
-  }
+  }, [tenantId])
   useEffect(() => {
     load()
-  }, [])
+  }, [load])
 
   const move = async (id: string, status: string) => {
     setItems((prev) => prev.map((e) => (e.id === id ? { ...e, status } : e)))

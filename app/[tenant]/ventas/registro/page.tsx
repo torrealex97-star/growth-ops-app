@@ -217,7 +217,6 @@ export default function SalesPage() {
     }
 
     fetchData()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId, sesion])
 
   const setters = useMemo(

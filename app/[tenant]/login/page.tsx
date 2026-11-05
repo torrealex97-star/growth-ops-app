@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useTenantBranding } from '@/lib/tenant-context'
 import { ShaderBackground } from '@/components/ui/mesh-drift-shader'
@@ -14,6 +14,7 @@ import { authErrorMessage } from '@/lib/auth/error-message'
 // síncrono en Client Components, evita React.use() (requiere React 19).
 export default function LoginPage() {
   const { tenant } = useParams<{ tenant: string }>()
+  const router = useRouter()
   const branding = useTenantBranding()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -99,7 +100,8 @@ export default function LoginPage() {
       } catch {
         // Modo privado o almacenamiento bloqueado: el atajo es una comodidad, nunca un requisito.
       }
-      window.location.href = `/${tenant}/dashboard`
+      // La sesión laanoia el cliente de Supabase (cookie); la navegación del router ya la ve el servidor.
+      router.push(`/${tenant}/dashboard`)
     } catch {
       setError('Error de conexión. Inténtalo de nuevo.')
       setLoading(false)

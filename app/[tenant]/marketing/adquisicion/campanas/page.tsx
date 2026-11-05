@@ -336,7 +336,8 @@ export default function CampaignsPage() {
         setAccountingIds(map)
       }
     }
-  }, [period])
+    // tenantId filtra la consulta y el periodo filtra el gasto declarado: ambos son parte del dato.
+  }, [period, tenantId])
   useEffect(() => {
     load()
   }, [load])

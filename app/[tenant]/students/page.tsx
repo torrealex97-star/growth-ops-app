@@ -288,7 +288,8 @@ export default function StudentsPage() {
     return () => {
       mounted = false
     }
-  }, [])
+    // Idem: espera al tenantId del contexto antes de la primera lectura.
+  }, [tenantId])
 
   const updateContact = async (
     contactId: string,

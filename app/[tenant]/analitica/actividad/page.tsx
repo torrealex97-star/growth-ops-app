@@ -291,7 +291,7 @@ export default function ProspectingPage() {
   const daysInMonth = useMemo(() => {
     const [y, m] = ym.split('-').map(Number)
     return new Date(y, m, 0).getDate()
-  }, [ym, tenantId, retry])
+  }, [ym])
 
   const kpis = useMemo(() => {
     const a = globalAgg

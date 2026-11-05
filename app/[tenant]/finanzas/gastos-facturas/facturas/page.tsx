@@ -2,7 +2,7 @@
 
 import { Skeleton } from '@/components/ui/skeleton'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { FileText, ExternalLink, ClipboardCopy } from 'lucide-react'
 import { toast } from 'sonner'
@@ -43,7 +43,8 @@ export default function FacturasPage() {
   const [month, setMonth] = useState(currentMonth())
   const [q, setQ] = useState('')
 
-  const load = async () => {
+  // Estable entre renders; solo cambia si cambia la subcuenta.
+  const load = useCallback(async () => {
     setLoading(true)
     const supabase = createClient()
     const { data, error } = await supabase
@@ -57,10 +58,10 @@ export default function FacturasPage() {
     }
     setItems((data as Expense[]) || [])
     setLoading(false)
-  }
+  }, [tenantId])
   useEffect(() => {
     load()
-  }, [])
+  }, [load])
 
   const monthItems = useMemo(
     () => items.filter((e) => e.expense_date && e.expense_date.startsWith(month)),
