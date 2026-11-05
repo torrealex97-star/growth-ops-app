@@ -7,3 +7,5 @@ supabase/migrations
 public
 *.sql
 lib/email/plantillas.generated.ts
+.cloud-attachments
+.interface-design
