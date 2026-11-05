@@ -50,3 +50,8 @@ playwright-report/
 
 # Temporal de agentes: sondas, backups y scripts desechables (puede contener datos de tenant)
 .claude/tmp/
+
+# Adjuntos e historial importado de chats de agentes y artefactos de diseño: local only,
+# nunca en el repo (pueden contener transcripciones completas de conversaciones).
+.cloud-attachments/
+.interface-design/

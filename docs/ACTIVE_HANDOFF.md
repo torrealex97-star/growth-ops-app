@@ -34,6 +34,7 @@ Métricas/Embudo y Comisiones; código de referido sin distinguir mayúsculas. A
 | Rol `affiliate` **sin perfil activo** en `collaborator_profiles`                                                    | Ve el dashboard normal y, en Reservas, lista vacía (filtra por closer/setter); sin filtro por atribuidos más allá de la RLS | Dar de alta el perfil o ajustar el rol                                                                                                                                                                                                         |
 | Panel y páginas de colaboradora con **sesión real**                                                                 | Probado con piezas de ejemplo (escritorio/móvil) y tests; la ruta de Stripe solo por tipos y revisión                       | Recorrer Dashboard, Reservas, Registro y Seguimiento con la sesión de una colaboradora y comprobar impagos con una cuenta real de Stripe                                                                                                       |
 | Versiones de las migraciones del 3-nov                                                                              | Aplicadas con el MCP de Supabase: la versión que registra Supabase no es el nombre del fichero                              | Nada; si se reaplican en otro entorno son idempotentes (`DROP POLICY IF EXISTS` / `CREATE OR REPLACE`)                                                                                                                                         |
+| **Drift de migraciones: 4 relaciones vivas sin `CREATE TABLE` en `supabase/migrations/`** (`resource_links`, `resource_link_divisions`, `vsl_sessions`, `vsl_videos`) | Hallazgo del CodeReview 5-nov (revalidado sobre `main` actual; ver sección COMPLETADO). solo doc: sin fichero de captura aún | Borrar + 2 en una única migración de captura: DDL espejo (columnas/tipos desde el artefacto, PK/FK desde el esquema vivo), validación `BEGIN…ROLLBACK`, aplicar y registrar en `schema_migrations`. Nunca `supabase db push` |
 
 # PENDIENTE — Lo que queda tras la ola de Lanzamiento, historias y finanzas (2-nov)
 
@@ -59,6 +60,48 @@ guardas anti-duplicado de finanzas, `OPENAI_BASE_URL` por subcuenta, `unpdf` 2. 
 | Alta manual de cobro: botón de confirmar duplicado                                                               | Corregido en esta revisión (`confirm()` y reintento)                                                                            | Verificar a mano en la pantalla con una venta que ya tenga un cobro igual                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | Pantallas nuevas de Lanzamiento sin ver renderizadas                                                             | Probadas con tests, no en el navegador                                                                                          | Programar un lanzamiento de prueba y recorrer Contenido, Informe y checklist; probar «Generar con IA» con una clave real                                                                                                                                                                                                                                                                                                                                                                        |
 | Tests que necesitan BD viva (tipos frescos, columnas fantasma, invariante multitenant)                           | Pasan en CI, fallan en local sin credenciales                                                                                   | Nada, salvo correr `npm test` con credenciales para ver el resultado local                                                                                                                                                                                                                                                                                                                                                                                                                      |
+
+# COMPLETADO — CodeReview por secciones con la skill `mattpocock/skills@code-review` (5-nov, Buffy; PR actual)
+
+Recorrido completo de la app por las 8 secciones de [`docs/CODEREVIEW_PLAN.md`](CODEREVIEW_PLAN.md)
+más una segunda pasada por ejes (bugs, seguridad, performance, arquitectura), con el eje
+«Standards» de la skill como reglas de `AGENTS.md` + smells de Fowler. Solo una sección de
+resultado consolidado; detalles por sección en el propio `CODEREVIEW_PLAN.md` y en la contraseña
+del informe intermedio del 5-nov (rama vieja, supersedeada por este PR).
+
+## Comprobaciones ejecutadas sobre `origin/main` (5-nov, todas VERDADERAS desde aquí)
+
+- `npm test` → **2609/2609 pass, 0 skipped** (incluido `tests/esquema-tenant-invariante.test.mjs` contra el esquema vivo).
+- `npm run test:metrics` → **789/789 pass**. `npm run typecheck` → **0 errores**.
+- `npm run lint` → **0 errores** (9 warnings, backlog más abajo).
+- `npm run format:check` → fallaba en LOCal para Prettier barre `.cloud-attachments/*.json` (transcripciones importadas de chats, artifacts local-only sin vía gitignore); **CORREGIDO en este PR** ignorando `.cloud-attachments/` y `.interface-design/` en `.gitignore` y `.prettierignore`. Re-verificado verde.
+- `npm run build` / `npm run test:e2e` → no disponibles en esta sesión (arnes E2E/credenciales QA del entorno); no se reclaman.
+
+## Seguridad (barrido completo)
+
+- Las 26 rutas API con `SUPABASE_SERVICE_ROLE_KEY` sin `requireTenant`/`requirePantalla` se defienden todas: 14 crons (Bearer `CRON_SECRET`), 8 webhooks firma/secreto fail-closed + `timingSafeEqual` (stripe, calendly, fathom/Svix anti-replay 5 min, ghl, ghl-mensajes, contract, lanzamiento, onboarding), ver-como (ticket+OTP+auditoría), auth/recover y public-contracts (token).
+- Sin helper CSRF explícito en las 160 rutas de mutación con `requireTenant` (cookies Lax + sin CORS lo mitigan) — vigilancia, no incidencia.
+- 0 `DROP TABLE` en migraciones; 3 SECURITY DEFINER con `search_path` fijo; grants a `anon`/`authenticated` en 6 migraciones (muestreadas correctas, p. ej. carruseles tras su IDOR).
+
+## Performance y arquitectura
+
+- `select('*')` en ~51 ficheros valorado con ejemplos: mayormente deliberado/filas pequeñas (detalle en el plan); deuda de proyección en pantallas grandes, no urgente.
+- N+1 grueso en `lib/` sin patrones; 18 crones con `maxDuration=60` y presupuesto interno documentado; `src/prompts/*` sin ninguna referencia (candidato dead-code); `worker/` legítimo pero sin documentar dónde corre su despliegue; CI tiene 15 workflows que disparan las rutas cron que no están en `vercel.json`.
+
+## Relevo de la rama vieja y de la hebra paralela (importante para la próxima sesión)
+
+- `fix/silent-writes-ola` es linaje viejo: su código ya está fusionado (ola #689, docs #695); NO fusionar da免疫. Su último commit útil se reemplaza por este PR (tipo/higiene/informe). La rama puede borrarse cuando este PR esté en `main`.
+- El trabajo SIN commitear de la hebra paralela quedó preservado en 3 stash etiquetados: `hebra-otra: sin fusionar (conversaciones/calendly/atribucion/citas)` (5 ficheros), `hebra-otra: docs y test sin fusionar` (3 ficheros) y `hebra-otra: skill apple-design local distinta de la de main`. Recuperar con `git stash apply stash@{n}` desde una rama propia tras rebase.
+- Los untracked de conversaciones/notas/replay/UTM eran IDENTICOS a lo ya fusionado en `main` (#687/#690) y se eliminaron como copias redundantes (cero pérdida).
+
+## Backlog que salió de la revisión (ya anotado, no absorbido)
+
+1. **4 tablas sin migración** (fila nueva del tablero, arriba).
+2. 27 ficheros duplicados « 2» sin commit (incl. 4 migraciones) — limpiar antes de cualquier pathspec global.
+3. 9 warnings de ESLint (4 `exhaustive-deps`, 3 `<img>` en VSL, 3 `eslint-disable` sin uso, 1 `location.assign`).
+4. `src/prompts/*` dead-code; documentar despliegue de `worker/`.
+5. Estados de segmento por pantalla crítica (`error.tsx`/`loading.tsx`/`not-found.tsx`) y revisión manual del módulo Formularios en producción.
+6. Confirmación CSRF explícita como auditoría documentada.
 
 # COMPLETADO — Adopción de AIS-OS: log de decisiones + ledger de auditoría (31-oct, Buffy)
 
