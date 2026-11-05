@@ -254,4 +254,38 @@ Tareas por hacer:
 
 ---
 
-*Plan creado: 2026-11-04. Siguiente paso concreto: confirmar con el usuario el orden de secciones y empezar con la Sección 0 (arquitectura, stack, invariante multi-tenant) si se solicita.*
+## Estado del recorrido (2026-11-05 — tras fusionar #735 y #736 en main)
+
+Estado real de cada sección al cerrar el recorrido por secciones (PR #735 = informe del
+recorrido + higiene de temporales; PR #736 = fixes de lint, `src/prompts`, 404 global,
+README de worker/ y este estado). Cada ítem queda como COMPLETADO, RECORRIDO o BLOQUEADO
+con su causa externa: nada queda en "pendiente" sin ser accionable en repo o bloqueado.
+
+| # | Sección | Estado | Detalle |
+|---|---------|--------|---------|
+| 0 | Arquitectura · stack · invariante tenant | COMPLETADA | Checks de sección ejecutados en verde (typecheck, lint 0/0, format, test 2609/2609, metrics 789/789, build 0, dead-code sin cambios nuevos). Hallazgos resueltos: drift de tipos BD (regenerado con `npm run tipos:bd`, sincronizado en #735); `src/prompts/*` borrado por dead-code verificado (#736); untracked con sufijo « 2» depurado por lotes (90 byte-idénticos, cero pérdida, #736). Vigilancia permanente que queda: clientes Supabase sin genérico `Database` (deuda documentada, no incidencia). |
+| 1 | BD · migraciones · RLS · tenant_id | RECORRIDA; BLOQUEADA para lo externo | Ficheros de `supabase/migrations/` inspeccionados (0 `DROP TABLE`; `SECURITY DEFINER` con `search_path` fijo; fechas "solo día" con helpers UTC). BLOQUEADO por acceso externo: consultar `schema_migrations` en producción, comprobar grants y capturar las 4 tablas vivas sin `CREATE TABLE` en migraciones (fila del tablero en `docs/ACTIVE_HANDOFF.md`). Desbloqueo: acceso SQL o pg_catalog a la BD. NO se inventará DDL. |
+| 2 | API · routes · server actions | RECORRIDA | Código revisado completo: `requireTenant`, firma de webhooks fail-closed + idempotencia, secrets solo server. BLOQUEADO por credenciales QA: verificación runtime de cada ruta (GET/POST con 3 contingentes de tenant) necesita una sesión real de subcuenta QA. |
+| 3 | Frontend · formularios · estados · a11y | COMPLETADA en lo code-revisable; BLOQUEADA la QA manual | 31 warnings de ESLint → 0/0 con fixes de raíz (#736). Estados de segmento: aparece `app/not-found.tsx` global (#736; antes el 404 caía en el default de Next); segmentos críticos con error/loading y "fuente ilegible + reintentar" ya presentes. BLOQUEADO por credenciales QA: revisión manual del módulo Formularios (envío, envío repetido, revisión de respuestas) en una subcuenta real. |
+| 4 | Dominio (CRM, ventas, finanzas, marketing, IA) | RECORRIDA | Reglas críticas verificadas en código (claims atómicos antes de efectos externos, truncado declarado de crons, no inventar datos financieros, vocabulario canónico). BLOQUEADO por acceso externo: el seguimiento real de un caso de datos (escritura → BD → pantalla de un campo tipo `campaign_id`) necesita acceso a la BD. |
+| 5 | Infraestructura y operaciones | RECORRIDA | `vercel.json` (ignoreCommand docs-only y presupuesto de build), crones con presupuesto interno menor que `maxDuration`, Sentry/env vars revisadas. BLOQUEADO por credenciales de despliegue: `vercel ls/inspect` y verificar el deploy de producción con un SHA real (el conector de Vercel rechaza la operación en este entorno). |
+| 6 | Seguridad y privacidad | COMPLETADA en recorrida y documental | Cero secretos filtrados (`gitleaks` SUCCESS en las PRs del recorrido); CSRF: auditoría cerrada (sin capa explícita; mitigaciones reales: cookies Lax, sin CORS general, webhooks fail-closed — capa explícita es decisión de arquitectura, no deuda del review). BLOQUEADO por acceso externo: comprobar grants reales en `information_schema`. |
+| 7 | Tests | COMPLETADA en local; BLOQUEADA la E2E | `npm test` 2609/2609 y `test:metrics` 789/789 en verde tras cada ciclo (#735 y #736). BLOQUEADO por credenciales QA: `npm run test:e2e` (Playwright contra servidor con sesión real). |
+| 8 | Flujo de entrega | COMPLETADA | Ruta respetada: rama nueva desde `origin/main`, commit con pathspec acotado, PR + CI SUCCESS + squash + rama borrada; el estado vivo del relevo vive en `docs/ACTIVE_HANDOFF.md`. |
+
+Ítems que SOLO quedan pendientes por acceso externo (requisito literal para desbloquear):
+
+1. **Migración de las 4 tablas sin historial de migraciones** — necesita acceso SQL a la BD de
+   producción (SQL directo o pg_catalog con permiso de lectura) para capturar el DDL real; no se
+   inventa.
+2. **Grants reales / `information_schema` / `schema_migrations` de producción** — mismo requisito de
+   acceso SQL.
+3. **QA manual del módulo Formularios** — necesita credenciales de sesión de una subcuenta QA real.
+4. **QA E2E en desarrollo** (`tests/e2e/*.spec.mjs`) — necesita el arnés con credenciales QA.
+5. **Verificación del despliegue en producción con `vercel ls/inspect`** — necesita credenciales de
+   Vercel.
+6. **Tres stash etiquetados de la hebra paralela** (`git stash list`) — relevo de trabajo ajeno:
+   solo una hebra con contexto de esas tareas puede aplicarlos.
+
+*Plan creado: 2026-11-04. Última actualización de estado: 2026-11-05 (#736): el recorrido por
+secciones está cerrado; queda lo listado arriba, que solo se desbloquea con acceso externo.*
