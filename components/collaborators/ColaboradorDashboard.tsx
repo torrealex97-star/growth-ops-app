@@ -20,7 +20,7 @@
 // SCOPE (§55-57): contactIdsDeScope acota contacts→appointments→sales; las comisiones van por user_id (SU ledger).
 // Fail-closed: sin contactos, todo a cero.
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { isActiveSale } from '@/lib/analytics'
@@ -195,6 +195,14 @@ export default function ColaboradorDashboard({
   // Firma estable de lo que se consulta (evita relanzar la consulta a Stripe si las cuotas no cambian).
   const clavesVencidas = vencidas.map((f) => `${f.installmentId}|${f.saleId}|${f.dueDate}|${f.base}`).join(',')
 
+  // El cuerpo del efecto NECESITA las cuotas, pero solo debe RELANZARSE cuando cambia su FIRMA
+  // (clavesVencidas), no cuando el memo cambia de identidad sin cambiar de contenido. El ref
+  // mantiene el dato fresco sin mover el disparador (se sincroniza en un efecto que corre antes).
+  const vencidasRef = useRef(vencidas)
+  useEffect(() => {
+    vencidasRef.current = vencidas
+  }, [vencidas])
+
   // Estado en Stripe de cada impago (cobrado sin registrar / rechazado y por qué / sin intento).
   useEffect(() => {
     if (!clavesVencidas) {
@@ -207,7 +215,7 @@ export default function ColaboradorDashboard({
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        cuotas: vencidas.map((f) => ({
+        cuotas: vencidasRef.current.map((f) => ({
           id: f.installmentId,
           saleId: f.saleId,
           vencimiento: f.dueDate,

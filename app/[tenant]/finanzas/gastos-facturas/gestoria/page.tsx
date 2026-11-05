@@ -170,7 +170,8 @@ export default function GestoriaPage() {
     return () => {
       mounted = false
     }
-  }, [])
+    // Sin tenantId aún, la carga sería vacía: se relanza en cuanto el selector lo resuelve.
+  }, [tenantId])
 
   const monthCollections = useMemo(
     () => collections.filter((c) => c.status === 'collected' && ymOf(c.collected_at) === ym),

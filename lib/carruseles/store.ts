@@ -28,7 +28,6 @@ function uid(): string {
   return globalThis.crypto?.randomUUID?.() ?? 'id-' + Math.random().toString(36).slice(2) + Date.now().toString(36)
 }
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 function rowToProject(r: any): CarruselProject {
   return {
     id: r.id,

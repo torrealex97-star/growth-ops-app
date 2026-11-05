@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency, formatDate } from '@/lib/utils'
@@ -53,7 +53,8 @@ export function SequraMorosidadView() {
   const [q, setQ] = useState('')
   const [busyId, setBusyId] = useState<string | null>(null)
 
-  const load = async () => {
+  // Estable entre renders; lo comparten el efecto y el botón de re-sync.
+  const load = useCallback(async () => {
     setLoading(true)
     const supabase = createClient()
     const { data, error } = await supabase
@@ -68,11 +69,11 @@ export function SequraMorosidadView() {
       setRows((data as DelinquentRow[]) || [])
     }
     setLoading(false)
-  }
+  }, [tenantId])
 
   useEffect(() => {
     load()
-  }, [])
+  }, [load])
 
   const lastSyncedAt = useMemo(
     () => rows.reduce<string | null>((max, r) => (!max || r.last_synced_at > max ? r.last_synced_at : max), null),

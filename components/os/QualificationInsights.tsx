@@ -81,7 +81,8 @@ export function QualificationInsights() {
     return () => {
       mounted = false
     }
-  }, [])
+    // El efecto lee tenantId; sin él la primera pasada sería vacía.
+  }, [tenantId])
 
   // Agregación: distribución por pregunta (pares pregunta/respuesta) + lista de textos libres (GHL).
   const { distribuciones, motivosLibres, conFormulario, estructuradas, total } = useMemo(() => {

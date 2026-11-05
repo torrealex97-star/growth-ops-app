@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -102,7 +102,8 @@ export function InstallmentsMorosidadView() {
 
   const range = useMemo(() => getPeriodRange(periodPreset, customFrom, customTo), [periodPreset, customFrom, customTo])
 
-  const load = async () => {
+  // Estable entre renders; el efecto solo recarga si cambia la subcuenta.
+  const load = useCallback(async () => {
     setLoading(true)
     const supabase = createClient()
     const { data, error } = await supabase
@@ -119,11 +120,11 @@ export function InstallmentsMorosidadView() {
       setRows((data as unknown as InstallmentRow[]) || [])
     }
     setLoading(false)
-  }
+  }, [tenantId])
 
   useEffect(() => {
     load()
-  }, [])
+  }, [load])
 
   const today = todayStr()
 

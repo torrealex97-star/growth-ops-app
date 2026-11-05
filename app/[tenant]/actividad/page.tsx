@@ -159,7 +159,8 @@ export default function ActividadPage() {
     return () => {
       mounted = false
     }
-  }, [])
+    // tenantId entra en la sesión del selector; si aún no llegó, la carga se relanza al existir.
+  }, [tenantId])
 
   const filtered = useMemo(
     () => (personId === 'all' ? items : items.filter((i) => i.personId === personId)).slice(0, 300),

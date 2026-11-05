@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://growth-ops.app/schemas/rag_marketing_knowledge_schema.json",
   "title": "Esquema RAG de conocimiento de Marketing (High-Ticket OS)",
-  "description": "Metadatos para indexar en base vectorial los frameworks de posicionamiento, avatares, embudos, copywriting y métricas de marketing. Fuente canónica: .claude/skills/marketing-and-copywriting.md (módulos 1-6). El agente (src/prompts/marketing_agent_system_prompt.ts) cita estas categorías al recuperar contextos.",
+  "description": "Metadatos para indexar en base vectorial los frameworks de posicionamiento, avatares, embudos, copywriting y métricas de marketing. Fuente canónica: .claude/skills/marketing-and-copywriting.md (módulos 1-6). Las herramientas de IA (lib/ai/agent/tools.ts) citan estas categorías al recuperar contextos.",
   "version": "1.0.0",
   "categories": ["uvp_and_angles", "avatar_icp", "funnel_architecture", "copywriting_swipe", "marketing_metrics"],
   "category_descriptions": {

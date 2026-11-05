@@ -8,7 +8,7 @@
 // - Datos de VSL, atribución, seguimiento, notas — todo junto
 // - Sin duplicar el menú de navegación
 
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { resolverScopeColaborador, contactIdsDeScope } from '@/lib/collaborators/scope'
@@ -348,7 +348,8 @@ export function ContactsAllView() {
 
   // ── Carga de datos ───────────────────────────────────────────────────────
 
-  const load = async () => {
+  // Estable entre renders: depende de la subcuenta y del scope del colaborador (sesion).
+  const load = useCallback(async () => {
     const supabase = createClient()
 
     // SCOPE DE COLABORADOR (capa de datos, no de UI): si el usuario tiene perfil
@@ -422,11 +423,11 @@ export function ContactsAllView() {
     setLeads(sorted)
     setAppts((apptRes.data as ApptLite[]) || [])
     setLoading(false)
-  }
+  }, [tenantId, sesion])
 
   useEffect(() => {
     load()
-  }, [])
+  }, [load])
 
   // ── Derivados ────────────────────────────────────────────────────────────
 

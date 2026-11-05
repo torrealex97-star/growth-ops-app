@@ -15,7 +15,6 @@ function svc() {
   })
 }
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 function rowTo(r: any): Testimonio {
   return {
     id: r.id,

@@ -96,6 +96,9 @@ export default function BannerVerComo({ info }: { info: VerComoInfo }) {
       toast.success('Sesión restaurada')
       // Navegación COMPLETA (no router.replace): el shim guarda `info` en estado y un refresh de
       // RSC no la limpia — el banner/título marcado quedarían colgados hasta la próxima navegación.
+      // Justificación documentada de la regla no-location-assign: el shim de "Ver como" vive en
+      // window, solo una recarga completa lo nota (justificada arriba en este comentario).
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.assign(`/${info.tenant}/dashboard`)
     } catch {
       toast.error('Error de red al salir')

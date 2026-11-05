@@ -80,28 +80,28 @@ del informe intermedio del 5-nov (rama vieja, supersedeada por este PR).
 ## Seguridad (barrido completo)
 
 - Las 26 rutas API con `SUPABASE_SERVICE_ROLE_KEY` sin `requireTenant`/`requirePantalla` se defienden todas: 14 crons (Bearer `CRON_SECRET`), 8 webhooks firma/secreto fail-closed + `timingSafeEqual` (stripe, calendly, fathom/Svix anti-replay 5 min, ghl, ghl-mensajes, contract, lanzamiento, onboarding), ver-como (ticket+OTP+auditoría), auth/recover y public-contracts (token).
-- Sin helper CSRF explícito en las 160 rutas de mutación con `requireTenant` (cookies Lax + sin CORS lo mitigan) — vigilancia, no incidencia.
+- **Auditoría CSRF (cerrada, 5-nov)**: no hay envolvente CSRF explícita en las 160 rutas de mutación con `requireTenant`; las mitigaciones reales del repo: cookies de sesión de `@supabase/ssr` con su default `sameSite=lax` (un POST cross-site no las envía), ninguna cabecera CORS general en `app/api` (el único `Access-Control-Allow-Origin` es el endpoint público de ingestión del pixel `/api/track/[site]`, que no acepta cookies y valida origen + rate-limit por clave pública), y los endpoints bytes JSON rechazan `content-type/text/plain` de formularios cross-site. Riesgo residual documentado como vigilancia, no incidencia; capa explícita queda como decisión de arquitectura.
 - 0 `DROP TABLE` en migraciones; 3 SECURITY DEFINER con `search_path` fijo; grants a `anon`/`authenticated` en 6 migraciones (muestreadas correctas, p. ej. carruseles tras su IDOR).
 
 ## Performance y arquitectura
 
 - `select('*')` en ~51 ficheros valorado con ejemplos: mayormente deliberado/filas pequeñas (detalle en el plan); deuda de proyección en pantallas grandes, no urgente.
-- N+1 grueso en `lib/` sin patrones; 18 crones con `maxDuration=60` y presupuesto interno documentado; `src/prompts/*` sin ninguna referencia (candidato dead-code); `worker/` legítimo pero sin documentar dónde corre su despliegue; CI tiene 15 workflows que disparan las rutas cron que no están en `vercel.json`.
+- N+1 grueso en `lib/` sin patrones; 18 crones con `maxDuration=60` y presupuesto interno documentado; `src/prompts/*` RESUELTO (5-nov): borrado tras verificar cero referencias en código/tests/scripts (artefacto del PR #71 sin consumidor; solo lo citaban 2 JSON de RAG, cuyo texto se apuntó al consumidor real `lib/ai/agent/tools.ts`); `worker/` legítimo pero sin documentar dónde corre su despliegue; CI tiene 15 workflows que disparan las rutas cron que no están en `vercel.json`.
 
 ## Relevo de la rama vieja y de la hebra paralela (importante para la próxima sesión)
 
-- `fix/silent-writes-ola` es linaje viejo: su código ya está fusionado (ola #689, docs #695); NO fusionar da免疫. Su último commit útil se reemplaza por este PR (tipo/higiene/informe). La rama puede borrarse cuando este PR esté en `main`.
+- `fix/silent-writes-ola` es linaje viejo: su código ya está fusionado (ola #689, docs #695); NO fusionar la rama (borraría trabajo de `main`). Cerrada su utilidad con la PR #735: puede borrarse.
 - El trabajo SIN commitear de la hebra paralela quedó preservado en 3 stash etiquetados: `hebra-otra: sin fusionar (conversaciones/calendly/atribucion/citas)` (5 ficheros), `hebra-otra: docs y test sin fusionar` (3 ficheros) y `hebra-otra: skill apple-design local distinta de la de main`. Recuperar con `git stash apply stash@{n}` desde una rama propia tras rebase.
 - Los untracked de conversaciones/notas/replay/UTM eran IDENTICOS a lo ya fusionado en `main` (#687/#690) y se eliminaron como copias redundantes (cero pérdida).
 
-## Backlog que salió de la revisión (ya anotado, no absorbido)
+## Cierre de los pendientes del code review (5-nov tarde — Buffy, PR en vuelo)
 
-1. **4 tablas sin migración** (fila nueva del tablero, arriba).
-2. 27 ficheros duplicados « 2» sin commit (incl. 4 migraciones) — limpiar antes de cualquier pathspec global.
-3. 9 warnings de ESLint (4 `exhaustive-deps`, 3 `<img>` en VSL, 3 `eslint-disable` sin uso, 1 `location.assign`).
-4. `src/prompts/*` dead-code; documentar despliegue de `worker/`.
-5. Estados de segmento por pantalla crítica (`error.tsx`/`loading.tsx`/`not-found.tsx`) y revisión manual del módulo Formularios en producción.
-6. Confirmación CSRF explícita como auditoría documentada.
+1. **31 warnings de ESLint → 0/0.** 11 `eslint-disable` SIN USO eliminados (directivas que ya no suprimían nada); 12 `exhaustive-deps` corregidos de raíz: 5 efectos añadierón `tenantId` a deps (corrige un bug latente: cargaban antes de que el selector resolviera la subcuenta), 5 `load` pasados a `useCallback` con deps correctas y los handlers reutilizan el mismo callback, el de campañas añadió `tenantId`, `daysInMonth` perdió deps sobrantes y `ColaboradorDashboard` usa un ref sincronizado por efecto para no relanzar Stripe por identidad del memo. 3 justificados con rationale inline: `BannerVerComo` (recarga FULL: el shim de “Ver como” solo se limpia así), los 2 pósteres de `VslPlayer` y la miniatura de `VslDashboard` (sin pipeline de next/image — coste de egress y tamaño involucrado). Re-verificado: `npm run lint` → 0 errores, 0 warnings.
+2. **Backlog de untracked depurado por lotes**: los 90 ficheros con sufijo « 2» (incl. 10 migraciones y 30+ tests) resultaron byte-identicos a su original en disco (`filecmp`, shallow=False) y se borraron con cero pérdida. Solo queda untracked `docs/CODEREVIEW_PLAN.md` (entra con esta PR). Riesgo de `git add -A` evitado y cerrado.
+3. **Estados de segmento (hallazgo, backlog)**: en `app/` hay 1 `error.tsx` + 1 `loading.tsx` (a nivel global) + `global-error.tsx` y **0 `not-found.tsx`** — los 404 caen en el not-found por defecto de Next. No es una incidencia operacional (los segmentos que la revisión recorrió pintan sus propios estados de carga/ilegibilidad con reintentar), pero el 404 personalizado y loading/error por segmento en las pantallas críticas quedan en backlog con decisión de presentación.
+4. **Revisión manual del módulo Formularios**: BLOQUEADA por credenciales — requiere sesión real de subcuenta QA en producción (envío, envío repetido, revisión de respuestas) que no está disponible en este entorno; la suite de tests del módulo (incl. `tests/forms-*`) corre verde en local.
+5. **CSRF**: auditoría cerrada en la sección Seguridad (arriba); capa explícita queda como decisión de arquitectura, no como deuda del review.
+6. **Migración de las 4 tablas y los 3 stash etiquetados** siguen BLOQUEADOS por acceso externo (SQL/pg_catalog; contexto de la hebra paralela, no se reintentan sin él) — están como fila del tablero y en la sección «Relevo» de arriba.
 
 # COMPLETADO — Adopción de AIS-OS: log de decisiones + ledger de auditoría (31-oct, Buffy)
 

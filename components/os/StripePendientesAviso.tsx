@@ -49,7 +49,8 @@ export function StripePendientesAviso({ tenant, contexto }: Props) {
     return () => {
       vivo = false
     }
-  }, [])
+    // La cuenta se filtra por tenantId: se relanza cuando el contexto lo resuelve.
+  }, [tenantId])
 
   if (pendientes === null || pendientes === 0) return null
 

@@ -2,7 +2,7 @@
 
 import { Skeleton } from '@/components/ui/skeleton'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { FileText, Plus, ExternalLink, Send, Webhook } from 'lucide-react'
@@ -55,7 +55,8 @@ export default function ContratosPage() {
   const [showNew, setShowNew] = useState(false)
   const [nc, setNc] = useState({ contact_id: '', title: '', url: '', status: 'pendiente' })
 
-  const load = async () => {
+  // Estable entre renders: el efecto lo recarga solo si cambia la subcuenta.
+  const load = useCallback(async () => {
     const supabase = createClient()
     const [cRes, contactsRes] = await Promise.all([
       supabase
@@ -68,10 +69,10 @@ export default function ContratosPage() {
     setContracts((cRes.data as Contract[]) || [])
     setContacts((contactsRes.data as Contact[]) || [])
     setLoading(false)
-  }
+  }, [tenantId])
   useEffect(() => {
     load()
-  }, [])
+  }, [load])
 
   const updateStatus = async (id: string, status: string) => {
     setContracts((prev) => prev.map((c) => (c.id === id ? { ...c, status } : c)))
