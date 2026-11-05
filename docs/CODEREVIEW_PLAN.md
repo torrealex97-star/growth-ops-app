@@ -264,28 +264,64 @@ con su causa externa: nada queda en "pendiente" sin ser accionable en repo o blo
 | # | Sección | Estado | Detalle |
 |---|---------|--------|---------|
 | 0 | Arquitectura · stack · invariante tenant | COMPLETADA | Checks de sección ejecutados en verde (typecheck, lint 0/0, format, test 2609/2609, metrics 789/789, build 0, dead-code sin cambios nuevos). Hallazgos resueltos: drift de tipos BD (regenerado con `npm run tipos:bd`, sincronizado en #735); `src/prompts/*` borrado por dead-code verificado (#736); untracked con sufijo « 2» depurado por lotes (90 byte-idénticos, cero pérdida, #736). Vigilancia permanente que queda: clientes Supabase sin genérico `Database` (deuda documentada, no incidencia). |
-| 1 | BD · migraciones · RLS · tenant_id | RECORRIDA; BLOQUEADA para lo externo | Ficheros de `supabase/migrations/` inspeccionados (0 `DROP TABLE`; `SECURITY DEFINER` con `search_path` fijo; fechas "solo día" con helpers UTC). BLOQUEADO por acceso externo: consultar `schema_migrations` en producción, comprobar grants y capturar las 4 tablas vivas sin `CREATE TABLE` en migraciones (fila del tablero en `docs/ACTIVE_HANDOFF.md`). Desbloqueo: acceso SQL o pg_catalog a la BD. NO se inventará DDL. |
+| 1 | BD · migraciones · RLS · tenant_id | RECORRIDA; desbloqueada 5-nov vía conector Supabase | Ficheros de `supabase/migrations/` inspeccionados (0 `DROP TABLE`; `SECURITY DEFINER` con `search_path` fijo; fechas "solo día" con helpers UTC). 5-nov: acceso SQL real vía conector — catálogo leído y auditoría de drift completa (ver "Verificación con conectores, 5-nov"). Hallazgo mayor: la lista "4 tablas sin migración" era falsa a medias — `vsl_videos`/`vsl_sessions` SÍ están en disco (`20260910110000_restore_original_features`, tenant_id en `20260911150000`, RLS en `20260911130000`); `resource_links`/`resource_link_divisions` se crean DELIBERADAMENTE en runtime vía `app/api/[tenant]/evergreen/admin/migrate-resource-links/route.ts` (DDL idempotente documentado; el DDL real capturado coincide). Queda como decisión: ~28 ficheros de disco sin fila en el registro de migraciones de producción y 7 filas de registro sin fichero (ver informe). |
 | 2 | API · routes · server actions | RECORRIDA | Código revisado completo: `requireTenant`, firma de webhooks fail-closed + idempotencia, secrets solo server. BLOQUEADO por credenciales QA: verificación runtime de cada ruta (GET/POST con 3 contingentes de tenant) necesita una sesión real de subcuenta QA. |
 | 3 | Frontend · formularios · estados · a11y | COMPLETADA en lo code-revisable; BLOQUEADA la QA manual | 31 warnings de ESLint → 0/0 con fixes de raíz (#736). Estados de segmento: aparece `app/not-found.tsx` global (#736; antes el 404 caía en el default de Next); segmentos críticos con error/loading y "fuente ilegible + reintentar" ya presentes. BLOQUEADO por credenciales QA: revisión manual del módulo Formularios (envío, envío repetido, revisión de respuestas) en una subcuenta real. |
 | 4 | Dominio (CRM, ventas, finanzas, marketing, IA) | RECORRIDA | Reglas críticas verificadas en código (claims atómicos antes de efectos externos, truncado declarado de crons, no inventar datos financieros, vocabulario canónico). BLOQUEADO por acceso externo: el seguimiento real de un caso de datos (escritura → BD → pantalla de un campo tipo `campaign_id`) necesita acceso a la BD. |
-| 5 | Infraestructura y operaciones | RECORRIDA | `vercel.json` (ignoreCommand docs-only y presupuesto de build), crones con presupuesto interno menor que `maxDuration`, Sentry/env vars revisadas. BLOQUEADO por credenciales de despliegue: `vercel ls/inspect` y verificar el deploy de producción con un SHA real (el conector de Vercel rechaza la operación en este entorno). |
+| 5 | Infraestructura y operaciones | RECORRIDA; despliegue VERIFICADO 5-nov | `vercel.json` (ignoreCommand docs-only y presupuesto de build), crones con presupuesto interno menor que `maxDuration`, Sentry/env vars revisadas. 5-nov: via conector Vercel, `list_deployments` target=production → el último deploy READY (sha `2142813a`, PR #737) es exactamente el HEAD de `main` al momento; cadena lista: `21c949c9` → `c1abf8a6` → `c1c5867f` → `154fc4d8` → `2142813a`, todas READY. VERIFICADO (no solo inspeccionado): producción sirve el último commit de `main`. |
 | 6 | Seguridad y privacidad | COMPLETADA en recorrida y documental | Cero secretos filtrados (`gitleaks` SUCCESS en las PRs del recorrido); CSRF: auditoría cerrada (sin capa explícita; mitigaciones reales: cookies Lax, sin CORS general, webhooks fail-closed — capa explícita es decisión de arquitectura, no deuda del review). BLOQUEADO por acceso externo: comprobar grants reales en `information_schema`. |
 | 7 | Tests | COMPLETADA en local; BLOQUEADA la E2E | `npm test` 2609/2609 y `test:metrics` 789/789 en verde tras cada ciclo (#735 y #736). BLOQUEADO por credenciales QA: `npm run test:e2e` (Playwright contra servidor con sesión real). |
 | 8 | Flujo de entrega | COMPLETADA | Ruta respetada: rama nueva desde `origin/main`, commit con pathspec acotado, PR + CI SUCCESS + squash + rama borrada; el estado vivo del relevo vive en `docs/ACTIVE_HANDOFF.md`. |
 
-Ítems que SOLO quedan pendientes por acceso externo (requisito literal para desbloquear):
+Verificación con conectores (5-nov, misma sesión): acceso SQL real a `growth-ops-app` (Supabase /
+`rgcbveflosqgxrcqlqzv`) y a Vercel (`prj_gCUOHbX1SgpY1LOBKIiqTza4HIZM`). Solo lectura en la BD;
+ninguna escritura (ni DDL ni registro). Resultado:
 
-1. **Migración de las 4 tablas sin historial de migraciones** — necesita acceso SQL a la BD de
-   producción (SQL directo o pg_catalog con permiso de lectura) para capturar el DDL real; no se
-   inventa.
-2. **Grants reales / `information_schema` / `schema_migrations` de producción** — mismo requisito de
-   acceso SQL.
-3. **QA manual del módulo Formularios** — necesita credenciales de sesión de una subcuenta QA real.
-4. **QA E2E en desarrollo** (`tests/e2e/*.spec.mjs`) — necesita el arnés con credenciales QA.
-5. **Verificación del despliegue en producción con `vercel ls/inspect`** — necesita credenciales de
-   Vercel.
-6. **Tres stash etiquetados de la hebra paralela** (`git stash list`) — relevo de trabajo ajeno:
+- **Estado del catálogo real**: 142 migraciones registradas en producción, 142 ficheros en disco.
+- **"4 tablas sin migración" era falso a medias.** `vsl_videos`/`vsl_sessions` sí están en disco
+  (`20260910110000_restore_original_features`; tenant_id en `20260911150000_multi_tenant_domain_tables`
+  con `IF NOT EXISTS` sobre lista de tablas; RLS y políticas en `20260911130000_fix_rls_p0_round2`;
+  uniques y deleted_at en las siguientes). `resource_links`/`resource_link_divisions` no tienen
+  `CREATE TABLE` en migraciones POR DISEÑO: se crean en runtime vía
+  `app/api/[tenant]/evergreen/admin/migrate-resource-links/route.ts` (CREATE+ALTER idempotentes,
+  índices y RLS incluidos ahí). El DDL real capturado del catálogo (columnas, PK/FK, triggers
+  `updated_at`, políticas `rl_select/rl_modify`/`rld_select/rld_modify`) CONCUERDA con lo que esa
+  ruta crea. No se escribe una migración espejo: duplicaría la única fuente de verdad.
+- **Drift del registro de migraciones (informe, pendiente de decisión).** Supabase reescribe la
+  `version` con el timestamp de aplicación y guarda el fichero en `name` (patrón visible desde el
+  13-sep; también los aplicados 3-nov vía MCP). Comparando nombre (suffixo) y no versión:
+  ~28 ficheros de disco sin fila en el registro de producción y 7 filas del registro sin fichero:
+  `contacts_get_or_create_revoke_authenticated`, `appointments_result_vocabulario_y_marcado` (=
+  `20260915110000_appointments_result_vocabulario` aplicada con otro nombre), `career_schema_v1`,
+  `career_rls_deny_by_default_v1`, `drop_empty_career_schema`,
+  `restore_team_scheduling_scope_contacts`, `conversaciones_solo_lectura`. Muestras verificadas
+  de facto: `stripe_payments`, `launch_*`, `email_*`, `platform_settings`,
+  `user_fathom_connections`, `sale_expected_installments.is_monitoring`, `tenants.status` y la
+  política `tasks_select_team` (con el filtro affiliate ya integrado) existen en producción:
+  la mayoría de los 28 se aplicaron sin registro. Los tres `career_*` y el drop final se
+  autoanulan (`drop_empty_career_schema`), así que su estado neto es nulo.
+- **Grants reales (hallazgo, requiere decisión).** `role_table_grants` a `anon`/`authenticated`
+  sobre 115 tablas de `public` (patrón por defecto de Supabase), incluidas las 4 del hallazgo y
+  núcleo como `contacts`/`sales`. Los módulos endurecidos (`forms_*`, `conversation*`, `launch*`,
+  `tenants`, `pgss_*`, tracking VSL) ya los revocaron. El dato NO está expuesto en la práctica:
+  bloquean las políticas RLS (p. ej. en las 4 tablas el `SELECT` exige rol de subcuenta y el
+  `ALL` exige `auth_tenant_ids()`). Acción pendiente: decidir si se revocan por lotes siguiendo
+  el patrón de `forms_hardening`/`conversaciones_solo_lectura` con dry-run `BEGIN…ROLLBACK` y
+  advisors antes del commit.
+- **Despliegue verificado**: el último deploy de producción en Vercel está `READY` con el SHA de
+  `main` al momento (`2142813a`, PR #737); cadena sin errores en los cinco deploys previos.
+
+Ítems que SOLO quedan pendientes, cada uno con su requisito literal:
+
+1. **QA manual del módulo Formularios** — necesita credenciales de sesión de una subcuenta QA real.
+2. **QA E2E en desarrollo** (`tests/e2e/*.spec.mjs`) — necesita el arnés con credenciales QA.
+3. **Tres stash etiquetados de la hebra paralela** (`git stash list`) — relevo de trabajo ajeno:
    solo una hebra con contexto de esas tareas puede aplicarlos.
 
-*Plan creado: 2026-11-04. Última actualización de estado: 2026-11-05 (#736): el recorrido por
-secciones está cerrado; queda lo listado arriba, que solo se desbloquea con acceso externo.*
+Decisiones de producto e infraestructura que NO bloquea el code review (quedan en el tablero de
+`docs/ACTIVE_HANDOFF.md`): registrar (o validar de facto) las ~28 migraciones sin fila y las 7 sin
+fichero, y revocar los grants por defecto a `anon`/`authenticated` en `public`.
+
+*Plan creado: 2026-11-04. Última actualización de estado: 2026-11-05 (#738, verificación con
+conectores): el recorrido por secciones está cerrado y verificado (BD por catálogo, despliegue por
+API); queda lo listado arriba, con su requisito literal.*
