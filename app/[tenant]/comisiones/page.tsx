@@ -869,6 +869,7 @@ export default function CommissionsPage() {
           members={members}
           focusUserId={canApprove && filterMember !== 'all' ? filterMember : undefined}
           sugerencias={sugerenciasFactura}
+          libro={canApprove ? commissions : undefined}
         />
       )}
 
