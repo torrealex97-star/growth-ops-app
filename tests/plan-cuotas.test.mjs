@@ -202,6 +202,8 @@ test('PREVISIÓN derivada: los cobros cubren FIFO aunque vengan en desorden', ()
   ]
   const plan = planCuotasDeVenta([], cobros, {
     ...metaBase,
+    // Venta en el futuro lejano: la 3ª cuota no vence nunca y el test no depende del día en que se ejecuta.
+    saleDate: '2099-09-05',
     grossAmount: 1500,
     paymentPlan: { number_of_payments: 3, method: null },
   })
