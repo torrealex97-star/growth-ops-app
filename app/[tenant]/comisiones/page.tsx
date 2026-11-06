@@ -10,6 +10,7 @@ import { interpretarRespuestaFuturas, type FilaFutura } from '@/lib/commissions/
 import { CommissionsTable } from '@/components/commissions/CommissionsTable'
 import { CommissionInvoicePanel } from '@/components/commissions/CommissionInvoicePanel'
 import { CommissionControlCenter } from '@/components/commissions/CommissionControlCenter'
+import { MonthRangeInputs } from '@/components/os/MonthRangeInputs'
 import { CommissionMonthlyStatement } from '@/components/commissions/CommissionMonthlyStatement'
 import { construirResumenMensual, impagosVencidos } from '@/lib/commissions/mensual'
 import { CollaboratorSalesReview } from '@/components/commissions/CollaboratorSalesReview'
@@ -25,7 +26,7 @@ import type { ParticipantType } from '@/lib/types/database'
 import { useSesion, useTenant, useTenantId } from '@/lib/tenant-context'
 import { resolverScopeColaborador } from '@/lib/collaborators/scope'
 import { DEFAULT_PERIOD } from '@/lib/filters/period'
-import { getPeriodRange, PERIOD_LABELS, PERIOD_PRESETS_STANDARD, type PeriodPreset } from '@/lib/filters/period'
+import { getPeriodRange, PERIOD_LABELS, PERIOD_PRESETS_MESES, type PeriodPreset } from '@/lib/filters/period'
 import { DateRangeCalendarPopover } from '@/components/ui/calendar-popover'
 import { tenantActiveUsers } from '@/lib/users'
 import type { CommissionDashboardRow } from '@/lib/commissions/dashboard'
@@ -761,7 +762,7 @@ export default function CommissionsPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-card border-border">
-                {PERIOD_PRESETS_STANDARD.map((p) => (
+                {PERIOD_PRESETS_MESES.map((p) => (
                   <SelectItem key={p} value={p}>
                     {PERIOD_LABELS[p]}
                   </SelectItem>
@@ -772,14 +773,8 @@ export default function CommissionsPage() {
 
           {periodPreset === 'custom' && (
             <div className="space-y-1.5 sm:col-span-2">
-              <Label className="text-xs text-muted-foreground">Periodo personalizado</Label>
-              <DateRangeCalendarPopover
-                from={customFrom}
-                to={customTo}
-                onFromChange={setCustomFrom}
-                onToChange={setCustomTo}
-                className="h-9"
-              />
+              <Label className="text-xs text-muted-foreground">Rango de meses</Label>
+              <MonthRangeInputs from={customFrom} to={customTo} onFromChange={setCustomFrom} onToChange={setCustomTo} />
             </div>
           )}
 

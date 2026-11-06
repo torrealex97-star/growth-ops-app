@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import { MonthRangeInputs } from '@/components/os/MonthRangeInputs'
 import { CalendarPopover, DateRangeCalendarPopover } from '@/components/ui/calendar-popover'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { CalendarDays, Check, ChevronDown, X, Download } from 'lucide-react'
@@ -12,6 +13,7 @@ import {
   isDateRangeInvalid,
   PERIOD_LABELS,
   PERIOD_PRESETS_BAR,
+  PERIOD_PRESETS_MESES,
   toDateInputValue,
   type PeriodPreset,
 } from '@/lib/filters/period'
@@ -42,6 +44,8 @@ type Props = {
   onExport?: () => void
   onClear?: () => void
   hasActiveFilters?: boolean
+  /** Solo intervalos de meses (facturas, finanzas, comisiones). */
+  porMeses?: boolean
   className?: string
   children?: ReactNode
 }
@@ -67,6 +71,7 @@ export function PeriodFilterBar({
   onExport,
   onClear,
   hasActiveFilters,
+  porMeses = false,
   className = '',
   children,
 }: Props) {
@@ -132,7 +137,7 @@ export function PeriodFilterBar({
                 <p className="text-xs text-muted-foreground">Las métricas se actualizarán al elegir una opción.</p>
               </div>
               <div className="grid max-h-72 grid-cols-2 gap-1 overflow-y-auto pr-1 sm:grid-cols-3">
-                {PERIOD_PRESETS_BAR.map((p) => (
+                {(porMeses ? PERIOD_PRESETS_MESES : PERIOD_PRESETS_BAR).map((p) => (
                   <button
                     key={p}
                     type="button"
@@ -148,7 +153,7 @@ export function PeriodFilterBar({
               {(preset === 'day' || preset === 'custom') && (
                 <div className="mt-3 border-t border-border pt-3">
                   <Label className="mb-1.5 block text-xs text-muted-foreground">
-                    {preset === 'day' ? 'Día concreto' : 'Rango personalizado'}
+                    {preset === 'day' ? 'Día concreto' : porMeses ? 'Rango de meses' : 'Rango personalizado'}
                   </Label>
                   {preset === 'day' ? (
                     <CalendarPopover
@@ -157,6 +162,13 @@ export function PeriodFilterBar({
                       disablePast={false}
                       placeholder="Seleccionar día…"
                       className="h-9"
+                    />
+                  ) : porMeses ? (
+                    <MonthRangeInputs
+                      from={customFrom}
+                      to={customTo}
+                      onFromChange={onCustomFromChange}
+                      onToChange={onCustomToChange}
                     />
                   ) : (
                     <DateRangeCalendarPopover
