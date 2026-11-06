@@ -19,7 +19,7 @@ const VIDEO_BUCKET = 'ig-competitor-reels'
 // ventana de los 50 posts más recientes). Best-effort: si falla, no rompe la
 // transcripción, solo no queda protegido para el futuro.
 async function persistToStorage(
-  sb: any,
+  sb: import('@supabase/supabase-js').SupabaseClient<any, 'public'>,
   table: string,
   rowId: string,
   buf: Buffer,

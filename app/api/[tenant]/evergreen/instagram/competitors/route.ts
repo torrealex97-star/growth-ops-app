@@ -13,7 +13,7 @@ const VIDEO_BUCKET = 'ig-competitor-reels'
 // la URL firmada de Meta ni de seguir estando entre los 50 más recientes.
 // Best-effort: si falla, se sigue usando la media_url de Meta tal cual.
 async function persistReelVideo(
-  sb: any,
+  sb: import('@supabase/supabase-js').SupabaseClient<any, 'public'>,
   mediaUrl: string | null | undefined,
   competitorMediaExternalId: string
 ): Promise<string | null> {
