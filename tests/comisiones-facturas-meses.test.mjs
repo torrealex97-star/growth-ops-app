@@ -10,6 +10,7 @@ test('presets por meses', () => {
   assert.deepEqual(rangoDeMeses('rango', '2026-11', '2026-09', '2026-08'), { desde: '2026-08', hasta: '2026-09' })
 })
 test('pago previsto y rango', () => {
+  assert.equal(mesDePagoPrevisto('2026-10'), '2026-11') // generado en octubre → se paga en noviembre
   assert.equal(mesDePagoPrevisto('2026-11'), '2026-12')
   assert.equal(mesDePagoPrevisto('2026-12'), '2027-01')
   assert.ok(enRangoMeses('2026-09', { desde: '2026-08', hasta: '2026-09' }))

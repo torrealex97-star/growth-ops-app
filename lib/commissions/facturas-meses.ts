@@ -44,8 +44,8 @@ export function rangoDeMeses(preset: PresetMeses, hoyYm: string, desde = '', has
 
 export const enRangoMeses = (ym: string, r: RangoMeses) => ym >= r.desde && ym <= r.hasta
 
-/** La factura se sube el mes siguiente al generado y se paga el mes siguiente al de subida (generado oct → sube nov → paga dic). */
-export const mesDePagoPrevisto = (mesSubida: string) => sumarMes(mesSubida, 1)
+/** Todo lo que el colaborador genera en un mes se paga el mes siguiente (generado oct → pago nov), suba cuando suba la factura. */
+export const mesDePagoPrevisto = (mesGenerado: string) => sumarMes(mesGenerado, 1)
 
 export type FilaLibro = {
   participant_type: string
