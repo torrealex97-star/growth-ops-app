@@ -375,8 +375,7 @@ export function CommissionInvoicePanel({
               {focusedMember ? `Facturas de ${focusedMember.full_name}` : 'Facturas de comisiones del equipo'}
             </h3>
             <p className="mt-1 text-xs text-muted-foreground">
-              Se genera un mes, se factura el siguiente y se paga el mes posterior a recibir la factura. Filtra por
-              meses.
+              Lo que se genera un mes se paga el mes siguiente. Filtra por meses.
             </p>
           </div>
           <div className="flex flex-wrap items-end gap-3">
@@ -490,7 +489,7 @@ export function CommissionInvoicePanel({
                         <td className="py-2 pr-3 text-foreground">{mayuscula(monthLabel(inv.period_month))}</td>
                         <td className="py-2 pr-3 text-foreground">{mayuscula(monthLabel(`${recibida}-01`))}</td>
                         <td className="py-2 pr-3 text-foreground">
-                          {mayuscula(monthLabel(`${mesDePagoPrevisto(recibida)}-01`))}
+                          {mayuscula(monthLabel(`${mesDePagoPrevisto(inv.period_month.slice(0, 7))}-01`))}
                         </td>
                         <td className="py-2 pr-3 text-foreground">{formatCurrency(inv.amount)}</td>
                         <td className="py-2 pr-3">
