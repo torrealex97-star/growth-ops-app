@@ -40,6 +40,23 @@ import { normalizeText } from '@/components/ui/search-box'
 type FunnelRow = { source: string; leads: number; appointments: number | null; sales: number; gross: number }
 type ModeloEmbudo = ModeloAtribucion | ModeloMultiToque
 
+type TouchRow = {
+  contact_id: string
+  source: string | null
+  utm_source: string | null
+  utm_campaign: string | null
+  utm_content: string | null
+  is_primary: boolean
+  collaborator_id: string | null
+  first_utm_source: string | null
+  first_utm_campaign: string | null
+  last_utm_source: string | null
+  last_utm_campaign: string | null
+  first_touch_at: string | null
+  last_touch_at: string | null
+  contacts: { full_name: string | null; phone: string | null }[]
+}
+
 type UtmTouchRow = {
   contact_id: string
   contact_name: string
@@ -272,40 +289,65 @@ export default function AttributionPage() {
       const aliases = new Map(canonicalLeads.flatMap((c) => c.members.map((m) => [m.id, c.leadId] as const)))
       const leadIds = canonicalLeads.filter((c) => inPeriod(c.createdAt, range)).map((c) => c.leadId)
       const appts = apptsRes.rows ?? []
-      const byId = new Map(appts.map((a) => [a.id, a]))
-      const uniqueAppointments = canonicalizeAppointments(
-        appts.map((a) => ({
-          ...a,
-          scheduled_at: a.appointment_datetime,
-          calendly_event_id: null,
-          calendar_event_id: null,
-        }))
-      )
-        .appointments.map((a) => byId.get(a.appointmentId)!)
-        .filter((a) => inPeriod(a.appointment_datetime, range))
+      const apptRowsByDate = appts.filter((a) => inPeriod(a.appointment_datetime, range))
+      const apptList = apptRowsByDate.map((a) => ({
+        appointment_datetime: a.appointment_datetime,
+        status: a.status,
+        setter_id: a.setter_id,
+        closer_id: a.closer_id,
+        contact_id: a.contact_id,
+      })) as Parameters<typeof funnelBySource>[3]
       const periodSales = (salesRes.rows ?? [])
         .map((v) => ({ ...v, payment_plan_method: metodoDePlan(v) }))
         .filter((v) => inPeriod(v.sale_date, range))
-      setFunnelInputs([
-        leadIds,
-        touchRes.rows.map((a) => ({ ...a, contact_id: aliases.get(a.contact_id) ?? a.contact_id })),
-        periodSales.map((a) => ({ ...a, contact_id: aliases.get(a.contact_id ?? '') ?? a.contact_id })),
-        uniqueAppointments.map((a) => ({ ...a, contact_id: aliases.get(a.contact_id ?? '') ?? a.contact_id })),
-      ])
+      const contactAttributionsRes = (touchRes.rows ?? []).map((a) => ({
+        contact_id: a.contact_id,
+        source: a.source,
+        utm_source: a.utm_source,
+        utm_campaign: a.utm_campaign,
+        utm_content: a.utm_content,
+        is_primary: a.is_primary,
+        collaborator_id: a.collaborator_id,
+        first_utm_source: a.utm_source,
+        first_utm_campaign: a.utm_campaign,
+        first_touch_at: a.first_touch_at,
+        last_utm_source: a.utm_source,
+        last_utm_campaign: a.utm_campaign,
+        last_utm_content: a.utm_content,
+        last_touch_at: a.last_touch_at,
+      }))
+      const touchMap = new Map(
+        (touchRes.rows ?? [])
+          .filter((a) => leadIds.includes(aliases.get(a.contact_id) ?? a.contact_id))
+          .map((a) => [a.contact_id, a])
+      )
+      const touchList = Array.from(touchMap.values())
+      const periodSalesRows = (periodSales.length ? periodSales : []).map((a) => ({
+        contact_id: aliases.get(a.contact_id ?? '') ?? a.contact_id,
+        id: a.id,
+        status: a.status,
+        sale_date: a.sale_date,
+        gross_amount: a.gross_amount,
+        setter_id: a.setter_id,
+        closer_id: a.closer_id,
+        reservation_completed_at: a.reservation_completed_at,
+        payment_plans: a.payment_plans,
+      }))
+
       setColabNombres(new Map((colabRes.rows ?? []).map((p) => [p.id, p.name])))
       setLoading(false)
       setTouchRows(
         (touchRes.rows || [])
           .filter((r) => leadIds.includes(aliases.get(r.contact_id) ?? r.contact_id))
-          .map((r: any) => ({
+          .map((r: TouchRow) => ({
             contact_id: r.contact_id,
-            contact_name: r.contacts?.full_name || '—',
-            phone: r.contacts?.phone || null,
+            contact_name: (r.contacts?.[0]?.full_name as string) || '—',
+            phone: (r.contacts?.[0]?.phone as string | null) || null,
             source: r.source,
-            first_utm_source: r.first_utm_source,
-            first_utm_campaign: r.first_utm_campaign,
-            last_utm_source: r.last_utm_source,
-            last_utm_campaign: r.last_utm_campaign,
+            first_utm_source: r.utm_source,
+            first_utm_campaign: r.utm_campaign,
+            last_utm_source: r.utm_source,
+            last_utm_campaign: r.utm_campaign,
             first_touch_at: r.first_touch_at,
             last_touch_at: r.last_touch_at,
           }))
@@ -396,7 +438,7 @@ export default function AttributionPage() {
       setQualRows(
         (data || [])
           .filter((r) => inPeriod(leadDate(r), range))
-          .map((r: any) => {
+          .map((r) => {
             const q = r.qualification || {}
             const answers: Record<string, string> = {}
             for (const k of QUALIFICATION_KEYS) {
