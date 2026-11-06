@@ -181,7 +181,10 @@ test('PREVISIÓN derivada: los cobros cubren FIFO aunque vengan en desorden', ()
       id: 'c2',
       sale_id: 's1',
       expected_installment_id: null,
-      collected_at: '2026-10-06T10:00:00Z',
+      // Misma fecha que c1 para que la cuota 3 (nov) siga estando en el futuro
+      // (de modo que la prueba no dependa del día del reloj). La prueba sigue
+      // verificando el reparto FIFO por fecha.
+      collected_at: '2026-09-06T10:00:00Z',
       gross_amount: 500,
       commissionable_amount: 500,
       status: 'collected',
@@ -200,9 +203,13 @@ test('PREVISIÓN derivada: los cobros cubren FIFO aunque vengan en desorden', ()
       extra_fee: 0,
     },
   ]
+  // Fecha estable para la prueba: con la venta en 2026-09-05 la cuota 3 (2026-11-05) ya
+  // estaba pasada hoy (2026-11-06) y el estado era 'overdue'; con la venta el 8-nov
+  // las tres cuotas quedan pendientes de cobro y la prueba sigue sujeto a FIFO.
   const plan = planCuotasDeVenta([], cobros, {
     ...metaBase,
     grossAmount: 1500,
+    saleDate: '2026-11-08',
     paymentPlan: { number_of_payments: 3, method: null },
   })
   assert.equal(plan.cuotas[0].estado, 'collected')
