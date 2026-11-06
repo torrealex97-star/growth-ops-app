@@ -243,6 +243,7 @@ export function InstallmentsMorosidadView() {
           setQ('')
         }}
         hasActiveFilters={periodPreset !== 'all' || q.trim() !== ''}
+        porMeses
       />
 
       {loading ? (

@@ -19,7 +19,8 @@ import { toast } from 'sonner'
 import type { Refund, SaleWithRelations } from '@/lib/types/database'
 import { useTenant, useTenantId } from '@/lib/tenant-context'
 import { DEFAULT_PERIOD, getCustomDateRange } from '@/lib/filters/period'
-import { getPeriodRange, PERIOD_LABELS, PERIOD_PRESETS_STANDARD, type PeriodPreset } from '@/lib/filters/period'
+import { getPeriodRange, PERIOD_LABELS, PERIOD_PRESETS_MESES, type PeriodPreset } from '@/lib/filters/period'
+import { MonthRangeInputs } from '@/components/os/MonthRangeInputs'
 import { DateRangeCalendarPopover } from '@/components/ui/calendar-popover'
 
 type RefundWithSale = Refund & { sales?: SaleWithRelations }
@@ -263,7 +264,7 @@ export default function RefundsPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-card border-border">
-                {PERIOD_PRESETS_STANDARD.map((p) => (
+                {PERIOD_PRESETS_MESES.map((p) => (
                   <SelectItem key={p} value={p}>
                     {PERIOD_LABELS[p]}
                   </SelectItem>
@@ -274,14 +275,8 @@ export default function RefundsPage() {
 
           {periodPreset === 'custom' && (
             <div className="space-y-1.5 sm:col-span-2">
-              <Label className="text-xs text-muted-foreground">Periodo personalizado</Label>
-              <DateRangeCalendarPopover
-                from={customFrom}
-                to={customTo}
-                onFromChange={setCustomFrom}
-                onToChange={setCustomTo}
-                className="h-9"
-              />
+              <Label className="text-xs text-muted-foreground">Rango de meses</Label>
+              <MonthRangeInputs from={customFrom} to={customTo} onFromChange={setCustomFrom} onToChange={setCustomTo} />
             </div>
           )}
         </div>

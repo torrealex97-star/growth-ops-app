@@ -11,6 +11,15 @@ import { toast } from 'sonner'
 import { useTenant, useTenantId } from '@/lib/tenant-context'
 import { formatCurrency } from '@/lib/utils'
 import { openSignedStorageFile } from '@/lib/storage/signed-url'
+import {
+  PRESETS_MESES,
+  enRangoMeses,
+  mesDePagoPrevisto,
+  rangoDeMeses,
+  resumenPagosPorMes,
+  type FilaLibro,
+  type PresetMeses,
+} from '@/lib/commissions/facturas-meses'
 
 type SimpleMember = { id: string; full_name: string }
 
@@ -58,7 +67,10 @@ export function CommissionInvoicePanel({
   sugerencias,
   mes,
   onSubida,
+  libro,
 }: {
+  /** Libro de comisiones (solo admin): da el resumen de pagado / por pagar por mes de pago. */
+  libro?: FilaLibro[]
   currentUserId: string
   currentUserRole: string
   members: SimpleMember[]
@@ -86,6 +98,10 @@ export function CommissionInvoicePanel({
   const [periodoPropio, setPeriod] = useState<string>(defaultMonth)
   const period = mes ? `${mes}-01` : periodoPropio
   const [amount, setAmount] = useState<string>('')
+  const hoyYm = new Date().toISOString().slice(0, 7)
+  const [presetMeses, setPresetMeses] = useState<PresetMeses>('anio')
+  const [desdeYm, setDesdeYm] = useState(hoyYm)
+  const [hastaYm, setHastaYm] = useState(hoyYm)
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -117,7 +133,14 @@ export function CommissionInvoicePanel({
     (inv) => inv.user_id === currentUserId && inv.period_month.slice(0, 7) === period.slice(0, 7)
   )
   const focusedMember = focusUserId ? (members.find((member) => member.id === focusUserId) ?? null) : null
-  const visibleTeamInvoices = focusUserId ? invoices.filter((invoice) => invoice.user_id === focusUserId) : invoices
+  const rango = rangoDeMeses(presetMeses, hoyYm, desdeYm, hastaYm)
+  const visibleTeamInvoices = invoices.filter(
+    (invoice) =>
+      (!focusUserId || invoice.user_id === focusUserId) && enRangoMeses(invoice.period_month.slice(0, 7), rango)
+  )
+  const totalFacturas = (estado: 'pagada' | 'recibida') =>
+    visibleTeamInvoices.filter((i) => i.status === estado).reduce((t, i) => t + Number(i.amount || 0), 0)
+  const resumenPagos = resumenPagosPorMes(libro ?? []).filter((f) => enRangoMeses(f.mes, rango))
   const showOwnUploader = !isAdmin || !focusUserId || focusUserId === currentUserId
   const misFacturas = invoices.filter((inv) => inv.user_id === currentUserId)
   const sugerido = sugerencias?.[period.slice(0, 7)]
@@ -344,18 +367,103 @@ export function CommissionInvoicePanel({
         </div>
       )}
 
-      {/* Panel admin/director: facturas de todo el equipo */}
+      {/* Panel admin/director: facturas de todo el equipo, SIEMPRE por meses */}
       {isAdmin && (
-        <div className="rounded-xl border border-border bg-card/50 p-5 space-y-3">
+        <div className="rounded-xl border border-border bg-card/50 p-5 space-y-4">
           <div>
             <h3 className="text-sm font-semibold text-foreground">
               {focusedMember ? `Facturas de ${focusedMember.full_name}` : 'Facturas de comisiones del equipo'}
             </h3>
-            <p className="mt-1 text-xs text-muted-foreground">Evidencia documental por periodo y estado de pago.</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Lo que se genera un mes se paga el mes siguiente. Filtra por meses.
+            </p>
           </div>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="space-y-1">
+              <Label className="text-muted-foreground text-xs">Periodo</Label>
+              <Select value={presetMeses} onValueChange={(v) => setPresetMeses(v as PresetMeses)}>
+                <SelectTrigger className="w-48 bg-muted border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PRESETS_MESES.map((p) => (
+                    <SelectItem key={p.value} value={p.value}>
+                      {p.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {(
+              [
+                ['Desde', rango.desde, setDesdeYm],
+                ['Hasta', rango.hasta, setHastaYm],
+              ] as const
+            ).map(([etiqueta, valor, set]) => (
+              <div key={etiqueta} className="space-y-1">
+                <Label className="text-muted-foreground text-xs">{etiqueta} (mes)</Label>
+                <Input
+                  type="month"
+                  value={valor}
+                  onChange={(e) => {
+                    setDesdeYm(rango.desde)
+                    setHastaYm(rango.hasta)
+                    set(e.target.value)
+                    setPresetMeses('rango')
+                  }}
+                  className="bg-muted border-border"
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+            <div className="rounded-lg border border-border p-3">
+              <p className="text-xs text-muted-foreground">Facturas recibidas (sin pagar)</p>
+              <p className="text-lg font-bold text-amber-400 tabular-nums">
+                {formatCurrency(totalFacturas('recibida'))}
+              </p>
+            </div>
+            <div className="rounded-lg border border-border p-3">
+              <p className="text-xs text-muted-foreground">Facturas pagadas</p>
+              <p className="text-lg font-bold text-emerald-400 tabular-nums">
+                {formatCurrency(totalFacturas('pagada'))}
+              </p>
+            </div>
+            <div className="rounded-lg border border-border p-3">
+              <p className="text-xs text-muted-foreground">Nº de facturas</p>
+              <p className="text-lg font-bold text-foreground tabular-nums">{visibleTeamInvoices.length}</p>
+            </div>
+          </div>
+
+          {resumenPagos.length > 0 && (
+            <div className="overflow-x-auto">
+              <p className="mb-1 text-xs text-muted-foreground">Comisiones de colaboradores por mes de pago</p>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-muted-foreground border-b border-border">
+                    <th className="py-2 pr-3 font-medium">Mes de pago</th>
+                    <th className="py-2 pr-3 font-medium">Pagado</th>
+                    <th className="py-2 font-medium">Por pagar</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {resumenPagos.map((f) => (
+                    <tr key={f.mes} className="border-b border-border/60">
+                      <td className="py-2 pr-3 text-foreground">{mayuscula(monthLabel(`${f.mes}-01`))}</td>
+                      <td className="py-2 pr-3 text-emerald-400 tabular-nums">{formatCurrency(f.pagado)}</td>
+                      <td className="py-2 text-amber-400 tabular-nums">{formatCurrency(f.porPagar)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
           {visibleTeamInvoices.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              {focusedMember ? 'Esta persona aún no ha subido facturas.' : 'Aún no hay facturas subidas.'}
+              No hay facturas subidas en este rango de meses
+              {focusedMember ? ` de ${focusedMember.full_name}` : ''}.
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -363,7 +471,9 @@ export function CommissionInvoicePanel({
                 <thead>
                   <tr className="text-left text-muted-foreground border-b border-border">
                     <th className="py-2 pr-3 font-medium">Miembro</th>
-                    <th className="py-2 pr-3 font-medium">Mes</th>
+                    <th className="py-2 pr-3 font-medium">Mes generado</th>
+                    <th className="py-2 pr-3 font-medium">Recibida</th>
+                    <th className="py-2 pr-3 font-medium">Pago previsto</th>
                     <th className="py-2 pr-3 font-medium">Importe</th>
                     <th className="py-2 pr-3 font-medium">Estado</th>
                     <th className="py-2 pr-3 font-medium">Factura</th>
@@ -371,36 +481,43 @@ export function CommissionInvoicePanel({
                   </tr>
                 </thead>
                 <tbody>
-                  {visibleTeamInvoices.map((inv) => (
-                    <tr key={inv.id} className="border-b border-border/60">
-                      <td className="py-2 pr-3 text-foreground">{memberName(inv.user_id)}</td>
-                      <td className="py-2 pr-3 text-foreground">{monthLabel(inv.period_month)}</td>
-                      <td className="py-2 pr-3 text-foreground">{formatCurrency(inv.amount)}</td>
-                      <td className="py-2 pr-3">
-                        <span className={inv.status === 'pagada' ? 'text-emerald-400' : 'text-amber-400'}>
-                          {inv.status === 'pagada' ? 'Pagada' : 'Recibida'}
-                        </span>
-                      </td>
-                      <td className="py-2 pr-3">
-                        {inv.invoice_url ? (
-                          <button
-                            type="button"
-                            onClick={() => void openInvoice(inv.invoice_url!)}
-                            className="inline-flex items-center gap-1 text-brand-400 hover:text-brand-300"
-                          >
-                            Ver <ExternalLink className="w-3 h-3" />
-                          </button>
-                        ) : (
-                          '—'
-                        )}
-                      </td>
-                      <td className="py-2 text-right">
-                        <Button size="sm" variant="outline" onClick={() => togglePaid(inv)}>
-                          {inv.status === 'pagada' ? 'Marcar recibida' : 'Marcar pagada'}
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
+                  {visibleTeamInvoices.map((inv) => {
+                    const recibida = inv.created_at.slice(0, 7)
+                    return (
+                      <tr key={inv.id} className="border-b border-border/60">
+                        <td className="py-2 pr-3 text-foreground">{memberName(inv.user_id)}</td>
+                        <td className="py-2 pr-3 text-foreground">{mayuscula(monthLabel(inv.period_month))}</td>
+                        <td className="py-2 pr-3 text-foreground">{mayuscula(monthLabel(`${recibida}-01`))}</td>
+                        <td className="py-2 pr-3 text-foreground">
+                          {mayuscula(monthLabel(`${mesDePagoPrevisto(inv.period_month.slice(0, 7))}-01`))}
+                        </td>
+                        <td className="py-2 pr-3 text-foreground">{formatCurrency(inv.amount)}</td>
+                        <td className="py-2 pr-3">
+                          <span className={inv.status === 'pagada' ? 'text-emerald-400' : 'text-amber-400'}>
+                            {inv.status === 'pagada' ? 'Pagada' : 'Recibida'}
+                          </span>
+                        </td>
+                        <td className="py-2 pr-3">
+                          {inv.invoice_url ? (
+                            <button
+                              type="button"
+                              onClick={() => void openInvoice(inv.invoice_url!)}
+                              className="inline-flex items-center gap-1 text-brand-400 hover:text-brand-300"
+                            >
+                              Ver <ExternalLink className="w-3 h-3" />
+                            </button>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
+                        <td className="py-2 text-right">
+                          <Button size="sm" variant="outline" onClick={() => togglePaid(inv)}>
+                            {inv.status === 'pagada' ? 'Marcar recibida' : 'Marcar pagada'}
+                          </Button>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
