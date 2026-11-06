@@ -10,6 +10,7 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 import { SearchBox, normalizeText } from '@/components/ui/search-box'
 import { openSignedStorageFile } from '@/lib/storage/signed-url'
 import { useTenantId } from '@/lib/tenant-context'
+import { PRESETS_MESES, enRangoMeses, rangoDeMeses, type PresetMeses } from '@/lib/commissions/facturas-meses'
 
 type Expense = {
   id: string
@@ -40,7 +41,11 @@ export default function FacturasPage() {
   const tenantId = useTenantId()
   const [items, setItems] = useState<Expense[]>([])
   const [loading, setLoading] = useState(true)
-  const [month, setMonth] = useState(currentMonth())
+  const hoyYm = currentMonth()
+  const [preset, setPreset] = useState<PresetMeses>('mes')
+  const [desde, setDesde] = useState(hoyYm)
+  const [hasta, setHasta] = useState(hoyYm)
+  const rango = rangoDeMeses(preset, hoyYm, desde, hasta)
   const [q, setQ] = useState('')
 
   // Estable entre renders; solo cambia si cambia la subcuenta.
@@ -64,8 +69,9 @@ export default function FacturasPage() {
   }, [load])
 
   const monthItems = useMemo(
-    () => items.filter((e) => e.expense_date && e.expense_date.startsWith(month)),
-    [items, month]
+    () => items.filter((e) => e.expense_date && enRangoMeses(e.expense_date.slice(0, 7), rango)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [items, rango.desde, rango.hasta]
   )
 
   const totals = useMemo(() => {
@@ -87,7 +93,7 @@ export default function FacturasPage() {
 
   const copyList = async () => {
     if (monthItems.length === 0) {
-      toast.error('No hay facturas este mes para copiar')
+      toast.error('No hay facturas en este rango de meses para copiar')
       return
     }
     const lines = monthItems.map(
@@ -114,12 +120,36 @@ export default function FacturasPage() {
         </div>
         <div className="flex items-center gap-2">
           <SearchBox value={q} onChange={setQ} placeholder="Buscar factura..." className="w-56" />
-          <input
-            type="month"
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
-            className="bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-brand-500"
-          />
+          <select
+            value={preset}
+            onChange={(e) => setPreset(e.target.value as PresetMeses)}
+            className="bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground"
+          >
+            {PRESETS_MESES.map((p) => (
+              <option key={p.value} value={p.value}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+          {(
+            [
+              [rango.desde, setDesde],
+              [rango.hasta, setHasta],
+            ] as const
+          ).map(([valor, set], i) => (
+            <input
+              key={i}
+              type="month"
+              value={valor}
+              onChange={(e) => {
+                setDesde(rango.desde)
+                setHasta(rango.hasta)
+                set(e.target.value)
+                setPreset('rango')
+              }}
+              className="bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-brand-500"
+            />
+          ))}
           <button
             onClick={copyList}
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm bg-muted border border-border text-foreground hover:border-brand-500"
@@ -142,7 +172,7 @@ export default function FacturasPage() {
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-card/50 border border-border rounded-lg p-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Nº de facturas del mes</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Nº de facturas del periodo</p>
               <p className="text-xl font-bold text-foreground mt-1">{totals.count}</p>
             </div>
             <div className="bg-card/50 border border-border rounded-lg p-4">
@@ -155,7 +185,7 @@ export default function FacturasPage() {
             {visible.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground text-sm">
                 {monthItems.length === 0
-                  ? 'No hay facturas registradas para este mes'
+                  ? 'No hay facturas registradas en este rango de meses'
                   : 'Ninguna factura coincide con la búsqueda'}
               </div>
             ) : (
