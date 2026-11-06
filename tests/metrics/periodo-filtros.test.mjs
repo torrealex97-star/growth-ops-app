@@ -156,7 +156,7 @@ test('la barra de periodo y las pantallas toman los presets del módulo canónic
   // Listas explícitas y no Object.keys: una pantalla sin selector de día no debe ofrecer el preset
   // 'day', que sin ese selector deja el rango vacío. Añadir un preset sigue siendo un cambio en un
   // solo archivo.
-  assert.match(bar, /\{PERIOD_PRESETS_BAR\.map\(\(p\) => \(/)
+  assert.match(bar, /\(porMeses \? PERIOD_PRESETS_MESES : PERIOD_PRESETS_BAR\)\.map\(\(p\) => \(/)
   for (const p of ['today', '3d', '7d', 'month', 'quarter', 'year', 'custom']) {
     assert.ok(PERIOD_PRESETS_BAR.includes(p), `la barra debe ofrecer ${p}`)
     assert.ok(PERIOD_LABELS[p], `falta la etiqueta de ${p}`)
@@ -238,7 +238,13 @@ test('las siete pantallas con métricas comparten el MISMO filtro de periodo', (
     assert.ok(!/^type PeriodPreset = /m.test(page), `${rel} mantiene una copia del tipo`)
     assert.ok(!/^function getPeriodRange\(/m.test(page), `${rel} mantiene su propio cálculo de rango`)
     assert.match(page, /from '@\/lib\/filters\/period'/, `${rel} no importa el módulo canónico`)
-    assert.match(page, /PERIOD_PRESETS_STANDARD\.map/, `${rel} no ofrece el juego estándar`)
+    // Finanzas y comisiones filtran SOLO por intervalos de meses (decisión de negocio); el resto, el juego estándar.
+    const porMeses = /comisiones|finanzas/.test(rel)
+    assert.match(
+      page,
+      porMeses ? /PERIOD_PRESETS_MESES\.map/ : /PERIOD_PRESETS_STANDARD\.map/,
+      `${rel} no ofrece el juego de presets que le toca`
+    )
   }
 })
 

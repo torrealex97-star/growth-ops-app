@@ -12,6 +12,8 @@ export type PeriodPreset =
   | 'month'
   | 'quarter'
   | 'year'
+  | 'prev_month'
+  | 'semester'
   // Ventanas móviles: terminan HOY y cuentan hacia atrás. No son lo mismo que 'month' o 'year',
   // que son el mes/año natural: el día 2 de mes, 'month' son dos días y '30d' son treinta.
   | '3d'
@@ -36,6 +38,8 @@ export const PERIOD_LABELS: Record<PeriodPreset, string> = {
   day: 'Día concreto',
   week: 'Esta semana',
   month: 'Este mes',
+  prev_month: 'Mes anterior',
+  semester: 'Este semestre',
   quarter: 'Este trimestre',
   year: 'Este año',
   '3d': 'Últimos 3 días',
@@ -83,6 +87,17 @@ export const PERIOD_PRESETS_STANDARD: PeriodPreset[] = [
   '30d',
   'month',
   'quarter',
+  'year',
+  'custom',
+]
+
+/** Pantallas de facturas, finanzas y comisiones: SOLO intervalos de meses (mes, trimestre, semestre, año o rango de meses). */
+export const PERIOD_PRESETS_MESES: PeriodPreset[] = [
+  'all',
+  'month',
+  'prev_month',
+  'quarter',
+  'semester',
   'year',
   'custom',
 ]
@@ -195,6 +210,12 @@ export function getPeriodRange(
     }
     case 'month':
       return { from: startOfDay(ymdOf(y, m, 1)), to: endOfDay(ymdOf(y, m + 1, 0)) }
+    case 'prev_month':
+      return { from: startOfDay(ymdOf(y, m - 1, 1)), to: endOfDay(ymdOf(y, m, 0)) }
+    case 'semester': {
+      const h = m <= 6 ? 0 : 6
+      return { from: startOfDay(ymdOf(y, h + 1, 1)), to: endOfDay(ymdOf(y, h + 7, 0)) }
+    }
     case 'quarter': {
       const q = Math.floor((m - 1) / 3)
       return { from: startOfDay(ymdOf(y, q * 3 + 1, 1)), to: endOfDay(ymdOf(y, q * 3 + 4, 0)) }

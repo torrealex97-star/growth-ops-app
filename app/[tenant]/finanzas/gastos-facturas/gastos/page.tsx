@@ -875,6 +875,7 @@ export default function ExpensesPage() {
         onCustomFromChange={setCustomFrom}
         onCustomToChange={setCustomTo}
         onExport={handleExportCSV}
+        porMeses
       />
 
       <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
