@@ -76,7 +76,7 @@ export async function POST(req: Request) {
       UPDATE vsl_sessions SET
         watched_seconds = (
           SELECT COALESCE(array_agg(DISTINCT e ORDER BY e), '{}')
-          FROM unnest(watched_seconds || ${sql.array(clean)}::int[]) AS e
+          FROM unnest(watched_seconds || ${clean}::int[]) AS e
         ),
         max_position  = GREATEST(max_position, ${position}),
         duration      = GREATEST(duration, ${duration}),

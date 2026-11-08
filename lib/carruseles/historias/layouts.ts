@@ -3,6 +3,11 @@ import { SEGURA_POR_PLATAFORMA, type Plataforma } from './estilo-nativo'
 import { fuentesDeMarca, type EstiloId } from '../estilos'
 import { fechaEtiqueta } from './fecha'
 import { TIPOS_PEDIDO, esTipoPedido, limpiarClave, type Pedido } from './pedidos'
+import { FUENTES_IG, type FuenteIg } from './fuentes-ig'
+import { capturaHtml, corta, esc, stickerHtml } from './html-util'
+import { estiloFondoPos, leerCapas, leerFondoPos, renderCapas, type Capa, type FondoPos } from './capas'
+
+export { FUENTES_IG, type FuenteIg }
 
 // PLANTILLAS DE HISTORIA: el código, no la IA, decide dónde va cada cosa. La IA elige el tipo de historia y
 // el texto; aquí se decide si va foto limpia, foto oscurecida o fondo liso, y se colocan fecha, logo, titular
@@ -20,9 +25,6 @@ export const LAYOUTS = [
   'captura',
 ] as const
 export type Layout = (typeof LAYOUTS)[number]
-
-export const FUENTES_IG = ['classic', 'modern', 'neon', 'typewriter', 'strong', 'serif'] as const
-export type FuenteIg = (typeof FUENTES_IG)[number]
 
 export type Medio = { url: string; kind: 'image' | 'video'; name: string }
 
@@ -60,6 +62,15 @@ export type HistoriaSpec = {
   foto2?: number
   /** Fondo liso de la marca en vez de foto (para dar respiro entre fotos). */
   fondo?: 'foto' | 'liso'
+  /** Encuadre de la foto de fondo: punto de enfoque (0-100) y zoom (1-3). Sin él, centrada y a tamaño completo. */
+  fondoPos?: FondoPos
+  /** Oscurecimiento de la foto (0-90 %). Sin él, el de la plantilla. */
+  velo?: number
+  /**
+   * MODO LIBRE: lista de elementos colocados a mano (texto, fotos, emojis, stickers, formas). Si existe (aunque esté vacía),
+   * la historia se compone con ellos en vez de con la plantilla; `titulo`/`texto` se conservan para la revisión de la secuencia.
+   */
+  capas?: Capa[]
 }
 
 export type ContextoRender = {
@@ -73,13 +84,6 @@ export type ContextoRender = {
   indice: number
   total: number
 }
-
-const esc = (s: unknown) =>
-  String(s ?? '').replace(
-    /[&<>"']/g,
-    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string
-  )
-const corta = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s)
 
 // ── Validación de lo que manda la IA
 export function leerSpec(entrada: unknown): { ok: true; spec: HistoriaSpec } | { ok: false; error: string } {
@@ -109,6 +113,10 @@ export function leerSpec(entrada: unknown): { ok: true; spec: HistoriaSpec } | {
     foto: num(b.foto),
     foto2: num(b.foto2),
     fondo: b.fondo === 'liso' || b.fondo === 'foto' ? b.fondo : undefined,
+    fondoPos: leerFondoPos(b.fondoPos),
+    velo:
+      typeof b.velo === 'number' && Number.isFinite(b.velo) ? Math.min(90, Math.max(0, Math.round(b.velo))) : undefined,
+    capas: Array.isArray(b.capas) ? leerCapas(b.capas) : undefined,
   }
   if (Array.isArray(b.items))
     spec.items = b.items
@@ -128,6 +136,8 @@ export function leerSpec(entrada: unknown): { ok: true; spec: HistoriaSpec } | {
       tipo: p.tipo,
       titulo: txt(p.titulo, 80) ?? TIPOS_PEDIDO[p.tipo].etiqueta,
     }
+  // Modo libre: lo que se ve son las capas (puede ser solo una foto, sin texto); las exigencias por plantilla no aplican.
+  if (spec.capas) return { ok: true, spec }
   if (spec.layout === 'captura' && !spec.pedido)
     return { ok: false, error: 'captura necesita el campo pedido {clave, tipo, titulo}' }
   if (spec.layout === 'comparacion' && !spec.items?.length) return { ok: false, error: 'comparacion necesita items' }
@@ -207,10 +217,11 @@ export function elegirMedio(spec: HistoriaSpec, ctx: ContextoRender, ordinal: 1 
   return media[(ctx.indice + (ordinal - 1)) % media.length]
 }
 
-function medioHtml(m: Medio): string {
+function medioHtml(m: Medio, pos?: FondoPos): string {
+  const estilo = pos ? ` style="${esc(estiloFondoPos(pos))}"` : ''
   return m.kind === 'video'
-    ? `<video class="ig-foto" src="${esc(m.url)}" muted loop autoplay playsinline crossorigin="anonymous"></video>`
-    : `<img class="ig-foto" src="${esc(m.url)}" alt="">`
+    ? `<video class="ig-foto"${estilo} src="${esc(m.url)}" muted loop autoplay playsinline crossorigin="anonymous"></video>`
+    : `<img class="ig-foto"${estilo} src="${esc(m.url)}" alt="">`
 }
 
 // ── Texto
@@ -250,19 +261,6 @@ function bloqueTexto(texto: string | undefined, estilo: EstiloId, spec: Historia
   return `<div><span class="${estilo === 'marca' ? 'ig-caja-acento' : 'ig-caja-negra'}">${t}</span></div>`
 }
 
-function stickerHtml(s: NonNullable<HistoriaSpec['sticker']>): string {
-  const cab = esc(s.cabecera ?? 'HABLEMOS CLARO')
-  return s.tipo === 'pregunta'
-    ? `<div class="ig-sticker-pregunta"><div class="ig-sp-cab">${cab}</div><div class="ig-sp-cuerpo">${esc(s.texto ?? '')}</div></div>`
-    : `<div class="ig-sticker-escribe">${cab}<div>Escribe algo…</div></div>`
-}
-
-/** La imagen real subida o, si falta, un hueco marcado que la pantalla convierte en «Falta material». */
-function capturaHtml(p: Pedido, url: string | undefined): string {
-  if (url) return `<div class="ig-captura-real"><img src="${esc(url)}" alt="${esc(p.titulo)}"></div>`
-  return `<div class="ig-pedido" data-pedido="${esc(p.clave)}" data-tipo="${esc(p.tipo)}" data-titulo="${esc(p.titulo)}"><span class="ig-emoji">📎</span><b>FALTA</b>${esc(p.titulo)}</div>`
-}
-
 const recuadro = (i: NonNullable<HistoriaSpec['items']>[number]) =>
   `<div class="ig-recuadro"><b>${i.icono ? `${esc(i.icono)} ` : ''}${esc(i.titulo)}</b>${esc(i.texto ?? '')}</div>`
 
@@ -282,13 +280,18 @@ export function renderHistoria(spec: HistoriaSpec, ctx: ContextoRender): string 
   const layout: Layout = spec.layout === 'partida' && ctx.media.length < 2 ? 'foto_texto' : spec.layout
   const medio = spec.fondo === 'liso' ? null : elegirMedio(spec, ctx)
   const velo = veloDe(layout, estilo)
+  // Con «velo» propio (editor) el oscurecimiento es el que se eligió; si no, el de la plantilla.
+  const veloEl = (v: number) =>
+    spec.velo !== undefined
+      ? `<div class="ig-velo" style="opacity:${(spec.velo / 100).toFixed(2)}"></div>`
+      : `<div class="ig-velo ig-velo-${v}"></div>`
 
   let fondo: string
   if (layout === 'partida') {
     const [a, b] = [elegirMedio(spec, ctx, 1), elegirMedio(spec, ctx, 2)] as Medio[]
-    fondo = `<div class="ig-partida"><div>${medioHtml(a)}<div class="ig-velo ig-velo-${velo}"></div></div><div>${medioHtml(b)}<div class="ig-velo ig-velo-${velo}"></div></div></div>`
+    fondo = `<div class="ig-partida"><div>${medioHtml(a)}${veloEl(velo)}</div><div>${medioHtml(b)}${veloEl(velo)}</div></div>`
   } else if (medio) {
-    fondo = `${medioHtml(medio)}<div class="ig-velo ig-velo-${velo}"></div>`
+    fondo = `${medioHtml(medio, spec.fondoPos)}${veloEl(velo)}`
   } else {
     fondo = `<div class="ig-foto" style="background:${esc(fondoLiso(brand))}"></div>`
   }
@@ -337,5 +340,8 @@ export function renderHistoria(spec: HistoriaSpec, ctx: ContextoRender): string 
     .filter(Boolean)
     .join(';')
   const datos = esc(JSON.stringify({ spec, estilo, hoy: ctx.hoy.toISOString() }))
+  // Modo libre: sin columna de plantilla; cada capa va donde se puso.
+  if (spec.capas)
+    return `<div class="ig-historia" data-spec="${datos}" style="${esc(vars)}"><div class="ig-fondo">${fondo}</div>${cabecera}${renderCapas(spec.capas, ctx)}</div>`
   return `<div class="ig-historia" data-spec="${datos}" style="${esc(vars)}"><div class="ig-fondo">${fondo}</div>${cabecera}<div class="ig-zona ig-zona-${spec.posicion === undefined ? zona : 'libre'}${centrado}${fuente ? ` ig-f-${fuente}` : ''}"${spec.posicion === undefined ? '' : ` style="--ig-top:${posicionPx(spec.posicion, spec.plataforma)}px"`}>${contenido}</div></div>`
 }

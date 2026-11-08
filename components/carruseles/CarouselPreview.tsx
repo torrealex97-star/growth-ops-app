@@ -2,7 +2,7 @@
 
 import { ChevronLeft, ChevronRight, ImageIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { SlideRenderer } from './SlideRenderer'
+import { SlideRenderer, type EdicionSlide } from './SlideRenderer'
 import type { Slide, AspectRatio } from '@/lib/carruseles/types'
 
 interface Props {
@@ -12,9 +12,18 @@ interface Props {
   onActiveChange: (index: number) => void
   overlay?: React.ReactNode
   onDropMedio?: (indice: number) => void
+  editable?: EdicionSlide
 }
 
-export function CarouselPreview({ slides, aspectRatio, activeIndex, onActiveChange, overlay, onDropMedio }: Props) {
+export function CarouselPreview({
+  slides,
+  aspectRatio,
+  activeIndex,
+  onActiveChange,
+  overlay,
+  onDropMedio,
+  editable,
+}: Props) {
   const slide = slides[activeIndex]
 
   if (!slide) {
@@ -52,6 +61,7 @@ export function CarouselPreview({ slides, aspectRatio, activeIndex, onActiveChan
             style={{ width: '100%', height: '100%' }}
             overlay={overlay}
             onDropMedio={onDropMedio}
+            editable={editable}
           />
         </div>
 

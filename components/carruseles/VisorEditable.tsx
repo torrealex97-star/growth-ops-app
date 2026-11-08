@@ -4,7 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, CheckCircle2, GripVertical, Loader2, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { CarouselPreview } from './CarouselPreview'
+import { EditorCapas } from './lienzo/EditorCapas'
+import { PanelCapas } from './lienzo/PanelCapas'
+import { useHistorial } from './lienzo/useHistorial'
+import type { MedidaCapa } from './SlideRenderer'
 import { conTextosEditados, textosEditables } from '@/lib/carruseles/historias/edicion'
+import { capasConTextos, capasDeSpec, conCapas, type Capa } from '@/lib/carruseles/historias/capas'
+import { intercambiarFondos } from '@/lib/carruseles/historias/fotos'
 import {
   FUENTES_IG,
   LAYOUTS,
@@ -20,6 +26,7 @@ import { SEGURA_POR_PLATAFORMA, type Plataforma } from '@/lib/carruseles/histori
 import { SEGUNDOS_POR_HISTORIA, revisarSecuencia } from '@/lib/carruseles/historias/revision'
 import { MODOS_VARIANTE, type ModoVariante, type Variante } from '@/lib/carruseles/historias/variantes'
 import { tipoDeMedio } from '@/lib/carruseles/almacen'
+import type { EstiloId } from '@/lib/carruseles/estilos'
 import {
   DEFAULT_BRAND,
   type AspectRatio,
@@ -50,6 +57,7 @@ const etiqueta = 'text-3xs font-semibold uppercase tracking-wider text-muted-for
  * Vista previa con edición mínima: las historias nuevas se editan por campos (texto, acento, fuente, caja, foto, posición),
  * se arrastra el bloque de texto en vertical y se suelta una foto sobre la historia; el resto de slides, por lista de textos.
  * Todo se recompone en el navegador y se guarda sin llamar a la IA.
+ * «Edición libre» (modo pro) convierte la historia en capas que se arrastran, redimensionan y giran (`lienzo/`).
  */
 export function VisorEditable({
   projectId,
@@ -80,6 +88,28 @@ export function VisorEditable({
   // Slides que ya tienen su versión para «deshacer» en esta sesión: el autoguardado no llena el historial.
   const versionadas = useRef(new Set<string>())
   const pendiente = useRef<((alSalir?: boolean) => void) | null>(null)
+  // Modo libre (capas): historial de deshacer, elemento elegido, medidas reales de cada capa y vista inmediata.
+  const {
+    registrar: registrarHistorial,
+    deshacer: deshacerHistorial,
+    rehacer: rehacerHistorial,
+    limpiar: limpiarHistorial,
+    puedeDeshacer,
+    puedeRehacer,
+  } = useHistorial<HistoriaSpec>()
+  const [seleccion, setSeleccion] = useState<string | null>(null)
+  const [modoFondo, setModoFondo] = useState(false)
+  const [medidas, setMedidas] = useState<Record<string, MedidaCapa>>({})
+  const [docSlide, setDocSlide] = useState<Document | null>(null)
+  const [vistaLocal, setVistaLocal] = useState<{ slideId: string; html: string } | null>(null)
+  const edicionSlide = useMemo(
+    () => ({
+      onDocumento: setDocSlide,
+      onMedidas: (m: Record<string, MedidaCapa>) =>
+        setMedidas((prev) => (JSON.stringify(prev) === JSON.stringify(m) ? prev : m)),
+    }),
+    []
+  )
 
   useEffect(() => {
     fetch(`/api/${tenant}/evergreen/carruseles/brand`)
@@ -112,7 +142,16 @@ export function VisorEditable({
     setSpec(previa?.spec ?? null)
     setCambios({})
     setAviso(null)
-  }, [slide, previa])
+    limpiarHistorial()
+    setSeleccion(null)
+    setModoFondo(false)
+    setVistaLocal(null)
+  }, [slide, previa, limpiarHistorial])
+
+  // La vista inmediata del modo libre se retira cuando lo guardado la alcanza o se cambia de historia.
+  useEffect(() => {
+    if (vistaLocal && slide && (slide.id !== vistaLocal.slideId || slide.html === vistaLocal.html)) setVistaLocal(null)
+  }, [slide, vistaLocal])
 
   const medios = referenceImages.filter((r) => !r.pedido)
   const pedidos = useMemo(
@@ -146,24 +185,37 @@ export function VisorEditable({
     [slide, tenant, projectId, onGuardado]
   )
 
-  /** Recompone la historia con la nueva especificación y la guarda (con pausa para no guardar cada tecla). */
-  const cambiarSpec = (siguiente: HistoriaSpec, inmediato = false) => {
+  const estiloDe = (p: typeof previa): EstiloId => {
+    const e = p?.estilo
+    return e === 'editorial' || e === 'limpio' || e === 'marca' ? e : 'nativo'
+  }
+  /** Datos con los que se compone la historia número `indice` (la activa o cualquier otra con su propia especificación). */
+  const contexto = (indice: number, p: typeof previa = previa) => ({
+    brand,
+    estilo: estiloDe(p),
+    media: medios.map((m) => ({ url: m.url, name: m.name, kind: tipoDeMedio(m.url) })),
+    pedidos,
+    hoy: p?.hoy ?? new Date(),
+    indice,
+    total: slides.length,
+  })
+
+  /**
+   * Recompone la historia con la nueva especificación y la guarda (con pausa para no guardar cada tecla).
+   * En modo libre cada cambio entra en el historial de deshacer (`clave` agrupa los seguidos del mismo tipo) y se ve al instante.
+   */
+  const cambiarSpec = (
+    siguiente: HistoriaSpec,
+    inmediato = false,
+    opciones: { clave?: string; sinHistorial?: boolean } = {}
+  ) => {
+    if (!opciones.sinHistorial && spec && (spec.capas || siguiente.capas)) registrarHistorial(spec, opciones.clave)
     setSpec(siguiente)
     const r = leerSpec(siguiente)
     if (!r.ok) return setAviso(r.error)
     setAviso(null)
-    const html = renderHistoria(r.spec, {
-      brand,
-      estilo:
-        previa?.estilo === 'editorial' || previa?.estilo === 'limpio' || previa?.estilo === 'marca'
-          ? previa.estilo
-          : 'nativo',
-      media: medios.map((m) => ({ url: m.url, name: m.name, kind: tipoDeMedio(m.url) })),
-      pedidos,
-      hoy: previa?.hoy ?? new Date(),
-      indice: activeIndex,
-      total: slides.length,
-    })
+    const html = renderHistoria(r.spec, contexto(activeIndex))
+    if (r.spec.capas && slide) setVistaLocal({ slideId: slide.id, html })
     if (temporizador.current) clearTimeout(temporizador.current)
     temporizador.current = null
     pendiente.current = null
@@ -187,19 +239,88 @@ export function VisorEditable({
 
   // Arrastrar el bloque de texto en vertical: solo se recompone al soltar.
   const plataforma: Plataforma = spec?.plataforma ?? 'instagram'
-  const asa = spec ? (
-    <AsaTexto
-      plataforma={plataforma}
-      posicion={spec.posicion}
-      posicionInicial={posicionAproximada(spec.layout, medios.length > 0)}
-      onSoltar={(p) => cambiarSpec({ ...spec, posicion: p }, true)}
-      deshabilitado={bloqueado}
-    />
-  ) : null
+  const libre = Boolean(spec?.capas)
+  const asa =
+    spec && !libre ? (
+      <AsaTexto
+        plataforma={plataforma}
+        posicion={spec.posicion}
+        posicionInicial={posicionAproximada(spec.layout, medios.length > 0)}
+        onSoltar={(p) => cambiarSpec({ ...spec, posicion: p }, true)}
+        deshabilitado={bloqueado}
+      />
+    ) : null
   const sueltaMedio =
-    spec && !bloqueado && medios.length > 0
+    spec && !libre && !bloqueado && medios.length > 0
       ? (n: number) => cambiarSpec({ ...spec, foto: n, fondo: 'foto' }, true)
       : undefined
+  const slidesVista = useMemo(
+    () =>
+      vistaLocal ? slides.map((x) => (x.id === vistaLocal.slideId ? { ...x, html: vistaLocal.html } : x)) : slides,
+    [slides, vistaLocal]
+  )
+  const otrasHistorias = useMemo(
+    () =>
+      slides.flatMap((x, i) => {
+        const sp = i === activeIndex ? null : leerSpecDeHtml(x.html)?.spec
+        return sp ? [{ indice: i, titulo: sp.titulo ?? sp.texto ?? '' }] : []
+      }),
+    [slides, activeIndex]
+  )
+
+  const activarLibre = () => {
+    if (!spec) return
+    cambiarSpec({ ...spec, capas: capasDeSpec(spec, { estilo: estiloDe(previa), hayFoto: medios.length > 0 }) }, true)
+    toast.success('Modo libre: arrastra cada elemento. Ctrl/⌘ Z deshace.')
+  }
+  const volverAPlantilla = () => {
+    toast('¿Volver a la plantilla? Se pierden las posiciones.', {
+      action: {
+        label: 'Volver',
+        onClick: () => {
+          if (spec) cambiarSpec({ ...spec, capas: undefined }, true, { sinHistorial: true })
+          limpiarHistorial()
+          setSeleccion(null)
+          setModoFondo(false)
+        },
+      },
+    })
+  }
+  const cambiarCapas = (capas: Capa[], clave?: string) => {
+    if (spec) cambiarSpec(conCapas(spec, capas), false, { clave })
+  }
+  const deshacer = () => {
+    if (!spec) return
+    const prev = deshacerHistorial(spec)
+    if (prev) cambiarSpec(prev, true, { sinHistorial: true })
+  }
+  const rehacer = () => {
+    if (!spec) return
+    const sig = rehacerHistorial(spec)
+    if (sig) cambiarSpec(sig, true, { sinHistorial: true })
+  }
+  /** Intercambia la foto de fondo (con su encuadre) de esta historia con la de otra, y guarda las dos. */
+  const intercambiar = async (j: number) => {
+    const otra = slides[j]
+    const pj = otra ? leerSpecDeHtml(otra.html) : null
+    if (!spec || !otra || !pj) return
+    const par = intercambiarFondos({ spec, ctx: contexto(activeIndex) }, { spec: pj.spec, ctx: contexto(j, pj) })
+    if (!par) return void toast.error('No hay fotos que intercambiar')
+    cambiarSpec(par[0], true)
+    try {
+      const res = await fetch(`/api/${tenant}/evergreen/carruseles/${projectId}/slides/${otra.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ html: renderHistoria(par[1], contexto(j, pj)) }),
+      })
+      if (!res.ok) throw new Error('No se pudo guardar la otra historia')
+      toast.success(`Fotos intercambiadas con la historia ${j + 1}`)
+      onGuardado()
+    } catch (e) {
+      toast.error((e as Error).message)
+    }
+  }
+
   const revision = useMemo(() => {
     // La revisión numera solo las historias con especificación; se traduce al número real de slide.
     const conSpec = slides.flatMap((s, i) => {
@@ -259,7 +380,7 @@ export function VisorEditable({
   return (
     <div className="flex min-h-0 min-w-0 flex-1">
       <CarouselPreview
-        slides={slides}
+        slides={slidesVista}
         aspectRatio={aspectRatio}
         activeIndex={activeIndex}
         onActiveChange={onActiveChange}
@@ -267,9 +388,29 @@ export function VisorEditable({
           <>
             {guias && <GuiasSeguras plataforma={plataforma} />}
             {asa}
+            {spec?.capas && (
+              <EditorCapas
+                capas={spec.capas}
+                seleccion={seleccion}
+                onSeleccion={setSeleccion}
+                onCambio={cambiarCapas}
+                medidas={medidas}
+                doc={docSlide}
+                plataforma={plataforma}
+                deshabilitado={bloqueado}
+                modoFondo={modoFondo}
+                fondoPos={spec.fondoPos}
+                onFondoPos={(p) =>
+                  cambiarSpec({ ...spec, fondoPos: p.x === 50 && p.y === 50 && p.zoom === 1 ? undefined : p })
+                }
+                onDeshacer={deshacer}
+                onRehacer={rehacer}
+              />
+            )}
           </>
         }
-        onDropMedio={sueltaMedio}
+        onDropMedio={libre ? undefined : sueltaMedio}
+        editable={libre ? edicionSlide : undefined}
       />
       {mostrarPanel && slide && (
         <aside
@@ -353,12 +494,12 @@ export function VisorEditable({
                       <button
                         onClick={() => {
                           cambiarSpec(
-                            {
+                            capasConTextos({
                               ...spec,
                               titulo: v.titulo ?? spec.titulo,
                               acento: v.acento,
                               texto: v.texto ?? spec.texto,
-                            },
+                            }),
                             true
                           )
                           setVariantes(null)
@@ -375,13 +516,45 @@ export function VisorEditable({
             </section>
           )}
           {spec ? (
-            <CamposHistoria
-              spec={spec}
-              onCambio={cambiarSpec}
-              medios={medios}
-              deshabilitado={bloqueado}
-              aviso={aviso}
-            />
+            spec.capas ? (
+              <PanelCapas
+                spec={spec}
+                capas={spec.capas}
+                seleccion={seleccion}
+                onSeleccion={setSeleccion}
+                onCambio={cambiarCapas}
+                onSpec={(sig, clave) => cambiarSpec(sig, false, { clave })}
+                medidas={medidas}
+                medios={medios}
+                plataforma={plataforma}
+                modoFondo={modoFondo}
+                onModoFondo={setModoFondo}
+                otrasHistorias={otrasHistorias}
+                onIntercambiar={(j) => void intercambiar(j)}
+                onVolverAPlantilla={volverAPlantilla}
+                puedeDeshacer={puedeDeshacer}
+                puedeRehacer={puedeRehacer}
+                onDeshacer={deshacer}
+                onRehacer={rehacer}
+              />
+            ) : (
+              <>
+                <button
+                  disabled={bloqueado}
+                  onClick={activarLibre}
+                  className="w-full rounded-md border border-brand-400 bg-brand-500/10 px-3 py-1.5 text-xs font-medium hover:bg-brand-500/20 disabled:opacity-50"
+                >
+                  Edición libre: arrastrar y soltar
+                </button>
+                <CamposHistoria
+                  spec={spec}
+                  onCambio={cambiarSpec}
+                  medios={medios}
+                  deshabilitado={bloqueado}
+                  aviso={aviso}
+                />
+              </>
+            )
           ) : textos.length > 0 ? (
             <div className="space-y-2">
               {textos.map((t) => (
