@@ -443,7 +443,7 @@ export default function EntrenamientoTab() {
 
   // ================= UI =================
   return (
-    <div className="flex flex-col h-[calc(100vh-11rem)] text-foreground">
+    <div className="flex flex-col h-[calc(100vh-11rem)] text-foreground dashboard-card">
       {/* Header */}
       <div className="flex items-center gap-3 flex-wrap pb-3 border-b border-border">
         <div className="flex items-center gap-2">

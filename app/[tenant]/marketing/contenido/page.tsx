@@ -463,7 +463,7 @@ export default function ContentPage() {
             {showCols && (
               <>
                 <div className="fixed inset-0 z-30" onClick={() => setShowCols(false)} />
-                <div className="absolute left-0 mt-2 z-40 w-56 bg-card border border-border rounded-lg p-2 shadow-xl">
+                <div className="absolute left-0 mt-2 z-40 w-56 dashboard-card p-2 shadow-xl">
                   <p className="text-2xs uppercase tracking-wider text-muted-foreground px-2 py-1">Mostrar columnas</p>
                   {COLUMNS.map((col) => (
                     <label
@@ -942,7 +942,7 @@ function KanbanView({ items, users, patch, persist, onOpen }: EditProps) {
                 <div
                   key={c.id}
                   onClick={() => onOpen(c.id)}
-                  className="group card-interactive bg-card border border-border rounded-lg p-3 space-y-2 hover:bg-card/80"
+                  className="group card-interactive dashboard-card p-3 space-y-2 hover:bg-card/80"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-sm text-foreground leading-snug group-hover:text-foreground">

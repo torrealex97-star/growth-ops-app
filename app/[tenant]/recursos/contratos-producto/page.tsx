@@ -94,7 +94,7 @@ export default function ContratosProductoPage() {
       {loading ? (
         <Skeleton className="h-64" />
       ) : filtered.length === 0 ? (
-        <div className="bg-card border border-border rounded-lg p-10 text-center">
+        <div className="dashboard-card p-10 text-center">
           <FileText className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
           <p className="text-muted-foreground text-sm">
             {templates.length === 0

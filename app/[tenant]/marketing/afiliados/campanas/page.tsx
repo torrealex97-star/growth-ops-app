@@ -282,7 +282,7 @@ export default function CampanasAfiliadosPage() {
 
   if (!canManage) {
     return (
-      <div className="bg-card border border-border rounded-lg p-8 text-center text-sm text-muted-foreground">
+      <div className="dashboard-card p-8 text-center text-sm text-muted-foreground">
         {' '}
         No tienes permisos para gestionar campañas de colaboradores.
       </div>

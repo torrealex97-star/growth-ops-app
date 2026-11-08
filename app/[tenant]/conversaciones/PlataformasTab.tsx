@@ -347,7 +347,7 @@ export default function PlataformasTab() {
   }, [openId, seleccionada?.messages.length])
 
   return (
-    <div className="flex flex-col h-[calc(100vh-11rem)] text-foreground">
+    <div className="flex flex-col h-[calc(100vh-11rem)] text-foreground dashboard-card">
       <div className="flex items-center gap-3 flex-wrap pb-3 border-b border-border">
         <div>
           <h1 className="text-base font-bold text-foreground leading-tight">Conversaciones</h1>

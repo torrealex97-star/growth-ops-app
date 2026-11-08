@@ -598,7 +598,7 @@ export default function ContactDetailPage() {
   if (notFound || !contact) {
     return (
       <div className="p-6">
-        <div className="bg-card border border-border rounded-lg p-12 text-center flex flex-col items-center">
+        <div className="dashboard-card p-12 text-center flex flex-col items-center">
           <UserX className="w-10 h-10 text-muted-foreground mb-3" />
           <p className="text-foreground font-medium mb-1">Contacto no encontrado</p>
           <p className="text-muted-foreground text-sm mb-4">
@@ -730,7 +730,7 @@ export default function ContactDetailPage() {
         {/* Timeline unificada: atribución + agendas + transcripciones + ventas + notas, en orden
             cronológico — una sola historia, sin pestaña por proveedor. */}
         <TabsContent value="timeline" className="mt-4">
-          <div className="bg-card border border-border rounded-lg p-6">
+          <div className="dashboard-card p-6">
             {timeline.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">
                 Sin actividad registrada todavía para este contacto.
@@ -785,7 +785,7 @@ export default function ContactDetailPage() {
 
         {/* Informacion */}
         <TabsContent value="info" className="mt-4 space-y-4">
-          <div className="bg-card border border-border rounded-lg p-6">
+          <div className="dashboard-card p-6">
             <h3 className="text-sm font-medium text-muted-foreground mb-4 flex items-center gap-2">
               <Tag className="w-4 h-4" />
               Datos del contacto
@@ -845,7 +845,7 @@ export default function ContactDetailPage() {
 
           {/* Campos personalizados de la subcuenta (§1): edición inline con guardado en lote. */}
           {customDefs.length > 0 && (
-            <div className="bg-card border border-border rounded-lg p-6">
+            <div className="dashboard-card p-6">
               <h3 className="text-sm font-medium text-muted-foreground mb-4 flex items-center gap-2">
                 <ListTree className="w-4 h-4" />
                 Campos personalizados
@@ -930,7 +930,7 @@ export default function ContactDetailPage() {
             const updatedAt = (contact as unknown as { qualification_updated_at?: string | null })
               .qualification_updated_at
             return (
-              <div className="bg-card border border-border rounded-lg p-6">
+              <div className="dashboard-card p-6">
                 <h3 className="text-sm font-medium text-muted-foreground mb-4 flex items-center gap-2">
                   <MessageSquare className="w-4 h-4" />
                   Formulario / Cualificación
@@ -950,7 +950,7 @@ export default function ContactDetailPage() {
             )
           })()}
 
-          <div className="bg-card border border-border rounded-lg p-6">
+          <div className="dashboard-card p-6">
             <h3 className="text-sm font-medium text-muted-foreground mb-4">Editar contacto</h3>
             <ContactForm
               defaultValues={{
@@ -977,7 +977,7 @@ export default function ContactDetailPage() {
             const collaboratorId = atribucionPrincipal?.collaborator_id ?? null
             const colaboradorActual = colaboradores.find((c) => c.id === collaboratorId) ?? null
             return (
-              <div className="bg-card border border-border rounded-lg p-6 mb-4">
+              <div className="dashboard-card p-6 mb-4">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-medium text-muted-foreground">Colaborador (afiliado)</h3>
                   {puedeGestionarAtribucion && !editingColaborador && (
@@ -1042,7 +1042,7 @@ export default function ContactDetailPage() {
           })()}
 
           {attributions.length === 0 ? (
-            <div className="bg-card border border-border rounded-lg p-8 text-center">
+            <div className="dashboard-card p-8 text-center">
               <p className="text-muted-foreground text-sm">
                 Sin datos de atribución. Se añadirán automáticamente cuando llegue una agenda desde GHL.
               </p>
@@ -1050,7 +1050,7 @@ export default function ContactDetailPage() {
           ) : (
             <div className="space-y-4">
               {attributions.map((attr) => (
-                <div key={attr.id} className="bg-card border border-border rounded-lg p-6">
+                <div key={attr.id} className="dashboard-card p-6">
                   {attr.is_primary && (
                     <div className="flex items-center gap-2 mb-4">
                       <Badge className="bg-brand-500/20 text-brand-400 border-brand-500/30 border text-xs">
@@ -1091,7 +1091,7 @@ export default function ContactDetailPage() {
         {/* Alumno */}
         {isAlumno && (
           <TabsContent value="alumno" className="mt-4">
-            <div className="bg-card border border-border rounded-lg p-6">
+            <div className="dashboard-card p-6">
               <h3 className="text-sm font-medium text-muted-foreground mb-4 flex items-center gap-2">
                 <GraduationCap className="w-4 h-4" />
                 Seguimiento de alumno
@@ -1136,7 +1136,7 @@ export default function ContactDetailPage() {
 
         {/* Notas */}
         <TabsContent value="notes" className="mt-4 space-y-4">
-          <div className="bg-card border border-border rounded-lg p-6">
+          <div className="dashboard-card p-6">
             <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
               <MessageSquare className="w-4 h-4" />
               Añadir nota
@@ -1157,13 +1157,13 @@ export default function ContactDetailPage() {
           </div>
 
           {notes.length === 0 ? (
-            <div className="bg-card border border-border rounded-lg p-8 text-center">
+            <div className="dashboard-card p-8 text-center">
               <p className="text-muted-foreground text-sm">Sin notas todavía.</p>
             </div>
           ) : (
             <div className="space-y-3">
               {notes.map((n) => (
-                <div key={n.id} className="bg-card border border-border rounded-lg p-4">
+                <div key={n.id} className="dashboard-card p-4">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-foreground">{n.author?.full_name || 'Usuario'}</span>
                     <span className="text-xs text-muted-foreground">{formatDateTime(n.created_at)}</span>
@@ -1344,7 +1344,7 @@ export default function ContactDetailPage() {
               con fechas, cuota a cuota (verde cobrada / por recolectar / rojo impago hasta que
               se soluciona) + comisiones generadas con su mes de liquidación. */}
           {desgloseVentas.map(({ venta, plan, comisiones }) => (
-            <div key={venta.id} className="bg-card border border-border rounded-lg p-4">
+            <div key={venta.id} className="dashboard-card p-4">
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div>
                   <p className="text-sm font-medium text-foreground">Venta · {formatDate(venta.sale_date)}</p>

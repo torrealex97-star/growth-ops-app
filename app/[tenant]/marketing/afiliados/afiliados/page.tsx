@@ -693,7 +693,7 @@ export default function AfiliadosPage() {
   if (esColaborador) {
     if (!miPerfil) {
       return (
-        <div className="bg-card border border-border rounded-lg p-8 text-center text-sm text-muted-foreground">
+        <div className="dashboard-card p-8 text-center text-sm text-muted-foreground">
           Aún no tienes perfil de colaborador activo en esta subcuenta.
         </div>
       )

@@ -284,7 +284,7 @@ export default function NewCollectionPage() {
         <h1 className="text-2xl font-bold text-foreground">Registrar Cobro</h1>
       </div>
 
-      <div className="bg-card border border-border rounded-lg p-6 space-y-5">
+      <div className="dashboard-card p-6 space-y-5">
         {/* Buscar venta */}
         <div className="space-y-2">
           <Label>Venta *</Label>
