@@ -86,14 +86,13 @@ test('el gasto que se crea: comisiones, pendiente, a revisar, con la factura adj
     periodo,
     amount: 1234.5,
     rutaFactura: `${T}/comisiones/${U}/2026-10-1.pdf`,
-    hoy: '2026-11-04',
   })
   assert.equal(fila.category, 'comisiones')
   assert.equal(fila.status, 'pendiente')
   assert.equal(fila.needs_review, true, 'el importe lo declara la persona: finanzas debe contrastarlo')
   assert.equal(fila.amount, 1234.5)
   assert.equal(fila.period, '2026-10')
-  assert.equal(fila.expense_date, '2026-11-04', 'sin fecha en la factura, cuenta el día de subida')
+  assert.equal(fila.expense_date, '2026-11-01', 'factura de octubre = gasto de noviembre (mes de pago)')
   assert.equal(fila.person_id, U)
   assert.equal(fila.created_by, U)
   assert.equal(fila.tenant_id, T)
@@ -192,7 +191,6 @@ test('el gasto con extracción usa los datos leídos de la factura (emisor, NIF,
     amount: 1149.42,
     rutaFactura: rutaOk,
     extraido: EXTRACTO,
-    hoy: '2026-11-04',
   })
   assert.equal(g.concept, 'Servicios de captación octubre')
   assert.equal(g.counterparty, 'Emisora Demo SL')
@@ -203,7 +201,7 @@ test('el gasto con extracción usa los datos leídos de la factura (emisor, NIF,
   assert.equal(g.counterparty_address, 'Calle Falsa 1, Madrid')
   assert.equal(g.counterparty_bank_account, 'ES0000000000000000000000')
   assert.equal(g.counterparty_bank_name, 'Banco Demo')
-  assert.equal(g.expense_date, '2026-10-31', 'cuenta en el mes de la fecha impresa en la factura, no en el de subida')
+  assert.equal(g.expense_date, '2026-11-01', 'la fecha impresa (31 oct) no manda: cuenta el mes de pago')
   assert.deepEqual(g.ai_extracted, EXTRACTO, 'queda la instantánea de la extracción')
   assert.match(g.notes, /leída con IA/)
 })
@@ -233,12 +231,11 @@ test('sin extracción (IA caída) el gasto se crea con lo mínimo y sin campos d
     amount: 500,
     rutaFactura: rutaOk,
     extraido: null,
-    hoy: '2026-11-04',
   })
   assert.equal(g.ai_extracted, null)
   assert.equal('invoice_number' in g, false)
   assert.equal('counterparty_bank_account' in g, false)
-  assert.equal(g.expense_date, '2026-11-04')
+  assert.equal(g.expense_date, '2026-11-01')
   assert.match(g.notes, /Sin lectura de IA/)
 })
 
@@ -254,9 +251,8 @@ test('una fecha extraída imposible (2026-02-31) no se usa', () => {
     amount: 1,
     rutaFactura: rutaOk,
     extraido: { expense_date: '2026-02-31', invoice_due_date: '2026-13-01' },
-    hoy: '2026-11-04',
   })
-  assert.equal(g.expense_date, '2026-11-04')
+  assert.equal(g.expense_date, '2026-11-01')
   assert.equal('invoice_due_date' in g, false)
 })
 

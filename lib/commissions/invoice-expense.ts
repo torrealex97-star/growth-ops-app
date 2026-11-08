@@ -17,6 +17,8 @@
 //  · Idempotente por (auto_source, period): re-subir la factura del mes actualiza, no duplica. El índice
 //    único de `expenses` es global, así que `auto_source` lleva la subcuenta y la persona.
 
+import { mesDePagoPrevisto } from '@/lib/commissions/facturas-meses'
+
 export const AUTO_SOURCE_FACTURA = 'commission_invoice'
 export const CARPETA_FACTURAS = 'comisiones'
 
@@ -199,8 +201,6 @@ export function construirGastoFactura(args: {
   extraido?: ExtractoFactura | null
   /** Notas adicionales (p. ej. importe declarado ≠ factura). */
   notasExtra?: (string | null)[]
-  /** Día de subida YYYY-MM-DD (inyectable para tests): solo se usa si la factura no trae fecha legible. */
-  hoy?: string
 }) {
   const { tenantId, userId, nombre, periodo, amount, rutaFactura, extraido } = args
   const quien = nombre.trim() || 'Colaborador'
@@ -219,8 +219,9 @@ export function construirGastoFactura(args: {
     category: 'comisiones' as const,
     subcategory: emisor,
     amount,
-    // Cuenta en el mes de la FECHA IMPRESA en la factura (decisión de finanzas). Si no se pudo leer, el día de subida.
-    expense_date: fechaIso(extraido?.expense_date) ?? args.hoy ?? new Date().toISOString().slice(0, 10),
+    // Gasto del MES DE PAGO (decisión de finanzas): lo generado en un mes se paga el siguiente, así que la factura
+    // de octubre es gasto de noviembre. Ni la fecha impresa ni el día de subida mandan.
+    expense_date: `${mesDePagoPrevisto(periodo.ym)}-01`,
     recurring: false,
     frequency: null,
     payment_method: 'transferencia',
