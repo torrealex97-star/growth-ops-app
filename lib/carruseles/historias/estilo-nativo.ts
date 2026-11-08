@@ -113,4 +113,19 @@ ${CSS_TIPOGRAFIAS_IG}
 .ig-logo{height:64px;max-width:260px;object-fit:contain;margin-left:auto}
 .ig-cifra{font-family:var(--ig-f-titulo,'${FUENTES_NATIVAS.titulo}'),Georgia,serif;font-size:230px;line-height:1;color:var(--ig-acento)}
 .ig-franja{background:rgba(0,0,0,.5);padding:28px 40px}
+.ig-capa{position:absolute;box-sizing:border-box}
+.ig-capa-t{line-height:1.25;overflow-wrap:anywhere}
+.ig-capa-emoji{width:100%;line-height:1;text-align:center}
+.ig-capa-img{width:100%;height:100%;overflow:hidden;box-sizing:border-box}
+.ig-capa-img img,.ig-capa-img video{display:block;width:100%;height:100%}
+.ig-capa-img.ig-marco{background:#fff;padding:14px}
+.ig-capa-img.ig-marco img,.ig-capa-img.ig-marco video{border-radius:inherit}
+.ig-sombra{box-shadow:0 8px 30px rgba(0,0,0,.4)}
+.ig-capa-vacia{display:flex;width:100%;height:100%;flex-direction:column;align-items:center;justify-content:center;gap:12px;border:6px dashed var(--ig-acento);border-radius:inherit;background:rgba(0,0,0,.35);color:#fff;font-family:system-ui,sans-serif;font-size:36px}
+.ig-capa .ig-sticker-pregunta,.ig-capa .ig-sticker-escribe{width:100%}
+.ig-capa .ig-pedido{width:100%;height:100%;box-sizing:border-box}
+.ig-sticker-encuesta{width:100%;border-radius:30px;overflow:hidden;background:#fff;color:#111;font-family:system-ui,sans-serif;box-shadow:0 4px 18px rgba(0,0,0,.28)}
+.ig-sticker-encuesta .ig-se-cab{padding:30px 34px 20px;text-align:center;font-size:44px;line-height:1.25;font-weight:700}
+.ig-sticker-encuesta .ig-se-op{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:0 20px 24px}
+.ig-sticker-encuesta .ig-se-op span{border-radius:20px;background:#efefef;padding:20px 10px;text-align:center;font-size:38px;font-weight:600}
 `
