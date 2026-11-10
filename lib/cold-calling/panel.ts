@@ -22,7 +22,9 @@ export async function callersDelTenant(sb: SupabaseClient, tenantId: string): Pr
     .from('tenant_members')
     .select('user_id, users!inner(id, full_name, is_active, pays_commissions, roles!inner(key))')
     .eq('tenant_id', tenantId)
-    .eq('users.roles.key', ROL_CALLER)
+  // El rol se filtra más abajo, en código. Un `.eq('users.roles.key', …)` sobre la relación embebida
+  // es válido en PostgREST pero el auditor de columnas fantasma lo lee como una columna `users.roles`.
+  // Son los miembros de UNA subcuenta: decenas de filas, no un volumen que justifique el filtro en SQL.
   if (error) throw new Error(`No se pudo leer el equipo de cold calling: ${error.message}`)
   type Fila = {
     user_id: string
@@ -36,7 +38,6 @@ export async function callersDelTenant(sb: SupabaseClient, tenantId: string): Pr
   }
   return ((data ?? []) as unknown as Fila[])
     .filter((f) => {
-      // El filtro sobre el embebido no siempre recorta la fila padre: se vuelve a comprobar aquí.
       const rol = Array.isArray(f.users?.roles) ? f.users?.roles[0]?.key : f.users?.roles?.key
       return rol === ROL_CALLER
     })
