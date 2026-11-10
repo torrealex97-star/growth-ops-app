@@ -22,9 +22,9 @@ export async function callersDelTenant(sb: SupabaseClient, tenantId: string): Pr
     .from('tenant_members')
     .select('user_id, users!inner(id, full_name, is_active, pays_commissions, roles!inner(key))')
     .eq('tenant_id', tenantId)
-  // El rol se filtra más abajo, en código. Un `.eq('users.roles.key', …)` sobre la relación embebida
-  // es válido en PostgREST pero el auditor de columnas fantasma lo lee como una columna `users.roles`.
-  // Son los miembros de UNA subcuenta: decenas de filas, no un volumen que justifique el filtro en SQL.
+  // El rol se filtra más abajo, en código: son los miembros de UNA subcuenta (decenas de filas) y
+  // un filtro SQL sobre la relación embebida no compensa. (No se escribe aquí la sintaxis de ese
+  // filtro: el auditor de columnas fantasma lee también los comentarios y la tomaría por una consulta.)
   if (error) throw new Error(`No se pudo leer el equipo de cold calling: ${error.message}`)
   type Fila = {
     user_id: string
