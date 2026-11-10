@@ -75,7 +75,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
 
     if (esCsv) {
       const lim = limitar(`lanzamiento-csv:${tenantId}:${auth.userId}`, 10, 10 * 60_000)
-      if (!lim.ok) return NextResponse.json({ error: 'Demasiadas exportaciones seguidas. Espera unos minutos.' }, { status: 429 })
+      if (!lim.ok)
+        return NextResponse.json({ error: 'Demasiadas exportaciones seguidas. Espera unos minutos.' }, { status: 429 })
       const { filas, truncado } = await leerPaginado<FilaPanel>(
         (a, b) => consulta(false).range(a, b) as unknown as PromiseLike<Respuesta>,
         { max: MAX_EXPORT }

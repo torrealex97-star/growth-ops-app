@@ -2,13 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { requirePantalla } from '@/lib/auth/requirePantalla'
 import { getTenantConfigWithFallback } from '@/lib/config'
-import {
-  CABECERA_SECRETO,
-  CLAVE_SECRETO,
-  EVENTOS_WEBHOOK,
-  FUENTE_EVENTOS,
-  rutaWebhook,
-} from '@/lib/launch/conexion'
+import { CABECERA_SECRETO, CLAVE_SECRETO, EVENTOS_WEBHOOK, FUENTE_EVENTOS, rutaWebhook } from '@/lib/launch/conexion'
 import { puedeGestionarLanzamiento } from '@/lib/launch/permisos'
 import { eventosPorFuente } from '@/lib/webhooks/entrantes'
 

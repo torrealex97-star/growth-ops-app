@@ -190,7 +190,10 @@ export function TablaLeads({
       </div>
 
       {error && (
-        <div role="alert" className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-300">
+        <div
+          role="alert"
+          className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-300"
+        >
           <p className="flex items-center gap-2 font-medium">
             <AlertTriangle className="h-4 w-4" /> {error}
           </p>
@@ -226,13 +229,27 @@ export function TablaLeads({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                <th scope="col" className="px-3 py-2 font-medium">Lead</th>
-                <th scope="col" className="px-3 py-2 font-medium">Se apuntó</th>
-                <th scope="col" className="px-3 py-2 font-medium">Calidad</th>
-                <th scope="col" className="px-3 py-2 font-medium">Confirmó</th>
-                <th scope="col" className="px-3 py-2 font-medium">Agendó</th>
-                <th scope="col" className="px-3 py-2 font-medium">Compró</th>
-                <th scope="col" className="px-3 py-2 font-medium">Anuncio</th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Lead
+                </th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Se apuntó
+                </th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Calidad
+                </th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Confirmó
+                </th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Agendó
+                </th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Compró
+                </th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Anuncio
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -271,7 +288,12 @@ export function TablaLeads({
 
       {data && paginas > 1 && (
         <div className="flex items-center justify-end gap-2 text-sm">
-          <Button variant="outline" size="sm" disabled={pagina === 0 || cargando} onClick={() => setPagina((p) => p - 1)}>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={pagina === 0 || cargando}
+            onClick={() => setPagina((p) => p - 1)}
+          >
             Anterior
           </Button>
           <span className="text-muted-foreground">

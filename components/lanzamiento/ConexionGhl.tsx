@@ -43,7 +43,10 @@ export function ConexionGhl({
   }
   if (error || !conexion) {
     return (
-      <div role="alert" className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-300">
+      <div
+        role="alert"
+        className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-300"
+      >
         <p className="flex items-center gap-2 font-medium">
           <AlertTriangle className="h-4 w-4" /> No se pudo leer la conexión con GHL{error ? `: ${error}` : ''}
         </p>
@@ -120,8 +123,8 @@ export function ConexionGhl({
             </p>
           )}
           <p className="mt-2 text-xs text-muted-foreground">
-            Para probar: regístrate con tu email en el formulario del evento y pulsa Recargar. Debe aparecer aquí y
-            en la pestaña Leads.
+            Para probar: regístrate con tu email en el formulario del evento y pulsa Recargar. Debe aparecer aquí y en
+            la pestaña Leads.
           </p>
           <Button variant="outline" size="sm" className="mt-3" onClick={onReintentar} disabled={cargando}>
             <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${cargando ? 'animate-spin' : ''}`} /> Recargar
@@ -134,8 +137,8 @@ export function ConexionGhl({
         <h3 className="font-semibold text-foreground">Direcciones para GHL</h3>
         <p className="mt-1 text-sm text-muted-foreground">
           En GHL → Automation → Workflows, añade una acción <strong>Custom Webhook</strong> con método{' '}
-          <code className="rounded bg-muted px-1 text-foreground">POST</code> en cada workflow y pega la dirección
-          que le corresponde. Solo la de Alta es imprescindible.
+          <code className="rounded bg-muted px-1 text-foreground">POST</code> en cada workflow y pega la dirección que
+          le corresponde. Solo la de Alta es imprescindible.
         </p>
         <ul className="mt-4 space-y-4">
           {conexion.eventos.map((e) => {

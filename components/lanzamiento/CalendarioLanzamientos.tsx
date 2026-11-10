@@ -310,7 +310,9 @@ export function CalendarioLanzamientos({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {dialogo?.tipo === 'cerrar' ? `¿Cerrar ${dialogo.l.label}?` : `¿Borrar ${dialogo?.tipo === 'borrar' ? dialogo.l.label : ''}?`}
+              {dialogo?.tipo === 'cerrar'
+                ? `¿Cerrar ${dialogo.l.label}?`
+                : `¿Borrar ${dialogo?.tipo === 'borrar' ? dialogo.l.label : ''}?`}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {dialogo?.tipo === 'cerrar'
