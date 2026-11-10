@@ -33,6 +33,9 @@ const PARTICIPANT_LABELS: Record<ParticipantType, string> = {
   closer: 'Closer',
   affiliate: 'Colaborador (clásico)',
   collaborator: 'Colaborador',
+  // Solo para pintar filas del ledger: la cold caller cobra un importe fijo por tramos, que se
+  // configura en Cold calling → Ajustes, no con una regla de porcentaje de esta pantalla.
+  cold_caller: 'Cold Caller',
 }
 
 const PARTICIPANT_COLORS: Record<ParticipantType, string> = {
@@ -40,6 +43,7 @@ const PARTICIPANT_COLORS: Record<ParticipantType, string> = {
   closer: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
   affiliate: 'bg-zinc-500/20 text-muted-foreground border-border/30',
   collaborator: 'bg-brand-500/20 text-brand-400 border-brand-500/30',
+  cold_caller: 'bg-lime-500/20 text-lime-400 border-lime-500/30',
 }
 
 type SimpleUser = {
