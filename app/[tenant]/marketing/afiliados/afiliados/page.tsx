@@ -866,7 +866,7 @@ export default function AfiliadosPage() {
 
           {/* Directorio canónico: la persona es el punto de entrada. El enlace de captación es
               una herramienta secundaria dentro de su operación, no su "perfil". */}
-          <section className="bg-card border border-border rounded-lg overflow-hidden">
+          <section className="dashboard-card overflow-hidden">
             <div className="px-4 py-3 border-b border-border flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h2 className="text-sm font-semibold text-foreground">Equipo que recibe comisiones</h2>
@@ -974,7 +974,7 @@ export default function AfiliadosPage() {
 
           {/* Altas por campaña: la conexión campañas ↔ atribución estructurada */}
           {puedeGestionar && (
-            <section className="bg-card border border-border rounded-lg overflow-hidden">
+            <section className="dashboard-card overflow-hidden">
               <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3">
                 <div>
                   <h2 className="text-sm font-semibold text-foreground">Altas por campaña</h2>
@@ -1037,7 +1037,7 @@ export default function AfiliadosPage() {
           )}
 
           {/* §45 Listado con KPIs por colaborador */}
-          <div className="bg-card border border-border rounded-lg overflow-hidden">
+          <div className="dashboard-card overflow-hidden">
             <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3">
               <h2 className="text-sm font-semibold text-foreground">Listado de colaboradores</h2>
               <span className="text-xs text-muted-foreground">{lista.length} perfiles</span>
@@ -1407,7 +1407,7 @@ function FichaColaborador({
       </div>
 
       {/* CUALIFICACIÓN: lo que respondieron SUS leads al agendar (webhook GHL/Calendly) */}
-      <div className="bg-card border border-border rounded-lg overflow-hidden">
+      <div className="dashboard-card overflow-hidden">
         <div className="px-4 py-3 border-b border-border">
           <h3 className="text-sm font-semibold text-foreground">Cualificación de sus leads</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -1443,7 +1443,7 @@ function FichaColaborador({
       </div>
 
       {/* Ventas ENLAZADAS a la vista existente de registro de ventas + ficha del contacto */}
-      <div className="bg-card border border-border rounded-lg overflow-hidden">
+      <div className="dashboard-card overflow-hidden">
         <div className="px-4 py-3 border-b border-border">
           <h3 className="text-sm font-semibold text-foreground">Ventas de sus contactos</h3>
         </div>
@@ -1492,7 +1492,7 @@ function FichaColaborador({
       </div>
 
       {/* Contactos ENLAZADOS al CRM (máx. 200 recientes del scope) */}
-      <div className="bg-card border border-border rounded-lg overflow-hidden">
+      <div className="dashboard-card overflow-hidden">
         <div className="px-4 py-3 border-b border-border">
           <h3 className="text-sm font-semibold text-foreground">Contactos atribuidos</h3>
         </div>
@@ -1527,7 +1527,7 @@ function FichaColaborador({
       </div>
 
       {/* Últimas comisiones del LEDGER real (la vista completa vive en /comisiones) */}
-      <div className="bg-card border border-border rounded-lg overflow-hidden">
+      <div className="dashboard-card overflow-hidden">
         <div className="px-4 py-3 border-b border-border flex items-center justify-between">
           <h3 className="text-sm font-semibold text-foreground">Últimas comisiones del ledger</h3>
           <Link href={`/${tenant}/comisiones`} className="text-xs text-brand-400 hover:underline">

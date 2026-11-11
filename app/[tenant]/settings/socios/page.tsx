@@ -168,7 +168,7 @@ export default function SociosSettingsPage() {
         </div>
       )}
 
-      <div className="bg-card border border-border rounded-lg p-5 space-y-4">
+      <div className="dashboard-card p-5 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-foreground">Socios</h2>
           {partners.length > 0 && (

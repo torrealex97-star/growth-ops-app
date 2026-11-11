@@ -1018,7 +1018,7 @@ export default function NewSalePage() {
       </div>
 
       {/* Step content */}
-      <div className="bg-card border border-border rounded-lg p-6">
+      <div className="dashboard-card p-6">
         {/* STEP 1 */}
         {step === 1 && (
           <div className="space-y-4">

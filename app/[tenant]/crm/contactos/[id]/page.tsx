@@ -1177,7 +1177,7 @@ export default function ContactDetailPage() {
 
         {/* Agendas */}
         <TabsContent value="appointments" className="mt-4">
-          <div className="bg-card border border-border rounded-lg overflow-hidden">
+          <div className="dashboard-card overflow-hidden">
             {appointments.length === 0 ? (
               <div className="flex flex-col items-center py-12 text-center">
                 <Calendar className="w-10 h-10 text-muted-foreground mb-3" />
@@ -1487,7 +1487,7 @@ export default function ContactDetailPage() {
               )}
             </div>
           ))}
-          <div className="bg-card border border-border rounded-lg overflow-hidden">
+          <div className="dashboard-card overflow-hidden">
             {sales.length === 0 ? (
               <div className="flex flex-col items-center py-12 text-center">
                 <ShoppingCart className="w-10 h-10 text-muted-foreground mb-3" />

@@ -622,7 +622,7 @@ function MonthlyPriceSummary({ items }: { items: Content[] }) {
 
   if (byMonth.length === 0) return null
   return (
-    <div className="rounded-xl border border-border bg-card/50 p-4">
+    <div className="dashboard-card bg-card/50 p-4">
       <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
         Total por mes (precio de las piezas)
       </p>

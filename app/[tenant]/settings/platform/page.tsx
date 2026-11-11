@@ -6,7 +6,7 @@ import { EstadoPanel } from '@/components/ui/carga/EstadoPanel'
 import { useSesion, useTenant } from '@/lib/tenant-context'
 
 const CARD_CLASS =
-  'group flex min-h-32 items-start gap-4 rounded-xl border border-border bg-card p-5 text-left transition-colors hover:border-brand-500/35 hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+  'group flex min-h-32 items-start gap-4 dashboard-card p-5 text-left transition-colors hover:border-brand-500/35 hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
 export default function PlatformControlPage() {
   const tenant = useTenant()

@@ -146,7 +146,7 @@ export default function TestimoniosPage() {
           {shown.map((t) => {
             const thumb = youtubeThumb(t.youtubeUrl) || t.photoUrl
             return (
-              <div key={t.id} className="rounded-xl border border-border bg-card overflow-hidden flex flex-col">
+              <div key={t.id} className="dashboard-card overflow-hidden flex flex-col">
                 <div className="relative aspect-video bg-background/40 overflow-hidden">
                   {thumb ? (
                     // eslint-disable-next-line @next/next/no-img-element

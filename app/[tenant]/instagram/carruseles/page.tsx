@@ -104,7 +104,7 @@ export default function CarruselesDashboard() {
     <Link
       key={p.id}
       href={`/${tenant}/instagram/carruseles/${p.id}`}
-      className="group rounded-xl border border-border bg-card overflow-hidden hover:border-brand-400/50 transition-colors"
+      className="group dashboard-card overflow-hidden hover:border-brand-400/50 transition-colors"
     >
       <div className="aspect-[4/5] bg-background/40 relative overflow-hidden">
         {p.slides[0] ? (
@@ -285,7 +285,7 @@ export default function CarruselesDashboard() {
                   <button
                     key={t.id}
                     onClick={() => applyTemplate(t.id)}
-                    className="group text-left rounded-xl border border-border bg-card overflow-hidden hover:border-brand-400/50 transition-colors"
+                    className="group text-left dashboard-card overflow-hidden hover:border-brand-400/50 transition-colors"
                   >
                     <div className="aspect-[4/5] bg-background/40 relative overflow-hidden">
                       {t.slides[0] ? (

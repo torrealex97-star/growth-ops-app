@@ -350,7 +350,7 @@ export default function CsmEventsPage() {
                 </div>
                 <div className="space-y-2">
                   {cards.map((e) => (
-                    <div key={e.id} className="bg-card border border-border rounded-lg p-3 space-y-2">
+                    <div key={e.id} className="dashboard-card p-3 space-y-2">
                       <div className="flex items-start justify-between gap-2">
                         <p className="text-sm text-foreground leading-snug">{e.contacts?.full_name || '—'}</p>
                         <span className="text-3xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
