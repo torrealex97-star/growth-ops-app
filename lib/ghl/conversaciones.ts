@@ -312,7 +312,7 @@ function cliente(): SupabaseClient {
 export async function guardarSnapshotGhl(tenantId: string, conversaciones: GhConversation[]): Promise<void> {
   try {
     const sb = cliente()
-    await sb
+    const { error: snapErr } = await sb
       .from('integration_settings')
       .upsert(
         {
@@ -325,8 +325,10 @@ export async function guardarSnapshotGhl(tenantId: string, conversaciones: GhCon
         { onConflict: 'tenant_id,key' }
       )
       .select('key')
-  } catch {
     // Silencioso por diseño: el snapshot es una optimización, no un requisito.
+    if (snapErr) console.warn('[ghl-conversaciones] no se pudo guardar el snapshot:', snapErr.message)
+  } catch {
+    // Idem si falla el propio cliente: el snapshot no puede tumbar la bandeja.
   }
 }
 
@@ -357,7 +359,7 @@ export async function guardarCursorGhl(
 ): Promise<void> {
   try {
     const sb = cliente()
-    await sb
+    const { error: snapErr } = await sb
       .from('integration_settings')
       .upsert(
         {
@@ -371,8 +373,10 @@ export async function guardarCursorGhl(
         { onConflict: 'tenant_id,key' }
       )
       .select('key')
-  } catch {
     // Silencioso por diseño: el cursor es una optimización, no un requisito.
+    if (snapErr) console.warn('[ghl-conversaciones] no se pudo guardar el cursor:', snapErr.message)
+  } catch {
+    // Idem: perder el cursor solo devuelve «Cargar más» al principio.
   }
 }
 
