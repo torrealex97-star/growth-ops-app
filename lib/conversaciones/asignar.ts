@@ -62,7 +62,7 @@ export async function asignarRoundRobin(
     const elegido = elegirResponsable(candidatos, TOPE_CARGA)
     if (!elegido) return null
 
-    const { data: hecho } = await sb
+    const { data: hecho, error: claimErr } = await sb
       .from('conversations')
       .update({ assignee_id: elegido, updated_at: new Date().toISOString() })
       .eq('tenant_id', tenantId)
@@ -70,6 +70,8 @@ export async function asignarRoundRobin(
       .is('assignee_id', null)
       .select('id')
       .maybeSingle()
+    // Sin fila el claim no se ganó (ya tenía responsable); un error de escritura se ve a log.
+    if (claimErr) console.warn('[conversaciones] no se pudo reclamar la conversación:', claimErr.message)
     if (!hecho) return null
     const { error: errEvento } = await sb.from('conversation_events').insert({
       tenant_id: tenantId,
