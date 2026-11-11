@@ -199,7 +199,7 @@ async function attempt(sb: SupabaseClient, tenantId: string, d: DeliveryRow, w: 
   const r = await post(w.url, w.secret_enc, body)
   const attempts = d.attempts + 1
   const failedForGood = !r.ok && attempts >= MAX_ATTEMPTS
-  await sb
+  const { error: updErr } = await sb
     .from('form_webhook_deliveries')
     .update({
       status: r.ok ? 'delivered' : failedForGood ? 'failed' : 'pending',
@@ -214,6 +214,8 @@ async function attempt(sb: SupabaseClient, tenantId: string, d: DeliveryRow, w: 
     })
     .eq('tenant_id', tenantId)
     .eq('id', d.id)
+  // Si el marcador del intento no se escribe, la entrega se reintenta: se ve a log.
+  if (updErr) console.warn('[forms/webhooks] no se pudo registrar el intento:', updErr.message)
   return r
 }
 
@@ -251,7 +253,7 @@ export async function enqueueAndDeliver(sb: SupabaseClient, tenantId: string, fo
   const ctx = await loadContext(sb, tenantId, responseId)
   if (!ctx) return
   for (const w of hooks as WebhookRow[]) {
-    const { data: d } = await sb
+    const { data: d, error: upsertErr } = await sb
       .from('form_webhook_deliveries')
       .upsert(
         {
@@ -265,6 +267,7 @@ export async function enqueueAndDeliver(sb: SupabaseClient, tenantId: string, fo
       )
       .select('id, attempts, webhook_id, response_id')
       .maybeSingle()
+    if (upsertErr) console.warn('[forms/webhooks] no se pudo encolar la entrega:', upsertErr.message)
     if (d) await attempt(sb, tenantId, d as DeliveryRow, w, ctx.body)
   }
 }
@@ -288,11 +291,12 @@ export async function sweepPendingDeliveries(sb: SupabaseClient, deadlineMs: num
       .eq('id', d.webhook_id)
       .maybeSingle()
     if (!w || !w.active) {
-      await sb
+      const { error: killErr } = await sb
         .from('form_webhook_deliveries')
         .update({ status: 'failed', last_error: 'Webhook eliminado o desactivado', next_attempt_at: null })
         .eq('tenant_id', d.tenant_id)
         .eq('id', d.id)
+      if (killErr) console.warn('[forms/webhooks] no se pudo cerrar la entrega huérfana:', killErr.message)
       continue
     }
     const ctx = await loadContext(sb, d.tenant_id, d.response_id)
