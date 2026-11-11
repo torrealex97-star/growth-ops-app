@@ -5,13 +5,22 @@ aplicadas en producción, con lo que hace falta para subirlas. Al fusionarse una
 
 Todo lo que depende de Alex, paso a paso: **[PASOS_ALEX.md](PASOS_ALEX.md)**.
 
-## Reclamado en esta sesión (11-nov, Buffy)
+# COMPLETADO — Escáner de escrituras ciegas + triage (11-nov, PR #752, Buffy)
 
-- **Escáner de escrituras ciegas + triage** — rama `fix/escrituras-ciegas` (desde `main`): `scripts/auditar-escrituras-ciegas.mjs`,
-  `tests/escrituras-ciegas.test.mjs` y las correcciones en `lib/finance/reservationRefundSync.ts`, `lib/conversaciones/*`,
-  `lib/forms/webhooks.ts`, `lib/ghl/conversaciones.ts`, `lib/google/token-store.ts`, `lib/fathom/conexion-personal.ts`,
-  `lib/email/service.ts`, `lib/typeform/entrada.ts` y las rutas `google-calendar` y `social/analyze`. Hallazgo registrado como
-  `WRT-01` en [AUDIT_LEDGER.md](AUDIT_LEDGER.md).
+`scripts/auditar-escrituras-ciegas.mjs` encuentra los `await` de escrituras Supabase (`.from(...)` con
+`insert|update|upsert|delete`, y `.rpc` de mutación) cuyo `{ error }` se descarta, con clasificación
+`critico` / `sin-error` / `no-consumido` / `ok` / `propagada` / `justificada`. `tests/escrituras-ciegas.test.mjs`
+lo fija con 8 fixtures sintéticos y un barrido real del repo que exige 0 ciegas. Hallazgo `WRT-01` en
+[AUDIT_LEDGER.md](AUDIT_LEDGER.md).
+
+Triage: 25 escrituras corregidas. Dinero: el flag de revisión de comisión de `reservationRefundSync` (corta
+la pasada; el reintento es idempotente) y su traza de auditoría. Estado: traspaso y borradores de
+`lib/conversaciones/*`, entregas de webhooks de formularios, snapshots de GHL, sello de conexión de
+Google/Fathom, registro de `email_messages`, enlace `raw_events.canonical_event_id` de Typeform, marcador
+de fallo de social y estado de la conexión de Google Calendar.
+
+Validación en el PR #752, CI completa en verde: `npm test` 2642/2642 (3 skipped de BD viva),
+`test:metrics` 789/789, `tsc` 0 errores, lint 0/0, `format:check` limpio, `Build` y `Smoke E2E` en verde.
 
 # PENDIENTE — Comisiones, facturas del colaborador y privacidad (3-nov)
 
@@ -159,12 +168,11 @@ completa pero no cuánta viene de cash collected de ESTE MES vs MESES ANTERIORES
   `npm run build` en la rama (detalle abajo). Rama `feat/comisiones-desglose-cash`, worktree
   `.freebuff/worktrees/comisiones-desglose`.
 
-| Qué                                                                                            | Dónde está                                                                                                                                                      | Qué falta para subirlo                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Escáner estático de escritos ciegos (`await sin comprobar { error }`) + triage                 | **Hecho en esta rama (11-nov)**: `scripts/auditar-escrituras-ciegas.mjs` + `tests/escrituras-ciegas.test.mjs`; barrido real 556 escrituras vigiladas / 0 ciegas | Merge a `main`. El triage arregló 25 escrituras (dinero: flag de revisión en `reservationRefundSync`; estado: traspaso y borradores de conversaciones, entregas de webhooks de forms, snapshots GHL, sello de conexión Google/Fathom, `email_messages`, enlace canónico de Typeform, social y google-calendar); el resto fueron falsos positivos del escáner (ternarios, `Promise.all`, `.then(({ error })`) corregidos en la heurística |
-| Backfill de citas Calendly históricas sin UTM (rellenarlas desde la atribución de su contacto) | Diseñado en la corrección fusionada (PR #690); sin correr                                                                                                       | Decisión de Alex: es escritura en producción; propuesta: run registrado en history-sync para auditoría                                                                                                                                                                                                                                                                                                                                   |
-| SDK `@anthropic-ai/sdk` 1.x                                                                    | No migrado (Dependabot ya lo ignora; #649 cerrado)                                                                                                              | Migrar a mano: el SDK 1.x quita `temperature` de `messages.create` y rompe `lib/ai/provider.ts`                                                                                                                                                                                                                                                                                                                                          |
-| Copia de seguridad de la rama vieja `rescate/linaje-viejo-20260913`                            | Rama local borrada; copia en `~/rescate-linaje-viejo-20260913.bundle` (verificada)                                                                              | Nada; recuperable con `git fetch <bundle> rescate/linaje-viejo-20260913`                                                                                                                                                                                                                                                                                                                                                                 |
+| Qué                                                                                            | Dónde está                                                                         | Qué falta para subirlo                                                                                 |
+| ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Backfill de citas Calendly históricas sin UTM (rellenarlas desde la atribución de su contacto) | Diseñado en la corrección fusionada (PR #690); sin correr                          | Decisión de Alex: es escritura en producción; propuesta: run registrado en history-sync para auditoría |
+| SDK `@anthropic-ai/sdk` 1.x                                                                    | No migrado (Dependabot ya lo ignora; #649 cerrado)                                 | Migrar a mano: el SDK 1.x quita `temperature` de `messages.create` y rompe `lib/ai/provider.ts`        |
+| Copia de seguridad de la rama vieja `rescate/linaje-viejo-20260913`                            | Rama local borrada; copia en `~/rescate-linaje-viejo-20260913.bundle` (verificada) | Nada; recuperable con `git fetch <bundle> rescate/linaje-viejo-20260913`                               |
 
 # COMPLETADO — Pregunta 1 de captación con opciones + iconos (v4 publicada, 30-oct tarde — Buffy)
 
