@@ -333,7 +333,11 @@ test('plantillas de feedback: estrellas >= 4 → Trustpilot y < 4 → mejora; NP
   const vars = { trustpilot_url: 'https://es.trustpilot.com/review/ejemplo.test' }
   for (const key of ['feedback-clase-directo', 'feedback-modulo']) {
     const t = FORM_TEMPLATES.find((x) => x.key === key)
-    const base = key === 'feedback-modulo' ? { modulo: 'modulo-1' } : { profesor: 'profesor-1' }
+    // El email es obligatorio (es lo que vincula la respuesta con la ficha de la alumna).
+    const base = {
+      email: 'alumna@example.test',
+      ...(key === 'feedback-modulo' ? { modulo: 'modulo-1' } : { profesor: 'profesor-1' }),
+    }
     const alta = evaluateSubmission(t.config, { answers: { ...base, estrellas: 5 }, vars })
     assert.equal(alta.ok, true, key)
     assert.equal(alta.redirectUrl, vars.trustpilot_url)
@@ -348,8 +352,12 @@ test('plantillas de feedback: estrellas >= 4 → Trustpilot y < 4 → mejora; NP
     assert.equal(baja.endingId, 'gracias')
   }
   const nps = FORM_TEMPLATES.find((x) => x.key === 'nps-cliente')
-  assert.equal(evaluateSubmission(nps.config, { answers: { nps: 10 }, vars }).redirectUrl, vars.trustpilot_url)
-  assert.equal(evaluateSubmission(nps.config, { answers: { nps: 6 }, vars }).redirectUrl, null)
+  const email = { email: 'alumna@example.test' }
+  assert.equal(
+    evaluateSubmission(nps.config, { answers: { ...email, nps: 10 }, vars }).redirectUrl,
+    vars.trustpilot_url
+  )
+  assert.equal(evaluateSubmission(nps.config, { answers: { ...email, nps: 6 }, vars }).redirectUrl, null)
 })
 
 test('plantilla de cualificación: temperatura caliente dispara el final prioritario', async () => {
