@@ -143,6 +143,27 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
           .eq('tenant_id', t.tenantId)
           .in('contact_id', lote)
     )
+    // Respaldo: contactos sin cliente de Stripe vinculado se casan por el email del pago (pago ya espejado).
+    const sinVinculo = contactos.filter((id) => !clientes.some((c) => c.contact_id === id))
+    const emailDeContacto = new Map<string, string>()
+    if (sinVinculo.length) {
+      const filas = await enLotes<{ id: string; email: string | null }>(sinVinculo, (lote) =>
+        sb.from('contacts').select('id, email').eq('tenant_id', t.tenantId).in('id', lote)
+      )
+      for (const f of filas) if (f.email) emailDeContacto.set(f.id, f.email.trim().toLowerCase())
+    }
+    const pagosPorEmail = emailDeContacto.size
+      ? await enLotes<PagoStripeLite & { customer_email: string | null }>(
+          [...new Set(emailDeContacto.values())],
+          (lote) =>
+            sb
+              .from('stripe_payments')
+              .select('customer_email, amount, paid_at, status')
+              .eq('tenant_id', t.tenantId)
+              .eq('status', 'succeeded')
+              .in('customer_email', lote)
+        )
+      : []
     const clienteDeContacto = new Map(clientes.map((c) => [c.contact_id, c.stripe_customer_id]))
     const idsCliente = [...new Set(clientes.map((c) => c.stripe_customer_id))]
     const pagos = await enLotes<PagoStripeLite & { customer_id: string | null }>(idsCliente, (lote) =>
@@ -166,7 +187,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       const cliente = clienteDeContacto.get(contactoDeVenta.get(c.saleId)!)
       const importe = brutoDeCuota.get(`${c.id}|${c.saleId}`) || c.importe
       const vencimiento = c.vencimiento
-      const suyos = cliente ? pagos.filter((p) => p.customer_id === cliente) : []
+      const contactoId = contactoDeVenta.get(c.saleId)!
+      const email = emailDeContacto.get(contactoId)
+      const suyos = cliente
+        ? pagos.filter((p) => p.customer_id === cliente)
+        : email
+          ? pagosPorEmail.filter(
+              (p) => (p as { customer_email?: string | null }).customer_email?.toLowerCase() === email
+            )
+          : []
       let fallo: IntentoFallido | null = null
       const yaPagado = clasificarImpago({ vencimiento, importe }, suyos, null).tipo === 'pagado_pendiente_registro'
       if (!yaPagado && cliente && auth) {
@@ -175,7 +204,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
         // Un rechazo anterior al vencimiento de esta cuota es de otro cobro: no se le atribuye.
         fallo = f && f.fecha && f.fecha.slice(0, 10) >= vencimiento.slice(0, 10) ? f : null
       }
-      estados[c.id] = clasificarImpago({ vencimiento, importe }, suyos, fallo)
+      const estado = clasificarImpago({ vencimiento, importe }, suyos, fallo)
+      // Sin cliente de Stripe vinculado no se puede afirmar que «no hay intento de cobro»: se dice tal cual.
+      estados[c.id] =
+        estado.tipo === 'sin_intento' && !cliente
+          ? {
+              tipo: 'sin_intento',
+              texto: 'Aún no consta el pago de este cliente. No podemos ver su estado en Stripe: lo revisa el equipo.',
+            }
+          : estado
     }
     return NextResponse.json({ ok: true, estados })
   } catch (error) {

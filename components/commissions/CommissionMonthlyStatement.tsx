@@ -301,9 +301,13 @@ export function CommissionMonthlyStatement({
       {!personal && hayAjustes && m.ajuste.amount !== 0 && (
         <GrupoDetalle
           titulo="Ajustes y devoluciones"
-          ayuda="Restan del total. No son venta nueva ni recurrencia."
+          ayuda={
+            m.ajuste.amount < 0
+              ? 'Restan del total. No son venta nueva ni recurrencia.'
+              : 'Suman al total (p. ej. correcciones de cobros anteriores). No son venta nueva ni recurrencia.'
+          }
           icono={<Filter className="h-4 w-4" aria-hidden="true" />}
-          acento="text-red-400"
+          acento={m.ajuste.amount < 0 ? 'text-red-400' : 'text-emerald-400'}
           grupo={m.ajuste}
           vacio=""
           plano={personal}
