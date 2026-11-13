@@ -72,11 +72,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     if (req.nextUrl.searchParams.get('discover') === '1') {
       const discovery = await usableGoogleCalendars(sb, connection)
       if ('error' in discovery) {
-        await sb
+        const { error: markErr } = await sb
           .from('google_oauth_connections')
           .update({ status: discovery.revoked ? 'revocada' : 'error', last_error: discovery.error })
           .eq('tenant_id', session.tenantId)
           .eq('id', connection.id)
+        // La respuesta ya lleva la causa; si el marcador no se escribe, la siguiente visita lo reintenta.
+        if (markErr) console.warn('[api/google-calendar] no se pudo marcar la conexión:', markErr.message)
         return NextResponse.json(
           { error: discovery.error, reconnect: discovery.revoked, connected: !discovery.revoked },
           { status: discovery.revoked ? 409 : 502 }
@@ -115,11 +117,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ tena
     if (!connection) return NextResponse.json({ error: 'Conecta Google Calendar primero.' }, { status: 409 })
     const discovery = await usableGoogleCalendars(sb, connection)
     if ('error' in discovery) {
-      await sb
+      const { error: markErr } = await sb
         .from('google_oauth_connections')
         .update({ status: discovery.revoked ? 'revocada' : 'error', last_error: discovery.error })
         .eq('tenant_id', session.tenantId)
         .eq('id', connection.id)
+      // La respuesta ya lleva la causa; si el marcador no se escribe, la siguiente visita lo reintenta.
+      if (markErr) console.warn('[api/google-calendar] no se pudo marcar la conexión:', markErr.message)
       return NextResponse.json({ error: discovery.error, reconnect: discovery.revoked }, { status: 409 })
     }
     const calendar = discovery.calendars.find((item) => item.id === body.calendarId)

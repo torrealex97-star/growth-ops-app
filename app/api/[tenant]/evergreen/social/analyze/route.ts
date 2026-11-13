@@ -61,7 +61,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     if (error) throw error
     return NextResponse.json({ analysis, analyzedAt })
   } catch (error) {
-    await sb.from('social_posts').update({ analysis_status: 'failed' }).eq('tenant_id', auth.tenantId).eq('id', post.id)
+    const { error: failErr } = await sb
+      .from('social_posts')
+      .update({ analysis_status: 'failed' })
+      .eq('tenant_id', auth.tenantId)
+      .eq('id', post.id)
+    // La respuesta ya declara el fallo; el estado guardado es lo que verá la lista después.
+    if (failErr) console.warn('[social/analyze] no se pudo marcar el análisis como fallido:', failErr.message)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'No se pudo analizar el reel' },
       { status: 502 }
