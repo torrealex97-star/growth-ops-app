@@ -108,7 +108,7 @@ test('ruta y migración: solo admin/director, límite de uso y guion acotado', (
   const api = readFileSync('app/api/[tenant]/evergreen/lanzamiento/contenido/route.ts', 'utf8')
   assert.match(api, /accion === 'generar'/)
   assert.match(api, /limitar\(`generar-pieza:\$\{auth\.tenantId\}`/)
-  assert.match(api, /guion: \['admin', 'director'\]/)
+  assert.match(api, /guion: puedeGestionarLanzamiento\(auth\)/)
   const sql = readFileSync('supabase/migrations/20261101110000_launch_guion.sql', 'utf8')
   assert.match(sql, /ADD COLUMN IF NOT EXISTS guion_webinar/)
   assert.match(sql, /<= 60000/)

@@ -7,6 +7,7 @@ import { leerToque, toqueTieneDatos } from '@/lib/contacts/atribucion'
 import { isValidWebhookSecret } from '@/lib/webhooks/verifySecret'
 import { normalizePhoneE164 } from '@/lib/phone'
 import type { Qualification } from './calidad'
+import { lanzamientoActivo } from './lanzamientos'
 
 // MOTOR DEL WEBHOOK DEL LANZAMIENTO (puerto de los tres webhooks de iawinners a uno solo).
 //
@@ -376,15 +377,8 @@ export async function procesarWebhookLanzamiento(opciones: {
   }
 
   try {
-    const activo = await sb
-      .from('launches')
-      .select('id')
-      .eq('tenant_id', tenantId)
-      .not('opened_at', 'is', null)
-      .order('fecha', { ascending: false })
-      .limit(1)
-    if (activo.error) throw new Error(`No se pudo leer el lanzamiento activo: ${activo.error.message}`)
-    const launchId = (activo.data as { id: string }[] | null)?.[0]?.id ?? null
+    // Misma definición de "activo" que el panel (abierto y sin cerrar): una sola fuente.
+    const launchId = (await lanzamientoActivo(sb, tenantId))?.id ?? null
     if (!launchId) {
       // No hay lanzamiento abierto: la entrega queda guardada y se dice el motivo — GHL no reintenta
       // algo que un reintento no cambia, y el operador ve exactamente qué pasa.
