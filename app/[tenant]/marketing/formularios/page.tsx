@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Archive, ClipboardList, Copy, CopyPlus, ExternalLink, Loader2, Plus, Trash2 } from 'lucide-react'
+import { Archive, ClipboardList, Copy, CopyPlus, ExternalLink, Loader2, Plus, Sparkles, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTenant } from '@/lib/tenant-context'
 import { formatNumber, formatPercent } from '@/lib/utils'
@@ -122,12 +122,24 @@ export default function FormulariosPage() {
           </p>
         </div>
         {canWrite && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Link
               href={`/${tenant}/marketing/formularios/plantillas`}
               className="rounded-md border border-border px-3 py-2 text-sm hover:border-brand-500"
             >
               Desde plantilla
+            </Link>
+            <Link
+              href={`/${tenant}/marketing/formularios/importar`}
+              className="rounded-md border border-border px-3 py-2 text-sm hover:border-brand-500"
+            >
+              Importar
+            </Link>
+            <Link
+              href={`/${tenant}/marketing/formularios/crear-ia`}
+              className="inline-flex items-center gap-1.5 rounded-md border border-brand-500/50 px-3 py-2 text-sm text-brand-400 hover:border-brand-500"
+            >
+              <Sparkles className="h-4 w-4" /> Crear con IA
             </Link>
             <button
               type="button"
@@ -152,7 +164,7 @@ export default function FormulariosPage() {
           <ClipboardList className="mx-auto h-8 w-8 text-muted-foreground" />
           <p className="mt-3 font-medium text-foreground">Aún no hay formularios</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Empieza con una plantilla: cualificación de clientes, candidaturas o feedback de clases.
+            Empieza con una plantilla, descríbeselo a la IA o impórtalo de Typeform, Calendly o GoHighLevel.
           </p>
           <Link
             href={`/${tenant}/marketing/formularios/plantillas`}
