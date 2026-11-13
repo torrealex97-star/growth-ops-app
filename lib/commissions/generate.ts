@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { sincronizarTrasVenta } from '@/lib/cold-calling/comisiones'
 import { calculateCommissionsForCollection, pickCommissionRule } from './calculator'
 import { resolveSaleAttribution } from './attribution'
 import { tramoIdByReps } from './tramos'
@@ -322,6 +323,10 @@ export async function generateCommissionsForCollection(
     { repId: sale.closer_id, role: 'closer' },
   ])
 
+  // La comisión fija de la cold caller (D11) no depende de este cobro sino de que la venta exista
+  // y siga activa: se resincroniza aparte, sin poder tumbar el cobro.
+  await sincronizarTrasVenta(sb, tenantId, sale.contact_id)
+
   return inserted
 }
 
@@ -457,6 +462,10 @@ export async function reconcileSaleCommissions(
       ...alsoRecompute,
     ])
   }
+
+  // Idem para la cold caller: una venta anulada, completada desde reserva o reasignada puede
+  // cambiar si le cuenta. Sus filas no llevan cobro, así que el borrado de arriba no las toca.
+  await sincronizarTrasVenta(sb, tenantId, s.contact_id)
 
   return { created, deleted, keptLiquidated: liqKeys.size }
 }

@@ -55,6 +55,7 @@ import {
   Globe,
   MessageSquare,
   Rocket,
+  Headphones,
 } from 'lucide-react'
 import { allowedPrefixesFor, type AppRole, type Department } from '@/lib/auth/permissions'
 
@@ -92,26 +93,35 @@ export const NAV_SECTIONS: NavSection[] = [
         label: 'Tareas',
         href: '/tasks',
         icon: ListChecks,
-        roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller', 'affiliate'],
+        roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller', 'cold_calling_manager', 'affiliate'],
       },
     ],
   },
   {
     dept: 'ventas',
     items: [
+      // Cold calling va arriba del todo en Ventas: para quien llama es SU pantalla de cada día, y
+      // para quien supervisa, el panel del equipo. Solo aparecen a esos roles y al liderazgo.
+      { label: 'Mis llamadas', href: '/llamadas', icon: PhoneCall, roles: ['cold_caller'] },
+      {
+        label: 'Cold calling',
+        href: '/cold-calling',
+        icon: Headphones,
+        roles: [...LEAD, 'cold_calling_manager'],
+      },
       {
         // La agenda es la pantalla de cada mañana, así que es el destino por defecto del CRM y el
         // primer hijo. /crm redirige aquí en servidor (ver app/[tenant]/crm/page.tsx).
         label: 'CRM',
         href: '/crm/agendas',
         icon: Users,
-        roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller', 'affiliate'],
+        roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller', 'cold_calling_manager', 'affiliate'],
         children: [
           {
             label: 'Agendas',
             href: '/crm/agendas',
             icon: Calendar,
-            roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller', 'affiliate'],
+            roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller', 'cold_calling_manager', 'affiliate'],
           },
           {
             // El pipeline comercial. No es una pantalla nueva: es la vista kanban que ya vivía en
@@ -121,13 +131,13 @@ export const NAV_SECTIONS: NavSection[] = [
             label: 'Pipeline',
             href: '/crm/seguimiento?view=kanban',
             icon: ClipboardList,
-            roles: [...LEAD, 'setter', 'closer', 'cold_caller', 'affiliate'],
+            roles: [...LEAD, 'setter', 'closer', 'cold_caller', 'cold_calling_manager', 'affiliate'],
           },
           {
             label: 'Contactos',
             href: '/crm/contactos',
             icon: UserRound,
-            roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller', 'affiliate'],
+            roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller', 'cold_calling_manager', 'affiliate'],
           },
           {
             // Cola de reuniones de Fathom que el sync no pudo atribuir sin adivinar. Está en el menú
@@ -146,31 +156,31 @@ export const NAV_SECTIONS: NavSection[] = [
         label: 'Métricas y KPIs',
         href: '/analitica/embudo',
         icon: BarChart3,
-        roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller'],
+        roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller', 'cold_calling_manager'],
         children: [
           {
             label: 'Embudo',
             href: '/analitica/embudo',
             icon: BarChart3,
-            roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller'],
+            roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller', 'cold_calling_manager'],
           },
           {
             label: 'Ranking',
             href: '/analitica/ranking',
             icon: Gauge,
-            roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller'],
+            roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller', 'cold_calling_manager'],
           },
           {
             label: 'Actividad',
             href: '/analitica/actividad',
             icon: PhoneCall,
-            roles: [...LEAD, 'setter', 'triager', 'cold_caller'],
+            roles: [...LEAD, 'setter', 'triager', 'cold_caller', 'cold_calling_manager'],
           },
           {
             label: 'KPI Diario',
             href: '/analitica/actividad?kpi=1',
             icon: ClipboardList,
-            roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller'],
+            roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller', 'cold_calling_manager'],
           },
         ],
       },
@@ -200,36 +210,62 @@ export const NAV_SECTIONS: NavSection[] = [
           },
         ],
       },
-      { label: 'Comisiones', href: '/comisiones', icon: TrendingUp, roles: [...LEAD, 'setter', 'closer'] },
+      {
+        label: 'Comisiones',
+        href: '/comisiones',
+        icon: TrendingUp,
+        roles: [...LEAD, 'setter', 'closer', 'cold_caller'],
+      },
       {
         label: 'Recursos de venta',
         href: '/recursos/enlaces',
         icon: Wrench,
-        roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller', 'affiliate', 'csm', 'marketing', 'editor'],
+        roles: [
+          ...LEAD,
+          'setter',
+          'closer',
+          'triager',
+          'cold_caller',
+          'cold_calling_manager',
+          'affiliate',
+          'csm',
+          'marketing',
+          'editor',
+        ],
         children: [
           {
             label: 'Enlaces',
             href: '/recursos/enlaces',
             icon: Link2,
-            roles: [...LEAD, 'setter', 'closer', 'cold_caller', 'affiliate'],
+            roles: [...LEAD, 'setter', 'closer', 'cold_caller', 'cold_calling_manager', 'affiliate'],
           },
           {
             label: 'Biblioteca',
             href: '/recursos/biblioteca',
             icon: Video,
-            roles: [...LEAD, 'setter', 'closer', 'cold_caller'],
+            roles: [...LEAD, 'setter', 'closer', 'cold_caller', 'cold_calling_manager'],
           },
           {
             label: 'Testimonios',
             href: '/recursos/testimonios',
             icon: Award,
-            roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller', 'csm', 'marketing', 'editor'],
+            roles: [
+              ...LEAD,
+              'setter',
+              'closer',
+              'triager',
+              'cold_caller',
+              'cold_calling_manager',
+              'csm',
+              'marketing',
+              'editor',
+            ],
           },
           {
             label: 'Grabaciones',
             href: '/recursos/grabaciones',
             icon: FileAudio,
-            roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller'],
+            roles: [...LEAD, 'setter', 'closer', 'triager', 'cold_caller', 'cold_calling_manager'],
           },
           { label: 'Contratos', href: '/recursos/contratos-producto', icon: FileText, roles: [...LEAD, 'closer'] },
         ],
