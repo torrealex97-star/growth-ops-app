@@ -86,7 +86,7 @@ export async function getValidGoogleAccessToken(
 }
 
 async function markReauth(sb: SupabaseClient, id: string, message: string): Promise<void> {
-  await sb
+  const { error } = await sb
     .from('google_oauth_connections')
     .update({
       status: 'revocada',
@@ -96,4 +96,6 @@ async function markReauth(sb: SupabaseClient, id: string, message: string): Prom
       access_token_expires_at: null,
     })
     .eq('id', id)
+  // Reintentar sin marca solo repite la llamada que ya falló: se ve a log y sigue.
+  if (error) console.warn('[google/token-store] no se pudo marcar la conexión para reconectar:', error.message)
 }

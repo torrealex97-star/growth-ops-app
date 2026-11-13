@@ -402,7 +402,11 @@ async function escribirHecho(
       return false
     }
     if (escrito?.id) {
-      await sb.from('raw_events').update({ canonical_event_id: escrito.id }).eq('id', sobreId)
+      const { error: enlaceErr } = await sb
+        .from('raw_events')
+        .update({ canonical_event_id: escrito.id })
+        .eq('id', sobreId)
+      if (enlaceErr) console.warn('[typeform-webhook] no se pudo enlazar el hecho canónico:', enlaceErr.message)
     }
     return true
   } catch (e) {
