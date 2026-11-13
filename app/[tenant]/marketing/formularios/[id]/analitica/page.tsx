@@ -20,7 +20,7 @@ const dur = (ms: number | null) =>
 
 function Kpi({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <div className="dashboard-card p-4">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">{value}</p>
       {hint && <p className="mt-0.5 text-2xs text-muted-foreground">{hint}</p>}
@@ -28,7 +28,7 @@ function Kpi({ label, value, hint }: { label: string; value: string; hint?: stri
   )
 }
 const Card = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <section className="min-w-0 rounded-xl border border-border bg-card p-5">
+  <section className="min-w-0 dashboard-card p-5">
     <h3 className="mb-4 text-sm font-semibold text-foreground">{title}</h3>
     {children}
   </section>

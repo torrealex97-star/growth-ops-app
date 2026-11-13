@@ -36,6 +36,7 @@ import { QUALIFICATION_KEYS, labelFor, type QualificationAnswer } from '@/lib/qu
 import { countryISOForPhone, countryNameForISO } from '@/lib/phone'
 import { useTenant, useTenantId } from '@/lib/tenant-context'
 import { normalizeText } from '@/components/ui/search-box'
+import type { ContactAttribution } from '@/lib/types/database'
 
 type FunnelRow = { source: string; leads: number; appointments: number | null; sales: number; gross: number }
 type ModeloEmbudo = ModeloAtribucion | ModeloMultiToque
@@ -446,7 +447,12 @@ export default function AttributionPage() {
               if (typeof v === 'string' && v.trim()) answers[k] = v.trim()
             }
             const attrs = Array.isArray(r.contact_attributions) ? r.contact_attributions : []
-            const primary = attrs.find((a: any) => a.is_primary) || attrs[0] || null
+            const primary =
+              attrs.find(
+                (a: { source: string | null; utm_campaign: string | null; is_primary: boolean }) => a.is_primary
+              ) ||
+              attrs[0] ||
+              null
             return {
               contact_id: r.id,
               contact_name: r.full_name || '—',

@@ -12,7 +12,7 @@ const sel = 'rounded-md border border-border bg-card px-2 py-1.5 text-sm text-fo
 function Ranking({ title, rows }: { title: string; rows: Group[] }) {
   if (rows.length === 0) return null
   return (
-    <section className="overflow-x-auto rounded-xl border border-border bg-card">
+    <section className="overflow-x-auto dashboard-card">
       <h2 className="px-5 pt-4 text-sm font-semibold text-foreground">{title}</h2>
       <table className="mt-2 w-full text-sm">
         <thead>
@@ -115,7 +115,7 @@ export default function ProfesoresPage() {
           <Ranking title="Módulos" rows={s.modules} />
           <Ranking title="Clases" rows={s.classes} />
           {s.lowComments.length > 0 && (
-            <section className="rounded-xl border border-border bg-card p-5">
+            <section className="dashboard-card p-5">
               <h2 className="mb-3 text-sm font-semibold text-foreground">Qué mejorar (valoraciones de menos de 4)</h2>
               <ul className="space-y-3">
                 {s.lowComments.map((c, i) => (

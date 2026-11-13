@@ -78,7 +78,7 @@ export default function RecoverPage() {
         </div>
 
         {/* Card */}
-        <div className="bg-card border border-border rounded-xl p-6">
+        <div className="dashboard-card p-6">
           {sent ? (
             <div className="flex flex-col items-center text-center py-4" role="status" aria-live="polite">
               <CheckCircle2 className="w-12 h-12 text-emerald-400 mb-4" aria-hidden />

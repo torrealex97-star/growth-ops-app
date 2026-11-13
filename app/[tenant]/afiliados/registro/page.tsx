@@ -85,13 +85,13 @@ export default function RegistroAfiliadoPage() {
         {loading ? (
           <Skeleton className="h-72 border border-border rounded-xl" />
         ) : done ? (
-          <div className="bg-card border border-border rounded-xl p-8 text-center">
+          <div className="dashboard-card p-8 text-center">
             <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-4" />
             <h1 className="text-xl font-bold text-foreground mb-2">¡Registro completado!</h1>
             <p className="text-muted-foreground text-sm">{done}</p>
           </div>
         ) : (
-          <div className="bg-card border border-border rounded-xl p-6 sm:p-8">
+          <div className="dashboard-card p-6 sm:p-8">
             {config?.campaign && (
               <div className="mb-4 rounded-lg border border-brand-500/30 bg-brand-500/10 px-3 py-2 text-sm text-brand-300">
                 Te registras para la campaña <span className="font-semibold">{config.campaign.name}</span>

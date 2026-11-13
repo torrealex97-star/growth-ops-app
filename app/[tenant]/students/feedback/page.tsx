@@ -9,7 +9,7 @@ import { useFeedback } from '@/components/forms/useFeedback'
 
 const sel = 'rounded-md border border-border bg-card px-2 py-1.5 text-sm text-foreground'
 const Kpi = ({ label, value, hint }: { label: string; value: string; hint?: string }) => (
-  <div className="rounded-xl border border-border bg-card p-4">
+  <div className="dashboard-card p-4">
     <p className="text-xs text-muted-foreground">{label}</p>
     <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">{value}</p>
     {hint && <p className="mt-0.5 text-2xs text-muted-foreground">{hint}</p>}
@@ -125,7 +125,7 @@ export default function FeedbackResumenPage() {
             </table>
           </div>
           {s.weekly.length > 1 && (
-            <section className="rounded-xl border border-border bg-card p-5">
+            <section className="dashboard-card p-5">
               <h2 className="mb-3 text-sm font-semibold text-foreground">Valoración media por semana</h2>
               <ul className="space-y-2">
                 {s.weekly.map((w) => (

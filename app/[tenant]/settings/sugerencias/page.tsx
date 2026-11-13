@@ -163,7 +163,7 @@ export default function SugerenciasPage() {
       </div>
 
       {teamStats.length > 0 && (
-        <div className="rounded-xl border border-border bg-card/50 p-4">
+        <div className="dashboard-card bg-card/50 p-4">
           <button
             type="button"
             onClick={() => setShowTeam((v) => !v)}
@@ -284,7 +284,7 @@ export default function SugerenciasPage() {
           {filtered.map((s) => {
             const TypeIcon = TYPE_META[s.type].icon
             return (
-              <div key={s.id} className="rounded-xl border border-border bg-card/50 p-4">
+              <div key={s.id} className="dashboard-card bg-card/50 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">

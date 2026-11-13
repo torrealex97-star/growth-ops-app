@@ -161,15 +161,15 @@ export default function ContratosPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-card border border-border rounded-lg p-4">
+        <div className="dashboard-card p-4">
           <p className="text-xs text-muted-foreground mb-1">Total</p>
           <p className="text-2xl font-bold text-foreground">{total}</p>
         </div>
-        <div className="bg-card border border-border rounded-lg p-4">
+        <div className="dashboard-card p-4">
           <p className="text-xs text-muted-foreground mb-1">Firmados</p>
           <p className="text-2xl font-bold text-emerald-400">{firmados}</p>
         </div>
-        <div className="bg-card border border-border rounded-lg p-4">
+        <div className="dashboard-card p-4">
           <p className="text-xs text-muted-foreground mb-1">Pendientes</p>
           <p className="text-2xl font-bold text-amber-400">{pendientes}</p>
         </div>
@@ -202,14 +202,14 @@ export default function ContratosPage() {
       {loading ? (
         <Skeleton className="h-64" />
       ) : filtered.length === 0 ? (
-        <div className="bg-card border border-border rounded-lg p-10 text-center">
+        <div className="dashboard-card p-10 text-center">
           <FileText className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
           <p className="text-muted-foreground text-sm">
             {contracts.length === 0 ? 'Todavía no hay contratos.' : 'Ningún contrato coincide con la búsqueda.'}
           </p>
         </div>
       ) : (
-        <div className="bg-card border border-border rounded-lg overflow-hidden">
+        <div className="dashboard-card overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left text-muted-foreground text-xs uppercase tracking-wide">

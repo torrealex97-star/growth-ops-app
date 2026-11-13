@@ -1487,7 +1487,7 @@ export default function AppointmentsPage() {
       </div>
 
       {/* View switcher */}
-      <div className="flex flex-wrap items-center gap-1 bg-card border border-border rounded-lg p-1 w-fit max-w-full">
+      <div className="flex flex-wrap items-center gap-1 dashboard-card p-1 w-fit max-w-full">
         <button
           onClick={() => setView('tabla')}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${

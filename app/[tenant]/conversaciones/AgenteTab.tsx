@@ -88,7 +88,7 @@ export default function AgenteTab() {
   if (!config || !guion) return <Skeleton className="m-6 h-96" />
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="max-w-3xl space-y-6 dashboard-card">
       <div>
         <h2 className="text-lg font-semibold text-foreground">Agente de IA de setting</h2>
         <p className="text-sm text-muted-foreground">
@@ -97,7 +97,7 @@ export default function AgenteTab() {
         </p>
       </div>
 
-      <section className="space-y-3 rounded-lg border border-border p-4" aria-label="Interruptores">
+      <section className="space-y-3 dashboard-card p-4" aria-label="Interruptores">
         <p className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-2 text-xs text-amber-400">
           <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
           La IA nunca da precios, descuentos ni condiciones, nunca pide datos de pago, solo envía el enlace de agenda de
@@ -186,7 +186,7 @@ export default function AgenteTab() {
         ) : null}
       </section>
 
-      <section className="space-y-3 rounded-lg border border-border p-4" aria-label="Guion">
+      <section className="space-y-3 dashboard-card p-4" aria-label="Guion">
         <h2 className="text-sm font-semibold text-foreground">Guion</h2>
         <label className="block text-xs text-muted-foreground">
           Nombre del negocio

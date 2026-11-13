@@ -94,7 +94,7 @@ export default function ContratosProductoPage() {
       {loading ? (
         <Skeleton className="h-64" />
       ) : filtered.length === 0 ? (
-        <div className="bg-card border border-border rounded-lg p-10 text-center">
+        <div className="dashboard-card p-10 text-center">
           <FileText className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
           <p className="text-muted-foreground text-sm">
             {templates.length === 0
@@ -107,7 +107,7 @@ export default function ContratosProductoPage() {
           {filtered.map((t) => {
             const open = openId === t.id
             return (
-              <div key={t.id} className="bg-card border border-border rounded-lg overflow-hidden">
+              <div key={t.id} className="dashboard-card overflow-hidden">
                 <div className="w-full flex items-center gap-3 px-4 py-3">
                   <button
                     onClick={() => setOpenId(open ? null : t.id)}

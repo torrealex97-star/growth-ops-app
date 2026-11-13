@@ -46,7 +46,7 @@ test.describe('Ficha de contacto — info-first y campos personalizados', () => 
     const valor = `valor-e2e-${Date.now()}`
 
     // El input va justo debajo de la etiqueta de la def (label → input hermano).
-    const campo = page.locator('div.bg-card', { hasText: 'Campos personalizados' }).first()
+    const campo = page.locator('div.dashboard-card', { hasText: 'Campos personalizados' }).first()
     const etiqueta = campo.locator('dt', { hasText: 'E2E Campo Texto' })
     const input = etiqueta.locator('xpath=following-sibling::input[1]')
     await input.fill(valor)
@@ -59,7 +59,7 @@ test.describe('Ficha de contacto — info-first y campos personalizados', () => 
     await page.reload()
     await expect(page.getByText('Campos personalizados')).toBeVisible()
     const etiquetaTrasReload = page
-      .locator('div.bg-card', { hasText: 'Campos personalizados' })
+      .locator('div.dashboard-card', { hasText: 'Campos personalizados' })
       .first()
       .locator('dt', { hasText: 'E2E Campo Texto' })
     const inputTrasReload = etiquetaTrasReload.locator('xpath=following-sibling::input[1]')

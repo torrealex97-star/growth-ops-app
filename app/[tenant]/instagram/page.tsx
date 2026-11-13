@@ -593,7 +593,7 @@ export default function InstagramPage() {
             </p>
           )}
           {sorted.map((m) => (
-            <div key={m.id} className="rounded-xl border border-border bg-card/50">
+            <div key={m.id} className="dashboard-card bg-card/50">
               <div className="flex gap-4 p-3">
                 <ExternalThumbnail
                   src={m.thumbnail_url}
@@ -803,7 +803,7 @@ export default function InstagramPage() {
       {/* ── Captación ── */}
       {tab === 'captacion' && (
         <div className="space-y-4">
-          <div className="rounded-xl border border-border bg-card/50 p-4">
+          <div className="dashboard-card bg-card/50 p-4">
             <h3 className="text-sm font-semibold text-foreground mb-1">De dónde viene la gente nueva</h3>
             <p className="text-xs text-muted-foreground mb-3">
               Reels ordenados por alcance a NO seguidores (descubrimiento) y follows generados. Instagram no da la
@@ -942,7 +942,7 @@ export default function InstagramPage() {
             </BarChart>
           </ChartCard>
           {convos.length === 0 && (
-            <div className="rounded-xl border border-border bg-card/50 p-4 text-xs text-muted-foreground space-y-1">
+            <div className="dashboard-card bg-card/50 p-4 text-xs text-muted-foreground space-y-1">
               <p className="text-foreground font-medium">Conteo de conversaciones: pendiente de Acceso Avanzado</p>
               <p>
                 El permiso <code className="text-pink-400">instagram_manage_messages</code> está concedido, pero con{' '}
@@ -1114,7 +1114,7 @@ export default function InstagramPage() {
 
 function Kpi({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-border bg-card/50 p-4">
+    <div className="dashboard-card bg-card/50 p-4">
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         {icon}
         {label}
@@ -1180,7 +1180,7 @@ function Metric({ label, value }: { label: string; value: string }) {
 }
 function ChartCard({ title, children }: { title: string; children: React.ReactElement }) {
   return (
-    <div className="rounded-xl border border-border bg-card/50 p-4">
+    <div className="dashboard-card bg-card/50 p-4">
       <h3 className="text-sm font-semibold text-foreground mb-3">{title}</h3>
       <ResponsiveContainer width="100%" height={260}>
         {children}
