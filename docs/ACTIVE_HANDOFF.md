@@ -5,6 +5,22 @@ aplicadas en producción, con lo que hace falta para subirlas. Al fusionarse una
 
 Todo lo que depende de Alex, paso a paso: **[PASOS_ALEX.md](PASOS_ALEX.md)**.
 
+# EN PR — Feedback de alumnos: el email no se guardaba ni encajaba con la alumna (12-nov, Buffy)
+
+Causa raíz en las plantillas (`lib/forms/templates/index.ts`): la pregunta de email iba DESPUÉS de la
+valoración y la regla «4+ estrellas / NPS 9+ → Trustpilot» terminaba el formulario en esa misma pregunta.
+El camino feliz —el más frecuente— enviaba solo `profesor,estrellas`: `extractSemantic` no encontraba
+`contact.email`, la respuesta se guardaba con `contact_id` nulo y el email no se preguntaba siquiera.
+Comprobado ejecutando `evaluateSubmission` sobre las tres plantillas de alumnos.
+
+Corregido: el email se pregunta antes del salto (se sigue valorando primero), es obligatorio y la regla
+que lleva a la reseña sale de `email`, no de la valoración. Regresión en `tests/forms-alumnos.test.mjs`
+(simula el envío de 5 estrellas y exige email en `answers`, `semantic.email` y final `resena`).
+
+**No arregla por sí solo lo ya publicado**: cada formulario en producción tiene su `config` congelada en
+`form_versions`. Hay que mover «Tu email» antes de la valoración en el constructor y republicar, o aplicar
+un parche puntual sobre `forms.draft_config` / `form_versions.config` (pendiente de autorización de Alex).
+
 # COMPLETADO — Escáner de escrituras ciegas + triage (11-nov, PR #752, Buffy)
 
 `scripts/auditar-escrituras-ciegas.mjs` encuentra los `await` de escrituras Supabase (`.from(...)` con

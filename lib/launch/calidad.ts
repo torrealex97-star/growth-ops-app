@@ -58,7 +58,11 @@ export function resolveFields(q: Qualification | null | undefined): Record<strin
   const out: Record<string, string> = {}
   if (!q) return out
 
-  const pairs: Respuesta[] = Array.isArray(q.respuestas) ? q.respuestas : []
+  // La qualification viene de un formulario externo vía webhook: una entrada nula o sin texto no
+  // puede tumbar el panel entero.
+  const pairs: Respuesta[] = (Array.isArray(q.respuestas) ? q.respuestas : []).filter(
+    (r): r is Respuesta => Boolean(r) && typeof r.q === 'string' && typeof r.a === 'string'
+  )
   const taken = new Set<string>()
 
   for (const field of RESOLVE_ORDER) {

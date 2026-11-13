@@ -20,6 +20,7 @@ const ROLE_LABEL: Record<ParticipantType, string> = {
   closer: 'Closer',
   affiliate: 'Colaborador clásico',
   collaborator: 'Colaborador',
+  cold_caller: 'Cold Caller',
 }
 
 const monthLabel = (key: string) => {

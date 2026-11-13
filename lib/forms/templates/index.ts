@@ -41,11 +41,16 @@ const contact = (): Question[] => [
   { id: 'telefono', type: 'phone', title: '¿Y tu teléfono?', required: true, semantic: 'contact.phone' },
 ]
 
-/** Estrellas ≥4 → final con redirección a Trustpilot; <4 → pregunta de mejora → gracias. */
+/**
+ * Estrellas ≥4 → final con redirección a Trustpilot; <4 → pregunta de mejora → gracias.
+ *
+ * La regla sale de `email`, no de `estrellas`: si saliera de la valoración, el camino feliz (4+)
+ * terminaría ANTES de pedir el email y la respuesta no se guardaba con su alumna.
+ */
 function starsFlow(): { logic: LogicRule[]; endings: Ending[] } {
   const alta = when({ questionId: 'estrellas', op: 'gte', value: 4 })
   return {
-    logic: [{ id: 'alta', from: 'estrellas', when: alta, then: { type: 'end', endingId: 'resena' } }],
+    logic: [{ id: 'alta', from: 'email', when: alta, then: { type: 'end', endingId: 'resena' } }],
     endings: [
       {
         id: 'resena',
@@ -344,19 +349,20 @@ const feedbackBase = (
         semantic: 'rating',
       },
       {
+        id: 'email',
+        type: 'email',
+        title: 'Tu email',
+        help: 'Para vincular tu respuesta a tu ficha de alumno.',
+        required: true,
+        semantic: 'contact.email',
+      },
+      {
         id: 'mejora',
         type: 'longText',
         title: '¿Qué podríamos mejorar?',
         help: 'Sé todo lo concreto que puedas.',
         required: true,
         maxLength: 1500,
-      },
-      {
-        id: 'email',
-        type: 'email',
-        title: 'Tu email',
-        help: 'Para vincular tu respuesta a tu ficha de alumno.',
-        semantic: 'contact.email',
       },
     ],
     ...starsFlow(),
@@ -432,19 +438,21 @@ const nps: FormTemplate = {
         semantic: 'nps',
         scaleLabels: { min: 'Nada probable', max: 'Muy probable' },
       },
-      { id: 'motivo', type: 'longText', title: '¿Cuál es el motivo principal de tu puntuación?', maxLength: 1500 },
       {
         id: 'email',
         type: 'email',
         title: 'Tu email',
         help: 'Para vincular tu respuesta a tu ficha.',
+        required: true,
         semantic: 'contact.email',
       },
+      { id: 'motivo', type: 'longText', title: '¿Cuál es el motivo principal de tu puntuación?', maxLength: 1500 },
     ],
     logic: [
       {
         id: 'promotor',
-        from: 'nps',
+        // Sale de `email`: si saliera de `nps`, un promotor (9-10) nunca llegaría a dejar su email.
+        from: 'email',
         when: when({ questionId: 'nps', op: 'gte', value: 9 }),
         then: { type: 'end', endingId: 'resena' },
       },

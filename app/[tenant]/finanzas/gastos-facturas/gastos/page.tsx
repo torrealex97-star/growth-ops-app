@@ -18,6 +18,7 @@ import {
   type PeriodRange,
 } from '@/lib/filters/period'
 import { useSesion, useTenant, useTenantId } from '@/lib/tenant-context'
+import { porRevisarFueraDelPeriodo } from '@/lib/finance/gastos-por-revisar'
 import { ShareDonut } from '@/components/os/ShareDonut'
 import { TrendChart } from '@/components/os/TrendChart'
 import { PeriodFilterBar } from '@/components/os/PeriodFilterBar'
@@ -382,6 +383,12 @@ export default function ExpensesPage() {
         normalizeText(CATEGORIES.find((c) => c.value === e.category)?.label || e.category).includes(nq)
     )
   }, [monthItems, q])
+
+  // Pendientes de revisar con fecha FUERA del periodo (p. ej. la factura de un colaborador, que se fecha en su
+  // mes de pago): se listan igualmente, marcados, y NO entran en los totales del periodo.
+  const revisarFuera = useMemo(() => porRevisarFueraDelPeriodo(items, periodRange), [items, periodRange])
+  const idsFuera = useMemo(() => new Set(revisarFuera.map((e) => e.id)), [revisarFuera])
+  const filasTabla = useMemo(() => [...revisarFuera, ...visibleItems], [revisarFuera, visibleItems])
 
   const byCategory = useMemo(() => {
     const map = new Map<string, number>()
@@ -991,8 +998,21 @@ export default function ExpensesPage() {
             )}
           </div>
 
+          {revisarFuera.length > 0 && (
+            <p className="flex items-start gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+              <Info className="mt-0.5 w-3.5 h-3.5 shrink-0" />
+              <span>
+                {revisarFuera.length === 1
+                  ? 'Hay 1 gasto por revisar con fecha fuera de este periodo'
+                  : `Hay ${formatNumber(revisarFuera.length)} gastos por revisar con fecha fuera de este periodo`}
+                . Se muestran arriba de la tabla para que no se queden sin revisar; no suman en los totales del periodo.
+                La factura de un colaborador se fecha en su mes de pago (lo generado en un mes se paga el siguiente).
+              </span>
+            </p>
+          )}
+
           <div className="bg-card/50 border border-border rounded-lg overflow-hidden">
-            {visibleItems.length === 0 ? (
+            {filasTabla.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground text-sm">
                 {monthItems.length === 0
                   ? 'No hay gastos registrados para este mes'
@@ -1012,7 +1032,7 @@ export default function ExpensesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {visibleItems.map((e) => {
+                  {filasTabla.map((e) => {
                     const isExpanded = expandedInvoiceId === e.id
                     const isPdf = !!e.invoice_url && e.invoice_url.toLowerCase().split('?')[0].endsWith('.pdf')
                     return (
@@ -1036,6 +1056,14 @@ export default function ExpensesPage() {
                             {e.needs_review && (
                               <span className="ml-2 text-3xs px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
                                 Revisar
+                              </span>
+                            )}
+                            {idsFuera.has(e.id) && (
+                              <span
+                                title="Su fecha contable queda fuera del periodo que estás viendo: no suma en los totales de arriba."
+                                className="ml-2 text-3xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border"
+                              >
+                                fuera del periodo
                               </span>
                             )}
                             {e.invoice_url && (

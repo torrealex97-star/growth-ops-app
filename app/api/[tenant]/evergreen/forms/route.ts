@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { authorizeForms, slugify } from '@/lib/forms/admin'
-import { FORM_AUDIENCES, FORM_CATEGORIES } from '@/lib/forms/types'
+import { FORM_AUDIENCES, FORM_CATEGORIES, type FormConfig } from '@/lib/forms/types'
+import { formConfigSchema } from '@/lib/forms/schema'
 import { blankConfig, templateByKey } from '@/lib/forms/templates'
+import { validateConfig } from '@/lib/forms/validation'
 
 export const dynamic = 'force-dynamic'
 
@@ -53,6 +55,8 @@ const createBody = z.object({
   category: z.enum(FORM_CATEGORIES).optional(),
   audience: z.enum(FORM_AUDIENCES).optional(),
   cloneFrom: z.string().uuid().optional(),
+  // Config ya montada (crear con IA, importar de otra herramienta). Se valida entera: viene del navegador.
+  config: formConfigSchema.optional(),
 })
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
@@ -65,6 +69,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   if (!parsed.success) return NextResponse.json({ error: 'Petición no válida' }, { status: 400 })
   const b = parsed.data
   const tpl = b.templateKey ? templateByKey(b.templateKey) : undefined
+  if (b.config) {
+    const problemas = validateConfig(b.config as FormConfig)
+    if (problemas.length) return NextResponse.json({ error: problemas[0] }, { status: 400 })
+  }
   if (b.templateKey && !tpl) return NextResponse.json({ error: 'Plantilla no encontrada' }, { status: 404 })
 
   // Duplicar: copia el BORRADOR de otro formulario de esta subcuenta (nunca lo publicado ni sus respuestas).
@@ -100,7 +108,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       name,
       category: b.category ?? source?.category ?? tpl?.category ?? 'otro',
       audience: b.audience ?? source?.audience ?? tpl?.audience ?? 'captacion',
-      draft_config: source?.draft_config ?? tpl?.config ?? blankConfig(),
+      draft_config: b.config ?? source?.draft_config ?? tpl?.config ?? blankConfig(),
       created_by: auth.userId,
     })
     .select('id, slug')

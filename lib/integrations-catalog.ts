@@ -994,12 +994,12 @@ export const INTEGRATION_GROUPS: IntegrationGroup[] = [
       {
         titulo: 'Programa y abre un lanzamiento',
         detalle:
-          'En Lanzamientos escribe la fecha del evento, pulsa «Programar» y luego «Abrir siguiente». Solo los leads que lleguen con un lanzamiento abierto se apuntan a él.',
+          'En Lanzamientos pulsa «Programar fecha», elige el día del evento y después «Abrir». Vale también para el primer lanzamiento de la subcuenta. Solo los leads que lleguen con un lanzamiento abierto se apuntan a él.',
       },
       {
         titulo: 'Crea tres Custom Webhook en GHL',
         detalle:
-          'En GHL → Automation → Workflows añade una acción «Custom Webhook» (POST) en cada flujo: el del registro usa la dirección de arriba; el de la encuesta, la misma con ?evento=encuesta al final; y el del botón «Sí, confirmo», con ?evento=confirmacion (?evento=desconfirmacion para retirar la asistencia).',
+          'En GHL → Automation → Workflows añade una acción «Custom Webhook» (POST) en cada flujo: el del registro usa la dirección de arriba; el de la encuesta, la misma con ?evento=encuesta al final; y el del botón «Sí, confirmo», con ?evento=confirmacion (?evento=desconfirmacion para retirar la asistencia). Las cuatro direcciones ya montadas, cada una con su botón de copiar, están en Lanzamientos → pestaña «Conexión con GHL».',
       },
       {
         titulo: 'Pon el secreto en los dos sitios',
@@ -1009,7 +1009,7 @@ export const INTEGRATION_GROUPS: IntegrationGroup[] = [
       {
         titulo: 'Compruébalo',
         detalle:
-          'Registra un contacto de prueba: en «Recepción de webhooks» el último evento cambia y en Lanzamientos aparece apuntado al lanzamiento abierto.',
+          'Registra un contacto de prueba: en «Recepción de webhooks» el último evento cambia, y en Lanzamientos aparece apuntado al lanzamiento abierto y el asistente de activación marca el último paso como hecho.',
       },
     ],
     fields: [
