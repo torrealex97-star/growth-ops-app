@@ -1,72 +1,91 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+import { requirePantalla } from '@/lib/auth/requirePantalla'
 import { requireTenant } from '@/lib/auth/requireTenant'
+import { businessToday } from '@/lib/dates/business'
+import { leerConversiones } from '@/lib/launch/conversiones'
+import { leerPaginado } from '@/lib/launch/filas'
 import {
   abrirSiguienteLanzamiento,
+  borrarProgramado,
   calendario,
-  lanzamientoActivo,
+  cerrarLanzamiento,
+  editarLanzamiento,
   programarLanzamiento,
-  siguienteLanzamiento,
+  siguienteDe,
+  type Lanzamiento,
 } from '@/lib/launch/lanzamientos'
-import {
-  computeAdQuality,
-  edadAprox,
-  qualityScore,
-  qualityScoreJunio,
-  resolveFields,
-  TEMAS_PIDEN,
-  temasDe,
-  tramoDinero,
-  UMBRAL_LEAD_BUENO,
-  type LeadForQuality,
-} from '@/lib/launch/calidad'
+import { agregarPanel, type FilaPanel } from '@/lib/launch/panel'
+import { MOTIVO_SOLO_LECTURA, puedeGestionarLanzamiento } from '@/lib/launch/permisos'
 
 export const runtime = 'nodejs'
 
-// GET /api/[tenant]/evergreen/lanzamiento
-//
-// Datos del panel /lanzamiento: calendario, lanzamiento activo, métricas del activo (leads,
-// confirmados, calidad), leads por día, ranking de creativos y últimos leads con su nota. El tenant
-// sale SIEMPRE de la URL y lo valida requireTenant; el service-role se usa para que las cifras no
-// cambien según el rol de quien mira, con el tenantId de la sesión ya validada estampado en CADA
-// consulta (RLS no protege a un cliente service-role).
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
-  const { tenant } = await params
-  const auth = await requireTenant(tenant)
-  if ('error' in auth) return auth.error
+/** Tope de filas de detalle por lanzamiento. Por encima, las cifras de detalle se declaran muestra. */
+const MAX_FILAS_PANEL = 5000
 
-  const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+const PROYECCION_PANEL =
+  'id, created_at, confirmed_at, utm, contact_id, contacts!inner(full_name, email, phone, qualification)'
+
+function servicio(): SupabaseClient {
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
     auth: { autoRefreshToken: false, persistSession: false },
   })
+}
+
+// GET /api/[tenant]/evergreen/lanzamiento[?launch=<id>]
+//
+// Datos del panel /lanzamiento: calendario, lanzamiento activo, el que se está VIENDO (el activo, o
+// el que pida `?launch=` para consultar uno pasado) y sus métricas. Exige acceso a la pantalla
+// (requirePantalla): la respuesta lleva nombre, email y teléfono de leads y el cliente es
+// service-role, así que pertenecer a la subcuenta no basta. El tenantId de la sesión ya validada va
+// estampado en CADA consulta (RLS no protege a un cliente service-role).
+export async function GET(req: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
+  const { tenant } = await params
+  const auth = await requirePantalla(tenant, '/lanzamiento')
+  if ('error' in auth) return auth.error
+
+  const sb = servicio()
   const tenantId = auth.tenantId
+  const puedeEditar = puedeGestionarLanzamiento(auth)
 
   try {
-    const [cal, activo, siguiente] = await Promise.all([
-      calendario(sb, tenantId),
-      lanzamientoActivo(sb, tenantId),
-      siguienteLanzamiento(sb, tenantId),
-    ])
+    const cal = await calendario(sb, tenantId)
+    const activo = cal.find((l) => l.abierto) ?? null
+    const siguiente = siguienteDe(cal)
 
-    if (!activo) {
-      // Un hueco no es un cero: sin lanzamiento abierto no hay métricas que contar y se dice tal cual.
-      return NextResponse.json({ calendario: cal, activo: null, siguiente, metricas: null })
-    }
+    // Qué lanzamiento se pinta: el pedido (si es de esta subcuenta y ya se abrió), el activo o, si no
+    // hay ninguno abierto, el último que lo estuvo — para que el histórico no desaparezca al cerrar.
+    const pedido = req.nextUrl.searchParams.get('launch')
+    const visto =
+      (pedido ? cal.find((l) => l.id === pedido && l.estado !== 'programado') : null) ??
+      activo ??
+      cal.find((l) => l.estado === 'cerrado') ??
+      null
 
-    const datos = await leerLeadsDelLanzamiento(sb, tenantId, activo.id)
-    const anuncios = computeAdQuality(datos.leadsParaCalidad)
-    return NextResponse.json({
+    const base = {
       calendario: cal,
       activo,
       siguiente,
-      metricas: datos.metricas,
-      dias: datos.dias,
-      // Top por scoreComposite: es la decisión real de dónde meter presupuesto.
-      anuncios: anuncios.slice(0, 8),
-      leads: datos.recientes,
-      edades: datos.edades,
-      piden: datos.piden,
-    })
+      visto,
+      puedeEditar,
+      motivoSoloLectura: puedeEditar ? null : MOTIVO_SOLO_LECTURA,
+      // El activo sigue recibiendo leads aunque su evento ya haya pasado: se avisa, no se cierra solo.
+      activoPasado: activo ? activo.fecha < businessToday() : false,
+    }
+
+    // Contenido e Informe solo necesitan el calendario para su selector: no se les calcula (ni se
+    // les manda) el panel entero con los datos de los leads.
+    if (req.nextUrl.searchParams.get('solo') === 'calendario') return NextResponse.json(base)
+
+    if (!visto) {
+      // Un hueco no es un cero: sin lanzamiento abierto no hay métricas que contar y se dice tal cual.
+      return NextResponse.json({ ...base, metricas: null })
+    }
+
+    const datos = await leerPanel(sb, tenantId, visto)
+    return NextResponse.json({ ...base, ...datos })
   } catch (e) {
+    console.error('[lanzamiento] no se pudo leer el panel:', e instanceof Error ? e.message : e)
     return NextResponse.json(
       { error: e instanceof Error ? e.message : 'No se pudo leer el lanzamiento' },
       { status: 500 }
@@ -76,39 +95,65 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ ten
 
 // POST /api/[tenant]/evergreen/lanzamiento
 //
-// Acciones del panel, solo admin/director de la subcuenta:
-//   { accion: 'programar', fecha: 'YYYY-MM-DD' } → añade una fecha al calendario
-//   { accion: 'abrir', esperado?: id }           → abre el siguiente (claim atómico)
+// Acciones del calendario, solo para quien gestiona la subcuenta:
+//   { accion: 'programar', fecha: 'YYYY-MM-DD', nombre? } → añade una fecha al calendario
+//   { accion: 'abrir', esperado?: id }                    → abre el siguiente (claim atómico)
+//   { accion: 'editar', id, nombre?, fecha? }             → renombra / mueve la fecha de un programado
+//   { accion: 'cerrar', id }                              → pasa un abierto a histórico
+//   { accion: 'borrar', id }                              → quita un programado sin abrir
 export async function POST(req: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
   const { tenant } = await params
   const auth = await requireTenant(tenant)
   if ('error' in auth) return auth.error
-  if (!['admin', 'director'].includes(auth.role ?? '')) {
-    return NextResponse.json({ error: 'Solo admin o director pueden abrir o programar lanzamientos' }, { status: 403 })
+  if (!puedeGestionarLanzamiento(auth)) {
+    return NextResponse.json({ error: MOTIVO_SOLO_LECTURA }, { status: 403 })
   }
 
-  let body: { accion?: string; fecha?: string; esperado?: string }
+  let body: { accion?: string; fecha?: string; nombre?: string; esperado?: string; id?: string }
   try {
     body = (await req.json()) as typeof body
   } catch {
     return NextResponse.json({ error: 'JSON inválido' }, { status: 400 })
   }
+  const texto = (v: unknown) => (typeof v === 'string' ? v : undefined)
 
-  const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  })
-
+  const sb = servicio()
   try {
-    if (body.accion === 'programar') {
-      if (!body.fecha) return NextResponse.json({ error: 'Falta la fecha' }, { status: 400 })
-      const nuevo = await programarLanzamiento(sb, auth.tenantId, body.fecha)
-      return NextResponse.json({ ok: true, lanzamiento: nuevo })
+    switch (body.accion) {
+      case 'programar': {
+        const fecha = texto(body.fecha)
+        if (!fecha) return NextResponse.json({ error: 'Falta la fecha' }, { status: 400 })
+        const nuevo = await programarLanzamiento(sb, auth.tenantId, fecha, texto(body.nombre))
+        return NextResponse.json({ ok: true, lanzamiento: nuevo })
+      }
+      case 'abrir': {
+        const r = await abrirSiguienteLanzamiento(sb, auth.tenantId, auth.userId, texto(body.esperado))
+        return NextResponse.json({ ok: true, ...r })
+      }
+      case 'editar': {
+        const id = texto(body.id)
+        if (!id) return NextResponse.json({ error: 'Falta el lanzamiento' }, { status: 400 })
+        const editado = await editarLanzamiento(sb, auth.tenantId, id, {
+          label: texto(body.nombre),
+          fecha: texto(body.fecha),
+        })
+        return NextResponse.json({ ok: true, lanzamiento: editado })
+      }
+      case 'cerrar': {
+        const id = texto(body.id)
+        if (!id) return NextResponse.json({ error: 'Falta el lanzamiento' }, { status: 400 })
+        const cerrado = await cerrarLanzamiento(sb, auth.tenantId, id, auth.userId)
+        return NextResponse.json({ ok: true, lanzamiento: cerrado })
+      }
+      case 'borrar': {
+        const id = texto(body.id)
+        if (!id) return NextResponse.json({ error: 'Falta el lanzamiento' }, { status: 400 })
+        await borrarProgramado(sb, auth.tenantId, id)
+        return NextResponse.json({ ok: true })
+      }
+      default:
+        return NextResponse.json({ error: 'Acción desconocida' }, { status: 400 })
     }
-    if (body.accion === 'abrir') {
-      const resultado = await abrirSiguienteLanzamiento(sb, auth.tenantId, auth.userId, body.esperado)
-      return NextResponse.json({ ok: true, ...resultado })
-    }
-    return NextResponse.json({ error: 'Acción desconocida' }, { status: 400 })
   } catch (e) {
     // Errores de negocio con mensaje claro (fecha inválida, calendario vacío, doble clic): 400.
     return NextResponse.json(
@@ -118,169 +163,60 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   }
 }
 
-// ── Lectura de los leads del lanzamiento activo ─────────────────────────────
+// ── Lectura de los leads de un lanzamiento ──────────────────────────────────
 //
-// Proyección estricta (nada de select('*'): ni qualification entera de más ni payloads ajenos) y
-// agregados contados en Postgres donde se puede. El recuento y las medias de calidad se hacen en
-// memoria sobre las filas del lanzamiento ACTIVO: un lanzamiento viven unas semanas y las filas son
-// de la subcuenta; el agregado en Postgres de un score que vive en un JSONB no vale el RPC.
-
-type FilasLeads = {
-  contact_launches: {
-    id: string
-    created_at: string
-    confirmed_at: string | null
-    invitado_at: string | null
-    utm: Record<string, string> | null
-    contact_id: string
+// Proyección estricta (nada de select('*')) y recuentos contados en Postgres. El detalle (calidad,
+// anuncios, días) se calcula en memoria sobre las filas del lanzamiento, leídas POR BLOQUES: un
+// `.limit(5000)` a secas se queda en el `max_rows` de PostgREST (1000) y daba cifras cortadas sin
+// avisar. El agregado vive en lib/launch/panel.ts para poder probarlo con filas reales.
+async function leerPanel(sb: SupabaseClient, tenantId: string, launch: Lanzamiento) {
+  const conteo = (soloConfirmados: boolean) => {
+    const q = sb
+      .from('contact_launches')
+      .select('id', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId)
+      .eq('launch_id', launch.id)
+    return soloConfirmados ? q.not('confirmed_at', 'is', null) : q
   }
-  contacts: {
-    full_name: string | null
-    email: string | null
-    phone: string | null
-    qualification: Record<string, unknown> | null
-  } | null
-}
-
-const MAX_FILAS_PANEL = 5000
-
-async function leerLeadsDelLanzamiento(sb: SupabaseClient, tenantId: string, launchId: string) {
-  // Conteos con head: no traen filas.
-  const [resTotal, resConfirmados, resInvitados] = await Promise.all([
-    sb
-      .from('contact_launches')
-      .select('id', { count: 'exact', head: true })
-      .eq('tenant_id', tenantId)
-      .eq('launch_id', launchId),
-    sb
-      .from('contact_launches')
-      .select('id', { count: 'exact', head: true })
-      .eq('tenant_id', tenantId)
-      .eq('launch_id', launchId)
-      .not('confirmed_at', 'is', null),
-    sb
-      .from('contact_launches')
-      .select('id', { count: 'exact', head: true })
-      .eq('tenant_id', tenantId)
-      .eq('launch_id', launchId)
-      .not('invitado_at', 'is', null),
-  ])
-  const primerError = [resTotal, resConfirmados, resInvitados].find((r) => r.error)?.error?.message
+  const [resTotal, resConfirmados] = await Promise.all([conteo(false), conteo(true)])
+  const primerError = [resTotal, resConfirmados].find((r) => r.error)?.error?.message
   if (primerError) throw new Error(`No se pudieron contar los leads del lanzamiento: ${primerError}`)
-  const total = resTotal.count ?? 0
-  const confirmados = resConfirmados.count ?? 0
-  const invitados = resInvitados.count ?? 0
 
-  const { data: filas, error } = await sb
-    .from('contact_launches')
-    .select(
-      'id, created_at, confirmed_at, invitado_at, utm, contact_id, contacts!inner(full_name, email, phone, qualification)'
+  let leido: { filas: FilaPanel[]; truncado: boolean }
+  try {
+    leido = await leerPaginado<FilaPanel>(
+      (desde, hasta) =>
+        sb
+          .from('contact_launches')
+          .select(PROYECCION_PANEL)
+          .eq('tenant_id', tenantId)
+          .eq('launch_id', launch.id)
+          // El desempate por id hace el orden estable entre bloques: sin él, dos filas del mismo
+          // instante pueden repetirse o saltarse al paginar.
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
+          .range(desde, hasta) as unknown as PromiseLike<{
+          data: FilaPanel[] | null
+          error: { message: string } | null
+        }>,
+      { max: MAX_FILAS_PANEL }
     )
-    .eq('tenant_id', tenantId)
-    .eq('launch_id', launchId)
-    .order('created_at', { ascending: false })
-    .limit(MAX_FILAS_PANEL)
-  if (error) throw new Error(`No se pudieron leer los leads del lanzamiento: ${error.message}`)
-  const lista = (filas ?? []) as unknown as FilasLeads[]
-
-  const leadsParaCalidad: LeadForQuality[] = []
-  const calidades: number[] = []
-  const calidadesJunio: number[] = []
-  const edades: number[] = []
-  const piden: Record<string, number> = {}
-  const porDia = new Map<string, { leads: number; confirmados: number }>()
-
-  for (const f of lista) {
-    const q = (f.contacts?.qualification ?? null) as Parameters<typeof resolveFields>[0]
-    const fields = resolveFields(q)
-    const quality = qualityScore(fields)
-    const qualityJunio = qualityScoreJunio(fields)
-    const dia = (f.contact_launches.created_at ?? '').slice(0, 10)
-    const delDia = porDia.get(dia) ?? { leads: 0, confirmados: 0 }
-    delDia.leads += 1
-    if (f.contact_launches.confirmed_at) delDia.confirmados += 1
-    porDia.set(dia, delDia)
-
-    const citas = 0
-    const ventas = 0
-    leadsParaCalidad.push({
-      id: f.contact_launches.id,
-      anuncio: f.contact_launches.utm?.utm_content ?? null,
-      campana: f.contact_launches.utm?.utm_campaign ?? null,
-      fields,
-      quality,
-      qualityJunio,
-      citas,
-      ventas,
-      confirmado: Boolean(f.contact_launches.confirmed_at),
-    })
-    if (quality !== null) calidades.push(quality)
-    if (qualityJunio !== null) calidadesJunio.push(qualityJunio)
-    const edad = edadAprox(fields.edad)
-    if (edad !== null) edades.push(edad)
-    // Pregunta abierta "¿qué tendría que pasar…?": temas por palabras clave, deterministas
-    // (temasDe); las respuestas basura caen en no_sabe/otros y no se cuentan.
-    if (fields.que_piden) {
-      for (const tema of temasDe(fields.que_piden)) {
-        if (tema === 'no_sabe' || tema === 'otros') continue
-        piden[tema] = (piden[tema] ?? 0) + 1
-      }
-    }
+  } catch (e) {
+    throw new Error(`No se pudieron leer los leads del lanzamiento: ${e instanceof Error ? e.message : e}`)
   }
 
-  const media = (xs: number[]) =>
-    xs.length > 0 ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 10) / 10 : null
+  const primerApuntado = leido.filas.length ? leido.filas[leido.filas.length - 1].created_at : null
+  const conversiones = await leerConversiones(
+    sb,
+    tenantId,
+    [...new Set(leido.filas.map((f) => f.contact_id))],
+    primerApuntado
+  )
 
-  const metricas = {
-    leads: total,
-    /** false cuando el recuento excede MAX_FILAS_PANEL: la media se calcula sobre una muestra y se dice. */
-    muestraCompleta: total <= MAX_FILAS_PANEL,
-    confirmados,
-    invitados,
-    conEncuesta: calidades.length,
-    avgQuality: media(calidades),
-    avgQualityJunio: media(calidadesJunio),
-    buenos: calidades.filter((n) => n >= UMBRAL_LEAD_BUENO).length,
-    tramoDineroMasComun: tramoComun(lista),
-  }
-
-  const dias = [...porDia.entries()]
-    .sort((a, b) => (a[0] < b[0] ? 1 : -1))
-    .slice(0, 14)
-    .map(([fecha, v]) => ({ fecha, ...v }))
-
-  const recientes = lista.slice(0, 25).map((f) => {
-    const fields = resolveFields((f.contacts?.qualification ?? null) as Parameters<typeof resolveFields>[0])
-    return {
-      id: f.contact_launches.id,
-      nombre: f.contacts?.full_name ?? null,
-      email: f.contacts?.email ?? null,
-      phone: f.contacts?.phone ?? null,
-      fecha: f.contact_launches.created_at,
-      confirmado: Boolean(f.contact_launches.confirmed_at),
-      invitado: Boolean(f.contact_launches.invitado_at),
-      anuncio: f.contact_launches.utm?.utm_content ?? null,
-      campana: f.contact_launches.utm?.utm_campaign ?? null,
-      quality: qualityScore(fields),
-    }
+  return agregarPanel(leido.filas, {
+    total: resTotal.count ?? 0,
+    confirmados: resConfirmados.count ?? 0,
+    truncado: leido.truncado,
+    conversiones,
   })
-
-  const pidenOrdenado = Object.entries(piden)
-    .map(([tema, n]) => ({ tema, n, label: TEMAS_PIDEN.find((t) => t.id === tema)?.label ?? tema }))
-    .sort((a, b) => b.n - a.n)
-    .slice(0, 6)
-
-  return { metricas, dias, recientes, leadsParaCalidad, edades, piden: pidenOrdenado }
-}
-
-/** Tramo de ingresos más común entre los que contestaron, como "0"… "4" o null si nadie contestó. */
-function tramoComun(lista: FilasLeads[]): string | null {
-  const cuenta: Record<number, number> = {}
-  for (const f of lista) {
-    const fields = resolveFields((f.contacts?.qualification ?? null) as Parameters<typeof resolveFields>[0])
-    const t = tramoDinero(fields.salario)
-    if (t !== null) cuenta[t] = (cuenta[t] ?? 0) + 1
-  }
-  const top = Object.entries(cuenta).sort((a, b) => b[1] - a[1])[0]
-  return top ? top[0] : null
 }

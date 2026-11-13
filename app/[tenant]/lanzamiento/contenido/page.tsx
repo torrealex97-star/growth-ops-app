@@ -1,8 +1,8 @@
 'use client'
 
-import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AlertTriangle, ArrowLeft, Loader2, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react'
+import { AlertTriangle, Loader2, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react'
+import { NavLanzamiento } from '@/components/lanzamiento/NavLanzamiento'
 import { useTenant } from '@/lib/tenant-context'
 import { CANALES, ESTADOS, fechaDePieza, type PiezaContenido } from '@/lib/launch/contenido'
 import { CHECKLIST, progresoChecklist } from '@/lib/launch/plantilla'
@@ -48,6 +48,8 @@ export default function ContenidoLanzamientoPage() {
   const [editandoId, setEditandoId] = useState<string | null>(null)
   const [guardando, setGuardando] = useState(false)
   const [marcados, setMarcados] = useState<string[]>([])
+  // El checklist se lee aparte: si falla, se dice. Antes se quedaba vacío y parecía «nada hecho».
+  const [errorChecklist, setErrorChecklist] = useState<string | null>(null)
   const [guion, setGuion] = useState('')
   const [guionGuardado, setGuionGuardado] = useState('')
   const abortPiezas = useRef<AbortController | null>(null)
@@ -70,9 +72,16 @@ export default function ContenidoLanzamientoPage() {
         setPuedeEditar(Boolean(j.puedeEditar))
         setGuion((j.guion as string | null) ?? '')
         setGuionGuardado((j.guion as string | null) ?? '')
-        const rc = await fetch(`${base}/checklist?launch=${id}`, { signal: ac.signal })
-        const jc = await rc.json()
-        if (rc.ok) setMarcados(jc.marcados as string[])
+        setErrorChecklist(null)
+        try {
+          const rc = await fetch(`${base}/checklist?launch=${id}`, { signal: ac.signal })
+          const jc = await rc.json()
+          if (!rc.ok) throw new Error(jc.error || 'No se pudo leer el checklist')
+          setMarcados(jc.marcados as string[])
+        } catch (e) {
+          if ((e as Error).name === 'AbortError') throw e
+          setErrorChecklist(e instanceof Error ? e.message : 'No se pudo leer el checklist')
+        }
       } catch (e) {
         if ((e as Error).name !== 'AbortError') setError(e instanceof Error ? e.message : 'Error de conexión')
       } finally {
@@ -86,7 +95,7 @@ export default function ContenidoLanzamientoPage() {
     const ac = new AbortController()
     ;(async () => {
       try {
-        const r = await fetch(base, { signal: ac.signal })
+        const r = await fetch(`${base}?solo=calendario`, { signal: ac.signal })
         const j = await r.json()
         if (!r.ok) throw new Error(j.error || 'No se pudo leer el calendario')
         const lista = (j.calendario ?? []) as Lanzamiento[]
@@ -217,17 +226,13 @@ export default function ContenidoLanzamientoPage() {
   return (
     <div className="space-y-6">
       <div>
-        <Link
-          href={`/${tenant}/lanzamiento`}
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" /> Lanzamientos
-        </Link>
-        <h1 className="mt-2 text-2xl font-bold text-foreground">Contenido del lanzamiento</h1>
+        <h1 className="text-2xl font-bold text-foreground">Contenido del lanzamiento</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Qué se publica y cuándo (respecto al día del evento) en cada canal, y los descargables.
         </p>
       </div>
+
+      <NavLanzamiento tenant={tenant} />
 
       {cargando && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -309,9 +314,21 @@ export default function ContenidoLanzamientoPage() {
             <div className="flex items-center justify-between">
               <h2 className="font-semibold text-foreground">Checklist del lanzamiento</h2>
               <span className="text-sm tabular-nums text-muted-foreground">
-                {progreso.hecho} de {progreso.total}
+                {errorChecklist ? '—' : progreso.hecho} de {progreso.total}
               </span>
             </div>
+            {errorChecklist && (
+              <p role="alert" className="mt-2 flex flex-wrap items-center gap-2 text-sm text-red-600 dark:text-red-300">
+                <AlertTriangle className="h-4 w-4" /> {errorChecklist}. Lo marcado no se está mostrando.
+                <button
+                  type="button"
+                  className="underline underline-offset-2"
+                  onClick={() => void cargarPiezas(launchId)}
+                >
+                  Reintentar
+                </button>
+              </p>
+            )}
             <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden>
               <div
                 className="h-full bg-brand-600 transition-[width] duration-300 ease-out motion-reduce:transition-none"

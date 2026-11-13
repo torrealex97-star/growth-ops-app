@@ -96,7 +96,7 @@ test('migración y rutas: RLS por tenant y escritura solo admin/director', () =>
   assert.match(sql, /tenant_id\s+UUID NOT NULL REFERENCES public\.tenants/)
   assert.match(sql, /AS RESTRICTIVE/)
   const api = readFileSync('app/api/[tenant]/evergreen/lanzamiento/checklist/route.ts', 'utf8')
-  assert.match(api, /\['admin', 'director'\]\.includes/)
+  assert.match(api, /if \(!puedeGestionarLanzamiento\(auth\)\)/)
   const cont = readFileSync('app/api/[tenant]/evergreen/lanzamiento/contenido/route.ts', 'utf8')
   assert.match(cont, /accion === 'plantilla'/)
 })

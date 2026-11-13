@@ -8,6 +8,7 @@ export type AppRole =
   | 'closer'
   | 'triager'
   | 'cold_caller'
+  | 'cold_calling_manager'
   | 'affiliate'
   | 'marketing'
   | 'adscripcion'
@@ -34,6 +35,7 @@ export const ROLE_LABELS: Record<AppRole, string> = {
   closer: 'Closer',
   triager: 'Triager',
   cold_caller: 'Cold Caller',
+  cold_calling_manager: 'Manager de Cold Calling',
   affiliate: 'Colaborador',
   marketing: 'Marketing',
   adscripcion: 'Adscripción',
@@ -51,6 +53,7 @@ export const ROLE_COLORS: Record<AppRole, string> = {
   closer: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
   triager: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
   cold_caller: 'bg-lime-500/20 text-lime-400 border-lime-500/30',
+  cold_calling_manager: 'bg-green-500/20 text-green-400 border-green-500/30',
   affiliate: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
   marketing: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
   adscripcion: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
@@ -73,6 +76,9 @@ const ROLE_DEPARTMENTS: Record<AppRole, Department[]> = {
   closer: ['ventas'],
   triager: ['ventas'],
   cold_caller: ['ventas'],
+  // Supervisa cold calling. NO es liderazgo (`isLeadership`): no recibe finanzas, ni comisiones
+  // ajenas fuera de su panel, ni administración.
+  cold_calling_manager: ['ventas'],
   affiliate: ['ventas'],
   marketing: ['marketing'],
   adscripcion: ['marketing'],
@@ -84,7 +90,8 @@ const ROLE_DEPARTMENTS: Record<AppRole, Department[]> = {
 
 // Prefijos de ruta por departamento (para acceso configurable por usuario)
 const DEPARTMENT_PREFIXES: Record<Department, string[]> = {
-  ventas: ['/crm', '/ventas', '/analitica', '/comisiones', '/recursos', '/tasks'],
+  // '/llamadas' (lista de la cold caller) y '/cold-calling' (panel del manager) cuelgan de ventas.
+  ventas: ['/crm', '/ventas', '/analitica', '/comisiones', '/recursos', '/tasks', '/llamadas', '/cold-calling'],
   // '/marketing/afiliados' se añade aquí porque Afiliados se movió a Marketing (antes vivía
   // bajo el departamento 'finanzas', ver DEPARTMENT_PREFIXES.finanzas más abajo).
   // '/funnels' cuelga de marketing porque es una vista de captación (impresiones, visitas, leads),
@@ -131,6 +138,8 @@ export const NAV_PAGES: { href: string; label: string; dept: Department }[] = [
   { href: '/analitica/ranking', label: 'Analítica · Ranking', dept: 'ventas' },
   { href: '/analitica/actividad', label: 'Analítica · Actividad (+ KPI diario)', dept: 'ventas' },
   { href: '/comisiones', label: 'Comisiones', dept: 'ventas' },
+  { href: '/llamadas', label: 'Cold calling · Mis llamadas', dept: 'ventas' },
+  { href: '/cold-calling', label: 'Cold calling · Equipo', dept: 'ventas' },
   { href: '/tasks', label: 'Tareas', dept: 'ventas' },
   { href: '/recursos/enlaces', label: 'Recursos de venta · Enlaces', dept: 'ventas' },
   { href: '/recursos/biblioteca', label: 'Recursos de venta · Biblioteca', dept: 'ventas' },
@@ -242,7 +251,31 @@ const ROLE_ALLOWED_PREFIXES: Partial<Record<AppRole, string[]>> = {
   ],
   closer: ['/dashboard', '/crm', '/ventas', '/analitica', '/comisiones', '/tasks', '/recursos'],
   triager: ['/crm', '/analitica', '/tasks', '/recursos/testimonios'],
-  cold_caller: ['/crm', '/analitica', '/tasks', '/recursos/enlaces', '/recursos/biblioteca', '/recursos/testimonios'],
+  // '/llamadas' va PRIMERO: es su pantalla de inicio (el layout manda al primer prefijo permitido).
+  // '/comisiones' se abre porque la página ya le sirve SUS filas (autoservicio + RLS por user_id);
+  // antes la contemplaba en código pero el menú y este listado se lo impedían.
+  cold_caller: [
+    '/llamadas',
+    '/crm',
+    '/analitica',
+    '/comisiones',
+    '/tasks',
+    '/recursos/enlaces',
+    '/recursos/biblioteca',
+    '/recursos/testimonios',
+  ],
+  // Su panel primero. '/llamadas' para abrir la lista de una cold caller en solo lectura. Sin
+  // '/comisiones' (el dinero del equipo lo ve en su panel) ni '/ventas'.
+  cold_calling_manager: [
+    '/cold-calling',
+    '/llamadas',
+    '/crm',
+    '/analitica',
+    '/tasks',
+    '/recursos/enlaces',
+    '/recursos/biblioteca',
+    '/recursos/testimonios',
+  ],
   affiliate: [
     '/dashboard', // comisiones, facturas, previsión y embudo del mes viven aquí
     '/marketing/afiliados',
