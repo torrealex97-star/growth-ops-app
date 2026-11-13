@@ -127,7 +127,7 @@ async function recordMessage(
   usedGlobalFallback: boolean
 ): Promise<void> {
   try {
-    await sb.from('email_messages').insert({
+    const { error: logErr } = await sb.from('email_messages').insert({
       tenant_id: input.tenantId,
       template_key: input.templateKey,
       provider_message_id: result.ok ? (result.messageId ?? null) : null,
@@ -148,6 +148,8 @@ async function recordMessage(
         : (result.error ?? 'Error desconocido'),
       sent_at: result.ok ? new Date().toISOString() : null,
     })
+    // supabase-js no lanza: sin esta comprobación el catch de abajo no se enteraba nunca.
+    if (logErr) throw new Error(logErr.message)
   } catch (e) {
     console.error('[email-service] no se pudo registrar el envío:', e instanceof Error ? e.message : e)
   }
