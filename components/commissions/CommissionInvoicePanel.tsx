@@ -258,6 +258,13 @@ export function CommissionInvoicePanel({
                   </SelectContent>
                 </Select>
               )}
+              {period.slice(0, 7) >= hoyYm && (
+                <p className="text-xs text-amber-300">
+                  {mayuscula(monthLabel(period))} aún no ha cerrado: finanzas la verá como gasto de{' '}
+                  {monthLabel(`${mesDePagoPrevisto(period.slice(0, 7))}-01`)}. Si facturas un mes ya cerrado, cámbialo
+                  antes de subirla.
+                </p>
+              )}
             </div>
             <div className="space-y-1">
               <Label className="text-muted-foreground text-xs">Importe de tu factura (€) — opcional</Label>

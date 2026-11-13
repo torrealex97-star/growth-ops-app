@@ -232,7 +232,7 @@ export const WEBHOOKS_ENTRANTES: WebhookEntrante[] = [
     // Escribe TODO en raw_events (fuente `ghl-launch`) antes de procesar, incluidos los rechazos de firma.
     evidencia: 'raw_lanzamiento',
     aviso:
-      'Necesita un lanzamiento ABIERTO: en Lanzamientos programa una fecha y pulsa «Abrir siguiente». Sin lanzamiento abierto las altas no tienen a dónde apuntarse.',
+      'Necesita un lanzamiento ABIERTO: en Lanzamientos programa una fecha y pulsa «Abrir» (también para el primero). Sin lanzamiento abierto las altas no tienen a dónde apuntarse. Las direcciones por evento, ya montadas, están en Lanzamientos → «Conexión con GHL».',
     guia: {
       donde:
         'GHL → Automation → Workflows. Crea una acción «Custom Webhook» (método POST) por cada evento: la del alta usa la dirección de arriba tal cual; la de la encuesta, la misma con ?evento=encuesta al final; y la del botón «Sí, confirmo», con ?evento=confirmacion (o ?evento=desconfirmacion para retirar la asistencia).',

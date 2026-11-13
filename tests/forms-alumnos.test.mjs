@@ -5,6 +5,8 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 import { makeNavFilter, NAV_SECTIONS } from '../lib/nav.ts'
+import { FORM_TEMPLATES } from '../lib/forms/templates/index.ts'
+import { evaluateSubmission } from '../lib/forms/submission.ts'
 
 const raiz = join(dirname(fileURLToPath(import.meta.url)), '..')
 const leer = (p) => readFileSync(join(raiz, p), 'utf8')
@@ -52,6 +54,30 @@ test('el feedback agregado va acotado al tenant, con ventana, tope y solo column
   assert.doesNotMatch(r, /select\('\*'\)/)
   const n = (r.match(/\.eq\('tenant_id', auth\.tenantId\)/g) || []).length
   assert.ok(n >= 3, `consultas acotadas: ${n}`)
+})
+
+test('el email se pide SIEMPRE, también cuando la valoración alta salta a la reseña', () => {
+  // Regresión: el email iba DESPUÉS de la valoración, y la regla 4+ estrellas / NPS 9+ termina el
+  // formulario en esa pregunta. El camino feliz (la mayoría) nunca llegaba al email: no se guardaba
+  // y la respuesta no encajaba con la ficha de la alumna.
+  for (const t of FORM_TEMPLATES.filter((x) => x.audience === 'alumnos')) {
+    const email = t.config.questions.find((q) => q.semantic === 'contact.email')
+    assert.ok(email, `${t.key}: sin pregunta de email`)
+    assert.equal(email.required, true, `${t.key}: el email debe ser obligatorio para poder vincular`)
+
+    const answers = { email: 'alumna@example.test' }
+    for (const q of t.config.questions) {
+      if (q.semantic === 'contact.email') continue
+      if (q.type === 'rating') answers[q.id] = q.scaleMax ?? 5
+      else if (q.type === 'nps') answers[q.id] = 10
+      else if (q.required) answers[q.id] = q.options?.[0]?.value ?? 'texto'
+    }
+    const ev = evaluateSubmission(t.config, { answers })
+    assert.equal(ev.ok, true, `${t.key}: ${ev.ok ? '' : JSON.stringify(ev.errors)}`)
+    assert.equal(ev.answers.email, 'alumna@example.test', `${t.key}: el email no viaja en el envío`)
+    assert.equal(ev.semantic.email, 'alumna@example.test', `${t.key}: el email no llega a la ficha`)
+    assert.equal(ev.endingId, 'resena', `${t.key}: el camino feliz sigue ofreciendo la reseña`)
+  }
 })
 
 test('Alumnos › Respuestas lista todos los formularios que el rol puede ver, agrupados por audiencia', () => {

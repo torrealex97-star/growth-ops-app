@@ -13,6 +13,7 @@ import {
   listarContenido,
   type DatosPieza,
 } from '@/lib/launch/contenido'
+import { puedeGestionarLanzamiento } from '@/lib/launch/permisos'
 
 export const runtime = 'nodejs'
 // `generar` espera a la IA (hasta ~50 s): sin esto Vercel corta la función con su tope por defecto.
@@ -36,9 +37,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     return NextResponse.json({
       piezas: await listarContenido(svc(), auth.tenantId, launch),
       // La pantalla oculta el formulario a quien no puede guardar (el POST lo vuelve a comprobar).
-      puedeEditar: ['admin', 'director'].includes(auth.role ?? ''),
+      puedeEditar: puedeGestionarLanzamiento(auth),
       // El guion solo lo ven quienes pueden editar (es la fuente del contenido, no hace falta al resto).
-      guion: ['admin', 'director'].includes(auth.role ?? '') ? await leerGuion(svc(), auth.tenantId, launch) : null,
+      guion: puedeGestionarLanzamiento(auth) ? await leerGuion(svc(), auth.tenantId, launch) : null,
     })
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Error' }, { status: 500 })
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   const { tenant } = await params
   const auth = await requireTenant(tenant)
   if ('error' in auth) return auth.error
-  if (!['admin', 'director'].includes(auth.role ?? '')) {
+  if (!puedeGestionarLanzamiento(auth)) {
     return NextResponse.json({ error: 'Solo admin o director pueden editar el contenido' }, { status: 403 })
   }
   let body: { accion?: string; launchId?: string; id?: string; origen?: string; datos?: DatosPieza; guion?: string }
