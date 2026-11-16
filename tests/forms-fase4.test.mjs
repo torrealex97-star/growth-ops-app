@@ -104,7 +104,13 @@ test('respuestas: lectura por rol, revisar sin borrar, borrar solo admin/directo
   assert.match(r, /authorizeForms\(tenant, false\)/)
   assert.match(r, /EXPORT_MAX = 5000/)
   const rid = leer(`${API}/[id]/responses/[rid]/route.ts`)
-  assert.match(rid, /\['admin', 'director', 'manager', 'marketing'\]/)
+  // La lista vive ahora en una constante única: se comprueba que la ruta la usa Y que contiene
+  // exactamente esos roles (misma intención que el literal de antes, sin duplicar el vocabulario).
+  assert.match(rid, /ROLES_ASIGNAR_RESPUESTA/)
+  assert.match(
+    leer('lib/forms/admin.ts'),
+    /ROLES_ASIGNAR_RESPUESTA = \['admin', 'director', 'manager', 'marketing'\] as const/
+  )
   assert.match(rid, /DELETE[\s\S]*\['admin', 'director'\]/)
   assert.match(rid, /eq\('tenant_id', auth\.tenantId\)[\s\S]*?eq\('form_id', id\)/)
 })
