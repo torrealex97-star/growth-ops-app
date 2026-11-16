@@ -96,12 +96,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     .limit(SIN_FICHA_MAX)
   const versionesPendientes = [...new Set((pendientes ?? []).map((r) => r.version_id).filter(Boolean))] as string[]
   const emailPorVersion = new Map<string, string | null>()
+  let eConfigs = false
   if (versionesPendientes.length) {
-    const { data: configs } = await sb
+    const { data: configs, error } = await sb
       .from('form_versions')
       .select('id, config')
       .eq('tenant_id', auth.tenantId)
       .in('id', versionesPendientes)
+    eConfigs = Boolean(error)
     for (const v of configs ?? []) {
       const cfg = formConfigSchema.safeParse(v.config)
       const pregunta = cfg.success ? cfg.data.questions.find((x) => x.semantic === 'contact.email') : undefined
@@ -111,8 +113,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
   const nombreDeForm = new Map(forms.map((f) => [f.id, f.name]))
   const sinFicha = {
     total: pendientesTotal ?? 0,
-    // Un fallo de lectura NO es cero pendientes: la pantalla lo enseña como hueco y deja reintentar.
-    error: ePendientes ? 'No se pudieron leer las respuestas sin ficha' : null,
+    // Un fallo de lectura NO es cero pendientes NI «sin email»: si no se pudieron leer las configs, el
+    // email de cada fila es desconocido, no vacío. La pantalla lo enseña como hueco y deja reintentar.
+    error: ePendientes || eConfigs ? 'No se pudieron leer las respuestas sin ficha' : null,
     rows: (pendientes ?? []).map((r) => {
       const clave = r.version_id ? emailPorVersion.get(r.version_id) : null
       const valor = clave ? (r.answers as Record<string, unknown> | null)?.[clave] : null

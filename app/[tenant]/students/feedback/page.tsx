@@ -39,6 +39,8 @@ function AsignarFicha({
 
   useEffect(() => {
     const consulta = texto.trim()
+    // Un error de una búsqueda anterior no vale para la siguiente.
+    setError('')
     if (consulta.length < 2) {
       setResultados([])
       setBuscando(false)
@@ -239,7 +241,11 @@ export default function FeedbackResumenPage() {
               label="Sin ficha"
               value={data.sinFicha.error ? '—' : formatNumber(data.sinFicha.total)}
               hint={
-                data.sinFicha.error ? 'no se pudo leer' : data.sinFicha.total === 0 ? 'todo vinculado' : 'pendientes'
+                data.sinFicha.error
+                  ? 'no se pudo leer'
+                  : data.sinFicha.total === 0
+                    ? 'todo vinculado'
+                    : 'pendientes, todas las fechas'
               }
             />
           </div>
@@ -314,9 +320,6 @@ export default function FeedbackResumenPage() {
               )}
               {!data.sinFicha.error && data.sinFicha.truncated && (
                 <p className="mt-2 text-2xs text-muted-foreground">Se muestran las 50 más recientes.</p>
-              )}
-              {!data.sinFicha.error && data.sinFicha.rows.length === 0 && (
-                <p className="mt-3 text-xs text-muted-foreground">Ninguna pendiente.</p>
               )}
             </section>
           )}
