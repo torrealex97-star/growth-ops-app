@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { authorizeForms } from '@/lib/forms/admin'
+import { authorizeForms, ROLES_ASIGNAR_RESPUESTA } from '@/lib/forms/admin'
 import { computeFeedback, type FeedbackRow } from '@/lib/forms/feedback'
 import { formConfigSchema } from '@/lib/forms/schema'
 
@@ -74,6 +74,62 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     }
   })
 
+  // Respuestas completadas SIN ficha: el hueco era invisible (el resumen decía «12 vinculadas» sin
+  // decir cuántas quedaban fuera ni cuáles). Es una COLA DE REVISIÓN, así que NO se filtra por periodo:
+  // una respuesta sin vincular sigue pendiente para siempre, no desaparece a los 90 días.
+  // El email se saca de la pregunta `contact.email` de la versión DE ESA respuesta (una vieja puede
+  // venir de otra config). No se empareja por nombre: si el email no casa, decide una persona; el
+  // arreglo de fondo es identidad por enlace, no parecido de nombre.
+  const SIN_FICHA_MAX = 50
+  const {
+    data: pendientes,
+    count: pendientesTotal,
+    error: ePendientes,
+  } = await sb
+    .from('form_responses')
+    .select('id, form_id, version_id, rating, nps, created_at, answers', { count: 'exact' })
+    .eq('tenant_id', auth.tenantId)
+    .eq('status', 'completed')
+    .in('form_id', formIds)
+    .is('contact_id', null)
+    .order('created_at', { ascending: false })
+    .limit(SIN_FICHA_MAX)
+  const versionesPendientes = [...new Set((pendientes ?? []).map((r) => r.version_id).filter(Boolean))] as string[]
+  const emailPorVersion = new Map<string, string | null>()
+  if (versionesPendientes.length) {
+    const { data: configs } = await sb
+      .from('form_versions')
+      .select('id, config')
+      .eq('tenant_id', auth.tenantId)
+      .in('id', versionesPendientes)
+    for (const v of configs ?? []) {
+      const cfg = formConfigSchema.safeParse(v.config)
+      const pregunta = cfg.success ? cfg.data.questions.find((x) => x.semantic === 'contact.email') : undefined
+      emailPorVersion.set(v.id, pregunta?.id ?? null)
+    }
+  }
+  const nombreDeForm = new Map(forms.map((f) => [f.id, f.name]))
+  const sinFicha = {
+    total: pendientesTotal ?? 0,
+    // Un fallo de lectura NO es cero pendientes: la pantalla lo enseña como hueco y deja reintentar.
+    error: ePendientes ? 'No se pudieron leer las respuestas sin ficha' : null,
+    rows: (pendientes ?? []).map((r) => {
+      const clave = r.version_id ? emailPorVersion.get(r.version_id) : null
+      const valor = clave ? (r.answers as Record<string, unknown> | null)?.[clave] : null
+      return {
+        id: r.id,
+        form_id: r.form_id,
+        form_name: nombreDeForm.get(r.form_id) ?? 'Formulario',
+        created_at: r.created_at,
+        rating: r.rating,
+        nps: r.nps,
+        email: typeof valor === 'string' && valor.trim() ? valor.trim().slice(0, 200) : null,
+      }
+    }),
+    truncated: (pendientesTotal ?? 0) > SIN_FICHA_MAX,
+    canAssign: (ROLES_ASIGNAR_RESPUESTA as readonly string[]).includes(auth.role ?? ''),
+  }
+
   const perForm = forms.map((f) => {
     const mine = feedbackRows.filter((r) => r.form_id === f.id)
     const s = computeFeedback(mine)
@@ -90,6 +146,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
   return NextResponse.json({
     forms: perForm,
     summary: computeFeedback(feedbackRows),
+    sinFicha,
     days: q.data.days,
     truncated: (rows?.length ?? 0) >= MAX_ROWS,
   })
