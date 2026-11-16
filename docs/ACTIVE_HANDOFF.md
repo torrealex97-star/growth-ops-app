@@ -5,6 +5,21 @@ aplicadas en producción, con lo que hace falta para subirlas. Al fusionarse una
 
 Todo lo que depende de Alex, paso a paso: **[PASOS_ALEX.md](PASOS_ALEX.md)**.
 
+# EN PR — Alta estándar de colaboradora (16-nov)
+
+`lib/auth/role-presets.ts` (preset por rol) + `lib/collaborators/provision.ts` (ficha idempotente). Las tres vías de alta
+(invitación, edición de usuario, alta directa de Colaboradores) usan el mismo helper y ya no hay `TRACKING_ROLES`
+duplicada. Una cuenta NUEVA de colaboradora nace con `data_scope='own'` (el default de la BD es `'team'` y abre las
+políticas RLS de equipo), comisiones activas (nunca `pays_commissions=false`, MONEY.md D9), ficha y código de referido;
+el % se escribe a la vez en `users` y en `collaborator_profiles`. Reinvitar a alguien que ya existe no reescribe nada.
+
+**Estado (TESTED, no VERIFIED en producción):** tests de preset y helper, y revisión estática de las tres vías. No se probó
+el alta real con sesión de colaboradora tras `data_scope='own'`; el CRM ya trata `'own'` como valor por defecto y el
+scope de colaborador (más estrecho) gana, pero conviene dar de alta una de prueba en preview.
+
+**Pendiente, requiere OK de Alex (producción):** las 4 colaboradoras existentes están en `data_scope='team'` (todas con
+ficha y comisiones activas; el % coincide en ambas tablas). Pasarlas a `'own'` es un `UPDATE` de 4 filas, reversible.
+
 # VERIFICADO EN PRODUCCIÓN — Pendientes que no requieren código (16-nov)
 
 Solo lectura sobre la BD real; no se escribió nada.

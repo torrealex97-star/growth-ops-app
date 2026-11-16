@@ -5,11 +5,11 @@ import { getCompanyProfile } from '@/lib/contracts/company'
 import { sendInviteEmail, resendConfigured } from '@/lib/email/resend'
 import { requireTenant } from '@/lib/auth/requireTenant'
 import { getTenantConfigWithFallback } from '@/lib/config'
+import { necesitaTrackingCode, presetDeRol } from '@/lib/auth/role-presets'
+import { asegurarFichaColaborador } from '@/lib/collaborators/provision'
 
 export const runtime = 'nodejs'
 
-// Roles que necesitan un tracking_code para generar enlaces con UTM
-const TRACKING_ROLES = ['setter', 'closer', 'cold_caller', 'affiliate']
 const ADMIN_ROLES = ['admin', 'director']
 
 // Invitación de un nuevo miembro. En vez del email genérico de "invitación" de
@@ -34,6 +34,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       deptOverrides,
       pageOverrides,
       personalEmail: rawPersonalEmail,
+      defaultCommissionPercent,
     } = await req.json()
     if (!rawEmail || !roleId) {
       return NextResponse.json({ error: 'Email y rol son requeridos' }, { status: 400 })
@@ -104,12 +105,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     const userId = gen.data.user?.id
     if (userId) {
       let trackingCode: string | null = null
-      if (TRACKING_ROLES.includes(roleKey)) {
+      if (necesitaTrackingCode(roleKey)) {
         trackingCode = await generateUniqueTrackingCode(supabase)
       }
 
       // Lee primero el acceso actual: si esta comprobación falla no debemos modificar el perfil
       // global de un usuario existente y dejar la operación completada solo a medias.
+      // Alta estándar del rol (p. ej. colaboradora): valores ya puestos, nadie los marca a mano. Solo en
+      // cuentas NUEVAS: reinvitar a alguien que ya existe no puede reescribir su visibilidad ni su estado.
+      const preset = presetDeRol(roleKey)
       const desiredMembershipRole = ADMIN_ROLES.includes(roleKey) ? 'admin' : 'member'
       const { data: currentMembership, error: currentMembershipError } = await supabase
         .from('tenant_members')
@@ -138,6 +142,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
           dept_overrides: Array.isArray(deptOverrides) && deptOverrides.length ? deptOverrides : null,
           page_overrides: Array.isArray(pageOverrides) && pageOverrides.length ? pageOverrides : null,
           ...(trackingCode ? { tracking_code: trackingCode } : {}),
+          ...(preset && linkType === 'invite'
+            ? {
+                data_scope: preset.dataScope,
+                pays_commissions: preset.paysCommissions,
+                member_status: preset.memberStatus,
+              }
+            : {}),
         },
         { onConflict: 'id' }
       )
@@ -165,34 +176,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
         )
       }
 
-      // ALTA DESDE USUARIOS CON ROL COLABORADOR (hallazgo 21-sep): si el admin
-      // invita/edita con el rol affiliate, el perfil de colaborador nace AQUÍ —
-      // con el MISMO tracking_code del usuario como código público (así sus
-      // enlaces existentes con ?ref= siguen funcionando sin re-generar nada).
-      // Idempotente: si ya hay perfil, no se toca (el % y el estado son del
-      // panel de Colaboradores). El alta admin de Colaboradores (POST
-      // /colaboradores) sigue siendo la otra vía, para dar de alta sin invitar.
-      if (roleKey === 'affiliate' && t.tenantId) {
-        const { data: perfilPrevio } = await supabase
-          .from('collaborator_profiles')
-          .select('id')
-          .eq('tenant_id', t.tenantId)
-          .eq('user_id', userId)
-          .limit(1)
-        if (!perfilPrevio || perfilPrevio.length === 0) {
-          const { error: perfilErr } = await supabase.from('collaborator_profiles').insert({
-            tenant_id: t.tenantId,
-            user_id: userId,
-            code: (trackingCode ?? (await generateUniqueTrackingCode(supabase))).toUpperCase(),
-            name: fullName || email,
-            status: 'invited',
-            // El % de comisión y el estado real (pending_contract/active) los fija
-            // el admin desde el panel de Colaboradores; aquí solo nace la ficha.
-            default_commission_percent: null,
-          })
-          // Sin esta fila el afiliado no tiene scope de colaborador ni carril de ledger correcto.
-          if (perfilErr) console.error('[invite] no se pudo crear el perfil de colaborador:', perfilErr.message)
-        }
+      // ALTA ESTÁNDAR DE COLABORADORA: la ficha (collaborator_profiles) es lo que activa su dashboard
+      // estándar y su scope de datos. Nace aquí con el MISMO tracking_code como código público (sus
+      // enlaces ?ref= siguen funcionando). Idempotente: una ficha previa no se toca.
+      if (preset?.fichaColaborador && t.tenantId) {
+        const ficha = await asegurarFichaColaborador(supabase, {
+          tenantId: t.tenantId,
+          userId,
+          nombre: fullName || email,
+          codigo: trackingCode,
+          porcentaje: defaultCommissionPercent,
+          estadoInicial: preset.fichaColaborador.estadoInicial,
+        })
+        // Sin esta fila el afiliado no tiene scope de colaborador ni carril de ledger correcto.
+        if (!ficha.ok) console.error('[invite] no se pudo crear el perfil de colaborador:', ficha.error)
       }
     }
 
