@@ -72,14 +72,15 @@ export function parsearVideo(entrada: string): VideoEmbebible | null {
     return id && ID.test(id) ? { proveedor: 'wistia', embedUrl: `https://fast.wistia.net/embed/iframe/${id}` } : null
   }
 
-  // Vimeo: vimeo.com/ID o player.vimeo.com/video/ID (el id es numérico)
-  if (h === 'vimeo.com') {
-    const id = url.pathname.split('/').filter(Boolean)[0]
-    return id && /^\d{4,15}$/.test(id) ? { proveedor: 'vimeo', embedUrl: `https://player.vimeo.com/video/${id}` } : null
-  }
-  if (h === 'player.vimeo.com') {
-    const id = ultimoSegmento(url, 'video')
-    return id && /^\d{4,15}$/.test(id) ? { proveedor: 'vimeo', embedUrl: `https://player.vimeo.com/video/${id}` } : null
+  // Vimeo: vimeo.com/ID, vimeo.com/ID/HASH (no listado) o ?h=HASH, y player.vimeo.com/video/ID. El hash de un
+  // vídeo no listado es imprescindible: sin él el reproductor da error de privacidad.
+  if (h === 'vimeo.com' || h === 'player.vimeo.com') {
+    const partes = url.pathname.split('/').filter(Boolean)
+    const id = h === 'vimeo.com' ? partes[0] : ultimoSegmento(url, 'video')
+    const hash = (h === 'vimeo.com' ? partes[1] : undefined) ?? url.searchParams.get('h') ?? undefined
+    if (!id || !/^\d{4,15}$/.test(id)) return null
+    if (hash !== undefined && !/^[0-9a-f]{6,20}$/i.test(hash)) return null
+    return { proveedor: 'vimeo', embedUrl: `https://player.vimeo.com/video/${id}${hash ? `?h=${hash}` : ''}` }
   }
 
   // Bunny Stream: iframe.mediadelivery.net/embed|play/<libraryId>/<guid>

@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowRight, Check, GraduationCap } from 'lucide-react'
 
-import { resumenProgreso, siguientePendiente } from '@/lib/formacion/progreso'
+import { ordenarLecciones, resumenProgreso, siguientePendiente } from '@/lib/formacion/progreso'
 import { useTenant } from '@/lib/tenant-context'
 
 type Leccion = { id: string; course_id: string; title: string; position: number }
@@ -20,7 +20,8 @@ export function EmpiezaAqui() {
 
   useEffect(() => {
     const ac = new AbortController()
-    fetch(`/api/${tenant}/evergreen/formacion`, { signal: ac.signal, cache: 'no-store' })
+    // `resumen=1`: solo ids, orden y títulos; la tarjeta no necesita descripciones ni enlaces.
+    fetch(`/api/${tenant}/evergreen/formacion?resumen=1`, { signal: ac.signal, cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => setDatos(j as Datos | null))
       .catch(() => {})
@@ -29,10 +30,7 @@ export function EmpiezaAqui() {
 
   const { resumen, siguiente } = useMemo(() => {
     if (!datos) return { resumen: null, siguiente: null }
-    const orden = new Map(datos.cursos.map((c, i) => [c.id, i]))
-    const ordenadas = [...datos.lecciones].sort(
-      (a, b) => (orden.get(a.course_id) ?? 0) - (orden.get(b.course_id) ?? 0) || a.position - b.position
-    )
+    const ordenadas = ordenarLecciones(datos.cursos, datos.lecciones)
     return { resumen: resumenProgreso(ordenadas, datos.hechas), siguiente: siguientePendiente(ordenadas, datos.hechas) }
   }, [datos])
 

@@ -1,20 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+import { ROLE_LABELS } from '@/lib/auth/permissions'
 import { requirePantalla } from '@/lib/auth/requirePantalla'
 import { CURSO_ESTANDAR } from '@/lib/formacion/curso-estandar'
-import { servicioFormacion } from '@/lib/formacion/servicio'
 import { validarRecurso } from '@/lib/formacion/recurso'
+import { servicioFormacion } from '@/lib/formacion/servicio'
 import { parsearVideo } from '@/lib/formacion/video'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-// Formación de colaboradoras. Contenido POR SUBCUENTA. Lectura: cualquiera que pueda ver /formacion
-// (`requirePantalla`). Escritura: solo quien administra ESTA subcuenta. El cliente es service-role, así que
-// `tenant_id` va explícito en TODAS las consultas (es la única barrera entre subcuentas).
+// Formación del equipo (SOPs y vídeos por rol). Contenido POR SUBCUENTA. Lectura: cualquier miembro (pantalla
+// universal), y cada persona ve los cursos de su rol; quien administra la subcuenta ve todos. Escritura: solo quien
+// administra ESTA subcuenta. El cliente es service-role, así que `tenant_id` va explícito en TODAS las consultas
+// (es la única barrera entre subcuentas).
 
 const MAX_CURSOS = 100
 const MAX_LECCIONES = 1000
+const ROLES_VALIDOS = new Set(Object.keys(ROLE_LABELS))
+const SEED_ESTANDAR = 'estandar'
 
 const texto = (v: unknown, max: number): string | null => {
   if (typeof v !== 'string') return null
@@ -29,25 +33,63 @@ const opcional = (v: unknown, max: number): string | null | undefined => {
 const esUuid = (v: unknown): v is string =>
   typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
+/** Público del curso: vacío/ausente = todo el equipo; si no, solo roles que existen. `'invalido'` si algo no cuadra. */
+const publicoDe = (v: unknown): string[] | null | 'invalido' => {
+  if (v === undefined || v === null) return null
+  if (!Array.isArray(v)) return 'invalido'
+  const roles = [...new Set(v)]
+  if (roles.length === 0) return null
+  if (roles.length > 20 || roles.some((r) => typeof r !== 'string' || !ROLES_VALIDOS.has(r))) return 'invalido'
+  return roles as string[]
+}
+
+export async function GET(req: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
   const { tenant } = await params
   const t = await requirePantalla(tenant, '/formacion')
   if ('error' in t) return t.error
   const sb = servicioFormacion()
+  // `?resumen=1`: lo que necesita la tarjeta del dashboard (títulos y orden), sin descripciones ni enlaces.
+  const resumen = req.nextUrl.searchParams.get('resumen') === '1'
 
-  const [cursos, lecciones, progreso] = await Promise.all([
-    sb
-      .from('training_courses')
-      .select('id, title, description, position')
-      .eq('tenant_id', t.tenantId)
-      .order('position', { ascending: true })
-      .limit(MAX_CURSOS),
-    sb
-      .from('training_lessons')
-      .select('id, course_id, title, description, video_url, video_provider, resource_url, resource_label, position')
-      .eq('tenant_id', t.tenantId)
-      .order('position', { ascending: true })
-      .limit(MAX_LECCIONES),
+  let cursosQ = sb
+    .from('training_courses')
+    .select(resumen ? 'id, position' : 'id, title, description, position, audience_roles, seed_key')
+    .eq('tenant_id', t.tenantId)
+    .order('position', { ascending: true })
+    .order('created_at', { ascending: true })
+    .order('id', { ascending: true })
+    .limit(MAX_CURSOS)
+  // La pantalla de formación muestra TODO a quien administra (para gestionarlo); la tarjeta (`resumen`) es «lo que
+  // me toca a mí» y filtra por el rol de cada persona, administradores incluidos.
+  if (!t.administraTenant || resumen) {
+    // El rol sale de la sesión (nunca del cliente) y solo se interpola si tiene la forma de una clave de rol.
+    const rol = t.role && /^[a-z_]+$/.test(t.role) ? t.role : null
+    cursosQ = rol ? cursosQ.or(`audience_roles.is.null,audience_roles.cs.{${rol}}`) : cursosQ.is('audience_roles', null)
+  }
+  const cursos = await cursosQ
+  if (cursos.error) {
+    console.error('[formacion] GET cursos:', cursos.error.message)
+    return NextResponse.json({ error: 'No se pudo cargar la formación' }, { status: 500 })
+  }
+  const filasCursos = (cursos.data ?? []) as unknown as { id: string }[]
+  const idsCursos = filasCursos.map((c) => c.id)
+
+  const [lecciones, progreso] = await Promise.all([
+    idsCursos.length === 0
+      ? Promise.resolve({ data: [] as unknown[], error: null })
+      : sb
+          .from('training_lessons')
+          .select(
+            resumen
+              ? 'id, course_id, title, position'
+              : 'id, course_id, title, description, video_url, video_provider, resource_url, resource_label, position'
+          )
+          .eq('tenant_id', t.tenantId)
+          .in('course_id', idsCursos)
+          .order('position', { ascending: true })
+          .order('created_at', { ascending: true })
+          .order('id', { ascending: true })
+          .limit(MAX_LECCIONES),
     sb
       .from('training_progress')
       .select('lesson_id')
@@ -55,13 +97,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ ten
       .eq('user_id', t.userId)
       .limit(MAX_LECCIONES),
   ])
-  const fallo = cursos.error ?? lecciones.error ?? progreso.error
+  const fallo = lecciones.error ?? progreso.error
   if (fallo) {
     console.error('[formacion] GET:', fallo.message)
     return NextResponse.json({ error: 'No se pudo cargar la formación' }, { status: 500 })
   }
   return NextResponse.json({
-    cursos: cursos.data ?? [],
+    cursos: filasCursos,
     lecciones: lecciones.data ?? [],
     hechas: (progreso.data ?? []).map((p) => (p as { lesson_id: string }).lesson_id),
     puedeEditar: t.administraTenant,
@@ -90,6 +132,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   }
 
   // Siguiente posición = máxima actual + 1, dentro del ámbito (subcuenta para cursos, curso para lecciones).
+  // Dos altas simultáneas pueden empatar: el listado desempata por fecha e id, así que el orden sigue siendo estable.
   const siguientePosicion = async (tabla: 'training_courses' | 'training_lessons', cursoId?: string) => {
     let q = sb.from(tabla).select('position').eq('tenant_id', t.tenantId)
     if (cursoId) q = q.eq('course_id', cursoId)
@@ -111,42 +154,56 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   }
   const ERR_RECURSO = 'El recurso debe ser un enlace https válido (y su nombre, de hasta 80 caracteres).'
   const ERR_VIDEO = 'Enlace de vídeo no admitido. Usa YouTube, Loom, Wistia, Vimeo o Bunny (https).'
+  const ERR_PUBLICO = 'El público del curso no es válido.'
 
   switch (body.action) {
     case 'crear_curso': {
       const title = texto(body.title, 160)
       const description = opcional(body.description, 2000)
+      const publico = publicoDe(body.audienceRoles)
       if (!title || description === undefined) return error('Título obligatorio (máx. 160) y descripción de hasta 2000')
-      const { data, error: e } = await sb
+      if (publico === 'invalido') return error(ERR_PUBLICO)
+      const { data, error: errBD } = await sb
         .from('training_courses')
         .insert({
           tenant_id: t.tenantId,
           title,
           description,
+          audience_roles: publico,
           position: await siguientePosicion('training_courses'),
           created_by: t.userId,
         })
         .select('id')
         .single()
-      if (e) return fallaBD('crear_curso', e)
+      if (errBD) return fallaBD('crear_curso', errBD)
       return NextResponse.json({ ok: true, id: (data as { id: string }).id })
     }
     case 'editar_curso': {
       const title = texto(body.title, 160)
       const description = opcional(body.description, 2000)
+      const publico = publicoDe(body.audienceRoles)
       if (!esUuid(body.id) || !title || description === undefined) return error('Datos no válidos')
-      const { error: e } = await sb
+      if (publico === 'invalido') return error(ERR_PUBLICO)
+      const { data, error: errBD } = await sb
         .from('training_courses')
-        .update({ title, description, updated_at: ahora })
+        .update({ title, description, audience_roles: publico, updated_at: ahora })
         .eq('tenant_id', t.tenantId)
         .eq('id', body.id)
-      if (e) return fallaBD('editar_curso', e)
+        .select('id')
+      if (errBD) return fallaBD('editar_curso', errBD)
+      if (!data?.length) return error('Curso no encontrado', 404)
       return NextResponse.json({ ok: true })
     }
     case 'borrar_curso': {
       if (!esUuid(body.id)) return error('Datos no válidos')
-      const { error: e } = await sb.from('training_courses').delete().eq('tenant_id', t.tenantId).eq('id', body.id)
-      if (e) return fallaBD('borrar_curso', e)
+      const { data, error: errBD } = await sb
+        .from('training_courses')
+        .delete()
+        .eq('tenant_id', t.tenantId)
+        .eq('id', body.id)
+        .select('id')
+      if (errBD) return fallaBD('borrar_curso', errBD)
+      if (!data?.length) return error('Curso no encontrado', 404)
       return NextResponse.json({ ok: true })
     }
     case 'crear_leccion': {
@@ -165,7 +222,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
         .eq('id', body.courseId)
         .maybeSingle()
       if (!curso) return error('Curso no encontrado', 404)
-      const { data, error: e } = await sb
+      const { data, error: errBD } = await sb
         .from('training_lessons')
         .insert({
           tenant_id: t.tenantId,
@@ -180,7 +237,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
         })
         .select('id')
         .single()
-      if (e) return fallaBD('crear_leccion', e)
+      if (errBD) return fallaBD('crear_leccion', errBD)
       return NextResponse.json({ ok: true, id: (data as { id: string }).id })
     }
     case 'editar_leccion': {
@@ -191,7 +248,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       if (!esUuid(body.id) || !title || description === undefined) return error('Datos no válidos')
       if (video === 'invalido') return error(ERR_VIDEO)
       if (!recurso) return error(ERR_RECURSO)
-      const { error: e } = await sb
+      const { data, error: errBD } = await sb
         .from('training_lessons')
         .update({
           title,
@@ -204,38 +261,43 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
         })
         .eq('tenant_id', t.tenantId)
         .eq('id', body.id)
-      if (e) return fallaBD('editar_leccion', e)
+        .select('id')
+      if (errBD) return fallaBD('editar_leccion', errBD)
+      if (!data?.length) return error('Lección no encontrada', 404)
       return NextResponse.json({ ok: true })
     }
     case 'borrar_leccion': {
       if (!esUuid(body.id)) return error('Datos no válidos')
-      const { error: e } = await sb.from('training_lessons').delete().eq('tenant_id', t.tenantId).eq('id', body.id)
-      if (e) return fallaBD('borrar_leccion', e)
+      const { data, error: errBD } = await sb
+        .from('training_lessons')
+        .delete()
+        .eq('tenant_id', t.tenantId)
+        .eq('id', body.id)
+        .select('id')
+      if (errBD) return fallaBD('borrar_leccion', errBD)
+      if (!data?.length) return error('Lección no encontrada', 404)
       return NextResponse.json({ ok: true })
     }
     case 'curso_estandar': {
-      // Idempotente: si ya existe un curso con ese título en la subcuenta, no se duplica.
-      const { data: previo } = await sb
-        .from('training_courses')
-        .select('id')
-        .eq('tenant_id', t.tenantId)
-        .eq('title', CURSO_ESTANDAR.title)
-        .limit(1)
-      if (previo && previo.length > 0) return NextResponse.json({ ok: true, creado: false })
-      const { data: curso, error: ec } = await sb
+      // Idempotente de verdad: la clave `seed_key` es única por subcuenta en BD, así que dos clics o dos pestañas
+      // a la vez no duplican y renombrar el curso no provoca que se vuelva a sembrar.
+      const { data: curso, error: errCurso } = await sb
         .from('training_courses')
         .insert({
           tenant_id: t.tenantId,
           title: CURSO_ESTANDAR.title,
           description: CURSO_ESTANDAR.description,
+          seed_key: SEED_ESTANDAR,
+          audience_roles: ['affiliate'],
           position: await siguientePosicion('training_courses'),
           created_by: t.userId,
         })
         .select('id')
         .single()
-      if (ec || !curso) return fallaBD('curso_estandar', ec ?? { message: 'sin fila' })
+      if (errCurso?.code === '23505') return NextResponse.json({ ok: true, creado: false })
+      if (errCurso || !curso) return fallaBD('curso_estandar', errCurso ?? { message: 'sin fila' })
       const cursoId = (curso as { id: string }).id
-      const { error: el } = await sb.from('training_lessons').insert(
+      const { error: errLecciones } = await sb.from('training_lessons').insert(
         CURSO_ESTANDAR.lecciones.map((l, i) => ({
           tenant_id: t.tenantId,
           course_id: cursoId,
@@ -244,10 +306,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
           position: i,
         }))
       )
-      if (el) {
-        // Sin lecciones el curso quedaría vacío y no se podría volver a sembrar (ya existe): se deshace.
-        await sb.from('training_courses').delete().eq('tenant_id', t.tenantId).eq('id', cursoId)
-        return fallaBD('curso_estandar/lecciones', el)
+      if (errLecciones) {
+        // Sin lecciones el curso quedaría vacío y, al existir ya su clave, no se podría volver a sembrar: se deshace.
+        const { error: errDeshacer } = await sb
+          .from('training_courses')
+          .delete()
+          .eq('tenant_id', t.tenantId)
+          .eq('id', cursoId)
+        if (errDeshacer)
+          console.error('[formacion] curso_estandar: no se pudo deshacer el curso vacío:', errDeshacer.message)
+        return fallaBD('curso_estandar/lecciones', errLecciones)
       }
       return NextResponse.json({ ok: true, creado: true, id: cursoId })
     }

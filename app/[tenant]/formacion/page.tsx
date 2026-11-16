@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { Check, ChevronRight, ExternalLink, GraduationCap, Pencil, Plus, Trash2 } from 'lucide-react'
@@ -11,10 +11,19 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
-import { resumenProgreso, siguientePendiente } from '@/lib/formacion/progreso'
+import { Checkbox } from '@/components/ui/checkbox'
+import { ROLE_LABELS, type AppRole } from '@/lib/auth/permissions'
+import { ordenarLecciones, resumenProgreso, siguientePendiente } from '@/lib/formacion/progreso'
+import { parsearVideo } from '@/lib/formacion/video'
 import { useTenant } from '@/lib/tenant-context'
 
-type Curso = { id: string; title: string; description: string | null; position: number }
+type Curso = {
+  id: string
+  title: string
+  description: string | null
+  position: number
+  audience_roles: string[] | null
+}
 type Leccion = {
   id: string
   course_id: string
@@ -29,7 +38,7 @@ type Leccion = {
 type Datos = { cursos: Curso[]; lecciones: Leccion[]; hechas: string[]; puedeEditar: boolean }
 
 type Editor =
-  | { tipo: 'curso'; id?: string; title: string; description: string }
+  | { tipo: 'curso'; id?: string; title: string; description: string; audience: string[] }
   | {
       tipo: 'leccion'
       id?: string
@@ -49,6 +58,7 @@ function FormacionInner() {
   const [seleccion, setSeleccion] = useState<string | null>(params.get('leccion'))
   const [editor, setEditor] = useState<Editor | null>(null)
   const [guardando, setGuardando] = useState(false)
+  const cargado = useRef(false)
 
   const base = `/api/${tenant}/evergreen/formacion`
 
@@ -59,9 +69,13 @@ function FormacionInner() {
         const json = await res.json()
         if (!res.ok) throw new Error(json.error ?? 'Error')
         setDatos(json as Datos)
+        cargado.current = true
         setError(null)
       } catch (e) {
-        if ((e as Error).name !== 'AbortError') setError((e as Error).message)
+        if ((e as Error).name === 'AbortError') return
+        // Con datos ya en pantalla, un fallo de recarga no debe sustituir toda la página por un error.
+        if (cargado.current) toast.error('No se pudo actualizar la formación', { description: (e as Error).message })
+        else setError((e as Error).message)
       }
     },
     [base]
@@ -73,14 +87,8 @@ function FormacionInner() {
     return () => ac.abort()
   }, [cargar])
 
-  // Lecciones en el orden en que se ven: por curso y posición.
-  const ordenadas = useMemo(() => {
-    if (!datos) return []
-    const ordenCurso = new Map(datos.cursos.map((c, i) => [c.id, i]))
-    return [...datos.lecciones].sort(
-      (a, b) => (ordenCurso.get(a.course_id) ?? 0) - (ordenCurso.get(b.course_id) ?? 0) || a.position - b.position
-    )
-  }, [datos])
+  // Lecciones en el orden en que se ven (el mismo que usa la tarjeta del dashboard).
+  const ordenadas = useMemo(() => (datos ? ordenarLecciones(datos.cursos, datos.lecciones) : []), [datos])
 
   const hechas = useMemo(() => new Set(datos?.hechas ?? []), [datos])
   const resumen = useMemo(() => resumenProgreso(ordenadas, hechas), [ordenadas, hechas])
@@ -110,7 +118,7 @@ function FormacionInner() {
     }
   }
 
-  const marcar = async (leccion: Leccion, hecho: boolean) => {
+  const marcar = async (leccion: Leccion, hecho: boolean): Promise<boolean> => {
     // Optimista: la marca se ve al instante y se revierte si el servidor falla.
     setDatos((d) =>
       d
@@ -124,9 +132,11 @@ function FormacionInner() {
         body: JSON.stringify({ lessonId: leccion.id, hecho }),
       })
       if (!res.ok) throw new Error((await res.json()).error ?? 'Error')
+      return true
     } catch (e) {
       toast.error('No se pudo guardar tu progreso', { description: (e as Error).message })
       await cargar()
+      return false
     }
   }
 
@@ -139,6 +149,7 @@ function FormacionInner() {
             id: editor.id,
             title: editor.title,
             description: editor.description,
+            audienceRoles: editor.audience,
           }
         : {
             action: editor.id ? 'editar_leccion' : 'crear_leccion',
@@ -185,7 +196,7 @@ function FormacionInner() {
                 <GraduationCap className="mr-2 h-4 w-4" /> Crear curso estándar
               </Button>
             )}
-            <Button onClick={() => setEditor({ tipo: 'curso', title: '', description: '' })}>
+            <Button onClick={() => setEditor({ tipo: 'curso', title: '', description: '', audience: [] })}>
               <Plus className="mr-2 h-4 w-4" /> Nuevo curso
             </Button>
           </div>
@@ -228,6 +239,14 @@ function FormacionInner() {
                     <div>
                       <h2 className="text-sm font-semibold text-foreground">{curso.title}</h2>
                       {curso.description && <p className="text-xs text-muted-foreground">{curso.description}</p>}
+                      {datos.puedeEditar && (
+                        <p className="mt-0.5 text-2xs text-muted-foreground">
+                          Para:{' '}
+                          {curso.audience_roles?.length
+                            ? curso.audience_roles.map((r) => ROLE_LABELS[r as AppRole] ?? r).join(', ')
+                            : 'todo el equipo'}
+                        </p>
+                      )}
                     </div>
                     {datos.puedeEditar && (
                       <div className="flex shrink-0 gap-1">
@@ -240,6 +259,7 @@ function FormacionInner() {
                               id: curso.id,
                               title: curso.title,
                               description: curso.description ?? '',
+                              audience: curso.audience_roles ?? [],
                             })
                           }
                         >
@@ -342,11 +362,11 @@ function FormacionInner() {
                   )}
                 </div>
 
-                {actual.video_url ? (
+                {actual.video_url && parsearVideo(actual.video_url) ? (
                   <div className="aspect-video w-full overflow-hidden rounded-lg border border-border bg-black">
                     <iframe
                       key={actual.id}
-                      src={actual.video_url}
+                      src={parsearVideo(actual.video_url)!.embedUrl}
                       title={actual.title}
                       className="h-full w-full"
                       loading="lazy"
@@ -388,7 +408,8 @@ function FormacionInner() {
                     <Button
                       variant="ghost"
                       onClick={async () => {
-                        if (!hechas.has(actual.id)) await marcar(actual, true)
+                        // Solo avanza si la lección quedó guardada como hecha: no se salta pasos sin querer.
+                        if (!hechas.has(actual.id) && !(await marcar(actual, true))) return
                         setSeleccion(siguiente.id)
                       }}
                     >
@@ -433,6 +454,31 @@ function FormacionInner() {
                   onChange={(e) => setEditor({ ...editor, description: e.target.value })}
                 />
               </div>
+              {editor.tipo === 'curso' && (
+                <fieldset className="space-y-2">
+                  <legend className="text-sm font-medium">¿Para quién es?</legend>
+                  <p className="text-xs text-muted-foreground">
+                    Sin marcar nada lo ve todo el equipo. Marca los perfiles que deben verlo (p. ej. Closer, Media
+                    buyer).
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(Object.keys(ROLE_LABELS) as AppRole[]).map((rol) => (
+                      <label key={rol} className="flex cursor-pointer items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={editor.audience.includes(rol)}
+                          onCheckedChange={(v) =>
+                            setEditor({
+                              ...editor,
+                              audience: v ? [...editor.audience, rol] : editor.audience.filter((r) => r !== rol),
+                            })
+                          }
+                        />
+                        {ROLE_LABELS[rol]}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              )}
               {editor.tipo === 'leccion' && (
                 <>
                   <div className="space-y-2">

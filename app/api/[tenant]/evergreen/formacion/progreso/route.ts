@@ -38,19 +38,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   }
   if (!leccion) return NextResponse.json({ error: 'Lección no encontrada' }, { status: 404 })
 
-  const { error } = body.hecho
-    ? await sb
-        .from('training_progress')
-        .upsert(
-          { tenant_id: t.tenantId, user_id: t.userId, lesson_id: lessonId, completed_at: new Date().toISOString() },
-          { onConflict: 'user_id,lesson_id' }
-        )
-    : await sb
-        .from('training_progress')
-        .delete()
-        .eq('tenant_id', t.tenantId)
-        .eq('user_id', t.userId)
-        .eq('lesson_id', lessonId)
+  // Marcar = upsert (idempotente); desmarcar = delete. Cada rama comprueba SU error.
+  let error: { message: string } | null
+  if (body.hecho) {
+    const r = await sb
+      .from('training_progress')
+      .upsert(
+        { tenant_id: t.tenantId, user_id: t.userId, lesson_id: lessonId, completed_at: new Date().toISOString() },
+        { onConflict: 'user_id,lesson_id' }
+      )
+    error = r.error
+  } else {
+    const r = await sb
+      .from('training_progress')
+      .delete()
+      .eq('tenant_id', t.tenantId)
+      .eq('user_id', t.userId)
+      .eq('lesson_id', lessonId)
+    error = r.error
+  }
   if (error) {
     console.error('[formacion/progreso]:', error.message)
     return NextResponse.json({ error: 'No se pudo guardar el progreso' }, { status: 500 })

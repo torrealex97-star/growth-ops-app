@@ -5,21 +5,23 @@ aplicadas en producción, con lo que hace falta para subirlas. Al fusionarse una
 
 Todo lo que depende de Alex, paso a paso: **[PASOS_ALEX.md](PASOS_ALEX.md)**.
 
-# EN PR — Formación y entrada guiada de la colaboradora (16-nov)
+# EN PR — Formación del equipo y entrada guiada (16-nov)
 
-`/formacion`: cursos con lecciones en vídeo y progreso por persona, **por subcuenta** (cada admin crea los suyos). El vídeo no
-se aloja: se enlaza (YouTube, Loom, Wistia, Vimeo, Bunny) y `lib/formacion/video.ts` reconstruye siempre la URL embebible
-canónica con lista blanca de hosts. Cada lección admite un recurso de apoyo (p. ej. el manual) como enlace https. El dashboard
-de la colaboradora abre con la tarjeta «Empieza aquí» (siguiente lección + progreso) y «Formación» queda justo bajo Dashboard
-en el menú. Acceso solo por rutas de servidor (`requirePantalla`; escribir exige administrar la subcuenta), `tenant_id` explícito
-en cada consulta y RLS restrictiva como red de seguridad; FK compuestas `(tenant_id, id)` impiden cruzar subcuentas.
+`/formacion`: SOPs y vídeos «de cómo proceder» para **todos los perfiles** (media buyers, closers, colaboradoras…), por subcuenta
+(cada admin crea los suyos). Cada curso lleva un público por rol (vacío = todo el equipo); cada persona ve los de su rol y quien
+administra ve todos. La pantalla es universal: entra todo el equipo aunque tenga permisos a medida. El vídeo no se aloja: se
+enlaza (YouTube, Loom, Wistia, Vimeo, Bunny) y `lib/formacion/video.ts` reconstruye siempre la URL embebible canónica con lista
+blanca de hosts (también como CHECK en BD). Cada lección admite un recurso de apoyo (p. ej. el manual) como enlace https. El
+dashboard abre con «Empieza aquí» (siguiente lección de TU rol + progreso) y «Formación» queda bajo Dashboard en el menú.
+Acceso solo por rutas de servidor (`requirePantalla`; escribir exige administrar la subcuenta), `tenant_id` explícito en cada
+consulta, RLS restrictiva como red de seguridad y FK compuestas `(tenant_id, id)` que impiden cruzar subcuentas.
 
-**La migración `20261116120000_formacion_colaboradoras.sql` NO está aplicada en producción.** Dry-run hecho (transacción
-revertida: 3 tablas, 3 políticas restrictivas, RLS, 9 índices, `http://` rechazado; después, 0 tablas `training_*`). Aplicarla
-y sembrar el curso de cada subcuenta requieren OK expreso. El contenido de marca (manual, guion de agendamiento, vídeos) es
-dato de cada subcuenta: no va al repo.
+**La migración `20261116120000_formacion_colaboradoras.sql` NO está aplicada en producción.** Dry-run final hecho (transacción
+revertida): 3 tablas, 3 políticas restrictivas, RLS, 11 índices; rechazados host de vídeo ajeno, `http://`, curso sembrado
+duplicado, público vacío y cruce entre subcuentas. Aplicarla y sembrar el contenido de cada subcuenta requieren OK expreso. El
+contenido de marca (manual, guion de agendamiento, vídeos) es dato de cada subcuenta: no va al repo.
 
-**Estado (TESTED, no VERIFIED):** tests estáticos y de lógica; sin render real con sesión de colaboradora (preview pendiente).
+**Estado (TESTED, no VERIFIED):** tests estáticos y de lógica; sin render real con sesión de colaboradora ni de otro rol (preview pendiente).
 
 # EN PR — Alta estándar de colaboradora (16-nov)
 

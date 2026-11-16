@@ -41,3 +41,30 @@ export function siguientePendiente<T extends { id: string }>(
   const hechasSet = new Set(hechasIds)
   return ordenadas.find((l) => !hechasSet.has(l.id)) ?? null
 }
+
+/**
+ * Orden ÚNICO de lecciones (por curso en su orden y luego por posición, con desempate estable por id). La pantalla
+ * de formación y la tarjeta del dashboard lo comparten para coincidir siempre en cuál es «la siguiente».
+ */
+export function ordenarLecciones<T extends { id: string; course_id: string; position: number }>(
+  cursos: readonly { id: string }[],
+  lecciones: readonly T[]
+): T[] {
+  const ordenCurso = new Map(cursos.map((c, i) => [c.id, i]))
+  return [...lecciones].sort(
+    (a, b) =>
+      (ordenCurso.get(a.course_id) ?? Number.MAX_SAFE_INTEGER) -
+        (ordenCurso.get(b.course_id) ?? Number.MAX_SAFE_INTEGER) ||
+      a.position - b.position ||
+      a.id.localeCompare(b.id)
+  )
+}
+
+/**
+ * ¿Ve este rol el curso? Público vacío o ausente = todo el equipo. Quien administra la subcuenta ve todos
+ * (para poder gestionarlos), y se resuelve fuera de aquí.
+ */
+export function cursoVisibleParaRol(audienceRoles: readonly string[] | null | undefined, rol: string | null): boolean {
+  if (!audienceRoles || audienceRoles.length === 0) return true
+  return !!rol && audienceRoles.includes(rol)
+}

@@ -91,17 +91,7 @@ const ROLE_DEPARTMENTS: Record<AppRole, Department[]> = {
 // Prefijos de ruta por departamento (para acceso configurable por usuario)
 const DEPARTMENT_PREFIXES: Record<Department, string[]> = {
   // '/llamadas' (lista de la cold caller) y '/cold-calling' (panel del manager) cuelgan de ventas.
-  ventas: [
-    '/crm',
-    '/ventas',
-    '/analitica',
-    '/comisiones',
-    '/recursos',
-    '/tasks',
-    '/llamadas',
-    '/cold-calling',
-    '/formacion',
-  ],
+  ventas: ['/crm', '/ventas', '/analitica', '/comisiones', '/recursos', '/tasks', '/llamadas', '/cold-calling'],
   // '/marketing/afiliados' se añade aquí porque Afiliados se movió a Marketing (antes vivía
   // bajo el departamento 'finanzas', ver DEPARTMENT_PREFIXES.finanzas más abajo).
   // '/funnels' cuelga de marketing porque es una vista de captación (impresiones, visitas, leads),
@@ -151,7 +141,6 @@ export const NAV_PAGES: { href: string; label: string; dept: Department }[] = [
   { href: '/llamadas', label: 'Cold calling · Mis llamadas', dept: 'ventas' },
   { href: '/cold-calling', label: 'Cold calling · Equipo', dept: 'ventas' },
   { href: '/tasks', label: 'Tareas', dept: 'ventas' },
-  { href: '/formacion', label: 'Formación', dept: 'ventas' },
   { href: '/recursos/enlaces', label: 'Recursos de venta · Enlaces', dept: 'ventas' },
   { href: '/recursos/biblioteca', label: 'Recursos de venta · Biblioteca', dept: 'ventas' },
   { href: '/recursos/testimonios', label: 'Recursos de venta · Testimonios', dept: 'ventas' },
@@ -213,6 +202,9 @@ const normalizeAllowedPrefixes = (prefixes: string[]) =>
 //   2) dept_overrides → todas las páginas de esos departamentos
 //   3) por rol (undefined = liderazgo, sin restricción)
 /** Roles con dashboard personal (inicio propio). Siempre pueden entrar a /dashboard. */
+/** Pantallas a las que entra cualquier miembro del equipo, con o sin permisos a medida. */
+export const PREFIJOS_UNIVERSALES: readonly string[] = ['/formacion']
+
 const PERSONAL_HOME_ROLES: ReadonlySet<AppRole> = new Set<AppRole>(['setter', 'closer', 'affiliate'])
 
 export function allowedPrefixesFor(
@@ -223,7 +215,9 @@ export function allowedPrefixesFor(
   // El DASHBOARD PERSONAL es la pantalla de inicio de cada miembro (sus llamadas, lo que le falta por
   // marcar, sus ventas): no depende de una lista de páginas a medida. Antes, un closer con
   // `page_overrides` que no incluía /dashboard se quedaba sin ella y sin saber por qué.
-  const inicio = PERSONAL_HOME_ROLES.has(role) ? ['/dashboard'] : []
+  // FORMACIÓN es universal: SOPs y vídeos de cómo proceder en cada rol. Todo el equipo entra siempre, sin que
+  // un admin tenga que activarla persona a persona; qué cursos ve cada uno lo decide el público del curso.
+  const inicio = [...(PERSONAL_HOME_ROLES.has(role) ? ['/dashboard'] : []), ...PREFIJOS_UNIVERSALES]
   if (pageOverrides && pageOverrides.length > 0) return normalizeAllowedPrefixes([...pageOverrides, ...inicio])
   if (deptOverrides && deptOverrides.length > 0) {
     const set = new Set<string>(inicio)
@@ -231,7 +225,7 @@ export function allowedPrefixesFor(
     return normalizeAllowedPrefixes(Array.from(set))
   }
   const rolePrefixes = ROLE_ALLOWED_PREFIXES[role]
-  return rolePrefixes ? normalizeAllowedPrefixes(rolePrefixes) : undefined
+  return rolePrefixes ? normalizeAllowedPrefixes([...rolePrefixes, ...PREFIJOS_UNIVERSALES]) : undefined
 }
 
 const hasDepartment = (role: AppRole, dept: Department) => ROLE_DEPARTMENTS[role]?.includes(dept) ?? false
@@ -289,7 +283,6 @@ const ROLE_ALLOWED_PREFIXES: Partial<Record<AppRole, string[]>> = {
   ],
   affiliate: [
     '/dashboard', // comisiones, facturas, previsión y embudo del mes viven aquí
-    '/formacion', // vídeos paso a paso: lo primero que debe ver al entrar
     '/marketing/afiliados',
     '/recursos/enlaces',
     '/tasks',

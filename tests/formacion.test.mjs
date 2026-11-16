@@ -4,9 +4,9 @@ import { dirname, join } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
-import { allowedPrefixesFor } from '@/lib/auth/permissions'
+import { allowedPrefixesFor, NAV_PAGES, ROLE_LABELS } from '@/lib/auth/permissions'
 import { CURSO_ESTANDAR } from '@/lib/formacion/curso-estandar'
-import { resumenProgreso, siguientePendiente } from '@/lib/formacion/progreso'
+import { cursoVisibleParaRol, ordenarLecciones, resumenProgreso, siguientePendiente } from '@/lib/formacion/progreso'
 import { validarRecurso } from '@/lib/formacion/recurso'
 import { parsearVideo } from '@/lib/formacion/video'
 
@@ -39,6 +39,23 @@ test('parsearVideo: acepta los proveedores permitidos y reescribe a la URL embeb
     parsearVideo('https://iframe.mediadelivery.net/play/12345/0a1b2c3d-1111-2222-3333-444455556666')?.embedUrl,
     'https://iframe.mediadelivery.net/embed/12345/0a1b2c3d-1111-2222-3333-444455556666'
   )
+})
+
+test('parsearVideo: Vimeo no listado conserva su hash (sin él el reproductor da error de privacidad)', () => {
+  assert.equal(
+    parsearVideo('https://vimeo.com/123456789/abcdef1234')?.embedUrl,
+    'https://player.vimeo.com/video/123456789?h=abcdef1234'
+  )
+  assert.equal(
+    parsearVideo('https://vimeo.com/123456789?h=abcdef1234')?.embedUrl,
+    'https://player.vimeo.com/video/123456789?h=abcdef1234'
+  )
+  assert.equal(
+    parsearVideo('https://player.vimeo.com/video/123456789?h=abcdef1234&autoplay=1')?.embedUrl,
+    'https://player.vimeo.com/video/123456789?h=abcdef1234'
+  )
+  assert.equal(parsearVideo('https://vimeo.com/123456789')?.embedUrl, 'https://player.vimeo.com/video/123456789')
+  assert.equal(parsearVideo('https://vimeo.com/123456789/zz<script>'), null, 'hash no hexadecimal')
 })
 
 test('parsearVideo: rechaza esquemas peligrosos, hosts ajenos, parecidos y credenciales', () => {
@@ -104,6 +121,31 @@ test('siguientePendiente: la primera sin completar en el orden dado; null si tod
   assert.equal(siguientePendiente(lecs, ['a', 'b', 'c']), null)
 })
 
+test('ordenarLecciones: por curso y posición, con desempate estable por id (la pantalla y la tarjeta coinciden)', () => {
+  const cursos = [{ id: 'c2' }, { id: 'c1' }]
+  const lecs = [
+    { id: 'z', course_id: 'c1', position: 0 },
+    { id: 'b', course_id: 'c2', position: 1 },
+    { id: 'a', course_id: 'c2', position: 1 },
+    { id: 'x', course_id: 'c2', position: 0 },
+    { id: 'huerfana', course_id: 'borrado', position: 0 },
+  ]
+  assert.deepEqual(
+    ordenarLecciones(cursos, lecs).map((l) => l.id),
+    ['x', 'a', 'b', 'z', 'huerfana']
+  )
+  // No muta la entrada.
+  assert.equal(lecs[0].id, 'z')
+})
+
+test('cursoVisibleParaRol: sin público lo ve todo el equipo; con público, solo esos roles', () => {
+  assert.equal(cursoVisibleParaRol(null, 'closer'), true)
+  assert.equal(cursoVisibleParaRol([], 'closer'), true)
+  assert.equal(cursoVisibleParaRol(['affiliate'], 'affiliate'), true)
+  assert.equal(cursoVisibleParaRol(['affiliate'], 'closer'), false)
+  assert.equal(cursoVisibleParaRol(['affiliate'], null), false)
+})
+
 // ---------------------------------------------------------------- curso estándar
 test('curso estándar: genérico (sin vídeos, sin marcas ni personas) y con lecciones útiles', () => {
   assert.ok(CURSO_ESTANDAR.lecciones.length >= 5)
@@ -140,6 +182,19 @@ test('migración: tenant_id en todo, FK compuestas, RLS activada y política res
   assert.match(sql, /PRIMARY KEY \(user_id, lesson_id\)/)
   // Enlaces externos: solo https.
   assert.match(sql, /resource_url ~ '\^https:\/\/'/)
+  // Curso sembrado único por subcuenta aunque se renombre o se pulse dos veces; público por rol acotado.
+  assert.match(sql, /seed_key\s+TEXT CHECK/)
+  assert.match(
+    sql,
+    /CREATE UNIQUE INDEX IF NOT EXISTS training_courses_seed_key_uidx ON public\.training_courses \(tenant_id, seed_key\) WHERE seed_key IS NOT NULL/
+  )
+  assert.match(sql, /audience_roles TEXT\[\] CHECK/)
+  // Defensa en profundidad: el iframe solo puede apuntar a un embed canónico de la lista blanca, también en BD.
+  assert.match(sql, /video_url ~/)
+  for (const host of ['youtube-nocookie', 'loom', 'wistia', 'vimeo', 'mediadelivery'])
+    assert.match(sql, new RegExp(host))
+  // FK created_by con índice (advisor unindexed_foreign_keys).
+  assert.match(sql, /training_courses_created_by_idx ON public\.training_courses \(created_by\)/)
   // Sin DROP ni cambios destructivos sobre tablas existentes.
   assert.doesNotMatch(sql, /DROP TABLE|DROP COLUMN|TRUNCATE|DELETE FROM/i)
   // Marcada como NO aplicada hasta confirmación expresa.
@@ -173,22 +228,49 @@ test('API formación: pantalla exigida, escritura solo para quien administra, te
   // El progreso es de QUIEN LLAMA: el user_id sale de la sesión, nunca del cuerpo.
   assert.match(prog, /user_id: t\.userId/)
   assert.doesNotMatch(prog, /body\.userId|body\.user_id/)
+  // Escribir sobre algo que no existe (borrado por otro admin, de otra subcuenta) da 404, no un «Guardado» falso.
+  for (const accion of ['editar_curso', 'borrar_curso', 'editar_leccion', 'borrar_leccion']) {
+    const bloque = post.slice(
+      post.indexOf(`case '${accion}'`),
+      post.indexOf('case ', post.indexOf(`case '${accion}'`) + 10)
+    )
+    assert.match(bloque, /\.select\('id'\)/, `${accion} debe comprobar que afectó a una fila`)
+    assert.match(bloque, /404/, `${accion} debe devolver 404 si no hay fila`)
+  }
+  // Curso estándar idempotente por clave única (no por título): una carrera no lo duplica.
+  assert.match(api, /seed_key: SEED_ESTANDAR/)
+  assert.match(api, /errCurso\?\.code === '23505'/)
+  // Público por rol: el rol sale de la sesión, solo roles que existen, y el filtro es por BD.
+  assert.match(api, /ROLES_VALIDOS\.has\(r\)/)
+  assert.match(api, /audience_roles\.is\.null,audience_roles\.cs\./)
+  assert.match(api, /\/\^\[a-z_\]\+\$\/\.test\(t\.role\)/)
+  // Modo ligero para la tarjeta y orden determinista (desempate por fecha e id).
+  assert.match(api, /searchParams\.get\('resumen'\) === '1'/)
+  assert.match(api, /\.order\('id', \{ ascending: true \}\)/)
   // Los listados están acotados.
   assert.match(api, /\.limit\(MAX_CURSOS\)/)
   assert.match(api, /\.limit\(MAX_LECCIONES\)/)
 })
 
 // ---------------------------------------------------------------- permisos y menú
-test('permisos: la colaboradora ve /formacion, y una persona de cualquier otro rol sin acceso al área no', () => {
-  const colab = allowedPrefixesFor('affiliate', null, null)
-  assert.ok(colab?.includes('/formacion'), 'affiliate debe poder entrar a /formacion')
-  // Con restricción por páginas, /formacion se puede conceder o quitar como cualquier otra.
-  const sinFormacion = allowedPrefixesFor('affiliate', null, ['/dashboard'])
-  assert.ok(!sinFormacion?.includes('/formacion'))
+test('permisos: /formacion es universal, con o sin permisos a medida', () => {
+  for (const rol of Object.keys(ROLE_LABELS)) {
+    const base = allowedPrefixesFor(rol, null, null)
+    assert.ok(base === undefined || base.includes('/formacion'), `${rol}: sin acceso a /formacion por rol`)
+    assert.ok(
+      allowedPrefixesFor(rol, null, ['/crm/contactos'])?.includes('/formacion'),
+      `${rol}: pierde /formacion con page_overrides`
+    )
+    assert.ok(
+      allowedPrefixesFor(rol, ['marketing'], null)?.includes('/formacion'),
+      `${rol}: pierde /formacion con dept_overrides`
+    )
+  }
+  // Y por eso no aparece en el selector de páginas a medida (no se puede apagar por persona).
+  assert.ok(!NAV_PAGES.some((p) => p.href === '/formacion'))
   const nav = leer('lib/nav.ts')
-  assert.match(nav, /label: 'Formación', href: '\/formacion'.*roles: \[\.\.\.LEAD, 'affiliate'\]/)
-  const permisos = leer('lib/auth/permissions.ts')
-  assert.match(permisos, /\{ href: '\/formacion', label: 'Formación', dept: 'ventas' \}/)
+  assert.match(nav, /label: 'Formación', href: '\/formacion'.*roles: TODOS_LOS_ROLES/)
+  assert.match(nav, /TODOS_LOS_ROLES = Object\.keys\(ROLE_LABELS\)/)
 })
 
 test('onboarding: el dashboard de la colaboradora enseña «Empieza aquí» y no rompe si no hay formación', () => {
@@ -197,4 +279,8 @@ test('onboarding: el dashboard de la colaboradora enseña «Empieza aquí» y no
   const card = leer('components/formacion/EmpiezaAqui.tsx')
   assert.match(card, /if \(!resumen \|\| resumen\.total === 0\) return null/)
   assert.match(card, /ac\.abort\(\)/, 'cancela la petición al desmontar')
+  assert.match(card, /formacion\?resumen=1/, 'la tarjeta usa el modo ligero')
+  assert.match(card, /ordenarLecciones\(/, 'mismo orden que la pantalla')
+  // La ven todos los perfiles: también el dashboard del resto del equipo.
+  assert.match(leer('app/[tenant]/dashboard/page.tsx'), /<EmpiezaAqui \/>/)
 })
