@@ -160,7 +160,6 @@ function Panel() {
   if (!data) return null
 
   const { lanzamientos, launch, ajustes, stats, totales, atencion, actividad, ventas, dinero, hayTramos } = data
-  const estadoDe = (id: string | null) => (id ? estadoPorId.get(id) : undefined)
 
   return (
     <div className="space-y-6">
@@ -208,7 +207,7 @@ function Panel() {
             <Kpi label="Leads repartidos" value={formatNumber(totales?.asignados ?? 0)} hint={launch.label} />
             <Kpi label="Por llamar" value={formatNumber(totales?.porLlamar ?? 0)} hint="sin tocar todavía" />
             <Kpi label="Confirmados" value={formatNumber(totales?.confirmados ?? 0)} />
-            <Kpi label="Ventas" value={formatNumber(totales?.ventas ?? 0)} hint="desde el primer lead" />
+            <Kpi label="Ventas" value={formatNumber(totales?.ventas ?? 0)} hint="atribuidas a cold calling" />
           </div>
 
           {totales?.truncado && (
@@ -311,7 +310,7 @@ function Panel() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              disabled={accion === `repartir:${s.callerId}`}
+                              disabled={accion !== null}
                               onClick={() => void repartir(s)}
                             >
                               {accion === `repartir:${s.callerId}`
@@ -389,7 +388,7 @@ function Panel() {
               ) : (
                 <ul className="mt-3 space-y-2">
                   {(actividad ?? []).map((x) => {
-                    const est = estadoDe(x.status)
+                    const est = x.status ? estadoPorId.get(x.status) : undefined
                     return (
                       <li key={x.id} className="flex flex-wrap items-baseline gap-2 text-sm">
                         <span className="tabular-nums text-muted-foreground">{formatDateTime(x.cuando)}</span>
@@ -470,7 +469,7 @@ function ReasignarLead({
   onHecho,
 }: {
   base: string
-  callers: ManagerResponse['callers']
+  callers: { id: string; nombre: string; activa: boolean }[]
   lead: Lead
   caller: string
   onClose: () => void
