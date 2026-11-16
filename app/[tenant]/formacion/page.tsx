@@ -81,6 +81,12 @@ function FormacionInner() {
     [base]
   )
 
+  // Un enlace interno a /formacion?leccion=<id> con la página ya abierta reutiliza el componente: se sigue la URL.
+  const leccionDeUrl = params.get('leccion')
+  useEffect(() => {
+    if (leccionDeUrl) setSeleccion(leccionDeUrl)
+  }, [leccionDeUrl])
+
   useEffect(() => {
     const ac = new AbortController()
     void cargar(ac.signal)

@@ -215,13 +215,16 @@ export function allowedPrefixesFor(
   // El DASHBOARD PERSONAL es la pantalla de inicio de cada miembro (sus llamadas, lo que le falta por
   // marcar, sus ventas): no depende de una lista de páginas a medida. Antes, un closer con
   // `page_overrides` que no incluía /dashboard se quedaba sin ella y sin saber por qué.
-  // FORMACIÓN es universal: SOPs y vídeos de cómo proceder en cada rol. Todo el equipo entra siempre, sin que
-  // un admin tenga que activarla persona a persona; qué cursos ve cada uno lo decide el público del curso.
-  const inicio = [...(PERSONAL_HOME_ROLES.has(role) ? ['/dashboard'] : []), ...PREFIJOS_UNIVERSALES]
-  if (pageOverrides && pageOverrides.length > 0) return normalizeAllowedPrefixes([...pageOverrides, ...inicio])
+  const inicio = PERSONAL_HOME_ROLES.has(role) ? ['/dashboard'] : []
+  // Las pantallas UNIVERSALES (Formación: SOPs y vídeos de cómo proceder en cada rol) van SIEMPRE AL FINAL. El
+  // layout redirige a `zones[0]` cuando la ruta no está permitida, así que añadirlas delante cambiaría a dónde
+  // se manda a la persona (a Formación en vez de a su inicio).
+  if (pageOverrides && pageOverrides.length > 0)
+    return normalizeAllowedPrefixes([...pageOverrides, ...inicio, ...PREFIJOS_UNIVERSALES])
   if (deptOverrides && deptOverrides.length > 0) {
     const set = new Set<string>(inicio)
     for (const d of deptOverrides) (DEPARTMENT_PREFIXES[d as Department] || []).forEach((p) => set.add(p))
+    PREFIJOS_UNIVERSALES.forEach((p) => set.add(p))
     return normalizeAllowedPrefixes(Array.from(set))
   }
   const rolePrefixes = ROLE_ALLOWED_PREFIXES[role]

@@ -74,22 +74,26 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
   const filasCursos = (cursos.data ?? []) as unknown as { id: string }[]
   const idsCursos = filasCursos.map((c) => c.id)
 
+  // Sin cursos visibles no hay nada que leer: una sola consulta en vez de tres. Es el caso más común (la tarjeta
+  // del dashboard lo pide en cada carga de cada rol).
+  if (idsCursos.length === 0) {
+    return NextResponse.json({ cursos: [], lecciones: [], hechas: [], puedeEditar: t.administraTenant })
+  }
+
   const [lecciones, progreso] = await Promise.all([
-    idsCursos.length === 0
-      ? Promise.resolve({ data: [] as unknown[], error: null })
-      : sb
-          .from('training_lessons')
-          .select(
-            resumen
-              ? 'id, course_id, title, position'
-              : 'id, course_id, title, description, video_url, video_provider, resource_url, resource_label, position'
-          )
-          .eq('tenant_id', t.tenantId)
-          .in('course_id', idsCursos)
-          .order('position', { ascending: true })
-          .order('created_at', { ascending: true })
-          .order('id', { ascending: true })
-          .limit(MAX_LECCIONES),
+    sb
+      .from('training_lessons')
+      .select(
+        resumen
+          ? 'id, course_id, title, position'
+          : 'id, course_id, title, description, video_url, video_provider, resource_url, resource_label, position'
+      )
+      .eq('tenant_id', t.tenantId)
+      .in('course_id', idsCursos)
+      .order('position', { ascending: true })
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
+      .limit(MAX_LECCIONES),
     sb
       .from('training_progress')
       .select('lesson_id')
@@ -181,12 +185,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     case 'editar_curso': {
       const title = texto(body.title, 160)
       const description = opcional(body.description, 2000)
-      const publico = publicoDe(body.audienceRoles)
+      // Si el cuerpo no trae `audienceRoles` el público NO se toca: omitirlo no puede abrir el curso a todo el equipo.
+      const publico = 'audienceRoles' in body ? publicoDe(body.audienceRoles) : undefined
       if (!esUuid(body.id) || !title || description === undefined) return error('Datos no válidos')
       if (publico === 'invalido') return error(ERR_PUBLICO)
       const { data, error: errBD } = await sb
         .from('training_courses')
-        .update({ title, description, audience_roles: publico, updated_at: ahora })
+        .update({
+          title,
+          description,
+          ...(publico !== undefined ? { audience_roles: publico } : {}),
+          updated_at: ahora,
+        })
         .eq('tenant_id', t.tenantId)
         .eq('id', body.id)
         .select('id')

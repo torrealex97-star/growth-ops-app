@@ -284,3 +284,46 @@ test('onboarding: el dashboard de la colaboradora enseña «Empieza aquí» y no
   // La ven todos los perfiles: también el dashboard del resto del equipo.
   assert.match(leer('app/[tenant]/dashboard/page.tsx'), /<EmpiezaAqui \/>/)
 })
+
+// ---------------------------------------------------------------- regresiones del code review final
+test('parsearVideo es idempotente: la URL canónica que guarda la API vuelve a reconocerse (la página la revalida)', () => {
+  const entradas = [
+    'https://www.loom.com/share/6f3c89c41c7d4737a41ab6027706cf42',
+    'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    'https://vimeo.com/123456789/abcdef1234',
+    'https://miempresa.wistia.com/medias/abcd1234ef',
+    'https://iframe.mediadelivery.net/play/12345/0a1b2c3d-1111-2222-3333-444455556666',
+  ]
+  for (const entrada of entradas) {
+    const guardada = parsearVideo(entrada)
+    assert.ok(guardada, entrada)
+    // Si esto falla, la API guarda el vídeo pero la página no pinta el iframe («vídeo no disponible»).
+    assert.deepEqual(parsearVideo(guardada.embedUrl), guardada, `no idempotente: ${guardada.embedUrl}`)
+  }
+})
+
+test('permisos: las pantallas universales van al FINAL, así zones[0] (destino de la redirección del layout) no cambia', () => {
+  // Con permisos a medida por página: manda la primera página elegida.
+  assert.equal(allowedPrefixesFor('marketing', null, ['/crm/contactos', '/ventas/pagos'])?.[0], '/crm/contactos')
+  // Con departamentos: el primero sigue siendo el inicio personal o el primer prefijo del departamento.
+  assert.equal(allowedPrefixesFor('closer', ['ventas'], null)?.[0], '/dashboard')
+  assert.notEqual(allowedPrefixesFor('marketing', ['marketing'], null)?.[0], '/formacion')
+  // Por rol: el primero no cambia y /formacion es siempre el último.
+  for (const rol of Object.keys(ROLE_LABELS)) {
+    const zonas = allowedPrefixesFor(rol, null, null)
+    if (!zonas) continue
+    assert.equal(zonas.at(-1), '/formacion', `${rol}: /formacion debe ir al final`)
+    assert.notEqual(zonas[0], '/formacion', `${rol}: zones[0] no puede ser /formacion`)
+  }
+})
+
+test('API formación: editar un curso sin audienceRoles NO cambia su público, y sin cursos visibles hay una sola consulta', () => {
+  const api = sinComentarios(leer('app/api/[tenant]/evergreen/formacion/route.ts'))
+  assert.match(api, /'audienceRoles' in body \? publicoDe\(body\.audienceRoles\) : undefined/)
+  assert.match(api, /publico !== undefined \? \{ audience_roles: publico \} : \{\}/)
+  // Retorno anticipado antes de consultar lecciones y progreso.
+  const pos = (re) => api.search(re)
+  assert.ok(pos(/idsCursos\.length === 0/) > -1 && pos(/idsCursos\.length === 0/) < pos(/from\('training_lessons'\)/))
+  // La página sigue la URL (?leccion=) si cambia con el componente ya montado.
+  assert.match(leer('app/[tenant]/formacion/page.tsx'), /leccionDeUrl/)
+})
