@@ -5,6 +5,22 @@ aplicadas en producción, con lo que hace falta para subirlas. Al fusionarse una
 
 Todo lo que depende de Alex, paso a paso: **[PASOS_ALEX.md](PASOS_ALEX.md)**.
 
+# VERIFICADO EN PRODUCCIÓN — Pendientes que no requieren código (16-nov)
+
+Solo lectura sobre la BD real; no se escribió nada.
+
+- **Formularios de feedback de alumnos: NO hace falta parche.** Solo hay un formulario publicado con esa estructura y ya
+  está corregido en el constructor (versión 14, email obligatorio antes de las estrellas). La primera respuesta posterior
+  enlaza con su ficha. Las 13 respuestas anteriores no guardaron email y no son recuperables.
+- **Identify visitante→contacto: el código ya está** (`emitLeadPixel` en `app/embed/loader.js/route.ts`). Estado real:
+  `vsl_sessions` = 397 (la landing ya carga el player), pero `vsl_viewer_identities` = 0 y 0 de 2.344 visitantes con
+  `contact_id`. Falta que la landing llame a `window.tccVSL.identify({email})` (o pase `?email=` / `window.tccVSLLead`)
+  con un email resuelto. Es configuración del funnel de GHL, acción del dueño.
+- **Columnas sensibles de `users` (sueldo, DNI, dirección, emails personales): siguen legibles** para quien ve la fila.
+  Un `REVOKE` por columna no sirve (todos los roles son `authenticated`, bloquearía también a admins y a ~18 ficheros que
+  las leen). Hay que mover esas columnas a una tabla solo-admin/propio (`user_private`) y leerlas por servidor, con tests de
+  aislamiento por rol. Es una fase propia, no una migración suelta.
+
 # EN PR — Feedback de alumnos: el email no se guardaba ni encajaba con la alumna (12-nov, Buffy)
 
 Causa raíz en las plantillas (`lib/forms/templates/index.ts`): la pregunta de email iba DESPUÉS de la
