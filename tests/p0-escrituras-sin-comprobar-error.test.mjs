@@ -52,9 +52,12 @@ test('afiliados/registro y colaboradores: collaborator_profiles (upsert/insert/u
 })
 
 test('invite: el insert de collaborator_profiles comprueba error', () => {
+  // El insert vive en el helper compartido y devuelve el error; la invitación lo comprueba y lo registra.
+  const helper = leer('lib/collaborators/provision.ts')
+  assert.match(helper, /const \{ error: crearError \} = await sb\.from\('collaborator_profiles'\)\.insert/)
+  assert.match(helper, /if \(crearError\) return \{ ok: false/)
   const src = leer('app/api/[tenant]/evergreen/invite/route.ts')
-  assert.match(src, /const \{ error: perfilErr \} = await supabase\.from\('collaborator_profiles'\)\.insert/)
-  assert.match(src, /if \(perfilErr\)/)
+  assert.match(src, /if \(!ficha\.ok\)/)
 })
 
 test('firma de contrato de equipo (público y attach): la activación de collaborator_profiles comprueba error', () => {
