@@ -5,6 +5,22 @@ aplicadas en producción, con lo que hace falta para subirlas. Al fusionarse una
 
 Todo lo que depende de Alex, paso a paso: **[PASOS_ALEX.md](PASOS_ALEX.md)**.
 
+# EN PR — Formación y entrada guiada de la colaboradora (16-nov)
+
+`/formacion`: cursos con lecciones en vídeo y progreso por persona, **por subcuenta** (cada admin crea los suyos). El vídeo no
+se aloja: se enlaza (YouTube, Loom, Wistia, Vimeo, Bunny) y `lib/formacion/video.ts` reconstruye siempre la URL embebible
+canónica con lista blanca de hosts. Cada lección admite un recurso de apoyo (p. ej. el manual) como enlace https. El dashboard
+de la colaboradora abre con la tarjeta «Empieza aquí» (siguiente lección + progreso) y «Formación» queda justo bajo Dashboard
+en el menú. Acceso solo por rutas de servidor (`requirePantalla`; escribir exige administrar la subcuenta), `tenant_id` explícito
+en cada consulta y RLS restrictiva como red de seguridad; FK compuestas `(tenant_id, id)` impiden cruzar subcuentas.
+
+**La migración `20261116120000_formacion_colaboradoras.sql` NO está aplicada en producción.** Dry-run hecho (transacción
+revertida: 3 tablas, 3 políticas restrictivas, RLS, 9 índices, `http://` rechazado; después, 0 tablas `training_*`). Aplicarla
+y sembrar el curso de cada subcuenta requieren OK expreso. El contenido de marca (manual, guion de agendamiento, vídeos) es
+dato de cada subcuenta: no va al repo.
+
+**Estado (TESTED, no VERIFIED):** tests estáticos y de lógica; sin render real con sesión de colaboradora (preview pendiente).
+
 # EN PR — Alta estándar de colaboradora (16-nov)
 
 `lib/auth/role-presets.ts` (preset por rol) + `lib/collaborators/provision.ts` (ficha idempotente). Las tres vías de alta

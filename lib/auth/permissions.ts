@@ -91,7 +91,17 @@ const ROLE_DEPARTMENTS: Record<AppRole, Department[]> = {
 // Prefijos de ruta por departamento (para acceso configurable por usuario)
 const DEPARTMENT_PREFIXES: Record<Department, string[]> = {
   // '/llamadas' (lista de la cold caller) y '/cold-calling' (panel del manager) cuelgan de ventas.
-  ventas: ['/crm', '/ventas', '/analitica', '/comisiones', '/recursos', '/tasks', '/llamadas', '/cold-calling'],
+  ventas: [
+    '/crm',
+    '/ventas',
+    '/analitica',
+    '/comisiones',
+    '/recursos',
+    '/tasks',
+    '/llamadas',
+    '/cold-calling',
+    '/formacion',
+  ],
   // '/marketing/afiliados' se añade aquí porque Afiliados se movió a Marketing (antes vivía
   // bajo el departamento 'finanzas', ver DEPARTMENT_PREFIXES.finanzas más abajo).
   // '/funnels' cuelga de marketing porque es una vista de captación (impresiones, visitas, leads),
@@ -141,6 +151,7 @@ export const NAV_PAGES: { href: string; label: string; dept: Department }[] = [
   { href: '/llamadas', label: 'Cold calling · Mis llamadas', dept: 'ventas' },
   { href: '/cold-calling', label: 'Cold calling · Equipo', dept: 'ventas' },
   { href: '/tasks', label: 'Tareas', dept: 'ventas' },
+  { href: '/formacion', label: 'Formación', dept: 'ventas' },
   { href: '/recursos/enlaces', label: 'Recursos de venta · Enlaces', dept: 'ventas' },
   { href: '/recursos/biblioteca', label: 'Recursos de venta · Biblioteca', dept: 'ventas' },
   { href: '/recursos/testimonios', label: 'Recursos de venta · Testimonios', dept: 'ventas' },
@@ -278,6 +289,7 @@ const ROLE_ALLOWED_PREFIXES: Partial<Record<AppRole, string[]>> = {
   ],
   affiliate: [
     '/dashboard', // comisiones, facturas, previsión y embudo del mes viven aquí
+    '/formacion', // vídeos paso a paso: lo primero que debe ver al entrar
     '/marketing/afiliados',
     '/recursos/enlaces',
     '/tasks',
