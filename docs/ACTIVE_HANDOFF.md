@@ -8,18 +8,19 @@ Todo lo que depende de Alex, paso a paso: **[PASOS_ALEX.md](PASOS_ALEX.md)**.
 # PENDIENTE — Formación y alta estándar de colaboradora (17-nov)
 
 En `main` y aplicado en producción: alta estándar de colaboradora (#760, preset de rol + ficha centralizada) y formación del equipo
-(#763: `/formacion` universal, cursos por rol, vídeos enlazados, «Empieza aquí»). La migración
-`20261116120000_formacion_colaboradoras.sql` está aplicada (3 tablas, RLS restrictiva, 11 índices, sin permisos para
-`anon`/`authenticated`) y el curso «Empieza aquí» está cargado como DATO en la subcuenta de la marca (12 lecciones; el contenido
-de marca no va al repo).
+(#763: `/formacion` universal, cursos por rol, vídeos enlazados, «Empieza aquí») y los SOPs (#765: varios enlaces por
+lección y pestaña «SOPs» en Recursos › Biblioteca). Las migraciones `20261116120000_formacion_colaboradoras.sql` y
+`20261117100000_formacion_sops.sql` están aplicadas (RLS restrictiva, sin permisos para `anon`/`authenticated`). El curso
+«Empieza aquí» está cargado como DATO en la subcuenta de la marca, recortado a 3 lecciones con su SOP cada una (el contenido
+de marca no va al repo). Las columnas antiguas `training_lessons.resource_url`/`resource_label` ya no se leen: se retirarán en
+una migración aparte.
 
 | Qué                                                                                                         | Estado / qué hace falta                                                                                                  |
 | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | Render real de `/formacion` y de «Empieza aquí» con sesión de colaboradora y de otro rol                    | Solo TESTED (tests estáticos + CI e2e). Falta abrirlo con sesión real: el entorno de agentes no llega al preview ni a Loom |
 | Colaboradoras existentes con `data_scope='team'` (4 filas; las nuevas ya nacen en `'own'`)                  | `UPDATE` de 4 filas, reversible. Requiere OK expreso de Alex                                                             |
-| Vídeos de las lecciones 2-12 del curso de colaboradoras, y cursos de closers / media buyers                 | Solo está el vídeo de bienvenida. Se añaden desde `/formacion` (lápiz de cada lección) o pasando los SOPs al agente      |
+| Vídeos de las lecciones 2 y 3 del curso de colaboradoras («Crea y publica tu contenido», «Agendamiento»), y cursos de closers / media buyers | Solo está el vídeo de bienvenida. Se añaden desde `/formacion` (lápiz de cada lección) o pasando los SOPs al agente. Los SOPs se adjuntan bajo cada vídeo (hasta 10 enlaces) |
 | Columnas sensibles de `users` (sueldo, DNI, dirección, emails personales) siguen legibles                   | Fase `user_private`: tabla solo-admin/propia + lecturas por servidor + tests de aislamiento. Plan en `docs/plan`          |
-| SOPs bajo cada vídeo (varios enlaces por lección) y pestaña «SOPs» en Recursos › Biblioteca                | Código en PR. **Migración `20261117100000_formacion_sops.sql` NO aplicada**: copia el recurso único de cada lección a `training_resources` sin borrar nada. No fusionar el PR antes de aplicarla (la API lee la tabla nueva) |
 | Advisors de rendimiento: 5 «índice sin usar» en `training_*`                                                | Esperado al estrenar. Revisar tras uso real, no antes                                                                    |
 
 # EN PR — Feedback de alumnos: el email no se guardaba ni encajaba con la alumna (12-nov, Buffy)
