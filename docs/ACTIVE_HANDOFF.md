@@ -5,54 +5,21 @@ aplicadas en producción, con lo que hace falta para subirlas. Al fusionarse una
 
 Todo lo que depende de Alex, paso a paso: **[PASOS_ALEX.md](PASOS_ALEX.md)**.
 
-# EN PR — Formación del equipo y entrada guiada (16-nov)
+# PENDIENTE — Formación y alta estándar de colaboradora (17-nov)
 
-`/formacion`: SOPs y vídeos «de cómo proceder» para **todos los perfiles** (media buyers, closers, colaboradoras…), por subcuenta
-(cada admin crea los suyos). Cada curso lleva un público por rol (vacío = todo el equipo); cada persona ve los de su rol y quien
-administra ve todos. La pantalla es universal: entra todo el equipo aunque tenga permisos a medida. El vídeo no se aloja: se
-enlaza (YouTube, Loom, Wistia, Vimeo, Bunny) y `lib/formacion/video.ts` reconstruye siempre la URL embebible canónica con lista
-blanca de hosts (también como CHECK en BD). Cada lección admite un recurso de apoyo (p. ej. el manual) como enlace https. El
-dashboard abre con «Empieza aquí» (siguiente lección de TU rol + progreso) y «Formación» queda bajo Dashboard en el menú.
-Acceso solo por rutas de servidor (`requirePantalla`; escribir exige administrar la subcuenta), `tenant_id` explícito en cada
-consulta, RLS restrictiva como red de seguridad y FK compuestas `(tenant_id, id)` que impiden cruzar subcuentas.
+En `main` y aplicado en producción: alta estándar de colaboradora (#760, preset de rol + ficha centralizada) y formación del equipo
+(#763: `/formacion` universal, cursos por rol, vídeos enlazados, «Empieza aquí»). La migración
+`20261116120000_formacion_colaboradoras.sql` está aplicada (3 tablas, RLS restrictiva, 11 índices, sin permisos para
+`anon`/`authenticated`) y el curso «Empieza aquí» está cargado como DATO en la subcuenta de la marca (12 lecciones; el contenido
+de marca no va al repo).
 
-**La migración `20261116120000_formacion_colaboradoras.sql` NO está aplicada en producción.** Dry-run final hecho (transacción
-revertida): 3 tablas, 3 políticas restrictivas, RLS, 11 índices; rechazados host de vídeo ajeno, `http://`, curso sembrado
-duplicado, público vacío y cruce entre subcuentas. Aplicarla y sembrar el contenido de cada subcuenta requieren OK expreso. El
-contenido de marca (manual, guion de agendamiento, vídeos) es dato de cada subcuenta: no va al repo.
-
-**Estado (TESTED, no VERIFIED):** tests estáticos y de lógica; sin render real con sesión de colaboradora ni de otro rol (preview pendiente).
-
-# EN PR — Alta estándar de colaboradora (16-nov)
-
-`lib/auth/role-presets.ts` (preset por rol) + `lib/collaborators/provision.ts` (ficha idempotente). Las tres vías de alta
-(invitación, edición de usuario, alta directa de Colaboradores) usan el mismo helper y ya no hay `TRACKING_ROLES`
-duplicada. Una cuenta NUEVA de colaboradora nace con `data_scope='own'` (el default de la BD es `'team'` y abre las
-políticas RLS de equipo), comisiones activas (nunca `pays_commissions=false`, MONEY.md D9), ficha y código de referido;
-el % se escribe a la vez en `users` y en `collaborator_profiles`. Reinvitar a alguien que ya existe no reescribe nada.
-
-**Estado (TESTED, no VERIFIED en producción):** tests de preset y helper, y revisión estática de las tres vías. No se probó
-el alta real con sesión de colaboradora tras `data_scope='own'`; el CRM ya trata `'own'` como valor por defecto y el
-scope de colaborador (más estrecho) gana, pero conviene dar de alta una de prueba en preview.
-
-**Pendiente, requiere OK de Alex (producción):** las 4 colaboradoras existentes están en `data_scope='team'` (todas con
-ficha y comisiones activas; el % coincide en ambas tablas). Pasarlas a `'own'` es un `UPDATE` de 4 filas, reversible.
-
-# VERIFICADO EN PRODUCCIÓN — Pendientes que no requieren código (16-nov)
-
-Solo lectura sobre la BD real; no se escribió nada.
-
-- **Formularios de feedback de alumnos: NO hace falta parche.** Solo hay un formulario publicado con esa estructura y ya
-  está corregido en el constructor (versión 14, email obligatorio antes de las estrellas). La primera respuesta posterior
-  enlaza con su ficha. Las 13 respuestas anteriores no guardaron email y no son recuperables.
-- **Identify visitante→contacto: el código ya está** (`emitLeadPixel` en `app/embed/loader.js/route.ts`). Estado real:
-  `vsl_sessions` = 397 (la landing ya carga el player), pero `vsl_viewer_identities` = 0 y 0 de 2.344 visitantes con
-  `contact_id`. Falta que la landing llame a `window.tccVSL.identify({email})` (o pase `?email=` / `window.tccVSLLead`)
-  con un email resuelto. Es configuración del funnel de GHL, acción del dueño.
-- **Columnas sensibles de `users` (sueldo, DNI, dirección, emails personales): siguen legibles** para quien ve la fila.
-  Un `REVOKE` por columna no sirve (todos los roles son `authenticated`, bloquearía también a admins y a ~18 ficheros que
-  las leen). Hay que mover esas columnas a una tabla solo-admin/propio (`user_private`) y leerlas por servidor, con tests de
-  aislamiento por rol. Es una fase propia, no una migración suelta.
+| Qué                                                                                                         | Estado / qué hace falta                                                                                                  |
+| ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Render real de `/formacion` y de «Empieza aquí» con sesión de colaboradora y de otro rol                    | Solo TESTED (tests estáticos + CI e2e). Falta abrirlo con sesión real: el entorno de agentes no llega al preview ni a Loom |
+| Colaboradoras existentes con `data_scope='team'` (4 filas; las nuevas ya nacen en `'own'`)                  | `UPDATE` de 4 filas, reversible. Requiere OK expreso de Alex                                                             |
+| Vídeos de las lecciones 2-12 del curso de colaboradoras, y cursos de closers / media buyers                 | Solo está el vídeo de bienvenida. Se añaden desde `/formacion` (lápiz de cada lección) o pasando los SOPs al agente      |
+| Columnas sensibles de `users` (sueldo, DNI, dirección, emails personales) siguen legibles                   | Fase `user_private`: tabla solo-admin/propia + lecturas por servidor + tests de aislamiento. Plan en `docs/plan`          |
+| Advisors de rendimiento: 5 «índice sin usar» en `training_*`                                                | Esperado al estrenar. Revisar tras uso real, no antes                                                                    |
 
 # EN PR — Feedback de alumnos: el email no se guardaba ni encajaba con la alumna (12-nov, Buffy)
 
