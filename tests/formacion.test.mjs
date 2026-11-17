@@ -383,11 +383,11 @@ test('API SOPs: crear/editar/borrar con tenant explícito, 404 sin fila, máximo
   // La lección debe ser de ESTA subcuenta antes de adjuntar nada.
   assert.match(crear, /from\('training_lessons'\)[\s\S]*\.eq\('tenant_id', t\.tenantId\)/)
   // El GET sirve los SOPs filtrados por tenant y solo de las lecciones visibles; el modo ligero no los pide.
-  assert.match(
-    api,
-    /from\('training_resources'\)[\s\S]*\.eq\('tenant_id', t\.tenantId\)[\s\S]*\.in\('lesson_id', idsLecciones\)/
-  )
-  assert.match(api, /!resumen && idsLecciones\.length > 0/)
+  assert.match(api, /from\('training_resources'\)[\s\S]*\.eq\('tenant_id', t\.tenantId\)/)
+  assert.match(api, /idsLecciones\.has\(r\.lesson_id\)/)
+  // Sin `.in()` con cientos de ids (revienta el límite de longitud de la URL de PostgREST).
+  assert.doesNotMatch(api, /\.in\('lesson_id'/)
+  assert.match(api, /!resumen && idsLecciones\.size > 0/)
   // Ya no hay recurso único en lecciones.
   assert.doesNotMatch(api, /resourceUrl|resource_url|resource_label|validarRecurso/)
 })

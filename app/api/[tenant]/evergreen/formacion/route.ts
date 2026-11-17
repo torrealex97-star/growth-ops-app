@@ -106,15 +106,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     console.error('[formacion] GET:', fallo.message)
     return NextResponse.json({ error: 'No se pudo cargar la formación' }, { status: 500 })
   }
-  // SOPs (enlaces a documentos) de las lecciones visibles. El modo ligero de la tarjeta no los necesita.
+  // SOPs (enlaces a documentos) de las lecciones visibles. El modo ligero de la tarjeta no los necesita. Se piden por
+  // subcuenta y se filtran aquí por las lecciones visibles: un `.in('lesson_id', …)` con cientos de ids revienta el
+  // límite de longitud de la URL de PostgREST. Están acotados (máx. MAX_SOPS_POR_LECCION por lección).
   let recursos: unknown[] = []
-  const idsLecciones = ((lecciones.data ?? []) as unknown as { id: string }[]).map((l) => l.id)
-  if (!resumen && idsLecciones.length > 0) {
+  const idsLecciones = new Set(((lecciones.data ?? []) as unknown as { id: string }[]).map((l) => l.id))
+  if (!resumen && idsLecciones.size > 0) {
     const sops = await sb
       .from('training_resources')
       .select('id, lesson_id, title, url, position')
       .eq('tenant_id', t.tenantId)
-      .in('lesson_id', idsLecciones)
       .order('position', { ascending: true })
       .order('created_at', { ascending: true })
       .order('id', { ascending: true })
@@ -123,7 +124,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       console.error('[formacion] GET sops:', sops.error.message)
       return NextResponse.json({ error: 'No se pudo cargar la formación' }, { status: 500 })
     }
-    recursos = sops.data ?? []
+    recursos = ((sops.data ?? []) as unknown as { lesson_id: string }[]).filter((r) => idsLecciones.has(r.lesson_id))
   }
   return NextResponse.json({
     cursos: filasCursos,
