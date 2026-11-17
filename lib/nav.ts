@@ -57,7 +57,7 @@ import {
   Rocket,
   Headphones,
 } from 'lucide-react'
-import { allowedPrefixesFor, type AppRole, type Department } from '@/lib/auth/permissions'
+import { allowedPrefixesFor, ROLE_LABELS, type AppRole, type Department } from '@/lib/auth/permissions'
 
 export interface NavItem {
   label: string
@@ -73,6 +73,7 @@ export interface NavSection {
 }
 
 const LEAD: AppRole[] = ['admin', 'director', 'manager']
+const TODOS_LOS_ROLES = Object.keys(ROLE_LABELS) as AppRole[]
 
 export const NAV_SECTIONS: NavSection[] = [
   {
@@ -84,6 +85,8 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: LayoutDashboard,
         roles: [...LEAD, 'setter', 'closer', 'affiliate'],
       },
+      // Formación va justo debajo del Dashboard y la ve todo el equipo: para quien entra por primera vez es lo primero.
+      { label: 'Formación', href: '/formacion', icon: GraduationCap, roles: TODOS_LOS_ROLES },
       { label: 'Métricas', href: '/unit-economics', icon: BarChart3, roles: LEAD },
       // Funnels va arriba y no dentro de "Analítica de ventas" a propósito: cruza marketing y
       // ventas (impresiones de Meta, visitas, leads, agendas, cierres), así que no pertenece a un
