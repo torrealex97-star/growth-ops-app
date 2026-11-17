@@ -1,14 +1,16 @@
 /**
- * Recurso de apoyo de una lección (p. ej. el manual en un documento). Se abre como ENLACE en pestaña nueva,
+ * SOP de una lección: un ENLACE a un documento (Google Docs, Notion, PDF…) con un nombre. Se abre en pestaña nueva,
  * no se incrusta, así que basta con exigir https y rechazar credenciales en la URL. Módulo puro.
  */
 
-export type RecursoValidado = { ok: true; url: string | null; etiqueta: string | null } | { ok: false }
+export const MAX_SOPS_POR_LECCION = 10
 
-export function validarRecurso(url: unknown, etiqueta: unknown): RecursoValidado {
-  const vacio = (v: unknown) => v === undefined || v === null || (typeof v === 'string' && v.trim() === '')
-  if (vacio(url)) return { ok: true, url: null, etiqueta: null }
-  if (typeof url !== 'string') return { ok: false }
+export type SopValidado = { ok: true; url: string; titulo: string } | { ok: false }
+
+export function validarSop(url: unknown, titulo: unknown): SopValidado {
+  if (typeof url !== 'string' || typeof titulo !== 'string') return { ok: false }
+  const nombre = titulo.trim()
+  if (nombre.length < 1 || nombre.length > 120) return { ok: false }
   let u: URL
   try {
     u = new URL(url.trim())
@@ -18,7 +20,5 @@ export function validarRecurso(url: unknown, etiqueta: unknown): RecursoValidado
   if (u.protocol !== 'https:' || u.username || u.password) return { ok: false }
   const href = u.toString()
   if (href.length > 600) return { ok: false }
-  if (vacio(etiqueta)) return { ok: true, url: href, etiqueta: null }
-  if (typeof etiqueta !== 'string' || etiqueta.trim().length > 80) return { ok: false }
-  return { ok: true, url: href, etiqueta: etiqueta.trim() }
+  return { ok: true, url: href, titulo: nombre }
 }

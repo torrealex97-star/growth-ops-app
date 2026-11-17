@@ -6568,6 +6568,35 @@ export type EsquemaPublico = {
         completed_at: string | undefined
       }
     }
+    TrainingResources: {
+      Row: {
+        id: string
+        tenant_id: string
+        lesson_id: string
+        title: string
+        url: string
+        position: number
+        created_at: string
+      }
+      Insert: {
+        id: string | undefined
+        tenant_id: string
+        lesson_id: string
+        title: string
+        url: string
+        position: number | undefined
+        created_at: string | undefined
+      }
+      Update: {
+        id: string | undefined
+        tenant_id: string | undefined
+        lesson_id: string | undefined
+        title: string | undefined
+        url: string | undefined
+        position: number | undefined
+        created_at: string | undefined
+      }
+    }
     UserFathomConnections: {
       Row: {
         id: string

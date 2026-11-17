@@ -19,6 +19,7 @@ de marca no va al repo).
 | Colaboradoras existentes con `data_scope='team'` (4 filas; las nuevas ya nacen en `'own'`)                  | `UPDATE` de 4 filas, reversible. Requiere OK expreso de Alex                                                             |
 | Vídeos de las lecciones 2-12 del curso de colaboradoras, y cursos de closers / media buyers                 | Solo está el vídeo de bienvenida. Se añaden desde `/formacion` (lápiz de cada lección) o pasando los SOPs al agente      |
 | Columnas sensibles de `users` (sueldo, DNI, dirección, emails personales) siguen legibles                   | Fase `user_private`: tabla solo-admin/propia + lecturas por servidor + tests de aislamiento. Plan en `docs/plan`          |
+| SOPs bajo cada vídeo (varios enlaces por lección) y pestaña «SOPs» en Recursos › Biblioteca                | Código en PR. **Migración `20261117100000_formacion_sops.sql` NO aplicada**: copia el recurso único de cada lección a `training_resources` sin borrar nada. No fusionar el PR antes de aplicarla (la API lee la tabla nueva) |
 | Advisors de rendimiento: 5 «índice sin usar» en `training_*`                                                | Esperado al estrenar. Revisar tras uso real, no antes                                                                    |
 
 # EN PR — Feedback de alumnos: el email no se guardaba ni encajaba con la alumna (12-nov, Buffy)

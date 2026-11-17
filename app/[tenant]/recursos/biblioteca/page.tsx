@@ -16,6 +16,7 @@ import { toast } from 'sonner'
 import { useSesion, useTenant, useTenantId } from '@/lib/tenant-context'
 import { SearchBox, normalizeText } from '@/components/ui/search-box'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { BibliotecaSops } from '@/components/formacion/BibliotecaSops'
 
 type Call = {
   id: string
@@ -54,7 +55,7 @@ export default function BibliotecaPage() {
   const [closerFilter, setCloserFilter] = useState('all')
   const [minScore, setMinScore] = useState('all')
   const [search, setSearch] = useState('')
-  const [tab, setTab] = useState<'calls' | 'roleplays'>('calls')
+  const [tab, setTab] = useState<'calls' | 'roleplays' | 'sops'>('calls')
 
   // Roleplays de entrenamiento
   const [roleplays, setRoleplays] = useState<Roleplay[]>([])
@@ -205,7 +206,7 @@ export default function BibliotecaPage() {
         </p>
       </div>
 
-      {/* Tabs: Llamadas / Roleplays */}
+      {/* Tabs: Llamadas / Roleplays / SOPs */}
       <div className="flex items-center gap-1 border-b border-border">
         <button
           onClick={() => setTab('calls')}
@@ -220,7 +221,15 @@ export default function BibliotecaPage() {
           <Drama className="w-4 h-4" /> Roleplays{' '}
           <span className="text-xs text-muted-foreground">{roleplays.length}</span>
         </button>
+        <button
+          onClick={() => setTab('sops')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px flex items-center gap-2 ${tab === 'sops' ? 'border-brand-500 text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+        >
+          <FileText className="w-4 h-4" /> SOPs
+        </button>
       </div>
+
+      {tab === 'sops' && <BibliotecaSops />}
 
       {tab === 'calls' && (
         <>
