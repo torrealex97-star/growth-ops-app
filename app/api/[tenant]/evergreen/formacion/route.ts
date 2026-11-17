@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { ROLE_LABELS } from '@/lib/auth/permissions'
 import { requirePantalla } from '@/lib/auth/requirePantalla'
 import { CURSO_ESTANDAR } from '@/lib/formacion/curso-estandar'
-import { validarRecurso } from '@/lib/formacion/recurso'
+import { MAX_SOPS_POR_LECCION, validarSop } from '@/lib/formacion/recurso'
 import { servicioFormacion } from '@/lib/formacion/servicio'
 import { parsearVideo } from '@/lib/formacion/video'
 
@@ -86,7 +86,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       .select(
         resumen
           ? 'id, course_id, title, position'
-          : 'id, course_id, title, description, video_url, video_provider, resource_url, resource_label, position'
+          : 'id, course_id, title, description, video_url, video_provider, position'
       )
       .eq('tenant_id', t.tenantId)
       .in('course_id', idsCursos)
@@ -106,9 +106,29 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     console.error('[formacion] GET:', fallo.message)
     return NextResponse.json({ error: 'No se pudo cargar la formación' }, { status: 500 })
   }
+  // SOPs (enlaces a documentos) de las lecciones visibles. El modo ligero de la tarjeta no los necesita.
+  let recursos: unknown[] = []
+  const idsLecciones = ((lecciones.data ?? []) as unknown as { id: string }[]).map((l) => l.id)
+  if (!resumen && idsLecciones.length > 0) {
+    const sops = await sb
+      .from('training_resources')
+      .select('id, lesson_id, title, url, position')
+      .eq('tenant_id', t.tenantId)
+      .in('lesson_id', idsLecciones)
+      .order('position', { ascending: true })
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
+      .limit(MAX_LECCIONES * MAX_SOPS_POR_LECCION)
+    if (sops.error) {
+      console.error('[formacion] GET sops:', sops.error.message)
+      return NextResponse.json({ error: 'No se pudo cargar la formación' }, { status: 500 })
+    }
+    recursos = sops.data ?? []
+  }
   return NextResponse.json({
     cursos: filasCursos,
     lecciones: lecciones.data ?? [],
+    recursos,
     hechas: (progreso.data ?? []).map((p) => (p as { lesson_id: string }).lesson_id),
     puedeEditar: t.administraTenant,
   })
@@ -152,11 +172,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     const v = parsearVideo(crudo)
     return v ? { url: v.embedUrl, proveedor: v.proveedor } : 'invalido'
   }
-  const recursoDe = (url: unknown, etiqueta: unknown) => {
-    const r = validarRecurso(url, etiqueta)
-    return r.ok ? r : null
-  }
-  const ERR_RECURSO = 'El recurso debe ser un enlace https válido (y su nombre, de hasta 80 caracteres).'
+  const ERR_SOP = 'El SOP necesita un nombre (hasta 120 caracteres) y un enlace https válido.'
   const ERR_VIDEO = 'Enlace de vídeo no admitido. Usa YouTube, Loom, Wistia, Vimeo o Bunny (https).'
   const ERR_PUBLICO = 'El público del curso no es válido.'
 
@@ -220,10 +236,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       const title = texto(body.title, 160)
       const description = opcional(body.description, 4000)
       const video = videoDe(body.videoUrl)
-      const recurso = recursoDe(body.resourceUrl, body.resourceLabel)
       if (!esUuid(body.courseId) || !title || description === undefined) return error('Datos no válidos')
       if (video === 'invalido') return error(ERR_VIDEO)
-      if (!recurso) return error(ERR_RECURSO)
       // El curso debe ser de ESTA subcuenta (la FK compuesta lo exige también en BD).
       const { data: curso } = await sb
         .from('training_courses')
@@ -241,8 +255,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
           description,
           video_url: video.url,
           video_provider: video.proveedor,
-          resource_url: recurso.url,
-          resource_label: recurso.etiqueta,
           position: await siguientePosicion('training_lessons', body.courseId),
         })
         .select('id')
@@ -254,10 +266,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       const title = texto(body.title, 160)
       const description = opcional(body.description, 4000)
       const video = videoDe(body.videoUrl)
-      const recurso = recursoDe(body.resourceUrl, body.resourceLabel)
       if (!esUuid(body.id) || !title || description === undefined) return error('Datos no válidos')
       if (video === 'invalido') return error(ERR_VIDEO)
-      if (!recurso) return error(ERR_RECURSO)
       const { data, error: errBD } = await sb
         .from('training_lessons')
         .update({
@@ -265,8 +275,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
           description,
           video_url: video.url,
           video_provider: video.proveedor,
-          resource_url: recurso.url,
-          resource_label: recurso.etiqueta,
           updated_at: ahora,
         })
         .eq('tenant_id', t.tenantId)
@@ -286,6 +294,62 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
         .select('id')
       if (errBD) return fallaBD('borrar_leccion', errBD)
       if (!data?.length) return error('Lección no encontrada', 404)
+      return NextResponse.json({ ok: true })
+    }
+    case 'crear_sop': {
+      const sop = validarSop(body.url, body.title)
+      if (!esUuid(body.lessonId) || !sop.ok) return error(ERR_SOP)
+      // La lección debe ser de ESTA subcuenta y no pasarse del máximo de SOPs.
+      const { data: leccion } = await sb
+        .from('training_lessons')
+        .select('id')
+        .eq('tenant_id', t.tenantId)
+        .eq('id', body.lessonId)
+        .maybeSingle()
+      if (!leccion) return error('Lección no encontrada', 404)
+      const { count } = await sb
+        .from('training_resources')
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', t.tenantId)
+        .eq('lesson_id', body.lessonId)
+      if ((count ?? 0) >= MAX_SOPS_POR_LECCION) return error(`Máximo ${MAX_SOPS_POR_LECCION} SOPs por lección.`)
+      const { data, error: errBD } = await sb
+        .from('training_resources')
+        .insert({
+          tenant_id: t.tenantId,
+          lesson_id: body.lessonId,
+          title: sop.titulo,
+          url: sop.url,
+          position: count ?? 0,
+        })
+        .select('id')
+        .single()
+      if (errBD) return fallaBD('crear_sop', errBD)
+      return NextResponse.json({ ok: true, id: (data as { id: string }).id })
+    }
+    case 'editar_sop': {
+      const sop = validarSop(body.url, body.title)
+      if (!esUuid(body.id) || !sop.ok) return error(ERR_SOP)
+      const { data, error: errBD } = await sb
+        .from('training_resources')
+        .update({ title: sop.titulo, url: sop.url })
+        .eq('tenant_id', t.tenantId)
+        .eq('id', body.id)
+        .select('id')
+      if (errBD) return fallaBD('editar_sop', errBD)
+      if (!data?.length) return error('SOP no encontrado', 404)
+      return NextResponse.json({ ok: true })
+    }
+    case 'borrar_sop': {
+      if (!esUuid(body.id)) return error('Datos no válidos')
+      const { data, error: errBD } = await sb
+        .from('training_resources')
+        .delete()
+        .eq('tenant_id', t.tenantId)
+        .eq('id', body.id)
+        .select('id')
+      if (errBD) return fallaBD('borrar_sop', errBD)
+      if (!data?.length) return error('SOP no encontrado', 404)
       return NextResponse.json({ ok: true })
     }
     case 'curso_estandar': {

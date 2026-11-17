@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
-import { Check, ChevronRight, ExternalLink, GraduationCap, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Check, ChevronRight, GraduationCap, Pencil, Plus, Trash2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -15,6 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { ROLE_LABELS, type AppRole } from '@/lib/auth/permissions'
 import { ordenarLecciones, resumenProgreso, siguientePendiente } from '@/lib/formacion/progreso'
 import { parsearVideo } from '@/lib/formacion/video'
+import { SopsLista, type Sop } from '@/components/formacion/SopsLista'
 import { useTenant } from '@/lib/tenant-context'
 
 type Curso = {
@@ -31,11 +32,9 @@ type Leccion = {
   description: string | null
   video_url: string | null
   video_provider: string | null
-  resource_url: string | null
-  resource_label: string | null
   position: number
 }
-type Datos = { cursos: Curso[]; lecciones: Leccion[]; hechas: string[]; puedeEditar: boolean }
+type Datos = { cursos: Curso[]; lecciones: Leccion[]; recursos: Sop[]; hechas: string[]; puedeEditar: boolean }
 
 type Editor =
   | { tipo: 'curso'; id?: string; title: string; description: string; audience: string[] }
@@ -46,8 +45,6 @@ type Editor =
       title: string
       description: string
       videoUrl: string
-      resourceUrl: string
-      resourceLabel: string
     }
 
 function FormacionInner() {
@@ -96,6 +93,10 @@ function FormacionInner() {
   // Lecciones en el orden en que se ven (el mismo que usa la tarjeta del dashboard).
   const ordenadas = useMemo(() => (datos ? ordenarLecciones(datos.cursos, datos.lecciones) : []), [datos])
 
+  const sopsDe = useCallback(
+    (leccionId: string) => (datos?.recursos ?? []).filter((r) => r.lesson_id === leccionId),
+    [datos]
+  )
   const hechas = useMemo(() => new Set(datos?.hechas ?? []), [datos])
   const resumen = useMemo(() => resumenProgreso(ordenadas, hechas), [ordenadas, hechas])
   const actual =
@@ -164,8 +165,6 @@ function FormacionInner() {
             title: editor.title,
             description: editor.description,
             videoUrl: editor.videoUrl,
-            resourceUrl: editor.resourceUrl,
-            resourceLabel: editor.resourceLabel,
           }
     if (await llamar(cuerpo, 'Guardado')) setEditor(null)
   }
@@ -314,8 +313,6 @@ function FormacionInner() {
                           title: '',
                           description: '',
                           videoUrl: '',
-                          resourceUrl: '',
-                          resourceLabel: '',
                         })
                       }
                     >
@@ -347,8 +344,6 @@ function FormacionInner() {
                             title: actual.title,
                             description: actual.description ?? '',
                             videoUrl: actual.video_url ?? '',
-                            resourceUrl: actual.resource_url ?? '',
-                            resourceLabel: actual.resource_label ?? '',
                           })
                         }
                       >
@@ -391,16 +386,16 @@ function FormacionInner() {
                   <p className="whitespace-pre-line text-sm text-foreground/90">{actual.description}</p>
                 )}
 
-                {actual.resource_url && (
-                  <a
-                    href={actual.resource_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-muted"
-                  >
-                    <ExternalLink className="h-4 w-4" /> {actual.resource_label || 'Abrir el material de apoyo'}
-                  </a>
-                )}
+                <SopsLista
+                  sops={sopsDe(actual.id)}
+                  puedeEditar={datos.puedeEditar}
+                  onAdd={(titulo, url) =>
+                    llamar({ action: 'crear_sop', lessonId: actual.id, title: titulo, url }, 'SOP añadido')
+                  }
+                  onDelete={async (id) => {
+                    await llamar({ action: 'borrar_sop', id }, 'SOP quitado')
+                  }}
+                />
 
                 <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
                   <Button
@@ -497,20 +492,6 @@ function FormacionInner() {
                     <p className="text-xs text-muted-foreground">
                       YouTube, Loom, Wistia, Vimeo o Bunny. El vídeo no se sube aquí: se enlaza.
                     </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Material de apoyo (opcional)</Label>
-                    <Input
-                      value={editor.resourceUrl}
-                      placeholder="https://docs.google.com/…"
-                      onChange={(e) => setEditor({ ...editor, resourceUrl: e.target.value })}
-                    />
-                    <Input
-                      value={editor.resourceLabel}
-                      maxLength={80}
-                      placeholder="Nombre del botón, p. ej. «Abrir el manual»"
-                      onChange={(e) => setEditor({ ...editor, resourceLabel: e.target.value })}
-                    />
                   </div>
                 </>
               )}

@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { allowedPrefixesFor, NAV_PAGES, ROLE_LABELS } from '@/lib/auth/permissions'
 import { CURSO_ESTANDAR } from '@/lib/formacion/curso-estandar'
 import { cursoVisibleParaRol, ordenarLecciones, resumenProgreso, siguientePendiente } from '@/lib/formacion/progreso'
-import { validarRecurso } from '@/lib/formacion/recurso'
+import { MAX_SOPS_POR_LECCION, validarSop } from '@/lib/formacion/recurso'
 import { parsearVideo } from '@/lib/formacion/video'
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
@@ -85,17 +85,26 @@ test('parsearVideo: nunca devuelve la cadena del usuario tal cual (siempre recon
   assert.equal(v?.embedUrl, 'https://www.loom.com/embed/abc123DEF456')
 })
 
-// ---------------------------------------------------------------- recurso
-test('validarRecurso: solo https, sin credenciales; vacío es válido (sin recurso)', () => {
-  assert.deepEqual(validarRecurso('', ''), { ok: true, url: null, etiqueta: null })
-  assert.deepEqual(validarRecurso(undefined, undefined), { ok: true, url: null, etiqueta: null })
-  const ok = validarRecurso('https://docs.google.com/document/d/abc/edit', ' Abrir el manual ')
-  assert.equal(ok.ok, true)
-  assert.equal(ok.etiqueta, 'Abrir el manual')
-  for (const mal of ['http://x.com/a', 'javascript:alert(1)', 'https://u:p@x.com/a', 'ftp://x.com/a', 'no url', 42]) {
-    assert.equal(validarRecurso(mal, null).ok, false, String(mal))
+// ---------------------------------------------------------------- SOPs (enlaces a documentos)
+test('validarSop: nombre y enlace https obligatorios, sin credenciales', () => {
+  const ok = validarSop('https://docs.google.com/document/d/abc/edit', ' SOP de agendamiento ')
+  assert.deepEqual(ok, { ok: true, url: 'https://docs.google.com/document/d/abc/edit', titulo: 'SOP de agendamiento' })
+  for (const [url, titulo] of [
+    ['http://x.com/a', 'x'],
+    ['javascript:alert(1)', 'x'],
+    ['https://u:p@x.com/a', 'x'],
+    ['ftp://x.com/a', 'x'],
+    ['no url', 'x'],
+    ['https://x.com/a', ''],
+    ['https://x.com/a', '   '],
+    ['https://x.com/a', 'a'.repeat(121)],
+    ['https://x.com/a', 42],
+    [42, 'x'],
+    [undefined, undefined],
+  ]) {
+    assert.equal(validarSop(url, titulo).ok, false, `${String(url)} / ${String(titulo)}`)
   }
-  assert.equal(validarRecurso('https://x.com/a', 'a'.repeat(81)).ok, false)
+  assert.equal(MAX_SOPS_POR_LECCION, 10)
 })
 
 // ---------------------------------------------------------------- progreso
@@ -326,4 +335,78 @@ test('API formación: editar un curso sin audienceRoles NO cambia su público, y
   assert.ok(pos(/idsCursos\.length === 0/) > -1 && pos(/idsCursos\.length === 0/) < pos(/from\('training_lessons'\)/))
   // La página sigue la URL (?leccion=) si cambia con el componente ya montado.
   assert.match(leer('app/[tenant]/formacion/page.tsx'), /leccionDeUrl/)
+})
+
+// ---------------------------------------------------------------- SOPs: varios por lección y también en Biblioteca
+test('migración SOPs: tabla con tenant, FK compuesta, https obligatorio, RLS restrictiva y copia no destructiva', () => {
+  const crudo = leer('supabase/migrations/20261117100000_formacion_sops.sql')
+  const sql = sinComentariosSql(crudo)
+  assert.match(sql, /CREATE TABLE IF NOT EXISTS public\.training_resources/)
+  assert.match(sql, /tenant_id\s+UUID NOT NULL REFERENCES public\.tenants/)
+  // Un SOP no puede colgar de una lección de OTRA subcuenta.
+  assert.match(
+    sql,
+    /FOREIGN KEY \(tenant_id, lesson_id\) REFERENCES public\.training_lessons \(tenant_id, id\) ON DELETE CASCADE/
+  )
+  assert.match(sql, /url ~ '\^https:\/\/'/)
+  assert.match(sql, /char_length\(title\) BETWEEN 1 AND 120/)
+  assert.match(sql, /ENABLE ROW LEVEL SECURITY/)
+  assert.match(sql, /REVOKE ALL ON public\.training_resources FROM anon, authenticated/)
+  assert.match(sql, /AS RESTRICTIVE FOR ALL/)
+  assert.match(sql, /\(SELECT public\.is_super_admin\(\)\)/)
+  assert.match(
+    sql,
+    /training_resources_lesson_pos_idx ON public\.training_resources \(tenant_id, lesson_id, position\)/
+  )
+  // Copia lo que había y es idempotente; no borra nada.
+  assert.match(sql, /INSERT INTO public\.training_resources[\s\S]*FROM public\.training_lessons l[\s\S]*NOT EXISTS/)
+  assert.doesNotMatch(sql, /DROP TABLE|DROP COLUMN|TRUNCATE|DELETE FROM/i)
+  assert.match(crudo, /ESTADO: NO APLICADA/)
+})
+
+test('API SOPs: crear/editar/borrar con tenant explícito, 404 sin fila, máximo por lección y solo administradores', () => {
+  const api = sinComentarios(leer('app/api/[tenant]/evergreen/formacion/route.ts'))
+  const post = api.slice(api.indexOf('export async function POST'))
+  assert.match(post, /!t\.administraTenant/)
+  for (const accion of ['crear_sop', 'editar_sop', 'borrar_sop']) assert.match(post, new RegExp(`case '${accion}'`))
+  const bloque = (accion) =>
+    post.slice(post.indexOf(`case '${accion}'`), post.indexOf('case ', post.indexOf(`case '${accion}'`) + 10))
+  for (const accion of ['editar_sop', 'borrar_sop']) {
+    assert.match(bloque(accion), /\.select\('id'\)/, `${accion} comprueba que afectó a una fila`)
+    assert.match(bloque(accion), /404/)
+    assert.match(bloque(accion), /\.eq\('tenant_id', t\.tenantId\)/)
+  }
+  const crear = bloque('crear_sop')
+  assert.match(crear, /validarSop\(body\.url, body\.title\)/)
+  assert.match(crear, /MAX_SOPS_POR_LECCION/)
+  assert.match(crear, /tenant_id: t\.tenantId/)
+  // La lección debe ser de ESTA subcuenta antes de adjuntar nada.
+  assert.match(crear, /from\('training_lessons'\)[\s\S]*\.eq\('tenant_id', t\.tenantId\)/)
+  // El GET sirve los SOPs filtrados por tenant y solo de las lecciones visibles; el modo ligero no los pide.
+  assert.match(
+    api,
+    /from\('training_resources'\)[\s\S]*\.eq\('tenant_id', t\.tenantId\)[\s\S]*\.in\('lesson_id', idsLecciones\)/
+  )
+  assert.match(api, /!resumen && idsLecciones\.length > 0/)
+  // Ya no hay recurso único en lecciones.
+  assert.doesNotMatch(api, /resourceUrl|resource_url|resource_label|validarRecurso/)
+})
+
+test('UI SOPs: bajo el vídeo en Formación y en la pestaña SOPs de Recursos › Biblioteca, sin módulo duplicado', () => {
+  const page = leer('app/[tenant]/formacion/page.tsx')
+  assert.match(page, /<SopsLista/)
+  assert.match(page, /action: 'crear_sop'/)
+  assert.match(page, /action: 'borrar_sop'/)
+  assert.doesNotMatch(page, /resourceUrl|resource_url/)
+  const lista = leer('components/formacion/SopsLista.tsx')
+  assert.match(lista, /rel="noopener noreferrer"/)
+  assert.match(lista, /target="_blank"/)
+  const bib = leer('app/[tenant]/recursos/biblioteca/page.tsx')
+  assert.match(bib, /'calls' \| 'roleplays' \| 'sops'/)
+  assert.match(bib, /<BibliotecaSops \/>/)
+  // La pestaña no guarda nada propio: lee de la misma API de Formación (un solo origen de datos).
+  const tab = leer('components/formacion/BibliotecaSops.tsx')
+  assert.match(tab, /\/evergreen\/formacion`/)
+  assert.doesNotMatch(tab, /method: 'POST'|\.insert\(|\.delete\(/)
+  assert.match(tab, /ac\.abort\(\)/)
 })
