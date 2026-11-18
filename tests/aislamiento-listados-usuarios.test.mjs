@@ -67,7 +67,7 @@ test('el detector distingue un listado suelto de uno acotado o puntual (el test 
   assert.equal(listadosSinAcotar("await sb.from('users').select('id, full_name').eq('is_active', true)").length, 1)
   assert.equal(listadosSinAcotar("await sb.from('users').select('*, roles(*)').order('full_name')").length, 1)
   assert.equal(listadosSinAcotar("await sb.from('users').select('id').eq('id', userId).single()").length, 0)
-  assert.equal(listadosSinAcotar("await sb.from('users').update({ a: 1 }).eq('id', x)").length, 0)
+  assert.equal(listadosSinAcotar("await sb.from('users').update({ full_name: 'x' }).eq('id', x)").length, 0)
   assert.equal(listadosSinAcotar("await tenantUsersQuery(sb, tenantId, 'id').eq('is_active', true)").length, 0)
   assert.equal(listadosSinAcotar("await sb.from('users').select('id, tenant_members!inner(tenant_id)')").length, 0)
 })
