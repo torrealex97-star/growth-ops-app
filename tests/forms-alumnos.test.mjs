@@ -85,3 +85,21 @@ test('Alumnos › Respuestas lista todos los formularios que el rol puede ver, a
   for (const a of ['alumnos', 'cualificacion', 'captacion', 'empleados']) assert.ok(p.includes(a), a)
   assert.match(p, /<optgroup/)
 })
+
+test('respondentOf: ficha vinculada manda; si no, lo declarado; si no, sin identificar', async () => {
+  const { respondentOf } = await import('../lib/forms/respondent.ts')
+  const qs = [
+    { id: 'n', type: 'shortText', semantic: 'contact.name' },
+    { id: 'e', type: 'email', semantic: 'contact.email' },
+    { id: 'libre', type: 'email' },
+  ]
+  const ficha = new Map([['c1', { id: 'c1', full_name: 'Ana Ruiz', email: 'ANA@x.com' }]])
+  const a = respondentOf({ answers: { n: 'ana', e: 'otra@x.com' }, contact_id: 'c1' }, qs, ficha)
+  assert.deepEqual([a.name, a.email, a.linked, a.contactId], ['Ana Ruiz', 'ana@x.com', true, 'c1'])
+  const b = respondentOf({ answers: { n: ' Luz ', e: 'LUZ@x.com' }, contact_id: null }, qs, ficha)
+  assert.deepEqual([b.name, b.email, b.linked], ['Luz', 'luz@x.com', false])
+  const c = respondentOf({ answers: { libre: 'sin@rol.com' }, contact_id: null }, qs, ficha)
+  assert.equal(c.email, 'sin@rol.com')
+  const d = respondentOf({ answers: {}, hidden: {}, contact_id: null }, qs, ficha)
+  assert.deepEqual([d.name, d.email, d.linked], [null, null, false])
+})

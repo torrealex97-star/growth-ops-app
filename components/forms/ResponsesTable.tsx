@@ -1,15 +1,24 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { ChevronLeft, ChevronRight, Download, Loader2, Trash2 } from 'lucide-react'
+import Link from 'next/link'
+import { BadgeCheck, ChevronLeft, ChevronRight, Download, Loader2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useTenant } from '@/lib/tenant-context'
 import { cn, formatDateTime, formatNumber } from '@/lib/utils'
 import { REVIEW_STATUSES } from '@/lib/forms/types'
 
+interface Who {
+  name: string | null
+  email: string | null
+  phone: string | null
+  contactId: string | null
+  linked: boolean
+}
 interface Resp {
   id: string
+  respondent: Who
   status: 'partial' | 'completed'
   answers: Record<string, unknown>
   hidden: Record<string, string>
@@ -45,6 +54,34 @@ const TEMP_CLS: Record<string, string> = {
   frio: 'bg-sky-500/15 text-sky-400',
 }
 const sel = 'rounded-md border border-border bg-card px-2 py-1.5 text-sm text-foreground'
+
+/** Quién responde: ficha vinculada (verificada) o lo que escribió en el formulario. */
+function WhoCell({ who, tenant }: { who: Who; tenant: string }) {
+  if (!who.name && !who.email)
+    return (
+      <span className="text-muted-foreground" title="El formulario no recogió nombre ni email">
+        Sin identificar
+      </span>
+    )
+  return (
+    <div className="min-w-0">
+      <div className="flex items-center gap-1.5 font-medium text-foreground">
+        <span className="truncate">{who.name ?? who.email}</span>
+        {who.linked && who.contactId && (
+          <Link
+            href={`/${tenant}/crm/contactos/${who.contactId}`}
+            onClick={(e) => e.stopPropagation()}
+            title="Abrir ficha de contacto"
+            aria-label="Abrir ficha de contacto"
+          >
+            <BadgeCheck className="h-3.5 w-3.5 shrink-0 text-brand-500" />
+          </Link>
+        )}
+      </div>
+      {who.name && who.email && <div className="truncate text-xs text-muted-foreground">{who.email}</div>}
+    </div>
+  )
+}
 
 function show(q: Q, v: unknown): string {
   const one = (x: unknown) =>
@@ -194,6 +231,7 @@ export function ResponsesTable({ formId: id }: { formId: string }) {
             <thead>
               <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="px-4 py-3 font-medium">Fecha</th>
+                <th className="px-4 py-3 font-medium">Alumno/a</th>
                 {questions.slice(0, 2).map((q) => (
                   <th key={q.id} className="px-4 py-3 font-medium">
                     {q.title}
@@ -218,6 +256,9 @@ export function ResponsesTable({ formId: id }: { formId: string }) {
                     {r.status === 'partial' && (
                       <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-2xs">parcial</span>
                     )}
+                  </td>
+                  <td className="max-w-[240px] px-4 py-3">
+                    <WhoCell who={r.respondent} tenant={tenant} />
                   </td>
                   {questions.slice(0, 2).map((q) => (
                     <td key={q.id} className="max-w-[220px] truncate px-4 py-3">
@@ -277,6 +318,19 @@ export function ResponsesTable({ formId: id }: { formId: string }) {
           </DialogHeader>
           {open && (
             <div className="space-y-4 text-sm">
+              <div className="rounded-lg border border-border bg-card/50 p-3">
+                <WhoCell who={open.respondent} tenant={tenant} />
+                {open.respondent.phone && (
+                  <div className="mt-1 text-xs text-muted-foreground">{open.respondent.phone}</div>
+                )}
+                {(open.respondent.name || open.respondent.email) && (
+                  <p className="mt-1 text-2xs text-muted-foreground">
+                    {open.respondent.linked
+                      ? 'Vinculada a su ficha de contacto.'
+                      : 'Dato escrito en el formulario; sin ficha vinculada.'}
+                  </p>
+                )}
+              </div>
               <p className="text-muted-foreground">
                 {formatDateTime(open.created_at)}
                 {open.duration_ms ? ` · ${Math.round(open.duration_ms / 1000)} s` : ''}
