@@ -1,6 +1,7 @@
 'use client'
 
 import { Skeleton } from '@/components/ui/skeleton'
+import { tenantUsersQuery } from '@/lib/users'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -71,7 +72,7 @@ export default function CampanasAfiliadosPage() {
 
     const [campRes, affRes, memRes] = await Promise.all([
       sb.from('affiliate_campaigns').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }),
-      sb.from('users').select('id, full_name, affiliate_code, roles!inner(key)').eq('roles.key', 'affiliate'),
+      tenantUsersQuery(sb, tenantId, 'id, full_name, affiliate_code, roles!inner(key)').eq('roles.key', 'affiliate'),
       sb.from('affiliate_campaign_members').select('campaign_id').eq('tenant_id', tenantId),
     ])
 

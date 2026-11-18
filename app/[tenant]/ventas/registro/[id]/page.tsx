@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { isSetterRoleKey, isCloserRoleKey, isAffiliateRoleKey } from '@/lib/users'
+import { isSetterRoleKey, isCloserRoleKey, isAffiliateRoleKey, tenantUsersQuery } from '@/lib/users'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -231,7 +231,7 @@ export default function SaleDetailPage() {
         .eq('tenant_id', tenantId)
         .order('created_at', { ascending: false }),
       supabase.from('commission_rules').select('*').eq('is_active', true).eq('tenant_id', tenantId),
-      supabase.from('users').select('id, full_name, roles(key)').eq('is_active', true),
+      tenantUsersQuery(supabase, tenantId, 'id, full_name, roles(key)').eq('is_active', true),
     ])
 
     if (saleRes.error) {

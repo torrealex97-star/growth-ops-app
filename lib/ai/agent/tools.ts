@@ -5,6 +5,7 @@
 // tools son de solo lectura, devuelven resultados acotados (LIMIT) y solo consultan las tablas de
 // negocio ya canónicas — no hay una capa de datos paralela.
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { tenantUsersQuery } from '@/lib/users'
 import { computeAdFunnel, perCampaign, type AdFunnel } from '@/lib/ads/funnel'
 import { campanasDelPeriodo, type FilaDiaria } from '@/lib/ads/campanas-periodo'
 import { buildContactTimeline, type TimelineEvent } from '@/lib/contact-timeline'
@@ -656,7 +657,7 @@ export async function compareClosers({ tenantId, sb }: ToolContext, period: Peri
       .gte('sale_date', period.from || '1970-01-01')
       .lte('sale_date', period.to || '2999-12-31')
       .limit(3000),
-    sb.from('users').select('id,full_name'),
+    tenantUsersQuery(sb, tenantId, 'id,full_name'),
   ])
 
   const nameById = new Map((users || []).map((u) => [u.id as string, u.full_name as string]))

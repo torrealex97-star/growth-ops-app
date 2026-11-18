@@ -1,6 +1,7 @@
 'use client'
 
 import { anexarMotivoDescualificacion } from '@/lib/agenda/notas'
+import { tenantUsersQuery } from '@/lib/users'
 import { Skeleton } from '@/components/ui/skeleton'
 
 import { useEffect, useMemo, useState } from 'react'
@@ -202,7 +203,7 @@ export default function SeguimientoPage() {
 
     const [appRes, usersRes] = await Promise.all([
       leerCitas(),
-      supabase.from('users').select('id, full_name, roles(key)').eq('is_active', true),
+      tenantUsersQuery(supabase, tenantId, 'id, full_name, roles(key)').eq('is_active', true),
     ])
 
     if (appRes.error) {

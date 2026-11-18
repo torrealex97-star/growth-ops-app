@@ -5207,6 +5207,7 @@ export type EsquemaPublico = {
         created_by: string | null
         created_at: string
         updated_at: string
+        tenant_id: string
       }
       Insert: {
         id: string | undefined
@@ -5215,6 +5216,7 @@ export type EsquemaPublico = {
         created_by: string | null | undefined
         created_at: string | undefined
         updated_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -5223,6 +5225,7 @@ export type EsquemaPublico = {
         created_by: string | undefined
         created_at: string | undefined
         updated_at: string | undefined
+        tenant_id: string | undefined
       }
     }
     ResourceLinks: {
@@ -5239,6 +5242,7 @@ export type EsquemaPublico = {
         created_at: string
         updated_at: string
         division_id: string | null
+        tenant_id: string
       }
       Insert: {
         id: string | undefined
@@ -5253,6 +5257,7 @@ export type EsquemaPublico = {
         created_at: string | undefined
         updated_at: string | undefined
         division_id: string | null | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -5267,6 +5272,7 @@ export type EsquemaPublico = {
         created_at: string | undefined
         updated_at: string | undefined
         division_id: string | undefined
+        tenant_id: string | undefined
       }
     }
     Roleplays: {
