@@ -1,6 +1,7 @@
 'use client'
 
 import { useParamUrl } from '@/lib/hooks/useParamUrl'
+import { tenantUsersQuery } from '@/lib/users'
 import { Skeleton } from '@/components/ui/skeleton'
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
@@ -146,7 +147,7 @@ export default function SalesPage() {
 
       const [salesRes, usersRes, productsRes, attrRes] = await Promise.all([
         salesScoped,
-        supabase.from('users').select('*, roles(key)').eq('is_active', true),
+        tenantUsersQuery(supabase, tenantId, '*, roles(key)').eq('is_active', true),
         supabase.from('products').select('*').eq('is_active', true).eq('tenant_id', tenantId),
         supabase
           .from('contact_attributions')
