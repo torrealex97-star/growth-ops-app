@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { authorizeForms, denyIfNotVisible } from '@/lib/forms/admin'
 import { toCsv } from '@/lib/forms/csv'
 import { formConfigSchema } from '@/lib/forms/schema'
+import { buscarContactosPorEmails } from '@/lib/contacts/buscar'
 import { respondentOf, type RespondentContact } from '@/lib/forms/respondent'
 
 export const dynamic = 'force-dynamic'
@@ -62,9 +63,36 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
 
   // Identidad de quien responde: ficha de contacto emparejada (verificada) o, si no la hay, lo que
   // escribió en el formulario. Una sola consulta por página, filtrada por tenant y solo con 3 columnas.
-  const withRespondent = async <T extends { answers: unknown; hidden?: unknown; contact_id: string | null }>(
+  const withRespondent = async <
+    T extends { id: string; answers: unknown; hidden?: unknown; contact_id: string | null },
+  >(
     rows: T[]
   ) => {
+    // 1) Respuestas sin ficha: se empareja por el email declarado (solo si casa con UN contacto) y el
+    //    vínculo se guarda, para que Contactos, Feedback y el resto de la app lo vean ya emparejado.
+    const sinFicha = rows.filter((r) => !r.contact_id)
+    if (sinFicha.length) {
+      const declarado = new Map(sinFicha.map((r) => [r.id, respondentOf(r, allQuestions, new Map()).email]))
+      const porEmail = await buscarContactosPorEmails(sb, auth.tenantId, [...declarado.values()])
+      const nuevos = new Map<string, string[]>()
+      for (const r of sinFicha) {
+        const cid = porEmail.get(declarado.get(r.id) ?? '')
+        if (cid) {
+          r.contact_id = cid
+          nuevos.set(cid, [...(nuevos.get(cid) ?? []), r.id])
+        }
+      }
+      await Promise.all(
+        [...nuevos].map(([cid, ids]) =>
+          sb
+            .from('form_responses')
+            .update({ contact_id: cid })
+            .eq('tenant_id', auth.tenantId)
+            .is('contact_id', null)
+            .in('id', ids)
+        )
+      )
+    }
     const ids = [...new Set(rows.map((r) => r.contact_id).filter((x): x is string => !!x))]
     const contacts = new Map<string, RespondentContact>()
     if (ids.length) {
