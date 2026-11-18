@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
+import { ContactFormResponses } from '@/components/contacts/ContactFormResponses'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
@@ -711,6 +712,7 @@ export default function ContactDetailPage() {
             )}
           </TabsTrigger>
           {isAlumno && <TabsTrigger value="alumno">Alumno</TabsTrigger>}
+          <TabsTrigger value="forms">Formularios</TabsTrigger>
           <TabsTrigger value="notes">
             Notas
             {notes.length > 0 && <span className="ml-1.5 text-xs bg-muted px-1.5 rounded-full">{notes.length}</span>}
@@ -1086,6 +1088,10 @@ export default function ContactDetailPage() {
               ))}
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="forms" className="mt-4">
+          <ContactFormResponses contactId={contact.id} />
         </TabsContent>
 
         {/* Alumno */}

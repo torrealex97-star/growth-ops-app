@@ -38,3 +38,29 @@ export async function buscarContactoPorEmail(
   if (error || !data || data.length !== 1) return null
   return (data[0] as { id: string }).id
 }
+
+/**
+ * Versión por lotes de `buscarContactoPorEmail`: un solo SELECT para N correos. Devuelve email → id
+ * solo para los que casan con EXACTAMENTE un contacto (ante ambigüedad no se vincula). Sin crear nada.
+ */
+export async function buscarContactosPorEmails(
+  sb: SupabaseClient,
+  tenantId: string,
+  emails: Array<string | null | undefined>
+): Promise<Map<string, string>> {
+  const lista = [...new Set(emails.map((e) => e?.trim().toLowerCase()).filter((e): e is string => !!e))]
+  const out = new Map<string, string>()
+  if (lista.length === 0) return out
+  const { data, error } = await sb
+    .from('contacts')
+    .select('id, email_normalized')
+    .eq('tenant_id', tenantId)
+    .in('email_normalized', lista)
+    .is('merged_into', null)
+  if (error || !data) return out
+  const cuenta = new Map<string, string[]>()
+  for (const c of data as Array<{ id: string; email_normalized: string }>)
+    cuenta.set(c.email_normalized, [...(cuenta.get(c.email_normalized) ?? []), c.id])
+  for (const [email, ids] of cuenta) if (ids.length === 1) out.set(email, ids[0])
+  return out
+}
