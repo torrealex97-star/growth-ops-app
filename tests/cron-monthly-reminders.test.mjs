@@ -33,8 +33,9 @@ test('monthly: ninguna lectura del equipo, plantillas o comisiones se traga como
   // Antes: `const { data: memberIds } = await sb.from('tenant_members')...` sin comprobar. Un
   // fallo de lectura producía equipo vacío → cero gastos de sueldo → respuesta `ok`. Un hueco no
   // es un cero.
-  assert.match(monthly, /No se pudo leer el equipo de la subcuenta/)
-  assert.match(monthly, /No se pudo leer el equipo activo/)
+  // El equipo se lee en UNA consulta acotada a la subcuenta (tenantUsersQuery); si falla, tumba el run.
+  assert.match(monthly, /tenantUsersQuery\(sb, tenantId, 'id, full_name, base_salary'\)/)
+  assert.match(monthly, /if \(teamErr\) throw errorDe\('No se pudo leer el equipo activo', teamErr\)/)
   assert.match(monthly, /No se pudieron leer las comisiones del periodo/)
   assert.match(monthly, /No se pudieron leer las plantillas de gastos recurrentes/)
   // El upsert y las sincronizaciones de importe también verifican: un gasto no creado o no

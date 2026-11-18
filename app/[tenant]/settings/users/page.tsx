@@ -1,6 +1,7 @@
 'use client'
 
 import { Skeleton } from '@/components/ui/skeleton'
+import { tenantUsersQuery } from '@/lib/users'
 
 import { useCallback, useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -121,7 +122,7 @@ export default function UsersPage() {
   const fetchData = useCallback(async () => {
     const supabase = createClient()
     const [usersRes, rolesRes, tplRes, rulesRes] = await Promise.all([
-      supabase.from('users').select('*, roles(*)').order('full_name'),
+      tenantUsersQuery(supabase, tenantId, '*, roles(*)').order('full_name'),
       supabase.from('roles').select('*').order('name'),
       supabase
         .from('contract_templates')

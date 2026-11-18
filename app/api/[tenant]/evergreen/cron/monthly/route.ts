@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { tenantUsersQuery } from '@/lib/users'
 import { NextRequest, NextResponse } from 'next/server'
 import { fetchAllRows } from '@/lib/supabase/paginate'
 import { requireTenant } from '@/lib/auth/requireTenant'
@@ -69,18 +70,15 @@ async function runForTenant(sb: SupabaseClient, tenantId: string, deadline: numb
   // subcuenta se acota vía tenant_members, para no duplicar el gasto de sueldo del mismo
   // usuario en cada subcuenta a la que pertenezca (y no violar el índice único
   // (auto_source, period) de `expenses` al recorrer varias subcuentas en el mismo cron).
-  const { data: memberIds, error: membersErr } = await sb
-    .from('tenant_members')
-    .select('user_id')
-    .eq('tenant_id', tenantId)
-  if (membersErr) throw errorDe('No se pudo leer el equipo de la subcuenta', membersErr)
-  const memberIdSet = new Set((memberIds || []).map((m: { user_id: string }) => m.user_id))
-  const { data: teamAll, error: teamErr } = await sb
-    .from('users')
-    .select('id, full_name, base_salary')
-    .eq('is_active', true)
+  // El filtro de subcuenta va EN la consulta (unión con tenant_members): antes se leían los sueldos de TODOS
+  // los usuarios de la plataforma con service-role y se descartaban después en memoria. Que no se usaran no
+  // quita que se cargaran en memoria datos de otras subcuentas.
+  const { data: teamAll, error: teamErr } = await tenantUsersQuery(sb, tenantId, 'id, full_name, base_salary').eq(
+    'is_active',
+    true
+  )
   if (teamErr) throw errorDe('No se pudo leer el equipo activo', teamErr)
-  const team = (teamAll || []).filter((u: { id: string }) => memberIdSet.has(u.id))
+  const team = (teamAll || []) as { id: string; full_name: string; base_salary: number | string | null }[]
   // Paginado: de aquí sale el gasto de "sueldo + comisión" que se escribe en `expenses`. Con más
   // de 1.000 comisiones en el mes, PostgREST recortaba la lista sin avisar y el gasto del mes salía
   // más bajo que el real — un error contable con toda la pinta de dato bueno.

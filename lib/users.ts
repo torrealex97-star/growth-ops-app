@@ -30,6 +30,29 @@ export function activeUserNamesQuery(supabase: ReturnType<typeof createClient>, 
     .order('full_name')
 }
 
+// LISTADO DE PERSONAS DE UNA SUBCUENTA (la forma ÚNICA de listar `users` en una pantalla o ruta).
+//
+// `users` es identidad global (no tiene `tenant_id`) y la pertenencia vive en `tenant_members`. Un
+// `from('users').select(…)` a pelo devuelve a todo el que la política de lectura deje ver, y para el
+// super-administrador de la plataforma eso es TODA la plataforma: abría una subcuenta nueva y le salía
+// la gente de las otras. El filtro tiene que ir SIEMPRE en la propia consulta, aunque quien la lance
+// sea el dueño de la plataforma, porque la pantalla pertenece a UNA subcuenta.
+//
+// `tenantId` es obligatorio a propósito: con un parámetro opcional, olvidarlo devolvía a todo el mundo
+// sin que nada fallara. `tests/aislamiento-listados-usuarios.test.mjs` hace fallar cualquier listado de
+// `users` que no pase por aquí. Cada fila trae además `tenant_members` (la unión); los consumidores
+// ignoran esa propiedad.
+export function tenantUsersQuery(supabase: SupabaseClient, tenantId: string, columns: string) {
+  return (
+    supabase
+      .from('users')
+      // `as '*'`: las columnas llegan como texto, así que TypeScript no puede tipar la fila; con '*' las filas
+      // quedan sin tipar, igual que en el resto del repo (los clientes no llevan el genérico `Database`).
+      .select(`${columns}, tenant_members!inner(tenant_id)` as '*')
+      .eq('tenant_members.tenant_id', tenantId)
+  )
+}
+
 // Nombres de los usuarios activos de UNA subcuenta, para dárselos como contexto a la IA (extraer
 // una factura, repartir tareas de una transcripción…).
 //
