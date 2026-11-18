@@ -103,3 +103,13 @@ test('respondentOf: ficha vinculada manda; si no, lo declarado; si no, sin ident
   const d = respondentOf({ answers: {}, hidden: {}, contact_id: null }, qs, ficha)
   assert.deepEqual([d.name, d.email, d.linked], [null, null, false])
 })
+
+test('respondentOf: detecta email por título o por forma aunque la pregunta no tenga rol ni tipo email', async () => {
+  const { respondentOf } = await import('../lib/forms/respondent.ts')
+  const qs = [
+    { id: 'a', type: 'shortText', title: 'Tu correo electrónico' },
+    { id: 'b', type: 'shortText', title: '¿Cómo te llamas?' },
+  ]
+  const r = respondentOf({ answers: { a: 'Mar@X.com', b: 'Mar' }, contact_id: null }, qs, new Map())
+  assert.deepEqual([r.name, r.email], ['Mar', 'mar@x.com'])
+})

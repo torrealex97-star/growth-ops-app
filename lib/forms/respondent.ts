@@ -7,6 +7,7 @@
 export interface RespondentQuestion {
   id: string
   type: string
+  title?: string
   semantic?: string | null
 }
 
@@ -53,6 +54,26 @@ function pick(
   return null
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const EMAIL_TITLE = /e-?mail|correo/i
+const NAME_TITLE = /nombre|name|c[oó]mo te llamas/i
+
+/** Último recurso: pregunta cuyo TÍTULO dice email/nombre, o cuya respuesta tiene forma de email. */
+function guess(
+  questions: RespondentQuestion[],
+  answers: Record<string, unknown>,
+  kind: 'email' | 'name'
+): string | null {
+  for (const q of questions) {
+    if (q.semantic && q.semantic.startsWith('contact.')) continue
+    const v = clean(answers[q.id])
+    if (!v) continue
+    if (kind === 'email' && (EMAIL_RE.test(v) || (EMAIL_TITLE.test(q.title ?? '') && v.includes('@')))) return v
+    if (kind === 'name' && NAME_TITLE.test(q.title ?? '') && !v.includes('@')) return v
+  }
+  return null
+}
+
 export function respondentOf(
   row: { answers: unknown; hidden?: unknown; contact_id: string | null },
   questions: RespondentQuestion[],
@@ -61,8 +82,16 @@ export function respondentOf(
   const answers = (row.answers && typeof row.answers === 'object' ? row.answers : {}) as Record<string, unknown>
   const hidden = (row.hidden && typeof row.hidden === 'object' ? row.hidden : {}) as Record<string, unknown>
   const declaredEmail =
-    (pick(questions, answers, 'contact.email', 'email') ?? clean(hidden.email))?.toLowerCase() ?? null
-  const declaredName = pick(questions, answers, 'contact.name', null) ?? clean(hidden.name) ?? clean(hidden.nombre)
+    (
+      pick(questions, answers, 'contact.email', 'email') ??
+      clean(hidden.email) ??
+      guess(questions, answers, 'email')
+    )?.toLowerCase() ?? null
+  const declaredName =
+    pick(questions, answers, 'contact.name', null) ??
+    clean(hidden.name) ??
+    clean(hidden.nombre) ??
+    guess(questions, answers, 'name')
   const phone = pick(questions, answers, 'contact.phone', 'phone')
   const c = row.contact_id ? contacts.get(row.contact_id) : undefined
   if (c) {
