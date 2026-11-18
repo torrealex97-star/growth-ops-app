@@ -1,5 +1,6 @@
 'use client'
 
+import { ESTADOS_COLABORADOR_ASIGNABLES } from '@/lib/collaborators/estados-asignables'
 import { Fragment, useState, useEffect, useMemo } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useRouter, useParams } from 'next/navigation'
@@ -312,7 +313,7 @@ export default function ContactDetailPage() {
           .from('collaborator_profiles')
           .select('id, code, name, status')
           .eq('tenant_id', tenantId)
-          .in('status', ['active', 'pending_contract'])
+          .in('status', [...ESTADOS_COLABORADOR_ASIGNABLES])
           .order('name'),
       ])
 
