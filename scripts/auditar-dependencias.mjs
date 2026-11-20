@@ -9,15 +9,12 @@
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
-export const EXCEPCIONES = [
-  {
-    ghsa: 'GHSA-fc5q-39xc-vjpf',
-    paquete: 'picomatch',
-    motivo:
-      'ReDoS en picomatch <=4.0.7 sin versión corregida publicada. Solo llega por @sentry/nextjs → @rollup/plugin-commonjs (herramientas de build), no procesa entrada de usuarios en runtime.',
-    caduca: '2026-12-18',
-  },
-]
+/**
+ * Excepciones vigentes. Vacía desde el 20-nov-2026: la de `picomatch` (GHSA-fc5q-39xc-vjpf) se retiró al subir
+ * `@sentry/nextjs`, que dejó de arrastrar la versión vulnerable. Para añadir una: { ghsa, paquete, motivo, caduca }
+ * (la caducidad es obligatoria; pasada la fecha el gate vuelve a bloquear).
+ */
+export const EXCEPCIONES = []
 
 const SEVERIDADES_BLOQUEANTES = new Set(['high', 'critical'])
 

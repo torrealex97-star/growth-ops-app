@@ -25,9 +25,8 @@ sesión (migración `20261119100000_google_oauth_tokens_solo_servidor.sql`, apli
 Sigue ABIERTO (no tocado): buckets públicos `carrusel-uploads` (16 archivos) e `ig-competitor-reels` (3); el código los sirve con
 `getPublicUrl`, así que privatizarlos exige pasar a URLs firmadas y comprobar publicación en Instagram y transcripción.
 
-CI: `audit:production` usa `scripts/auditar-dependencias.mjs` con una excepción caducable para `picomatch`
-(GHSA-fc5q-39xc-vjpf, sin versión corregida, solo build vía `@sentry/nextjs`). **Caduca el 2026-12-18**: revisar antes y
-quitarla si ya hay versión corregida.
+CI: `audit:production` usa `scripts/auditar-dependencias.mjs` (bloquea avisos altos/críticos de producción, con excepciones
+explícitas y caducables). Sin excepciones desde el 20-nov: la de `picomatch` se retiró al subir `@sentry/nextjs` (#770).
 
 # PENDIENTE — Formación y alta estándar de colaboradora (17-nov)
 

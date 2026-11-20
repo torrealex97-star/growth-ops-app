@@ -11,14 +11,18 @@ test('un aviso alto sin excepción bloquea', () => {
   assert.equal(r.bloqueantes.length, 1)
 })
 
+const EXC = [
+  { ghsa: 'GHSA-aaaa-bbbb-cccc', paquete: 'x', motivo: 'motivo de prueba suficientemente largo', caduca: '2026-12-18' },
+]
+
 test('un aviso alto exceptuado y vigente no bloquea', () => {
-  const r = evaluar(aviso('picomatch', EXCEPCIONES[0].ghsa, 'high'), new Date('2026-11-18'))
+  const r = evaluar(aviso('x', 'GHSA-aaaa-bbbb-cccc', 'high'), new Date('2026-11-18'), EXC)
   assert.equal(r.bloqueantes.length, 0)
   assert.equal(r.exceptuados.length, 1)
 })
 
 test('una excepción caducada vuelve a bloquear', () => {
-  const r = evaluar(aviso('picomatch', EXCEPCIONES[0].ghsa, 'high'), new Date('2027-01-01'))
+  const r = evaluar(aviso('x', 'GHSA-aaaa-bbbb-cccc', 'high'), new Date('2027-01-01'), EXC)
   assert.equal(r.caducadas.length, 1)
 })
 
