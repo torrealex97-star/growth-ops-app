@@ -77,18 +77,24 @@ function AsignarFicha({
   const vincular = async (contactId: string) => {
     setGuardando(contactId)
     setError('')
-    const r = await fetch(`/api/${tenantSlug}/evergreen/forms/${respuesta.form_id}/responses/${respuesta.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contact_id: contactId }),
-    })
-    const j = await r.json().catch(() => ({}))
-    setGuardando('')
-    if (!r.ok) {
-      setError(j.error || 'No se pudo vincular')
-      return
+    try {
+      const r = await fetch(`/api/${tenantSlug}/evergreen/forms/${respuesta.form_id}/responses/${respuesta.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contact_id: contactId }),
+      })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) {
+        setError(j.error || 'No se pudo vincular')
+        return
+      }
+      onVinculada()
+    } catch {
+      // Sin esto, un corte de red dejaba `guardando` activo y todos los botones del diálogo deshabilitados.
+      setError('Error de conexión. Inténtalo de nuevo.')
+    } finally {
+      setGuardando('')
     }
-    onVinculada()
   }
 
   return (

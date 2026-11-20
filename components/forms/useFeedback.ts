@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FeedbackSummary } from '@/lib/forms/feedback'
 
 export interface RespuestaSinFicha {
@@ -42,9 +42,16 @@ export function useFeedback(tenant: string, days: string) {
   const [data, setData] = useState<FeedbackData | null>(null)
   const [error, setError] = useState('')
   const [recarga, setRecarga] = useState(0)
+  const clave = useRef('')
   useEffect(() => {
     const ctl = new AbortController()
-    setData(null)
+    // Solo se vacía al cambiar de subcuenta o de rango: una recarga (tras vincular, o «Reintentar») conserva lo que
+    // hay en pantalla en vez de parpadear al estado de carga y perder la posición en la cola.
+    const k = `${tenant}:${days}`
+    if (clave.current !== k) {
+      clave.current = k
+      setData(null)
+    }
     fetch(`/api/${tenant}/evergreen/forms/feedback?days=${days}`, { signal: ctl.signal })
       .then(async (r) => {
         const j = await r.json().catch(() => ({}))

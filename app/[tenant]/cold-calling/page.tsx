@@ -129,7 +129,11 @@ function Panel() {
   }
 
   const repartir = async (caller: StatsCaller) => {
-    const j = await mandar({ accion: 'repartir', callerId: caller.callerId }, `repartir:${caller.callerId}`)
+    // El lanzamiento que se está viendo: sin él el servidor reparte del lanzamiento por defecto, que puede ser otro.
+    const j = await mandar(
+      { accion: 'repartir', callerId: caller.callerId, launch: data?.launch?.id },
+      `repartir:${caller.callerId}`
+    )
     if (!j) return
     const n = typeof j.asignados === 'number' ? j.asignados : 0
     if (n > 0) toast.success(`${formatNumber(n)} leads para ${caller.nombre}`)
@@ -144,7 +148,9 @@ function Panel() {
     await cargar(true)
   }
 
-  if (error) {
+  // Sin datos previos, el error ocupa la pantalla. Con datos ya cargados, un fallo de recarga (cambio de pestaña, red
+  // inestable, tras repartir) se muestra como aviso y NO borra el panel.
+  if (error && !data) {
     return (
       <div className="space-y-3">
         <p className="text-sm text-red-500">{error}</p>
@@ -163,6 +169,17 @@ function Panel() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div
+          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-400"
+          role="alert"
+        >
+          <span>No se pudo actualizar el panel: {error}. Lo que ves puede no ser lo último.</span>
+          <Button variant="outline" size="sm" onClick={() => void cargar(true)}>
+            Reintentar
+          </Button>
+        </div>
+      )}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Panel de cold calling</h1>
