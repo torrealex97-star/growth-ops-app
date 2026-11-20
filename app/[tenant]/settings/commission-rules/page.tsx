@@ -1,6 +1,7 @@
 'use client'
 
 import { Skeleton } from '@/components/ui/skeleton'
+import { tenantUsersQuery } from '@/lib/users'
 
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -110,9 +111,7 @@ export default function CommissionRulesPage() {
 
   const fetchUsers = async () => {
     const supabase = createClient()
-    const { data, error } = await supabase
-      .from('users')
-      .select('id, full_name, roles(key)')
+    const { data, error } = await tenantUsersQuery(supabase, tenantId, 'id, full_name, roles(key)')
       .eq('is_active', true)
       .order('full_name')
 

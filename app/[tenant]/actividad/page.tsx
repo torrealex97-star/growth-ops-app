@@ -1,6 +1,7 @@
 'use client'
 
 import { Skeleton } from '@/components/ui/skeleton'
+import { tenantUsersQuery } from '@/lib/users'
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
@@ -47,7 +48,7 @@ export default function ActividadPage() {
     const load = async () => {
       const supabase = createClient()
       const [usersRes, apptRes, salesRes, notesRes, actRes] = await Promise.all([
-        supabase.from('users').select('id, full_name').order('full_name'),
+        tenantUsersQuery(supabase, tenantId, 'id, full_name').order('full_name'),
         supabase
           .from('appointments')
           .select('id, appointment_datetime, status, setter_id, closer_id, contact_id, contacts(full_name)')

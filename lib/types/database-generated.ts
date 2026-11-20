@@ -5207,6 +5207,7 @@ export type EsquemaPublico = {
         created_by: string | null
         created_at: string
         updated_at: string
+        tenant_id: string
       }
       Insert: {
         id: string | undefined
@@ -5215,6 +5216,7 @@ export type EsquemaPublico = {
         created_by: string | null | undefined
         created_at: string | undefined
         updated_at: string | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -5223,6 +5225,7 @@ export type EsquemaPublico = {
         created_by: string | undefined
         created_at: string | undefined
         updated_at: string | undefined
+        tenant_id: string | undefined
       }
     }
     ResourceLinks: {
@@ -5239,6 +5242,7 @@ export type EsquemaPublico = {
         created_at: string
         updated_at: string
         division_id: string | null
+        tenant_id: string
       }
       Insert: {
         id: string | undefined
@@ -5253,6 +5257,7 @@ export type EsquemaPublico = {
         created_at: string | undefined
         updated_at: string | undefined
         division_id: string | null | undefined
+        tenant_id: string
       }
       Update: {
         id: string | undefined
@@ -5267,6 +5272,7 @@ export type EsquemaPublico = {
         created_at: string | undefined
         updated_at: string | undefined
         division_id: string | undefined
+        tenant_id: string | undefined
       }
     }
     Roleplays: {
@@ -6464,6 +6470,137 @@ export type EsquemaPublico = {
         rate_limit_per_minute: number | undefined
         created_at: string | undefined
         updated_at: string | undefined
+      }
+    }
+    TrainingCourses: {
+      Row: {
+        id: string
+        tenant_id: string
+        title: string
+        description: string | null
+        seed_key: string | null
+        audience_roles: string[] | null
+        position: number
+        created_by: string | null
+        created_at: string
+        updated_at: string
+      }
+      Insert: {
+        id: string | undefined
+        tenant_id: string
+        title: string
+        description: string | null | undefined
+        seed_key: string | null | undefined
+        audience_roles: string[] | null | undefined
+        position: number | undefined
+        created_by: string | null | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+      }
+      Update: {
+        id: string | undefined
+        tenant_id: string | undefined
+        title: string | undefined
+        description: string | undefined
+        seed_key: string | undefined
+        audience_roles: string[] | undefined
+        position: number | undefined
+        created_by: string | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+      }
+    }
+    TrainingLessons: {
+      Row: {
+        id: string
+        tenant_id: string
+        course_id: string
+        title: string
+        description: string | null
+        video_url: string | null
+        video_provider: string | null
+        resource_url: string | null
+        resource_label: string | null
+        position: number
+        created_at: string
+        updated_at: string
+      }
+      Insert: {
+        id: string | undefined
+        tenant_id: string
+        course_id: string
+        title: string
+        description: string | null | undefined
+        video_url: string | null | undefined
+        video_provider: string | null | undefined
+        resource_url: string | null | undefined
+        resource_label: string | null | undefined
+        position: number | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+      }
+      Update: {
+        id: string | undefined
+        tenant_id: string | undefined
+        course_id: string | undefined
+        title: string | undefined
+        description: string | undefined
+        video_url: string | undefined
+        video_provider: string | undefined
+        resource_url: string | undefined
+        resource_label: string | undefined
+        position: number | undefined
+        created_at: string | undefined
+        updated_at: string | undefined
+      }
+    }
+    TrainingProgress: {
+      Row: {
+        tenant_id: string
+        user_id: string
+        lesson_id: string
+        completed_at: string
+      }
+      Insert: {
+        tenant_id: string
+        user_id: string
+        lesson_id: string
+        completed_at: string | undefined
+      }
+      Update: {
+        tenant_id: string | undefined
+        user_id: string | undefined
+        lesson_id: string | undefined
+        completed_at: string | undefined
+      }
+    }
+    TrainingResources: {
+      Row: {
+        id: string
+        tenant_id: string
+        lesson_id: string
+        title: string
+        url: string
+        position: number
+        created_at: string
+      }
+      Insert: {
+        id: string | undefined
+        tenant_id: string
+        lesson_id: string
+        title: string
+        url: string
+        position: number | undefined
+        created_at: string | undefined
+      }
+      Update: {
+        id: string | undefined
+        tenant_id: string | undefined
+        lesson_id: string | undefined
+        title: string | undefined
+        url: string | undefined
+        position: number | undefined
+        created_at: string | undefined
       }
     }
     UserFathomConnections: {

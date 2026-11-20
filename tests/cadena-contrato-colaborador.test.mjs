@@ -68,21 +68,22 @@ test('el POST de colaboradores define status (regresión #83: el TDZ rompía tod
 
 test('invitar con rol colaborador crea SU perfil automáticamente (mismo tracking_code)', () => {
   const src = read('app/api/[tenant]/evergreen/invite/route.ts')
-  // El perfil nace en la invitación cuando el rol es affiliate.
-  assert.match(src, /roleKey === 'affiliate'/)
-  assert.match(src, /from\('collaborator_profiles'\)/)
-  assert.match(src, /\.insert\(/)
+  // El perfil nace en la invitación cuando el rol tiene ficha de colaborador en su preset (affiliate).
+  assert.match(src, /preset\?\.fichaColaborador/)
+  assert.match(src, /asegurarFichaColaborador\(/)
   // Código público = el tracking_code del usuario (los enlaces ?ref= existentes siguen valiendo).
-  assert.match(src, /trackingCode \?\?/)
-  // Idempotente: comprueba perfil previo antes de insertar.
-  assert.match(src, /perfilPrevio/)
+  assert.match(src, /codigo: trackingCode/)
+  // La lógica de alta vive en UN helper: idempotente (comprueba ficha previa) y con el insert en collaborator_profiles.
+  const helper = read('lib/collaborators/provision.ts')
+  assert.match(helper, /from\('collaborator_profiles'\)/)
+  assert.match(helper, /\.insert\(/)
+  assert.match(helper, /existente\) return \{ ok: true, creada: false/)
 })
 
 test('editar un usuario a rol Colaborador también crea su ficha (vía UI de Usuarios)', () => {
   const src = read('app/[tenant]/settings/users/page.tsx')
-  assert.match(src, /newRoleKey === 'affiliate'/)
-  assert.match(src, /from\('collaborator_profiles'\)/)
-  assert.match(src, /perfilPrevio/)
+  assert.match(src, /presetDeRol\(newRoleKey\)\?\.fichaColaborador/)
+  assert.match(src, /asegurarFichaColaborador\(/)
 })
 
 test('el rol colaborador accede a SU dashboard (misma app, scope distinto)', () => {

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import { tenantUsersQuery } from '@/lib/users'
 import { Skeleton } from '@/components/ui/skeleton'
 import { createClient } from '@/lib/supabase/client'
 import { KPIForm } from '@/components/kpi/KPIForm'
@@ -102,7 +103,9 @@ export function KPIReportPanel() {
             .eq('user_id', sesion.userId)
             .order('report_date', { ascending: false })
             .limit(14),
-      lead ? supabase.from('users').select('id, full_name').eq('is_active', true) : Promise.resolve({ data: null }),
+      lead
+        ? tenantUsersQuery(supabase, tenantId, 'id, full_name').eq('is_active', true)
+        : Promise.resolve({ data: null }),
     ])
 
     const tpls = templatesRes.data ?? []

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { presetDeRol } from '@/lib/auth/role-presets'
 import { requireTenant } from '@/lib/auth/requireTenant'
 import { generateUniqueTrackingCode } from '@/lib/tracking'
 import { crearContratoEquipo } from '@/lib/contracts/team-contract'
@@ -93,6 +94,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     // entonces ningún alta desde la UI podía crear el perfil. Repuesta tal cual.
     const status = body.status && ESTADOS.includes(body.status) ? body.status : 'invited'
 
+    const presetAffiliate = presetDeRol('affiliate')
     let userId = body.userId ?? null
 
     // Alta SIN usuario existente: se reutiliza la invitación del sistema (mismo
@@ -127,6 +129,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
             // Dominio canónico de users.member_status: 'activo' | 'inactivo' | 'prueba'.
             // El estado 'invited' del colaborador vive en collaborator_profiles.status.
             member_status: 'activo',
+            // Alta estándar del rol (solo cuenta NUEVA): mínimo privilegio de datos y comisiones activas.
+            ...(presetAffiliate
+              ? { data_scope: presetAffiliate.dataScope, pays_commissions: presetAffiliate.paysCommissions }
+              : {}),
           },
           { onConflict: 'id' }
         )

@@ -31,6 +31,7 @@ import { CommissionInvoicePanel } from '@/components/commissions/CommissionInvoi
 import { construirResumenMensual } from '@/lib/commissions/mensual'
 import type { CommissionDashboardRow } from '@/lib/commissions/dashboard'
 import { SelectorMes } from '@/components/collaborators/SelectorMes'
+import { EmpiezaAqui } from '@/components/formacion/EmpiezaAqui'
 import { useMesColaborador } from '@/components/collaborators/useMesColaborador'
 import {
   ClientesConImpago,
@@ -284,6 +285,9 @@ export default function ColaboradorDashboard({
         </div>
         <SelectorMes value={mes} onChange={setMes} />
       </header>
+
+      {/* Entrada guiada: qué hacer primero, sin que nadie se lo explique. No pinta nada si no hay formación. */}
+      <EmpiezaAqui />
 
       {error && (
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400" role="alert">

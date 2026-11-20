@@ -202,6 +202,9 @@ const normalizeAllowedPrefixes = (prefixes: string[]) =>
 //   2) dept_overrides → todas las páginas de esos departamentos
 //   3) por rol (undefined = liderazgo, sin restricción)
 /** Roles con dashboard personal (inicio propio). Siempre pueden entrar a /dashboard. */
+/** Pantallas a las que entra cualquier miembro del equipo, con o sin permisos a medida. */
+export const PREFIJOS_UNIVERSALES: readonly string[] = ['/formacion']
+
 const PERSONAL_HOME_ROLES: ReadonlySet<AppRole> = new Set<AppRole>(['setter', 'closer', 'affiliate'])
 
 export function allowedPrefixesFor(
@@ -213,14 +216,19 @@ export function allowedPrefixesFor(
   // marcar, sus ventas): no depende de una lista de páginas a medida. Antes, un closer con
   // `page_overrides` que no incluía /dashboard se quedaba sin ella y sin saber por qué.
   const inicio = PERSONAL_HOME_ROLES.has(role) ? ['/dashboard'] : []
-  if (pageOverrides && pageOverrides.length > 0) return normalizeAllowedPrefixes([...pageOverrides, ...inicio])
+  // Las pantallas UNIVERSALES (Formación: SOPs y vídeos de cómo proceder en cada rol) van SIEMPRE AL FINAL. El
+  // layout redirige a `zones[0]` cuando la ruta no está permitida, así que añadirlas delante cambiaría a dónde
+  // se manda a la persona (a Formación en vez de a su inicio).
+  if (pageOverrides && pageOverrides.length > 0)
+    return normalizeAllowedPrefixes([...pageOverrides, ...inicio, ...PREFIJOS_UNIVERSALES])
   if (deptOverrides && deptOverrides.length > 0) {
     const set = new Set<string>(inicio)
     for (const d of deptOverrides) (DEPARTMENT_PREFIXES[d as Department] || []).forEach((p) => set.add(p))
+    PREFIJOS_UNIVERSALES.forEach((p) => set.add(p))
     return normalizeAllowedPrefixes(Array.from(set))
   }
   const rolePrefixes = ROLE_ALLOWED_PREFIXES[role]
-  return rolePrefixes ? normalizeAllowedPrefixes(rolePrefixes) : undefined
+  return rolePrefixes ? normalizeAllowedPrefixes([...rolePrefixes, ...PREFIJOS_UNIVERSALES]) : undefined
 }
 
 const hasDepartment = (role: AppRole, dept: Department) => ROLE_DEPARTMENTS[role]?.includes(dept) ?? false
