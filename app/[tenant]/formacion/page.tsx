@@ -54,6 +54,8 @@ function FormacionInner() {
   const [error, setError] = useState<string | null>(null)
   const [seleccion, setSeleccion] = useState<string | null>(params.get('leccion'))
   const [editor, setEditor] = useState<Editor | null>(null)
+  // Modo gestión (solo administradores): ve y edita TODOS los cursos. Por defecto cada persona ve lo de su rol.
+  const [gestionar, setGestionar] = useState(params.get('gestionar') === '1')
   const [guardando, setGuardando] = useState(false)
   const cargado = useRef(false)
 
@@ -62,7 +64,7 @@ function FormacionInner() {
   const cargar = useCallback(
     async (signal?: AbortSignal) => {
       try {
-        const res = await fetch(base, { signal, cache: 'no-store' })
+        const res = await fetch(gestionar ? `${base}?gestionar=1` : base, { signal, cache: 'no-store' })
         const json = await res.json()
         if (!res.ok) throw new Error(json.error ?? 'Error')
         setDatos(json as Datos)
@@ -75,7 +77,7 @@ function FormacionInner() {
         else setError((e as Error).message)
       }
     },
-    [base]
+    [base, gestionar]
   )
 
   // Un enlace interno a /formacion?leccion=<id> con la página ya abierta reutiliza el componente: se sigue la URL.
@@ -178,6 +180,8 @@ function FormacionInner() {
   if (!datos) return <Skeleton className="h-96 w-full" />
 
   const vacio = datos.cursos.length === 0
+  // Los controles de edición solo aparecen en modo gestión: en la vista normal un administrador es un alumno más.
+  const editando = datos.puedeEditar && gestionar
 
   return (
     <div className="space-y-6">
@@ -190,22 +194,29 @@ function FormacionInner() {
               : 'Aquí aprenderás paso a paso, con vídeos cortos.'}
           </p>
         </div>
-        {datos.puedeEditar && (
-          <div className="flex gap-2">
-            {vacio && (
-              <Button
-                variant="outline"
-                disabled={guardando}
-                onClick={() => llamar({ action: 'curso_estandar' }, 'Curso estándar creado')}
-              >
-                <GraduationCap className="mr-2 h-4 w-4" /> Crear curso estándar
-              </Button>
-            )}
-            <Button onClick={() => setEditor({ tipo: 'curso', title: '', description: '', audience: [] })}>
-              <Plus className="mr-2 h-4 w-4" /> Nuevo curso
+        <div className="flex flex-wrap gap-2">
+          {datos.puedeEditar && (
+            <Button variant="outline" onClick={() => setGestionar((g) => !g)}>
+              {gestionar ? 'Volver a mi formación' : 'Gestionar formación del equipo'}
             </Button>
-          </div>
-        )}
+          )}
+          {editando && (
+            <>
+              {vacio && (
+                <Button
+                  variant="outline"
+                  disabled={guardando}
+                  onClick={() => llamar({ action: 'curso_estandar' }, 'Curso estándar creado')}
+                >
+                  <GraduationCap className="mr-2 h-4 w-4" /> Crear curso estándar
+                </Button>
+              )}
+              <Button onClick={() => setEditor({ tipo: 'curso', title: '', description: '', audience: [] })}>
+                <Plus className="mr-2 h-4 w-4" /> Nuevo curso
+              </Button>
+            </>
+          )}
+        </div>
       </header>
 
       {resumen.total > 0 && (
@@ -228,9 +239,11 @@ function FormacionInner() {
         <div className="dashboard-card p-8 text-center">
           <p className="font-medium text-foreground">Todavía no hay formación</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            {datos.puedeEditar
+            {editando
               ? 'Crea el curso estándar para empezar con los pasos básicos, o añade tu propio curso.'
-              : 'Cuando tu equipo añada las lecciones, las verás aquí.'}
+              : datos.puedeEditar
+                ? 'No hay formación para tu rol. Usa «Gestionar formación del equipo» para ver y crear los cursos de cada rol.'
+                : 'Cuando tu equipo añada las lecciones, las verás aquí.'}
           </p>
         </div>
       ) : (
@@ -244,7 +257,7 @@ function FormacionInner() {
                     <div>
                       <h2 className="text-sm font-semibold text-foreground">{curso.title}</h2>
                       {curso.description && <p className="text-xs text-muted-foreground">{curso.description}</p>}
-                      {datos.puedeEditar && (
+                      {editando && (
                         <p className="mt-0.5 text-2xs text-muted-foreground">
                           Para:{' '}
                           {curso.audience_roles?.length
@@ -253,7 +266,7 @@ function FormacionInner() {
                         </p>
                       )}
                     </div>
-                    {datos.puedeEditar && (
+                    {editando && (
                       <div className="flex shrink-0 gap-1">
                         <button
                           aria-label="Editar curso"
@@ -301,7 +314,7 @@ function FormacionInner() {
                       </li>
                     ))}
                   </ol>
-                  {datos.puedeEditar && (
+                  {editando && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -331,7 +344,7 @@ function FormacionInner() {
               <>
                 <div className="flex items-start justify-between gap-3">
                   <h2 className="font-display text-xl font-semibold text-foreground">{actual.title}</h2>
-                  {datos.puedeEditar && (
+                  {editando && (
                     <div className="flex shrink-0 gap-1">
                       <button
                         aria-label="Editar lección"
@@ -388,7 +401,7 @@ function FormacionInner() {
 
                 <SopsLista
                   sops={sopsDe(actual.id)}
-                  puedeEditar={datos.puedeEditar}
+                  puedeEditar={editando}
                   onAdd={(titulo, url) =>
                     llamar({ action: 'crear_sop', lessonId: actual.id, title: titulo, url }, 'SOP añadido')
                   }

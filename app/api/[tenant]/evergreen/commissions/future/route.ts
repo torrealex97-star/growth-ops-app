@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { requireTenant } from '@/lib/auth/requireTenant'
+import { tenantUsersQuery } from '@/lib/users'
 import { pickCommissionRule } from '@/lib/commissions/calculator'
 import { repNetCash, usuariosExentosDeComision } from '@/lib/commissions/generate'
 import { tipoDeCuotaFutura } from '@/lib/finance/nuevo-vs-recurrente'
@@ -183,7 +184,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ tenant:
     }
 
     // Nombres de usuarios
-    const { data: users, error: usersErr } = await sb.from('users').select('id, full_name, pays_commissions')
+    const { data: users, error: usersErr } = await tenantUsersQuery(sb, t.tenantId, 'id, full_name, pays_commissions')
     if (usersErr)
       throw new Error(`No se pudieron leer los usuarios (veto pays_commissions de MONEY D9): ${usersErr.message}`)
     const nameOf = new Map((users ?? []).map((u: { id: string; full_name: string }) => [u.id, u.full_name]))

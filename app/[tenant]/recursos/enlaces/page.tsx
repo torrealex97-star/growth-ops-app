@@ -140,6 +140,7 @@ export default function EnlacesPage() {
       const { data: divData, error: divErr } = await supabase
         .from('resource_link_divisions')
         .select('*')
+        .eq('tenant_id', tenantId)
         .order('sort_order', { ascending: true })
         .order('name', { ascending: true })
       if (divErr) {
@@ -149,7 +150,7 @@ export default function EnlacesPage() {
         setDivisions((divData as ResourceLinkDivision[]) ?? [])
       }
 
-      let query = supabase.from('resource_links').select('*')
+      let query = supabase.from('resource_links').select('*').eq('tenant_id', tenantId)
       if (!isManager) query = query.eq('is_active', true)
       const { data: resData, error: resErr } = await query
         .order('sort_order', { ascending: true })
@@ -385,6 +386,7 @@ export default function EnlacesPage() {
     setSavingDivision(true)
     const supabase = createClient()
     const { error } = await supabase.from('resource_link_divisions').insert({
+      tenant_id: tenantId,
       name: nm,
       sort_order: divisions.length,
       created_by: sesion?.userId ?? null,
@@ -403,7 +405,11 @@ export default function EnlacesPage() {
     const nm = editingDivisionName.trim()
     if (!nm) return
     const supabase = createClient()
-    const { error } = await supabase.from('resource_link_divisions').update({ name: nm }).eq('id', id)
+    const { error } = await supabase
+      .from('resource_link_divisions')
+      .update({ name: nm })
+      .eq('id', id)
+      .eq('tenant_id', tenantId)
     if (error) {
       toast.error('Error al renombrar', { description: error.message })
       return
@@ -421,7 +427,7 @@ export default function EnlacesPage() {
         : `¿Eliminar la división "${d.name}"?`
     if (!confirm(msg)) return
     const supabase = createClient()
-    const { error } = await supabase.from('resource_link_divisions').delete().eq('id', d.id)
+    const { error } = await supabase.from('resource_link_divisions').delete().eq('id', d.id).eq('tenant_id', tenantId)
     if (error) {
       toast.error('Error al eliminar la división', { description: error.message })
       return
@@ -477,6 +483,7 @@ export default function EnlacesPage() {
     setResSubmitting(true)
     const supabase = createClient()
     const payload = {
+      tenant_id: tenantId,
       division_id: divId,
       category: divId ? divisionName(divId) : 'General', // respaldo/legacy
       name: resName.trim(),
@@ -488,7 +495,7 @@ export default function EnlacesPage() {
     }
 
     const { error } = resEditingId
-      ? await supabase.from('resource_links').update(payload).eq('id', resEditingId)
+      ? await supabase.from('resource_links').update(payload).eq('id', resEditingId).eq('tenant_id', tenantId)
       : await supabase.from('resource_links').insert(payload)
 
     setResSubmitting(false)
@@ -507,7 +514,7 @@ export default function EnlacesPage() {
   const handleResDelete = async (r: ResourceLink) => {
     if (!confirm(`¿Eliminar el enlace "${r.name}"?`)) return
     const supabase = createClient()
-    const { error } = await supabase.from('resource_links').delete().eq('id', r.id)
+    const { error } = await supabase.from('resource_links').delete().eq('id', r.id).eq('tenant_id', tenantId)
     if (error) {
       toast.error('Error al eliminar el enlace', { description: error.message })
       return
@@ -518,7 +525,11 @@ export default function EnlacesPage() {
 
   const toggleResActive = async (r: ResourceLink) => {
     const supabase = createClient()
-    const { error } = await supabase.from('resource_links').update({ is_active: !r.is_active }).eq('id', r.id)
+    const { error } = await supabase
+      .from('resource_links')
+      .update({ is_active: !r.is_active })
+      .eq('id', r.id)
+      .eq('tenant_id', tenantId)
     if (error) {
       toast.error('Error al actualizar el enlace')
       return

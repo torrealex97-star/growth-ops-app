@@ -1,6 +1,7 @@
 'use client'
 
 import { Skeleton } from '@/components/ui/skeleton'
+import { tenantUsersQuery } from '@/lib/users'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -61,7 +62,7 @@ export default function ContratosEquipoPage() {
   const load = useCallback(async () => {
     const sb = createClient()
     const [u, r, t, c] = await Promise.all([
-      sb.from('users').select('*, roles(*)').eq('is_active', true).order('full_name'),
+      tenantUsersQuery(sb, tenantId, '*, roles(*)').eq('is_active', true).order('full_name'),
       sb.from('commission_rules').select('*').eq('tenant_id', tenantId),
       sb
         .from('contract_templates')

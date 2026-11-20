@@ -50,6 +50,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
   const sb = servicioFormacion()
   // `?resumen=1`: lo que necesita la tarjeta del dashboard (títulos y orden), sin descripciones ni enlaces.
   const resumen = req.nextUrl.searchParams.get('resumen') === '1'
+  // `?gestionar=1`: solo quien administra la subcuenta ve TODOS los cursos (para editarlos). Sin él, todo el mundo,
+  // administradores incluidos, ve únicamente la formación de su propio rol: un admin no debe ver como suyo el curso de
+  // las colaboradoras.
+  const gestionar = t.administraTenant && req.nextUrl.searchParams.get('gestionar') === '1'
 
   let cursosQ = sb
     .from('training_courses')
@@ -59,9 +63,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     .order('created_at', { ascending: true })
     .order('id', { ascending: true })
     .limit(MAX_CURSOS)
-  // La pantalla de formación muestra TODO a quien administra (para gestionarlo); la tarjeta (`resumen`) es «lo que
-  // me toca a mí» y filtra por el rol de cada persona, administradores incluidos.
-  if (!t.administraTenant || resumen) {
+  // Solo el modo «gestionar» de un administrador ve todo; la pantalla normal y la tarjeta (`resumen`) son «lo que me
+  // toca a mí» y filtran por el rol de cada persona, administradores incluidos.
+  if (!gestionar || resumen) {
     // El rol sale de la sesión (nunca del cliente) y solo se interpola si tiene la forma de una clave de rol.
     const rol = t.role && /^[a-z_]+$/.test(t.role) ? t.role : null
     cursosQ = rol ? cursosQ.or(`audience_roles.is.null,audience_roles.cs.{${rol}}`) : cursosQ.is('audience_roles', null)

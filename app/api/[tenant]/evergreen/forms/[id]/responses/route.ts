@@ -3,6 +3,8 @@ import { z } from 'zod'
 import { authorizeForms, denyIfNotVisible } from '@/lib/forms/admin'
 import { toCsv } from '@/lib/forms/csv'
 import { formConfigSchema } from '@/lib/forms/schema'
+import { buscarContactosPorEmails } from '@/lib/contacts/buscar'
+import { respondentOf, type RespondentContact } from '@/lib/forms/respondent'
 
 export const dynamic = 'force-dynamic'
 
@@ -57,6 +59,53 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
   const cfg = formConfigSchema.safeParse(cfgRaw)
   const questions = cfg.success ? cfg.data.questions.filter((x) => x.type !== 'hidden' && x.type !== 'statement') : []
 
+  const allQuestions = cfg.success ? cfg.data.questions : []
+
+  // Identidad de quien responde: ficha de contacto emparejada (verificada) o, si no la hay, lo que
+  // escribió en el formulario. Una sola consulta por página, filtrada por tenant y solo con 3 columnas.
+  const withRespondent = async <
+    T extends { id: string; answers: unknown; hidden?: unknown; contact_id: string | null },
+  >(
+    rows: T[]
+  ) => {
+    // 1) Respuestas sin ficha: se empareja por el email declarado (solo si casa con UN contacto) y el
+    //    vínculo se guarda, para que Contactos, Feedback y el resto de la app lo vean ya emparejado.
+    const sinFicha = rows.filter((r) => !r.contact_id)
+    if (sinFicha.length) {
+      const declarado = new Map(sinFicha.map((r) => [r.id, respondentOf(r, allQuestions, new Map()).email]))
+      const porEmail = await buscarContactosPorEmails(sb, auth.tenantId, [...declarado.values()])
+      const nuevos = new Map<string, string[]>()
+      for (const r of sinFicha) {
+        const cid = porEmail.get(declarado.get(r.id) ?? '')
+        if (cid) {
+          r.contact_id = cid
+          nuevos.set(cid, [...(nuevos.get(cid) ?? []), r.id])
+        }
+      }
+      await Promise.all(
+        [...nuevos].map(([cid, ids]) =>
+          sb
+            .from('form_responses')
+            .update({ contact_id: cid })
+            .eq('tenant_id', auth.tenantId)
+            .is('contact_id', null)
+            .in('id', ids)
+        )
+      )
+    }
+    const ids = [...new Set(rows.map((r) => r.contact_id).filter((x): x is string => !!x))]
+    const contacts = new Map<string, RespondentContact>()
+    if (ids.length) {
+      const { data: cs } = await sb
+        .from('contacts')
+        .select('id, full_name, email')
+        .eq('tenant_id', auth.tenantId)
+        .in('id', ids)
+      for (const c of (cs ?? []) as RespondentContact[]) contacts.set(c.id, c)
+    }
+    return rows.map((r) => ({ ...r, respondent: respondentOf(r, allQuestions, contacts) }))
+  }
+
   let qb = sb
     .from('form_responses')
     .select(COLS, { count: 'exact' })
@@ -82,10 +131,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
             : x
       return Array.isArray(v) ? v.map(one) : one(v)
     }
+    const withWho = await withRespondent(data ?? [])
     const rows: unknown[][] = [
       [
         'Fecha',
         'Estado',
+        'Nombre',
+        'Email',
+        'Teléfono',
+        'Ficha vinculada',
         ...questions.map((x) => x.title || x.id),
         'Puntuación',
         'Temperatura',
@@ -95,9 +149,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
         'Dispositivo',
         'Duración (s)',
       ],
-      ...(data ?? []).map((r) => [
+      ...withWho.map((r) => [
         r.created_at,
         r.status === 'completed' ? 'Completada' : 'Parcial',
+        r.respondent.name,
+        r.respondent.email,
+        r.respondent.phone,
+        r.respondent.linked ? 'Sí' : 'No',
         ...questions.map((x) => labelOf(x, (r.answers as Record<string, unknown>)?.[x.id])),
         r.score,
         r.temperature,
@@ -120,7 +178,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
   const { data, count, error } = await qb.range(q.page * PAGE, q.page * PAGE + PAGE - 1)
   if (error) return NextResponse.json({ error: 'No se pudieron cargar las respuestas' }, { status: 500 })
   return NextResponse.json({
-    responses: data ?? [],
+    responses: await withRespondent(data ?? []),
     total: count ?? 0,
     pageSize: PAGE,
     questions: questions.map((x) => ({ id: x.id, title: x.title, type: x.type, options: x.options ?? null })),
