@@ -163,7 +163,7 @@ export function Sidebar({ user, isOpen, onClose, isSuperAdmin = false }: Sidebar
                           onClick={mobile ? onClose : undefined}
                           aria-current={active ? 'page' : undefined}
                           className={cn(
-                            'relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors group',
+                            'relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors group',
                             active
                               ? 'bg-brand-500/10 text-foreground border border-brand-500/25'
                               : 'text-muted-foreground hover:text-foreground hover:bg-muted/60 border border-transparent'
