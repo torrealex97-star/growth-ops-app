@@ -18,8 +18,12 @@ Guardas para que no vuelva: helper `tenantUsersQuery` (`lib/users.ts`) + `tests/
 registro de tablas `tests/fixtures/tablas-con-subcuenta.json` + `tests/aislamiento-cierre-tenant.test.mjs` y la sonda
 `scripts/qa/sonda-aislamiento-rls.sql` (límite: solo ve fugas donde ya hay filas ajenas; completar con la query estructural).
 
-Sigue ABIERTO (no tocado): tokens de Google OAuth legibles por cualquier miembro de la MISMA subcuenta (`google_oauth_connections`)
-y buckets públicos `carrusel-uploads` e `ig-competitor-reels`.
+Cerrado el 19-nov: los tokens de Google (`google_oauth_connections.refresh_token/access_token`) ya no se pueden leer ni escribir con
+sesión (migración `20261119100000_google_oauth_tokens_solo_servidor.sql`, aplicada: `anon` sin permisos y `authenticated` solo
+`SELECT` de columnas no sensibles). Antes solo los veían admin/director de la propia subcuenta, pero el permiso de tabla estaba abierto.
+
+Sigue ABIERTO (no tocado): buckets públicos `carrusel-uploads` (16 archivos) e `ig-competitor-reels` (3); el código los sirve con
+`getPublicUrl`, así que privatizarlos exige pasar a URLs firmadas y comprobar publicación en Instagram y transcripción.
 
 CI: `audit:production` usa `scripts/auditar-dependencias.mjs` con una excepción caducable para `picomatch`
 (GHSA-fc5q-39xc-vjpf, sin versión corregida, solo build vía `@sentry/nextjs`). **Caduca el 2026-12-18**: revisar antes y
