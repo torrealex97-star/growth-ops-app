@@ -369,7 +369,7 @@ test('el motor de comisiones llama al gancho en el cobro y en la reconciliación
   assert.equal(src.match(/await sincronizarTrasVenta\(/g)?.length, 2)
   assert.match(
     src,
-    /c\.status !== 'liquidated' && c\.collection_id\)/,
+    /c\.status !== 'liquidated' &&\s*c\.collection_id &&/,
     'la reconciliación solo borra positivas CON cobro'
   )
 })

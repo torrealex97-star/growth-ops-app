@@ -63,6 +63,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
 
     let created = 0
     let deleted = 0
+    const sinPorcentaje: string[] = []
     const perSale: { saleId: string; created: number; deleted: number }[] = []
     // skipTierRecompute: en esta reparación masiva cada rep puede tener decenas de ventas, y
     // recomputeRepCommissionTiers ya es idempotente — recalcularlo aquí una vez por venta
@@ -72,6 +73,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       const r = await reconcileSaleCommissions(sb, tenantId, id, [], { skipTierRecompute: true })
       created += r.created
       deleted += r.deleted
+      if (r.afiliadoSinPorcentaje) sinPorcentaje.push(id)
       if (r.created || r.deleted) perSale.push({ saleId: id, created: r.created, deleted: r.deleted })
     }
 
@@ -89,6 +91,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       created,
       deleted,
       perSale,
+      // Ventas con colaborador y SIN % de comisión: no generan nada hasta que se les ponga.
+      sinPorcentaje,
     })
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 })

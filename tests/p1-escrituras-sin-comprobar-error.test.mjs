@@ -49,7 +49,8 @@ test('colaboradores/attribution: si el audit_logs del override falla, la respues
   const src = leer('app/api/[tenant]/evergreen/colaboradores/attribution/route.ts')
   const idxInsert = src.indexOf("const { error: auditErr } = await sb.from('audit_logs').insert(")
   const idxCheck = src.indexOf('if (auditErr) {')
-  const idxOk = src.indexOf('NextResponse.json({ ok: true, from: anterior, to: collaboratorId })')
+  // La respuesta de éxito lleva además ventasRevisadas/comisionesNuevas/warnings: se localiza por su inicio.
+  const idxOk = src.search(/NextResponse\.json\(\{\s*ok: true,\s*from: anterior/)
   assert.ok(idxInsert > -1 && idxCheck > -1 && idxOk > -1 && idxInsert < idxCheck && idxCheck < idxOk)
 })
 

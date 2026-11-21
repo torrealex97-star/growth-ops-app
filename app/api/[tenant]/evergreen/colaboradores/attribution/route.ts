@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireTenant } from '@/lib/auth/requireTenant'
 import { ESTADOS_COLABORADOR_ASIGNABLES } from '@/lib/collaborators/estados-asignables'
+import { recalcularVentasTrasAsignar, type ResultadoRecalculo } from '@/lib/commissions/reasignar-colaborador'
 
 // OVERRIDE ADMINISTRATIVO DE ATRIBUCIÓN DE COLABORADOR (§12-§13 del brief).
 //
@@ -8,6 +9,11 @@ import { ESTADOS_COLABORADOR_ASIGNABLES } from '@/lib/collaborators/estados-asig
 // nunca roba un colaborador ya asignado). La ÚNICA vía para cambiarlo es esta ruta:
 // un admin/director, con MOTIVO OBLIGATORIO, actor y timestamp registrados en
 // audit_logs (old → new). Nada en la app modifica atribución financiera en silencio.
+//
+// Al ASIGNAR un colaborador se recalculan las comisiones DE ESE COLABORADOR en las ventas YA HECHAS del contacto
+// (lib/commissions/reasignar-colaborador.ts: idempotente, nunca toca lo liquidado ni las de setter/closer) y se
+// devuelven `warnings` si algo impedirá que cobre: sin % de comisión en ningún sitio o ficha no activa. Antes se
+// cambiaba la atribución y «por pagar» se quedaba a cero sin explicación.
 //
 // Cuerpo: { contactId, collaboratorId | null, reason }
 //   collaboratorId = null → "Directo / Sin colaborador" (estado válido, §14; NULL
@@ -48,14 +54,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     if (!contacto) return NextResponse.json({ error: 'Contacto no encontrado' }, { status: 404 })
 
     // Si se asigna colaborador, tiene que ser un perfil asignable (no suspendido/inactivo) de esta subcuenta.
+    let estadoPerfil: string | null = null
+    let colaboradorUserId: string | null = null
     if (collaboratorId) {
       const { data: perfil } = await sb
         .from('collaborator_profiles')
-        .select('id, status')
+        .select('id, status, user_id')
         .eq('id', collaboratorId)
         .eq('tenant_id', t.tenantId)
         .maybeSingle()
-      const p = perfil as { id: string; status: string } | null
+      const p = perfil as { id: string; status: string; user_id: string | null } | null
+      estadoPerfil = p?.status ?? null
+      colaboradorUserId = p?.user_id ?? null
       if (!p) return NextResponse.json({ error: 'Colaborador no encontrado en esta subcuenta' }, { status: 404 })
       if (!(ESTADOS_COLABORADOR_ASIGNABLES as readonly string[]).includes(p.status)) {
         return NextResponse.json({ error: 'El colaborador está suspendido o inactivo' }, { status: 400 })
@@ -137,7 +147,44 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       )
     }
 
-    return NextResponse.json({ ok: true, from: anterior, to: collaboratorId })
+    // RECÁLCULO de lo ya vendido (solo las comisiones de ESTE colaborador). Un fallo aquí NO deshace la atribución
+    // (ya aplicada y auditada): se declara en `warnings`. Lo que escribe (afiliado/% de la venta, comisiones) queda
+    // en audit_logs: este endpoint no permite cambios financieros sin rastro.
+    let recalculo: ResultadoRecalculo = { ventasRevisadas: 0, comisionesNuevas: 0, warnings: [], detalle: [] }
+    if (collaboratorId) {
+      recalculo = await recalcularVentasTrasAsignar({
+        sb,
+        tenantId: t.tenantId,
+        contactId,
+        colaboradorUserId,
+        estadoPerfil,
+      })
+      if (recalculo.detalle.length > 0) {
+        const { error: recalcAuditErr } = await sb.from('audit_logs').insert({
+          tenant_id: t.tenantId,
+          actor_user_id: t.userId,
+          entity_type: 'contact_attribution',
+          entity_id: contactId,
+          action: 'collaborator_attribution_recalc',
+          old_values: {},
+          new_values: { collaborator_id: collaboratorId, reason, ventas: recalculo.detalle },
+        })
+        if (recalcAuditErr) {
+          recalculo.warnings.push(
+            `Las comisiones se recalcularon pero no se pudo auditar el recálculo (${recalcAuditErr.message}). Revisar a mano.`
+          )
+        }
+      }
+    }
+
+    return NextResponse.json({
+      ok: true,
+      from: anterior,
+      to: collaboratorId,
+      ventasRevisadas: recalculo.ventasRevisadas,
+      comisionesNuevas: recalculo.comisionesNuevas,
+      warnings: recalculo.warnings,
+    })
   } catch (err) {
     console.error('[api/colaboradores/attribution]', err)
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Error interno' }, { status: 500 })
