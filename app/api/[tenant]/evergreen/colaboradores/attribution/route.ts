@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireTenant } from '@/lib/auth/requireTenant'
+import { reconcileSaleCommissions } from '@/lib/commissions/generate'
 
 // OVERRIDE ADMINISTRATIVO DE ATRIBUCIÓN DE COLABORADOR (§12-§13 del brief).
 //
@@ -7,6 +8,11 @@ import { requireTenant } from '@/lib/auth/requireTenant'
 // nunca roba un colaborador ya asignado). La ÚNICA vía para cambiarlo es esta ruta:
 // un admin/director, con MOTIVO OBLIGATORIO, actor y timestamp registrados en
 // audit_logs (old → new). Nada en la app modifica atribución financiera en silencio.
+//
+// Al ASIGNAR un colaborador se recalculan las comisiones de las ventas YA HECHAS de ese contacto (idempotente, nunca
+// toca lo liquidado, solo rellena afiliado/% vacíos) y se devuelven `warnings` si algo impedirá que cobre: sin %
+// de comisión en ningún sitio o ficha no activa. Antes se cambiaba la atribución y «por pagar» se quedaba a cero sin
+// explicación.
 //
 // Cuerpo: { contactId, collaboratorId | null, reason }
 //   collaboratorId = null → "Directo / Sin colaborador" (estado válido, §14; NULL
@@ -47,6 +53,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     if (!contacto) return NextResponse.json({ error: 'Contacto no encontrado' }, { status: 404 })
 
     // Si se asigna colaborador, tiene que ser un perfil ACTIVO de esta subcuenta.
+    let estadoPerfil: string | null = null
     if (collaboratorId) {
       const { data: perfil } = await sb
         .from('collaborator_profiles')
@@ -55,6 +62,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
         .eq('tenant_id', t.tenantId)
         .maybeSingle()
       const p = perfil as { id: string; status: string } | null
+      estadoPerfil = p?.status ?? null
       if (!p) return NextResponse.json({ error: 'Colaborador no encontrado en esta subcuenta' }, { status: 404 })
       if (!['active', 'pending_contract'].includes(p.status)) {
         return NextResponse.json({ error: 'El colaborador no está activo' }, { status: 400 })
@@ -136,7 +144,52 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       )
     }
 
-    return NextResponse.json({ ok: true, from: anterior, to: collaboratorId })
+    // RECÁLCULO de lo ya vendido. Un fallo aquí NO deshace la atribución (ya aplicada y auditada): se declara.
+    const warnings: string[] = []
+    let comisionesNuevas = 0
+    let ventasRevisadas = 0
+    if (collaboratorId) {
+      if (estadoPerfil && estadoPerfil !== 'active') {
+        warnings.push(
+          `El colaborador está en estado «${estadoPerfil}», no activo: su comisión saldrá como «Colaborador (clásico)» hasta que lo actives.`
+        )
+      }
+      try {
+        const { data: ventas, error: ventasErr } = await sb
+          .from('sales')
+          .select('id')
+          .eq('tenant_id', t.tenantId)
+          .eq('contact_id', contactId)
+          .neq('status', 'cancelled')
+          .limit(50)
+        if (ventasErr) throw new Error(ventasErr.message)
+        let sinPorcentaje = 0
+        for (const v of ventas ?? []) {
+          const r = await reconcileSaleCommissions(sb, t.tenantId, (v as { id: string }).id)
+          ventasRevisadas++
+          comisionesNuevas += r.created
+          if (r.afiliadoSinPorcentaje) sinPorcentaje++
+        }
+        if (sinPorcentaje > 0) {
+          warnings.push(
+            `${sinPorcentaje === 1 ? '1 venta de este contacto tiene' : `${sinPorcentaje} ventas de este contacto tienen`} colaborador pero NO tiene % de comisión (ni en la venta ni en la ficha del colaborador): no genera comisión hasta que pongas el %.`
+          )
+        }
+      } catch (e) {
+        warnings.push(
+          `La atribución se guardó, pero no se pudieron recalcular las comisiones de sus ventas (${e instanceof Error ? e.message : 'error desconocido'}). Edita la venta o usa «Reparar comisiones».`
+        )
+      }
+    }
+
+    return NextResponse.json({
+      ok: true,
+      from: anterior,
+      to: collaboratorId,
+      ventasRevisadas,
+      comisionesNuevas,
+      warnings,
+    })
   } catch (err) {
     console.error('[api/colaboradores/attribution]', err)
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Error interno' }, { status: 500 })

@@ -341,9 +341,9 @@ export async function reconcileSaleCommissions(
   saleId: string,
   alsoRecompute: { repId: string | null | undefined; role: Role }[] = [],
   opts: { skipTierRecompute?: boolean } = {}
-): Promise<{ created: number; deleted: number; keptLiquidated: number }> {
+): Promise<{ created: number; deleted: number; keptLiquidated: number; afiliadoSinPorcentaje: boolean }> {
   const { data: sale } = await sb.from('sales').select('*').eq('tenant_id', tenantId).eq('id', saleId).maybeSingle()
-  if (!sale) return { created: 0, deleted: 0, keptLiquidated: 0 }
+  if (!sale) return { created: 0, deleted: 0, keptLiquidated: 0, afiliadoSinPorcentaje: false }
   const s = sale as Sale
 
   // Si le falta setter/afiliado, dedúcelos de la atribución (UTM) del contacto antes de reconciliar,
@@ -458,5 +458,9 @@ export async function reconcileSaleCommissions(
     ])
   }
 
-  return { created, deleted, keptLiquidated: liqKeys.size }
+  // La venta tiene afiliado/colaborador pero NINGÚN % (ni suyo ni por defecto): el motor no le genera comisión.
+  // Se devuelve para que la pantalla lo diga en vez de dejar «por pagar» a cero sin explicación.
+  const afiliadoSinPorcentaje = !!s.affiliate_id && s.affiliate_commission_percent == null
+
+  return { created, deleted, keptLiquidated: liqKeys.size, afiliadoSinPorcentaje }
 }

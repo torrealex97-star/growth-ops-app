@@ -375,6 +375,12 @@ export default function SaleDetailPage() {
     } else {
       toast.success('Venta actualizada')
     }
+    if (data.afiliadoSinPorcentaje) {
+      toast.warning('El colaborador de esta venta no tiene % de comisión', {
+        description: 'No genera comisión hasta que pongas el % aquí o en su ficha de colaborador.',
+        duration: 15000,
+      })
+    }
     setShowEditDialog(false)
     setEditSaving(false)
     fetchData()

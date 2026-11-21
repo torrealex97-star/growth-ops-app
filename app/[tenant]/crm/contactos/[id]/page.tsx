@@ -466,7 +466,14 @@ export default function ContactDetailPage() {
       return
     }
 
-    toast.success(collaboratorId ? 'Colaborador asignado' : 'Atribución de colaborador retirada')
+    toast.success(collaboratorId ? 'Colaborador asignado' : 'Atribución de colaborador retirada', {
+      description:
+        collaboratorId && data?.comisionesNuevas > 0
+          ? `${data.comisionesNuevas} comisión(es) generada(s) de sus ventas ya cobradas.`
+          : undefined,
+    })
+    // Lo que impedirá que cobre (sin %, ficha no activa…) se dice aquí: antes «por pagar» se quedaba a cero sin aviso.
+    for (const aviso of (data?.warnings as string[] | undefined) ?? []) toast.warning(aviso, { duration: 15000 })
     setEditingColaborador(false)
     setColaboradorReason('')
     await load()

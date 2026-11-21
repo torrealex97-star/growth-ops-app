@@ -30,7 +30,10 @@ export async function resolveSaleAttribution(
 ): Promise<AttributionPatch> {
   const needSetter = !sale.setter_id
   const needAffiliate = !sale.affiliate_id
-  if (!needSetter && !needAffiliate) return {}
+  // Afiliado/colaborador YA puesto pero sin % (`null`, no 0: un 0 % explícito es una decisión). Sin % el motor no
+  // genera comisión y no dice nada, así que se completa desde el % por defecto de la persona (ver más abajo).
+  const needPercent = !!sale.affiliate_id && sale.affiliate_commission_percent == null
+  if (!needSetter && !needAffiliate && !needPercent) return {}
 
   const patch: AttributionPatch = {}
 
@@ -134,6 +137,16 @@ export async function resolveSaleAttribution(
     }
   }
 
+  // 5) % de comisión que falta. Aplica tanto al afiliado recién deducido arriba como al que ya traía la venta (caso
+  // real: contactos reasignados a una colaboradora cuyas ventas ya apuntaban a ella con el % vacío → cero comisión
+  // sin ningún aviso). Solo rellena un % AUSENTE; nunca pisa uno puesto a mano. Si no hay % en ningún sitio no se
+  // inventa ninguno: quien llama lo detecta (`afiliadoSinPorcentaje`) y avisa.
+  const afiliadoFinal = patch.affiliate_id ?? sale.affiliate_id
+  if (afiliadoFinal && sale.affiliate_commission_percent == null && patch.affiliate_commission_percent === undefined) {
+    const pct = await porcentajePorDefecto(sb, tenantId, afiliadoFinal)
+    if (pct !== null) patch.affiliate_commission_percent = pct
+  }
+
   if (Object.keys(patch).length) {
     // Con `.select()` y comprobando el error: una escritura bloqueada por RLS afecta a 0 filas SIN
     // error, y antes esto se daba por hecho — la venta se quedaba sin setter y nadie se enteraba.
@@ -147,4 +160,41 @@ export async function resolveSaleAttribution(
     if (!updated || updated.length === 0) return {}
   }
   return patch
+}
+
+const comoPorcentaje = (v: unknown): number | null => {
+  if (v === null || v === undefined || v === '') return null
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
+}
+
+/**
+ * % por defecto de una persona que comisiona como afiliado/colaborador: primero el de su FICHA de colaborador
+ * (donde se gestiona) y, si ahí está vacío, el del USUARIO (Configuración › Usuarios, que antes quedaba sin efecto
+ * para quien ya tenía ficha). `null` = no hay % en ningún sitio.
+ */
+export async function porcentajePorDefecto(
+  sb: SupabaseClient,
+  tenantId: string,
+  userId: string
+): Promise<number | null> {
+  const { data: perfil } = await sb
+    .from('collaborator_profiles')
+    .select('default_commission_percent')
+    .eq('tenant_id', tenantId)
+    .eq('user_id', userId)
+    .limit(1)
+    .maybeSingle()
+  const deLaFicha = comoPorcentaje(
+    (perfil as { default_commission_percent?: unknown } | null)?.default_commission_percent
+  )
+  if (deLaFicha !== null) return deLaFicha
+  const { data: usuario } = await sb
+    .from('users')
+    .select('default_affiliate_commission_percent')
+    .eq('id', userId)
+    .maybeSingle()
+  return comoPorcentaje(
+    (usuario as { default_affiliate_commission_percent?: unknown } | null)?.default_affiliate_commission_percent
+  )
 }
