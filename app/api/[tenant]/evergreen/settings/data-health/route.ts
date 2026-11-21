@@ -4,6 +4,8 @@ import { requireTenant } from '@/lib/auth/requireTenant'
 import { getTenantConfigWithFallback } from '@/lib/config'
 import { countDuplicateKeys, countDuplicateValues, deriveSourceStatus } from '@/lib/data-health'
 import { resumenCross, runCrossChecks } from '@/lib/data-health/cross-source'
+import { aCobroNoElegible, type FilaCobroNoElegible } from '@/lib/data-health/cobros-no-elegibles'
+import { usuariosExentosDeComision } from '@/lib/commissions/generate'
 import { parseAccountIds } from '@/lib/meta/accounts'
 import { CONECTORES, pendientesDeMigrar } from '@/lib/conectores/registro'
 import { saludDeConector } from '@/lib/data-health/conectores'
@@ -12,6 +14,9 @@ import { eventosStripe, ultimoEventoEnAudit, type ActaAudit, type RawStripe } fr
 import { lastRunsByJob } from '@/lib/integrations/sync-runs'
 import { cuentaComoVenta } from '@/lib/analytics'
 import { metodoDePlan } from '@/lib/metrics/agregados'
+
+/** Tope de la lectura de cobros no elegibles: si se alcanza la lectura es parcial y el control dice «no se pudo comprobar». */
+const LIMITE_COBROS_NO_ELEGIBLES = 5000
 
 export const runtime = 'nodejs'
 
@@ -93,26 +98,47 @@ export async function GET(_request: Request, { params }: { params: Promise<{ ten
     // Conjuntos extra para los controles CRUZADOS. Van aparte y NO abortan la respuesta: si uno falla,
     // su control dice "no se pudo comprobar" y el resto sigue informando. Colapsar todo a un error
     // dejaría la pantalla en blanco por una tabla.
-    const [salesResult, stripeResult, attributionsResult, adAccountsResult, pagosResult, cobrosResult] =
-      await Promise.all([
-        sb
-          .from('sales')
-          // Para `salesWithoutSetter` abajo: solo cuenta como venta real lo que cuentaComoVenta()
-          // acepta (D8 de MONEY.md — una reserva sin completar no es venta ni comisiona).
-          .select('id,contact_id,status,setter_id,reservation_completed_at,payment_plans(method)')
-          .eq('tenant_id', auth.tenantId)
-          .limit(10000),
-        sb.from('stripe_customers').select('id,contact_id').eq('tenant_id', auth.tenantId).limit(10000),
-        sb.from('contact_attributions').select('utm_campaign').eq('tenant_id', auth.tenantId).limit(10000),
-        sb.from('campaigns').select('account_id').eq('tenant_id', auth.tenantId).eq('provider', 'meta').limit(10000),
-        sb.from('stripe_payments').select('payment_id,charge_id,status').eq('tenant_id', auth.tenantId).limit(10000),
-        sb
-          .from('collections')
-          .select('payment_reference')
-          .eq('tenant_id', auth.tenantId)
-          .not('payment_reference', 'is', null)
-          .limit(10000),
-      ])
+    // Quien no cobra comisión (pays_commissions = false, D9) no cuenta como «alguien a quien comisionar».
+    const exentosComision = await usuariosExentosDeComision(sb, auth.tenantId)
+    const [
+      salesResult,
+      stripeResult,
+      attributionsResult,
+      adAccountsResult,
+      pagosResult,
+      cobrosResult,
+      cobrosNoElegiblesResult,
+    ] = await Promise.all([
+      sb
+        .from('sales')
+        // Para `salesWithoutSetter` abajo: solo cuenta como venta real lo que cuentaComoVenta()
+        // acepta (D8 de MONEY.md — una reserva sin completar no es venta ni comisiona).
+        .select('id,contact_id,status,setter_id,reservation_completed_at,payment_plans(method)')
+        .eq('tenant_id', auth.tenantId)
+        .limit(10000),
+      sb.from('stripe_customers').select('id,contact_id').eq('tenant_id', auth.tenantId).limit(10000),
+      sb.from('contact_attributions').select('utm_campaign').eq('tenant_id', auth.tenantId).limit(10000),
+      sb.from('campaigns').select('account_id').eq('tenant_id', auth.tenantId).eq('provider', 'meta').limit(10000),
+      sb.from('stripe_payments').select('payment_id,charge_id,status').eq('tenant_id', auth.tenantId).limit(10000),
+      sb
+        .from('collections')
+        .select('payment_reference')
+        .eq('tenant_id', auth.tenantId)
+        .not('payment_reference', 'is', null)
+        .limit(10000),
+      // Cobros cobrados que no comisionan y no están en revisión (control `cobro_sin_comision_visible`).
+      sb
+        .from('collections')
+        .select(
+          'id, sales!inner(status, setter_id, closer_id, affiliate_id, affiliate_commission_percent, reservation_completed_at, payment_plans(method))'
+        )
+        .eq('tenant_id', auth.tenantId)
+        .eq('status', 'collected')
+        .eq('is_eligible_for_commission', false)
+        .eq('needs_commission_review', false)
+        .order('collected_at', { ascending: false })
+        .limit(LIMITE_COBROS_NO_ELEGIBLES),
+    ])
 
     // EVIDENCIA DE RECEPCIÓN REAL de los webhooks entrantes. A diferencia de la lectura masiva de
     // arriba (limite 10000), son queries acotadas y ordenadas: el dato que hace falta es UNA fecha
@@ -270,6 +296,13 @@ export async function GET(_request: Request, { params }: { params: Promise<{ ten
       referenciasCobro: cobrosResult.error
         ? null
         : (cobrosResult.data ?? []).map((c) => c.payment_reference).filter(Boolean),
+      // Con el tope alcanzado la lectura es PARCIAL: se dice «no se pudo comprobar» en vez de contar de menos.
+      cobrosNoElegibles:
+        cobrosNoElegiblesResult.error || (cobrosNoElegiblesResult.data ?? []).length >= LIMITE_COBROS_NO_ELEGIBLES
+          ? null
+          : ((cobrosNoElegiblesResult.data ?? []) as unknown as FilaCobroNoElegible[]).map((c) =>
+              aCobroNoElegible(c, exentosComision)
+            ),
       contactosConVenta: ventas === null ? null : [...new Set(ventas.map((v) => v.contactId).filter(Boolean))],
       ventas,
       contactos: contacts.map((c) => c.id),
