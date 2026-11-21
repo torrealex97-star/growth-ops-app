@@ -566,7 +566,7 @@ function VentasMetricasCompleta() {
           )}
 
           {/* Embudo visual */}
-          <section className="overflow-hidden rounded-xl border border-border bg-card/35">
+          <section className="overflow-hidden dashboard-card bg-card/35">
             <div className="flex flex-col gap-4 border-b border-border px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
@@ -717,7 +717,7 @@ function VentasMetricasCompleta() {
             <h2 className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
               Volúmenes — periodo seleccionado
             </h2>
-            <div className="grid grid-cols-1 overflow-hidden rounded-xl border border-border bg-card/30 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 overflow-hidden dashboard-card bg-card/30 sm:grid-cols-2 lg:grid-cols-4">
               {tracking.pipe && (
                 <KPICard
                   title="Pipe Value"
@@ -755,7 +755,7 @@ function VentasMetricasCompleta() {
           {/* Tasas */}
           <div>
             <h2 className="text-xs uppercase tracking-wider text-muted-foreground mb-3">Tasas de conversión</h2>
-            <div className="grid grid-cols-1 overflow-hidden rounded-xl border border-border bg-card/30 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 overflow-hidden dashboard-card bg-card/30 sm:grid-cols-2 lg:grid-cols-4">
               <KPICard
                 title="% de asistencia"
                 value={pct(metrics.liveSalesCalls, metrics.bookedSalesCalls)}
@@ -880,7 +880,7 @@ function VentasMetricasCompleta() {
                 Agendas por región — periodo seleccionado{' '}
                 <span className="normal-case text-muted-foreground/70">(solo visible para ti)</span>
               </h2>
-              <div className="grid grid-cols-1 overflow-hidden rounded-xl border border-border bg-card/30 sm:grid-cols-2 lg:grid-cols-5">
+              <div className="grid grid-cols-1 overflow-hidden dashboard-card bg-card/30 sm:grid-cols-2 lg:grid-cols-5">
                 {regionBreakdown.map((r) => (
                   <KPICard key={r.region} title={r.region} value={String(r.count)} icon={BarChart3} />
                 ))}

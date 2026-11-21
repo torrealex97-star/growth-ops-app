@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireTenant } from '@/lib/auth/requireTenant'
 import { listarMarcados, marcarItem } from '@/lib/launch/checklist'
+import { puedeGestionarLanzamiento } from '@/lib/launch/permisos'
 
 export const runtime = 'nodejs'
 
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
   try {
     return NextResponse.json({
       marcados: await listarMarcados(svc(), auth.tenantId, launch),
-      puedeEditar: ['admin', 'director'].includes(auth.role ?? ''),
+      puedeEditar: puedeGestionarLanzamiento(auth),
     })
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Error' }, { status: 500 })
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   const { tenant } = await params
   const auth = await requireTenant(tenant)
   if ('error' in auth) return auth.error
-  if (!['admin', 'director'].includes(auth.role ?? '')) {
+  if (!puedeGestionarLanzamiento(auth)) {
     return NextResponse.json({ error: 'Solo admin o director pueden marcar el checklist' }, { status: 403 })
   }
   let body: { launchId?: string; key?: string; hecho?: boolean }

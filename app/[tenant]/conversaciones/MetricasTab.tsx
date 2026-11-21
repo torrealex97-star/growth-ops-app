@@ -60,7 +60,7 @@ export default function MetricasTab() {
     : []
 
   return (
-    <div className="max-w-4xl space-y-4">
+    <div className="max-w-4xl space-y-4 dashboard-card">
       <div>
         <h2 className="text-lg font-semibold text-foreground">Métricas de conversaciones</h2>
         <p className="text-sm text-muted-foreground">
@@ -98,7 +98,7 @@ export default function MetricasTab() {
           ) : null}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {tarjetas.map(([titulo, valor, nota]) => (
-              <div key={titulo} className="rounded-lg border border-border bg-card/50 p-4">
+              <div key={titulo} className="dashboard-card p-4">
                 <p className="text-xs text-muted-foreground">{titulo}</p>
                 <p className="mt-1 text-lg font-semibold text-foreground">{valor}</p>
                 {nota ? <p className="text-xs text-muted-foreground">{nota}</p> : null}
@@ -106,7 +106,7 @@ export default function MetricasTab() {
             ))}
           </div>
           {m && m.motivosTraspaso.length > 0 ? (
-            <section className="rounded-lg border border-border p-4" aria-label="Motivos de traspaso">
+            <section className="dashboard-card p-4" aria-label="Motivos de traspaso">
               <h2 className="text-sm font-semibold text-foreground">Por qué pasa a una persona</h2>
               <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
                 {m.motivosTraspaso.map((x) => (

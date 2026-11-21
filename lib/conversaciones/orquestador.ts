@@ -79,11 +79,13 @@ async function traspasar(
   repartir = false
 ) {
   const etiquetas = noContactar && !c.labels.includes('no-contactar') ? [...c.labels, 'no-contactar'] : c.labels
-  await sb
+  const { error: traspasoErr } = await sb
     .from('conversations')
     .update({ status: 'abierta', ai_mode: 'off', labels: etiquetas, updated_at: new Date().toISOString() })
     .eq('tenant_id', tenantId)
     .eq('id', c.id)
+  // El traspaso ES el cambio de estado: si no se escribió, la IA sigue contestando y hay que verlo.
+  if (traspasoErr) console.error('[conversaciones] el traspaso no cambió la conversación:', traspasoErr.message)
   await evento(sb, tenantId, c.id, 'traspaso', { motivo, mensaje_id: mensajeId, no_contactar: noContactar })
   // Quien recibe el traspaso es una persona: si nadie es responsable aún, el reparto se lo da a un setter.
   if (repartir && !c.assignee_id) await asignarRoundRobin(sb, tenantId, c.id)

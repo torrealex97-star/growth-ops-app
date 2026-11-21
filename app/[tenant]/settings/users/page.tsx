@@ -1,6 +1,7 @@
 'use client'
 
 import { Skeleton } from '@/components/ui/skeleton'
+import { tenantUsersQuery } from '@/lib/users'
 
 import { useCallback, useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -18,12 +19,11 @@ import { PageAccessSelector } from '@/components/settings/PageAccessSelector'
 import type { User, Role, ContractTemplate, CommissionRule } from '@/lib/types/database'
 import { formatCurrency } from '@/lib/utils'
 import { generateUniqueTrackingCode } from '@/lib/tracking'
+import { necesitaTrackingCode, presetDeRol } from '@/lib/auth/role-presets'
+import { asegurarFichaColaborador } from '@/lib/collaborators/provision'
 import { buildDefaultTerms, type ContractTerms } from '@/lib/contracts/terms'
 import { ContractTermsEditor, CONTRACT_ROLES } from '@/components/contracts/ContractTermsEditor'
 import { useTenant, useTenantId, useSesion } from '@/lib/tenant-context'
-
-// Roles que necesitan tracking_code para generar enlaces con UTM
-const TRACKING_ROLES: AppRole[] = ['setter', 'closer', 'cold_caller', 'affiliate']
 
 type UserWithRole = User & { roles: Role }
 
@@ -36,6 +36,7 @@ export default function UsersPage() {
   const [roles, setRoles] = useState<Role[]>([])
   const [loading, setLoading] = useState(true)
   const [inviteDialog, setInviteDialog] = useState(false)
+  const [inviteCommissionPercent, setInviteCommissionPercent] = useState('')
   const [editDialog, setEditDialog] = useState(false)
   const [editingUser, setEditingUser] = useState<UserWithRole | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -121,7 +122,7 @@ export default function UsersPage() {
   const fetchData = useCallback(async () => {
     const supabase = createClient()
     const [usersRes, rolesRes, tplRes, rulesRes] = await Promise.all([
-      supabase.from('users').select('*, roles(*)').order('full_name'),
+      tenantUsersQuery(supabase, tenantId, '*, roles(*)').order('full_name'),
       supabase.from('roles').select('*').order('name'),
       supabase
         .from('contract_templates')
@@ -260,6 +261,7 @@ export default function UsersPage() {
     setInviteRole('')
     setInviteFullName('')
     setInvitePageOverrides([])
+    setInviteCommissionPercent('')
     setSendContract(false)
     setContractRoleKey('')
     setContractTerms(null)
@@ -286,6 +288,7 @@ export default function UsersPage() {
         roleId: inviteRole,
         fullName: inviteFullName,
         pageOverrides: invitePageOverrides,
+        defaultCommissionPercent: inviteCommissionPercent.trim() || null,
       }),
     })
     const data = await res.json()
@@ -427,7 +430,7 @@ export default function UsersPage() {
     // Si el rol destino necesita tracking_code y aún no tiene, lo generamos.
     let trackingCode = editTrackingCode.trim() || null
     const newRoleKey = roles.find((r) => r.id === editRole)?.key as AppRole | undefined
-    if (!trackingCode && newRoleKey && TRACKING_ROLES.includes(newRoleKey)) {
+    if (!trackingCode && necesitaTrackingCode(newRoleKey)) {
       trackingCode = await generateUniqueTrackingCode(supabase, editingUser.id)
     }
 
@@ -481,37 +484,20 @@ export default function UsersPage() {
       }
     }
 
-    // ALTA COMO COLABORADOR DESDE EDITAR USUARIO (hallazgo 21-sep): cambiar el
-    // rol a Colaborador (affiliate) debe crear su ficha en el listado de
-    // Colaboradores — con el MISMO tracking_code como código público, para que
-    // sus enlaces ?ref= existentes sigan atribuyendo. Idempotente: si ya tiene
-    // perfil, no se toca (% y estado se gestionan en el panel de Colaboradores).
-    if (newRoleKey === 'affiliate') {
-      const { data: perfilPrevio } = await supabase
-        .from('collaborator_profiles')
-        .select('id')
-        .eq('tenant_id', tenantId)
-        .eq('user_id', editingUser.id)
-        .limit(1)
-      if (!perfilPrevio || perfilPrevio.length === 0) {
-        const codigo = trackingCode ?? editAffiliateCode
-        const codigoFinal = codigo || (await generateUniqueTrackingCode(supabase))
-        const { error: perfilErr } = await supabase.from('collaborator_profiles').insert({
-          tenant_id: tenantId,
-          user_id: editingUser.id,
-          code: codigoFinal.toUpperCase(),
-          name: editingUser.full_name || editingUser.email,
-          status: 'invited',
-          default_commission_percent:
-            editAffiliatePercent && !Number.isNaN(parseFloat(editAffiliatePercent))
-              ? parseFloat(editAffiliatePercent)
-              : null,
+    // ALTA COMO COLABORADOR DESDE EDITAR USUARIO: cambiar el rol a Colaborador (affiliate) crea su ficha
+    // estándar (la que activa su dashboard) con el MISMO tracking_code como código público. Idempotente.
+    if (presetDeRol(newRoleKey)?.fichaColaborador) {
+      const ficha = await asegurarFichaColaborador(supabase, {
+        tenantId,
+        userId: editingUser.id,
+        nombre: editingUser.full_name || editingUser.email,
+        codigo: trackingCode ?? editAffiliateCode,
+        porcentaje: editAffiliatePercent,
+      })
+      if (!ficha.ok) {
+        toast.error('El usuario se actualizó, pero no se pudo crear su ficha de colaborador', {
+          description: ficha.error,
         })
-        if (perfilErr) {
-          toast.error('El usuario se actualizó, pero no se pudo crear su ficha de colaborador', {
-            description: perfilErr.message,
-          })
-        }
       }
     }
 
@@ -794,6 +780,32 @@ export default function UsersPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            {presetDeRol(roles.find((r) => r.id === inviteRole)?.key)?.fichaColaborador && (
+              <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-3">
+                <div>
+                  <p className="text-sm font-medium">Alta estándar de colaboradora</p>
+                  <p className="text-xs text-muted-foreground">
+                    Se crea sola, sin marcar nada: su ficha de colaboradora con código de referido, el dashboard
+                    estándar, visibilidad solo de sus propios datos y comisiones activas. Contrato de equipo opcional
+                    abajo.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>% de comisión (opcional)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.5"
+                    value={inviteCommissionPercent}
+                    onChange={(e) => setInviteCommissionPercent(e.target.value)}
+                    className="bg-muted border-border"
+                    placeholder="Se puede fijar después en Colaboradores"
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>Páginas que puede ver (vacío = según su rol)</Label>

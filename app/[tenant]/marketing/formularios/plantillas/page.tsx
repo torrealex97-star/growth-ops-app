@@ -47,7 +47,7 @@ export default function PlantillasPage() {
               const t = FORM_TEMPLATES.find((x) => x.key === k)
               if (!t) return null
               return (
-                <div key={k} className="flex flex-col rounded-xl border border-border bg-card p-5">
+                <div key={k} className="flex flex-col dashboard-card p-5">
                   <h3 className="font-semibold text-foreground">{t.name}</h3>
                   <p className="mt-2 flex-1 text-sm text-muted-foreground">{t.description}</p>
                   <p className="mt-3 text-xs text-muted-foreground">

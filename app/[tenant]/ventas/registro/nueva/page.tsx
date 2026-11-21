@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { isSetterRoleKey, isCloserRoleKey, isAffiliateRoleKey } from '@/lib/users'
+import { isSetterRoleKey, isCloserRoleKey, isAffiliateRoleKey, tenantUsersQuery } from '@/lib/users'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -132,7 +132,7 @@ export default function NewSalePage() {
       const supabase = createClient()
       const [productsRes, usersRes] = await Promise.all([
         supabase.from('products').select('*').eq('is_active', true).eq('tenant_id', tenantId).order('name'),
-        supabase.from('users').select('*, roles(key)').eq('is_active', true),
+        tenantUsersQuery(supabase, tenantId, '*, roles(key)').eq('is_active', true),
       ])
       // Sin esto, un fallo de RLS dejaba los selectores de Producto/Closer/Setter vacíos en
       // silencio y el formulario quedaba inutilizable sin explicar por qué.
@@ -1018,7 +1018,7 @@ export default function NewSalePage() {
       </div>
 
       {/* Step content */}
-      <div className="bg-card border border-border rounded-lg p-6">
+      <div className="dashboard-card p-6">
         {/* STEP 1 */}
         {step === 1 && (
           <div className="space-y-4">

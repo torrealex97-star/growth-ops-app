@@ -469,7 +469,7 @@ export default function StudentsPage() {
       />
 
       <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-        <div className="bg-card border border-border rounded-lg p-4">
+        <div className="dashboard-card p-4">
           <p className="text-xs text-muted-foreground">Total alumnos</p>
           <p className="text-2xl font-bold text-foreground mt-1">{kpis.total}</p>
         </div>
@@ -477,23 +477,23 @@ export default function StudentsPage() {
           <p className="text-xs text-muted-foreground">Próximos a renovar</p>
           <p className="text-2xl font-bold text-amber-400 mt-1">{renewalsCount}</p>
         </div>
-        <div className="bg-card border border-border rounded-lg p-4">
+        <div className="dashboard-card p-4">
           <p className="text-xs text-muted-foreground">% Onboarded</p>
           <p className="text-2xl font-bold text-brand-400 mt-1">{formatPercent(kpis.onboardedPct.valor, 0)}</p>
           <p className="text-3xs text-muted-foreground mt-1">{detalleMuestra(kpis.onboardedPct)}</p>
         </div>
-        <div className="bg-card border border-border rounded-lg p-4">
+        <div className="dashboard-card p-4">
           <p className="text-xs text-muted-foreground">% Graduados</p>
           <p className="text-2xl font-bold text-emerald-400 mt-1">{formatPercent(kpis.graduadosPct.valor, 0)}</p>
           <p className="text-3xs text-muted-foreground mt-1">{detalleMuestra(kpis.graduadosPct)}</p>
         </div>
-        <div className="bg-card border border-border rounded-lg p-4">
+        <div className="dashboard-card p-4">
           <p className="text-xs text-muted-foreground">NPS medio</p>
           <p className="text-2xl font-bold text-foreground mt-1">
             {kpis.npsAvg !== null ? kpis.npsAvg.toFixed(1) : '—'}
           </p>
         </div>
-        <div className="bg-card border border-border rounded-lg p-4">
+        <div className="dashboard-card p-4">
           <p className="text-xs text-muted-foreground mb-1">Engagement</p>
           <div className="flex items-center gap-2 text-xs">
             <span className="text-red-400">B {kpis.engagementCounts.bajo}</span>
@@ -504,7 +504,7 @@ export default function StudentsPage() {
       </div>
 
       {/* Funnel de onboarding */}
-      <div className="bg-card border border-border rounded-lg p-4">
+      <div className="dashboard-card p-4">
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm font-semibold text-foreground">Funnel de onboarding</p>
           {funnel.sinClick > 0 && (

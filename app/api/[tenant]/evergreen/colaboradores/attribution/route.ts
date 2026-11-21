@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireTenant } from '@/lib/auth/requireTenant'
+import { ESTADOS_COLABORADOR_ASIGNABLES } from '@/lib/collaborators/estados-asignables'
 import { reconcileSaleCommissions } from '@/lib/commissions/generate'
 
 // OVERRIDE ADMINISTRATIVO DE ATRIBUCIÓN DE COLABORADOR (§12-§13 del brief).
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       .maybeSingle()
     if (!contacto) return NextResponse.json({ error: 'Contacto no encontrado' }, { status: 404 })
 
-    // Si se asigna colaborador, tiene que ser un perfil ACTIVO de esta subcuenta.
+    // Si se asigna colaborador, tiene que ser un perfil asignable (no suspendido/inactivo) de esta subcuenta.
     let estadoPerfil: string | null = null
     if (collaboratorId) {
       const { data: perfil } = await sb
@@ -64,8 +65,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       const p = perfil as { id: string; status: string } | null
       estadoPerfil = p?.status ?? null
       if (!p) return NextResponse.json({ error: 'Colaborador no encontrado en esta subcuenta' }, { status: 404 })
-      if (!['active', 'pending_contract'].includes(p.status)) {
-        return NextResponse.json({ error: 'El colaborador no está activo' }, { status: 400 })
+      if (!(ESTADOS_COLABORADOR_ASIGNABLES as readonly string[]).includes(p.status)) {
+        return NextResponse.json({ error: 'El colaborador está suspendido o inactivo' }, { status: 400 })
       }
     }
 

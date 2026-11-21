@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { isSetterRoleKey, isCloserRoleKey, isAffiliateRoleKey } from '@/lib/users'
+import { isSetterRoleKey, isCloserRoleKey, isAffiliateRoleKey, tenantUsersQuery } from '@/lib/users'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -231,7 +231,7 @@ export default function SaleDetailPage() {
         .eq('tenant_id', tenantId)
         .order('created_at', { ascending: false }),
       supabase.from('commission_rules').select('*').eq('is_active', true).eq('tenant_id', tenantId),
-      supabase.from('users').select('id, full_name, roles(key)').eq('is_active', true),
+      tenantUsersQuery(supabase, tenantId, 'id, full_name, roles(key)').eq('is_active', true),
     ])
 
     if (saleRes.error) {
@@ -768,7 +768,7 @@ export default function SaleDetailPage() {
 
         {/* Detalle */}
         <TabsContent value="detail" className="mt-4">
-          <div className="bg-card border border-border rounded-lg p-6">
+          <div className="dashboard-card p-6">
             <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {[
                 { label: 'Contacto', value: sale.contacts?.full_name },
@@ -851,7 +851,7 @@ export default function SaleDetailPage() {
 
           {/* Llamada asociada */}
           {sale.appointment_id && (
-            <div className="bg-card border border-border rounded-lg p-6 mt-4">
+            <div className="dashboard-card p-6 mt-4">
               <div className="flex items-center gap-2 mb-4">
                 <PhoneCall className="w-4 h-4 text-muted-foreground" />
                 <h3 className="text-sm font-semibold text-foreground">Llamada asociada</h3>
@@ -953,7 +953,7 @@ export default function SaleDetailPage() {
               </p>
             </div>
           )}
-          <div className="bg-card border border-border rounded-lg overflow-hidden">
+          <div className="dashboard-card overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow className="border-border">
@@ -1069,7 +1069,7 @@ export default function SaleDetailPage() {
                 <p className="text-xs text-muted-foreground">Cobrado</p>
                 <p className="text-lg font-semibold text-emerald-400">{formatCurrency(loadingPlanCuotas.cobrado)}</p>
               </div>
-              <div className="bg-card border border-border rounded-lg p-3">
+              <div className="dashboard-card p-3">
                 <p className="text-xs text-muted-foreground">
                   Por recolectar
                   {loadingPlanCuotas.proximoVencimiento && (
@@ -1099,7 +1099,7 @@ export default function SaleDetailPage() {
               cobros.
             </p>
           )}
-          <div className="bg-card border border-border rounded-lg overflow-hidden">
+          <div className="dashboard-card overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow className="border-border">
@@ -1251,7 +1251,7 @@ export default function SaleDetailPage() {
               </div>
             )}
 
-            <div className="bg-card border border-border rounded-lg overflow-hidden">
+            <div className="dashboard-card overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow className="border-border">
@@ -1323,7 +1323,7 @@ export default function SaleDetailPage() {
 
         {/* Historial */}
         <TabsContent value="seguimiento" className="mt-4 space-y-4">
-          <div className="bg-card border border-border rounded-lg p-4 space-y-3">
+          <div className="dashboard-card p-4 space-y-3">
             <Label className="text-xs text-muted-foreground">Añadir nota de seguimiento</Label>
             <Textarea
               value={newNote}
@@ -1342,12 +1342,12 @@ export default function SaleDetailPage() {
             {loadingFollowUps ? (
               <p className="text-sm text-muted-foreground">Cargando...</p>
             ) : followUps.length === 0 ? (
-              <div className="bg-card border border-border rounded-lg p-6 text-center text-sm text-muted-foreground">
+              <div className="dashboard-card p-6 text-center text-sm text-muted-foreground">
                 Sin notas de seguimiento todavía.
               </div>
             ) : (
               followUps.map((f) => (
-                <div key={f.id} className="bg-card border border-border rounded-lg p-4">
+                <div key={f.id} className="dashboard-card p-4">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-medium text-foreground">{f.author}</span>
                     <span className="text-xs text-muted-foreground">{formatDate(f.created_at)}</span>
@@ -1360,7 +1360,7 @@ export default function SaleDetailPage() {
         </TabsContent>
 
         <TabsContent value="history" className="mt-4">
-          <div className="bg-card border border-border rounded-lg overflow-hidden">
+          <div className="dashboard-card overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow className="border-border">

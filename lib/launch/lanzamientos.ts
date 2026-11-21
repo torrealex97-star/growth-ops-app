@@ -14,14 +14,20 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 // del origen filtraba entre subcuentas), y los módulos de WhatsApp y cold callers del origen aún no
 // están portados, así que la apertura solo mueve `contact_launches`.
 
+export type EstadoLanzamiento = 'programado' | 'abierto' | 'cerrado'
+
 export type Lanzamiento = {
   id: string
   slug: string
   label: string
   /** Día del evento, YYYY-MM-DD. */
   fecha: string
+  /** programado (aún no recibe leads) → abierto (recibe los leads del webhook) → cerrado (histórico). */
+  estado: EstadoLanzamiento
+  /** true solo mientras está abierto Y sin cerrar: es el que puede ser el activo. */
   abierto: boolean
   abiertoAt: string | null
+  cerradoAt: string | null
 }
 
 type Fila = {
@@ -30,33 +36,50 @@ type Fila = {
   label: string
   fecha: string
   opened_at: string | null
+  closed_at?: string | null
 }
 
-const PROYECCION = 'id, slug, label, fecha, opened_at'
+const PROYECCION = 'id, slug, label, fecha, opened_at, closed_at'
+// `closed_at` llega con 20261110100000_lanzamientos_cierre.sql. Mientras esa migración no esté
+// aplicada en una BD, se lee sin la columna (nadie está cerrado) en vez de tumbar el panel entero.
+const PROYECCION_SIN_CIERRE = 'id, slug, label, fecha, opened_at'
+const COLUMNA_INEXISTENTE = '42703'
+const FALTA_MIGRACION_CIERRE =
+  'Cerrar lanzamientos necesita la migración 20261110100000_lanzamientos_cierre.sql, que aún no está aplicada en esta base de datos'
+
+type Respuesta = { data: unknown; error: { code?: string; message: string } | null }
+
+/** Ejecuta una lectura de `launches` y, si la BD aún no tiene `closed_at`, la repite sin esa columna. */
+async function leerFilas(consulta: (proyeccion: string) => PromiseLike<Respuesta>): Promise<Respuesta> {
+  const r = await consulta(PROYECCION)
+  if (r.error?.code === COLUMNA_INEXISTENTE) return consulta(PROYECCION_SIN_CIERRE)
+  return r
+}
 
 function aLanzamiento(f: Fila): Lanzamiento {
+  const estado: EstadoLanzamiento = f.opened_at == null ? 'programado' : f.closed_at != null ? 'cerrado' : 'abierto'
   return {
     id: f.id,
     slug: f.slug,
     label: f.label,
     fecha: f.fecha,
-    abierto: f.opened_at != null,
+    estado,
+    abierto: estado === 'abierto',
     abiertoAt: f.opened_at ? new Date(f.opened_at).toISOString() : null,
+    cerradoAt: f.closed_at ? new Date(f.closed_at).toISOString() : null,
   }
 }
 
-/** Todos los lanzamientos de la subcuenta (abiertos y programados), del más reciente al más antiguo. */
+/** Todos los lanzamientos de la subcuenta (programados, abiertos y cerrados), del más reciente al más antiguo. */
 export async function calendario(sb: SupabaseClient, tenantId: string): Promise<Lanzamiento[]> {
-  const { data, error } = await sb
-    .from('launches')
-    .select(PROYECCION)
-    .eq('tenant_id', tenantId)
-    .order('fecha', { ascending: false })
+  const { data, error } = await leerFilas((cols) =>
+    sb.from('launches').select(cols).eq('tenant_id', tenantId).order('fecha', { ascending: false })
+  )
   if (error) throw new Error(`No se pudo leer el calendario de lanzamientos: ${error.message}`)
   return ((data ?? []) as Fila[]).map(aLanzamiento)
 }
 
-/** Lanzamientos abiertos de la subcuenta, el activo primero. */
+/** Lanzamientos abiertos (sin cerrar) de la subcuenta, el activo primero. */
 export async function lanzamientosAbiertos(sb: SupabaseClient, tenantId: string): Promise<Lanzamiento[]> {
   return (await calendario(sb, tenantId)).filter((l) => l.abierto)
 }
@@ -70,12 +93,23 @@ export async function lanzamientoActivo(sb: SupabaseClient, tenantId: string): P
   return abiertos[0] ?? null
 }
 
-/** El siguiente programado después del activo, o null si no queda ninguno en el calendario. */
-export async function siguienteLanzamiento(sb: SupabaseClient, tenantId: string): Promise<Lanzamiento | null> {
-  const todos = await calendario(sb, tenantId)
-  const activo = todos.find((l) => l.abierto)
-  const programados = todos.filter((l) => !l.abierto && (!activo || l.fecha > activo.fecha))
+/** El último que llegó a abrirse (siga abierto o ya cerrado): la referencia de "qué viene después". */
+function ultimoAbierto(todos: Lanzamiento[]): Lanzamiento | null {
+  return todos.find((l) => l.estado !== 'programado') ?? null
+}
+
+/**
+ * El siguiente programado: el más próximo posterior al último que se abrió, o —si la subcuenta aún
+ * no ha abierto ninguno— el primero del calendario. null si no queda ninguno.
+ */
+export function siguienteDe(todos: Lanzamiento[]): Lanzamiento | null {
+  const ref = ultimoAbierto(todos)
+  const programados = todos.filter((l) => l.estado === 'programado' && (!ref || l.fecha > ref.fecha))
   return programados[programados.length - 1] ?? null
+}
+
+export async function siguienteLanzamiento(sb: SupabaseClient, tenantId: string): Promise<Lanzamiento | null> {
+  return siguienteDe(await calendario(sb, tenantId))
 }
 
 /**
@@ -105,7 +139,8 @@ export function launchLabel(slug: string | null | undefined): string {
 }
 
 export type ResultadoApertura = {
-  anterior: Lanzamiento
+  /** El último que estuvo abierto, o null si este es el primer lanzamiento de la subcuenta. */
+  anterior: Lanzamiento | null
   nuevo: Lanzamiento
   /** Apuntados al anterior después de su evento, ahora en el nuevo. */
   movidos: number
@@ -113,6 +148,10 @@ export type ResultadoApertura = {
 
 /**
  * Abre el siguiente lanzamiento del calendario de la subcuenta.
+ *
+ * Vale también para el PRIMERO: si la subcuenta nunca ha abierto ninguno, abre el programado más
+ * próximo y no hay apuntados que mover. (Antes exigía que ya hubiera uno abierto, así que una
+ * subcuenta nueva no podía arrancar nunca y el webhook descartaba todos los leads.)
  *
  * La APERTURA ES UN CLAIM ATÓMICO: un único `UPDATE … WHERE opened_at IS NULL` con RETURNING. Si dos
  * personas pulsan a la vez, solo una fila vuelve; la segunda ve la respuesta vacía y se le dice que
@@ -125,42 +164,36 @@ export async function abrirSiguienteLanzamiento(
   actorId: string | null,
   esperado?: string
 ): Promise<ResultadoApertura> {
-  const abiertos = await lanzamientosAbiertos(sb, tenantId)
-  const anterior = abiertos[0]
-  if (!anterior) throw new Error('No hay ningún lanzamiento abierto en esta subcuenta')
+  const todos = await calendario(sb, tenantId)
+  const anterior = ultimoAbierto(todos)
 
   // El candidato se lee solo para validar `esperado` y para distinguir "no quedan programados" de
   // "alguien lo acaba de abrir". El claim de verdad es el UPDATE de abajo.
-  const programados = await sb
-    .from('launches')
-    .select(PROYECCION)
-    .eq('tenant_id', tenantId)
-    .is('opened_at', null)
-    .gt('fecha', anterior.fecha)
-    .order('fecha', { ascending: true })
-    .limit(1)
-  if (programados.error) throw new Error(`No se pudo leer el calendario: ${programados.error.message}`)
-  const candidato = (programados.data as Fila[] | null)?.[0]
-  if (!candidato) throw new Error('No quedan lanzamientos programados en el calendario')
+  const candidato = siguienteDe(todos)
+  if (!candidato) {
+    throw new Error('No quedan lanzamientos programados en el calendario. Programa una fecha primero.')
+  }
   if (esperado && esperado !== candidato.id) {
-    throw new Error(`El siguiente lanzamiento ya no es el que veías (${esperado}). Recarga la página.`)
+    throw new Error('El siguiente lanzamiento ya no es el que veías. Recarga la página.')
   }
 
   const ahora = new Date().toISOString()
-  const claim = await sb
-    .from('launches')
-    .update({ opened_at: ahora, opened_by: actorId, movidos: 0 })
-    .eq('tenant_id', tenantId)
-    .eq('id', candidato.id)
-    .is('opened_at', null)
-    .select(PROYECCION)
+  const claim = await leerFilas((cols) =>
+    sb
+      .from('launches')
+      .update({ opened_at: ahora, opened_by: actorId, movidos: 0 })
+      .eq('tenant_id', tenantId)
+      .eq('id', candidato.id)
+      .is('opened_at', null)
+      .select(cols)
+  )
   if (claim.error) throw new Error(`No se pudo abrir el lanzamiento: ${claim.error.message}`)
   const nuevo = (claim.data as Fila[] | null)?.[0]
   if (!nuevo) {
-    throw new Error(`El siguiente lanzamiento ya no es el que veías (${candidato.slug}). Recarga la página.`)
+    throw new Error(`Alguien acaba de abrir ${candidato.label}. Recarga la página.`)
   }
 
-  const movidos = await moverApuntados(sb, tenantId, anterior, nuevo.id)
+  const movidos = anterior ? await moverApuntados(sb, tenantId, anterior, nuevo.id) : 0
   if (movidos !== 0) {
     // El recuento es informativo; si falla, la apertura ya es válida y no se revierte.
     const { error } = await sb.from('launches').update({ movidos }).eq('tenant_id', tenantId).eq('id', nuevo.id)
@@ -220,28 +253,50 @@ async function moverApuntados(
   return porMover.length
 }
 
-/**
- * Añade una fecha al calendario de la subcuenta (YYYY-MM-DD). El slug y la etiqueta salen de la
- * fecha; la fecha debe ser posterior a la del lanzamiento activo.
- */
-export async function programarLanzamiento(sb: SupabaseClient, tenantId: string, fecha: string): Promise<Lanzamiento> {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha) || Number.isNaN(Date.parse(`${fecha}T12:00:00Z`))) {
-    throw new Error('Fecha no válida')
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', 'oct', 'nov', 'dic']
+const LARGO_NOMBRE = 80
+
+function fechaValida(fecha: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(fecha) && !Number.isNaN(Date.parse(`${fecha}T12:00:00Z`))
+}
+
+/** Slug y nombre por defecto a partir del día del evento. */
+function derivadosDeFecha(fecha: string): { slug: string; label: string } {
+  const d = new Date(`${fecha}T12:00:00Z`)
+  const mes = MESES[d.getUTCMonth()]
+  const dia = d.getUTCDate()
+  return {
+    slug: `lanzamiento-${dia}-${mes}-${d.getUTCFullYear()}`,
+    label: `Lanzamiento ${dia} ${mes[0].toUpperCase()}${mes.slice(1)} ${d.getUTCFullYear()}`,
   }
+}
+
+function limpiarNombre(nombre: string | null | undefined): string | null {
+  const limpio = (nombre ?? '').replace(/\s+/g, ' ').trim().slice(0, LARGO_NOMBRE)
+  return limpio || null
+}
+
+/**
+ * Añade una fecha al calendario de la subcuenta (YYYY-MM-DD). El slug sale de la fecha; el nombre es
+ * el que se indique o, si se deja vacío, uno derivado de la fecha. Debe ser posterior al activo.
+ */
+export async function programarLanzamiento(
+  sb: SupabaseClient,
+  tenantId: string,
+  fecha: string,
+  nombre?: string | null
+): Promise<Lanzamiento> {
+  if (!fechaValida(fecha)) throw new Error('Fecha no válida')
   const activo = await lanzamientoActivo(sb, tenantId)
   if (activo && fecha <= activo.fecha) throw new Error('La fecha tiene que ser posterior al lanzamiento activo')
 
-  const d = new Date(`${fecha}T12:00:00Z`)
-  const meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', 'oct', 'nov', 'dic']
-  const mes = meses[d.getUTCMonth()]
-  const dia = d.getUTCDate()
-  const slug = `lanzamiento-${dia}-${mes}-${d.getUTCFullYear()}`
-  const label = `Lanzamiento ${dia} ${mes[0].toUpperCase()}${mes.slice(1)} ${d.getUTCFullYear()}`
-
-  const { data, error } = await sb
-    .from('launches')
-    .insert({ tenant_id: tenantId, slug, label, fecha })
-    .select(PROYECCION)
+  const { slug, label } = derivadosDeFecha(fecha)
+  const { data, error } = await leerFilas((cols) =>
+    sb
+      .from('launches')
+      .insert({ tenant_id: tenantId, slug, label: limpiarNombre(nombre) ?? label, fecha })
+      .select(cols)
+  )
   if (error) {
     // La unique (tenant_id, slug) y la (tenant_id, fecha) dicen lo mismo en la práctica: ya está.
     if (error.code === '23505') throw new Error('Esa fecha ya está en el calendario')
@@ -250,4 +305,107 @@ export async function programarLanzamiento(sb: SupabaseClient, tenantId: string,
   const fila = (data as Fila[] | null)?.[0]
   if (!fila) throw new Error('Esa fecha ya está en el calendario')
   return aLanzamiento(fila)
+}
+
+async function leerUno(sb: SupabaseClient, tenantId: string, id: string): Promise<Lanzamiento | null> {
+  const { data, error } = await leerFilas((cols) =>
+    sb.from('launches').select(cols).eq('tenant_id', tenantId).eq('id', id).limit(1)
+  )
+  if (error) throw new Error(`No se pudo leer el lanzamiento: ${error.message}`)
+  const fila = (data as Fila[] | null)?.[0]
+  return fila ? aLanzamiento(fila) : null
+}
+
+/** Un lanzamiento de la subcuenta por id, o null si no existe en ella. */
+export async function lanzamientoPorId(sb: SupabaseClient, tenantId: string, id: string): Promise<Lanzamiento | null> {
+  return leerUno(sb, tenantId, id)
+}
+
+/**
+ * Cambia el nombre (siempre) o la fecha (solo mientras está programado: una vez abierto, la fecha
+ * decide a quién se mueve al abrir el siguiente y no se toca).
+ */
+export async function editarLanzamiento(
+  sb: SupabaseClient,
+  tenantId: string,
+  id: string,
+  cambios: { label?: string | null; fecha?: string | null }
+): Promise<Lanzamiento> {
+  const actual = await leerUno(sb, tenantId, id)
+  if (!actual) throw new Error('Lanzamiento no encontrado')
+
+  const set: Record<string, string> = {}
+  if (cambios.label !== undefined) {
+    const nombre = limpiarNombre(cambios.label)
+    if (!nombre) throw new Error('El nombre no puede quedar vacío')
+    set.label = nombre
+  }
+  if (cambios.fecha != null && cambios.fecha !== actual.fecha) {
+    if (actual.estado !== 'programado') {
+      throw new Error('La fecha no se puede cambiar: el lanzamiento ya está abierto')
+    }
+    if (!fechaValida(cambios.fecha)) throw new Error('Fecha no válida')
+    const ref = ultimoAbierto(await calendario(sb, tenantId))
+    if (ref && cambios.fecha <= ref.fecha) {
+      throw new Error(`La fecha tiene que ser posterior a ${ref.label}`)
+    }
+    set.fecha = cambios.fecha
+    set.slug = derivadosDeFecha(cambios.fecha).slug
+  }
+  if (Object.keys(set).length === 0) return actual
+
+  let q = sb.from('launches').update(set).eq('tenant_id', tenantId).eq('id', id)
+  // La fecha solo se cambia si SIGUE programado: si alguien lo abrió entre la lectura y este UPDATE,
+  // no vuelve fila y se avisa, en vez de mover la fecha de un lanzamiento ya abierto.
+  if (set.fecha) q = q.is('opened_at', null)
+  const { data, error } = await leerFilas((cols) => q.select(cols))
+  if (error) {
+    if (error.code === '23505') throw new Error('Esa fecha ya está en el calendario')
+    throw new Error(`No se pudo guardar el lanzamiento: ${error.message}`)
+  }
+  const fila = (data as Fila[] | null)?.[0]
+  if (!fila) throw new Error('El lanzamiento ha cambiado mientras lo editabas. Recarga la página.')
+  return aLanzamiento(fila)
+}
+
+/**
+ * Cierra un lanzamiento abierto: deja de ser el activo y pasa a histórico. Sus leads, contenido e
+ * informe se conservan. Mientras no se abra otro, el webhook responde "no hay lanzamiento abierto".
+ */
+export async function cerrarLanzamiento(
+  sb: SupabaseClient,
+  tenantId: string,
+  id: string,
+  actorId: string | null = null
+): Promise<Lanzamiento> {
+  const { data, error } = await sb
+    .from('launches')
+    .update({ closed_at: new Date().toISOString(), closed_by: actorId })
+    .eq('tenant_id', tenantId)
+    .eq('id', id)
+    .not('opened_at', 'is', null)
+    .is('closed_at', null)
+    .select(PROYECCION)
+  if (error) {
+    if (error.code === COLUMNA_INEXISTENTE || error.code === 'PGRST204') throw new Error(FALTA_MIGRACION_CIERRE)
+    throw new Error(`No se pudo cerrar el lanzamiento: ${error.message}`)
+  }
+  const fila = (data as Fila[] | null)?.[0]
+  if (!fila) throw new Error('Ese lanzamiento no está abierto (o ya estaba cerrado)')
+  return aLanzamiento(fila)
+}
+
+/** Quita del calendario una fecha que aún no se ha abierto (y el contenido preparado para ella). */
+export async function borrarProgramado(sb: SupabaseClient, tenantId: string, id: string): Promise<void> {
+  const { data, error } = await sb
+    .from('launches')
+    .delete()
+    .eq('tenant_id', tenantId)
+    .eq('id', id)
+    .is('opened_at', null)
+    .select('id')
+  if (error) throw new Error(`No se pudo borrar el lanzamiento: ${error.message}`)
+  if (!(data as { id: string }[] | null)?.length) {
+    throw new Error('Solo se puede borrar un lanzamiento programado que aún no se ha abierto')
+  }
 }

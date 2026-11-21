@@ -186,7 +186,7 @@ export default function SettingsPage() {
           <button
             key={card.href}
             onClick={() => router.push(`/${tenant}${card.href}`)}
-            className="flex items-center gap-4 p-5 bg-card border border-border rounded-lg hover:border-border transition-colors text-left group"
+            className="flex items-center gap-4 p-5 dashboard-card hover:border-border transition-colors text-left group"
           >
             <div className={`w-10 h-10 rounded-lg ${card.bg} flex items-center justify-center shrink-0`}>
               <card.icon className={`w-5 h-5 ${card.color}`} />

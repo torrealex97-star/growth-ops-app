@@ -115,13 +115,16 @@ export async function syncReservationRefunds(
 
     if (esParcial) {
       // La UI de reservas no representa devoluciones parciales: se señalan, no se inventa estado.
-      await sb
+      const { error: flagErr } = await sb
         .from('collections')
         .update({ needs_commission_review: true, is_eligible_for_commission: false, eligible_at: null })
         .eq('tenant_id', tenantId)
         .eq('id', cobro!.id)
         .eq('status', 'collected')
         .eq('needs_commission_review', false)
+      // Marcar para revisión ES el resultado de esta pasada: si no se escribió, el cobro
+      // seguiría elegible para comisión y la pasada siguiente lo reintenta (idempotente).
+      if (flagErr) throw new Error(`No se pudo marcar la reserva para revisión: ${flagErr.message}`)
       result.flagged++
       continue
     }
@@ -135,13 +138,16 @@ export async function syncReservationRefunds(
       .limit(1)
     if (comErr) throw new Error(`No se pudo comprobar comisiones de la reserva: ${comErr.message}`)
     if ((comisiones ?? 0) > 0) {
-      await sb
+      const { error: flagErr } = await sb
         .from('collections')
         .update({ needs_commission_review: true, is_eligible_for_commission: false, eligible_at: null })
         .eq('tenant_id', tenantId)
         .eq('id', cobro!.id)
         .eq('status', 'collected')
         .eq('needs_commission_review', false)
+      // Marcar para revisión ES el resultado de esta pasada: si no se escribió, el cobro
+      // seguiría elegible para comisión y la pasada siguiente lo reintenta (idempotente).
+      if (flagErr) throw new Error(`No se pudo marcar la reserva para revisión: ${flagErr.message}`)
       result.flagged++
       continue
     }
@@ -170,7 +176,7 @@ export async function syncReservationRefunds(
     if (insErr || !refund) throw new Error(`No se pudo registrar la devolución de la reserva: ${insErr?.message}`)
 
     // Audit trail: quién lo hizo — nadie; qué pasó — la verdad de Stripe.
-    await sb.from('audit_logs').insert({
+    const { error: auditErr } = await sb.from('audit_logs').insert({
       tenant_id: tenantId,
       actor_user_id: null,
       entity_type: 'sale',
@@ -183,6 +189,8 @@ export async function syncReservationRefunds(
         gross_refund: devuelto,
       },
     })
+    // La devolución ya está registrada: perder la traza no puede reabrir el caso, pero se ve a log.
+    if (auditErr) console.warn('[reservation-refunds] no se pudo escribir la auditoría:', auditErr.message)
 
     // Marca la venta SIEMPRE tras el refund (idempotente al reintentar: la cola ya no la incluye).
     const { error: updErr } = await sb

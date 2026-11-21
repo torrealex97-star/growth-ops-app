@@ -4,6 +4,7 @@ import { requireTenant } from '@/lib/auth/requireTenant'
 import { getTenantConfigWithFallback } from '@/lib/config'
 import { esc, informeAHtml, type InformeExportable } from '@/lib/launch/informe-html'
 import { guardarInforme, leerGuardado, listarGuardados, type Momento } from '@/lib/launch/informe-guardado'
+import { puedeGestionarLanzamiento } from '@/lib/launch/permisos'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -40,7 +41,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     if (!UUID.test(launch)) return NextResponse.json({ error: 'Falta el lanzamiento' }, { status: 400 })
     return NextResponse.json({
       guardados: await listarGuardados(svc(), auth.tenantId, launch),
-      puedeGuardar: ['admin', 'director'].includes(auth.role ?? ''),
+      puedeGuardar: puedeGestionarLanzamiento(auth),
     })
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Error' }, { status: 500 })
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   const { tenant } = await params
   const auth = await requireTenant(tenant)
   if ('error' in auth) return auth.error
-  if (!['admin', 'director'].includes(auth.role ?? '')) {
+  if (!puedeGestionarLanzamiento(auth)) {
     return NextResponse.json({ error: 'Solo admin o director pueden guardar informes' }, { status: 403 })
   }
   let body: { launchId?: string; momento?: Momento }

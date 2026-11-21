@@ -173,7 +173,7 @@ export async function sincronizarConexionPersonal(
     await marcar(sb, conexion, 'error', e instanceof Error ? e.message.slice(0, 300) : 'Error al leer Fathom')
     return resumen
   }
-  await sb
+  const { error: finErr } = await sb
     .from('user_fathom_connections')
     .update({
       status: 'conectada',
@@ -185,12 +185,16 @@ export async function sincronizarConexionPersonal(
       updated_at: new Date().toISOString(),
     })
     .eq('id', conexion.id)
+  // El resumen ya está calculado; un fallo del sello de la conexión se ve a log.
+  if (finErr) console.warn('[fathom-personal] no se pudo guardar el estado de la conexión:', finErr.message)
   return resumen
 }
 
 async function marcar(sb: SupabaseClient, c: ConexionFathom, status: 'conectada' | 'error', error: string) {
-  await sb
+  const { error: markErr } = await sb
     .from('user_fathom_connections')
     .update({ status, last_error: error, last_sync_at: new Date().toISOString(), updated_at: new Date().toISOString() })
     .eq('id', c.id)
+  // Es el único rastro de por qué la conexión quedó en error: si no se escribe, se dice en log.
+  if (markErr) console.warn('[fathom-personal] no se pudo marcar la conexión:', markErr.message)
 }

@@ -79,7 +79,7 @@ test.describe('Reservas — alta desde cero (sin contacto preseleccionado)', () 
     // varias abiertas: verificamos la de ESTE flujo por su titular único (E2E Contacto Dos
     // solo reserva desde este spec) sin depender de índices.
     await expect(page.getByText('Reservas abiertas')).toBeVisible()
-    const tarjeta = page.locator('div.bg-card', { hasText: 'E2E Contacto Dos pagó 300,00 € de reserva' }).first()
+    const tarjeta = page.locator('div.dashboard-card', { hasText: 'E2E Contacto Dos pagó 300,00 € de reserva' }).first()
     await expect(tarjeta).toBeVisible({ timeout: 15_000 })
     await expect(tarjeta.getByText('Producto: E2E Producto')).toBeVisible()
     await expect(tarjeta.getByRole('button', { name: 'Completar pago' })).toBeVisible()

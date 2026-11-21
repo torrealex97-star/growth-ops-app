@@ -470,7 +470,7 @@ export default function ReservasPage() {
       </div>
 
       {loadError && (
-        <div role="alert" className="bg-card border border-border rounded-lg p-4">
+        <div role="alert" className="dashboard-card p-4">
           <p>{loadError}</p>
           <Button variant="outline" onClick={() => setReload((n) => n + 1)}>
             Reintentar
@@ -480,15 +480,15 @@ export default function ReservasPage() {
       {/* KPIs */}
       {!loading && !loadError && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-card border border-border rounded-lg p-4">
+          <div className="dashboard-card p-4">
             <p className="text-xs text-muted-foreground mb-1">Reservas abiertas</p>
             <p className="text-2xl font-bold text-foreground">{kpis.count}</p>
           </div>
-          <div className="bg-card border border-border rounded-lg p-4">
+          <div className="dashboard-card p-4">
             <p className="text-xs text-muted-foreground mb-1">Total reservado</p>
             <p className="text-2xl font-bold text-emerald-400">{formatCurrency(kpis.totalReservado)}</p>
           </div>
-          <div className="bg-card border border-border rounded-lg p-4">
+          <div className="dashboard-card p-4">
             <p className="text-xs text-muted-foreground mb-1">Total pendiente</p>
             <p className="text-2xl font-bold text-amber-400">{formatCurrency(kpis.totalPendiente)}</p>
           </div>
@@ -505,7 +505,7 @@ export default function ReservasPage() {
 
       {/* Empty state */}
       {!loading && !loadError && openReservations.length === 0 && (
-        <div className="bg-card border border-border rounded-lg p-10 text-center">
+        <div className="dashboard-card p-10 text-center">
           <CreditCard className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
           <p className="text-muted-foreground">No hay reservas abiertas en el periodo seleccionado</p>
         </div>
@@ -521,10 +521,7 @@ export default function ReservasPage() {
             const nombreProducto = row.products?.name || 'Producto desconocido'
 
             return (
-              <div
-                key={row.id}
-                className="bg-card border border-border rounded-lg p-4 flex flex-wrap items-center justify-between gap-4"
-              >
+              <div key={row.id} className="dashboard-card p-4 flex flex-wrap items-center justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <p className="text-foreground font-medium truncate">
                     {nombrePersona} pagó {formatCurrency(row.gross_amount)} de reserva

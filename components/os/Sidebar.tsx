@@ -123,10 +123,10 @@ export function Sidebar({ user, isOpen, onClose, isSuperAdmin = false }: Sidebar
 
   const sidebarContent = (mobile: boolean) => (
     <>
-      <div className="flex items-center justify-between px-6 py-6 border-b border-zinc-800">
+      <div className="flex items-center justify-between px-6 py-6 border-b border-border">
         <div className="flex min-w-0 items-center gap-2.5">
           <TenantLogo branding={branding} />
-          <span className="truncate font-sans text-lg font-semibold tracking-tight text-white">{branding.name}</span>
+          <span className="truncate text-lg font-semibold tracking-tight text-foreground">{branding.name}</span>
         </div>
       </div>
 
@@ -142,7 +142,7 @@ export function Sidebar({ user, isOpen, onClose, isSuperAdmin = false }: Sidebar
                   aria-expanded={!isCollapsed}
                   aria-controls={sectionId}
                   onClick={() => toggleSection(section.dept as string)}
-                  className="w-full flex items-center justify-between px-3 pt-4 pb-1 text-3xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+                  className="w-full flex items-center justify-between px-3 pt-4 pb-1 text-2xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <span>{DEPARTMENT_LABELS[section.dept]}</span>
                   <ChevronDown
@@ -163,23 +163,23 @@ export function Sidebar({ user, isOpen, onClose, isSuperAdmin = false }: Sidebar
                           onClick={mobile ? onClose : undefined}
                           aria-current={active ? 'page' : undefined}
                           className={cn(
-                            'relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group',
+                            'relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors group',
                             active
-                              ? 'bg-zinc-900 text-white border border-zinc-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]'
-                              : 'text-zinc-400 hover:text-white hover:bg-zinc-900 border border-transparent'
+                              ? 'bg-brand-500/10 text-foreground border border-brand-500/25'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-muted/60 border border-transparent'
                           )}
                         >
                           {active && (
                             <span
                               aria-hidden
-                              className="absolute right-0 top-1/2 -translate-y-1/2 h-5 w-0.5 rounded-full bg-white"
+                              className="absolute right-0 top-1/2 -translate-y-1/2 h-5 w-0.5 rounded-full bg-brand-500"
                             />
                           )}
                           <item.icon
                             aria-hidden
                             className={cn(
                               'w-4 h-4 shrink-0 transition-colors',
-                              active ? 'text-white' : 'text-zinc-500 group-hover:text-white'
+                              active ? 'text-brand-400' : 'text-muted-foreground group-hover:text-foreground'
                             )}
                           />
                           {item.label}
@@ -225,7 +225,7 @@ export function Sidebar({ user, isOpen, onClose, isSuperAdmin = false }: Sidebar
 
   return (
     <>
-      <aside className="hidden h-full w-64 shrink-0 flex-col border-r border-zinc-800 bg-zinc-950 lg:flex">
+      <aside className="hidden h-full w-64 shrink-0 flex-col border-r border-border bg-background lg:flex">
         {sidebarContent(false)}
       </aside>
 
@@ -233,7 +233,7 @@ export function Sidebar({ user, isOpen, onClose, isSuperAdmin = false }: Sidebar
         <SheetContent
           id="mobile-navigation"
           side="left"
-          className="flex w-64 max-w-64 flex-col gap-0 border-zinc-800 bg-zinc-950 p-0 text-foreground lg:hidden"
+          className="flex w-64 max-w-64 flex-col gap-0 border-border bg-background p-0 text-foreground lg:hidden"
         >
           <SheetHeader className="sr-only">
             <SheetTitle>Navegación</SheetTitle>

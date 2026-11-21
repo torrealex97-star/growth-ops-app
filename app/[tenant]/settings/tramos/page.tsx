@@ -147,7 +147,7 @@ export default function TramosSettingsPage() {
       )}
 
       {/* Configuración global */}
-      <div className="bg-card border border-border rounded-lg p-5 space-y-4">
+      <div className="dashboard-card p-5 space-y-4">
         <h2 className="text-sm font-semibold text-foreground">Configuración</h2>
         <div className="grid sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
@@ -190,7 +190,7 @@ export default function TramosSettingsPage() {
       </div>
 
       {/* Lista de tramos */}
-      <div className="bg-card border border-border rounded-lg p-5 space-y-4">
+      <div className="dashboard-card p-5 space-y-4">
         <h2 className="text-sm font-semibold text-foreground">Niveles</h2>
         {loading ? (
           <Skeleton className="h-20 bg-muted/50" />

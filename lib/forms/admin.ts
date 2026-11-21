@@ -8,6 +8,10 @@ import { serviceClient } from './server'
 const READ_ROLES = ['admin', 'director', 'manager', 'marketing', 'csm']
 const WRITE_ROLES = ['admin', 'director', 'marketing']
 
+/** Quién puede tocar una RESPUESTA (revisarla o vincularla con una ficha). Una sola lista: la leen la
+ * ruta de feedback (para pintar «Asignar»), la búsqueda de fichas y el PATCH de la respuesta. */
+export const ROLES_ASIGNAR_RESPUESTA = ['admin', 'director', 'manager', 'marketing'] as const
+
 export async function authorizeForms(tenant: string, write: boolean) {
   const auth = await requireTenant(tenant)
   if ('error' in auth) return { error: auth.error }

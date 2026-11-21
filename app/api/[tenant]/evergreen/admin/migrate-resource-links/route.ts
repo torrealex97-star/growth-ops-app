@@ -50,6 +50,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     await sql.unsafe(`
       CREATE TABLE IF NOT EXISTS public.resource_link_divisions (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
         name TEXT NOT NULL,
         sort_order INT NOT NULL DEFAULT 0,
         created_by UUID REFERENCES public.users(id),
@@ -58,6 +59,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       );
       CREATE TABLE IF NOT EXISTS public.resource_links (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
         category TEXT NOT NULL DEFAULT 'General',
         name TEXT NOT NULL,
         url TEXT NOT NULL,
@@ -69,6 +71,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+      ALTER TABLE public.resource_link_divisions
+        ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES public.tenants(id) ON DELETE CASCADE;
+      ALTER TABLE public.resource_links
+        ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES public.tenants(id) ON DELETE CASCADE;
+      CREATE INDEX IF NOT EXISTS resource_link_divisions_tenant_idx ON public.resource_link_divisions(tenant_id);
+      CREATE INDEX IF NOT EXISTS resource_links_tenant_idx ON public.resource_links(tenant_id);
       ALTER TABLE public.resource_links
         ADD COLUMN IF NOT EXISTS division_id UUID REFERENCES public.resource_link_divisions(id) ON DELETE SET NULL;
       CREATE INDEX IF NOT EXISTS resource_links_category_idx ON public.resource_links(category);
@@ -89,20 +97,35 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
 
     try {
       await sql.unsafe(`
+        -- MISMAS políticas que supabase/migrations/20261118100000_aislamiento_tenant_cierre.sql: confinadas a la subcuenta.
+        -- Antes eran globales (cualquier admin/director de cualquier cliente leía y escribía los enlaces de todos).
         ALTER TABLE public.resource_links ENABLE ROW LEVEL SECURITY;
         DROP POLICY IF EXISTS rl_select ON public.resource_links;
-        CREATE POLICY rl_select ON public.resource_links FOR SELECT
-          USING (is_admin_or_director() OR cardinality(applies_to) = 0 OR get_my_role() = ANY(applies_to));
+        CREATE POLICY rl_select ON public.resource_links FOR SELECT USING (
+          (tenant_id IN (SELECT public.auth_tenant_ids()) OR (SELECT public.is_super_admin()))
+          AND (is_admin_or_director() OR cardinality(applies_to) = 0 OR get_my_role() = ANY(applies_to)));
         DROP POLICY IF EXISTS rl_modify ON public.resource_links;
         CREATE POLICY rl_modify ON public.resource_links FOR ALL
-          USING (is_admin_or_director()) WITH CHECK (is_admin_or_director());
+          USING ((tenant_id IN (SELECT public.auth_tenant_ids()) OR (SELECT public.is_super_admin())) AND is_admin_or_director())
+          WITH CHECK ((tenant_id IN (SELECT public.auth_tenant_ids()) OR (SELECT public.is_super_admin())) AND is_admin_or_director());
+        DROP POLICY IF EXISTS resource_links_tenant_isolation ON public.resource_links;
+        CREATE POLICY resource_links_tenant_isolation ON public.resource_links AS RESTRICTIVE FOR ALL
+          USING (tenant_id IN (SELECT public.auth_tenant_ids()) OR (SELECT public.is_super_admin()))
+          WITH CHECK (tenant_id IN (SELECT public.auth_tenant_ids()) OR (SELECT public.is_super_admin()));
 
         ALTER TABLE public.resource_link_divisions ENABLE ROW LEVEL SECURITY;
         DROP POLICY IF EXISTS rld_select ON public.resource_link_divisions;
-        CREATE POLICY rld_select ON public.resource_link_divisions FOR SELECT USING (get_my_role() IS NOT NULL);
+        CREATE POLICY rld_select ON public.resource_link_divisions FOR SELECT USING (
+          (tenant_id IN (SELECT public.auth_tenant_ids()) OR (SELECT public.is_super_admin()))
+          AND get_my_role() IS NOT NULL);
         DROP POLICY IF EXISTS rld_modify ON public.resource_link_divisions;
         CREATE POLICY rld_modify ON public.resource_link_divisions FOR ALL
-          USING (is_admin_or_director()) WITH CHECK (is_admin_or_director());
+          USING ((tenant_id IN (SELECT public.auth_tenant_ids()) OR (SELECT public.is_super_admin())) AND is_admin_or_director())
+          WITH CHECK ((tenant_id IN (SELECT public.auth_tenant_ids()) OR (SELECT public.is_super_admin())) AND is_admin_or_director());
+        DROP POLICY IF EXISTS resource_link_divisions_tenant_isolation ON public.resource_link_divisions;
+        CREATE POLICY resource_link_divisions_tenant_isolation ON public.resource_link_divisions AS RESTRICTIVE FOR ALL
+          USING (tenant_id IN (SELECT public.auth_tenant_ids()) OR (SELECT public.is_super_admin()))
+          WITH CHECK (tenant_id IN (SELECT public.auth_tenant_ids()) OR (SELECT public.is_super_admin()));
       `)
       report.rls = 'ok'
     } catch (e) {

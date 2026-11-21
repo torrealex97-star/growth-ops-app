@@ -277,7 +277,7 @@ export function Header({ user, onMenuClick, menuOpen = false, title, isSuperAdmi
             >
               <Bell className="w-4 h-4" />
               {count > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-foreground text-3xs font-bold flex items-center justify-center">
+                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-3xs font-semibold flex items-center justify-center">
                   {count > 9 ? '9+' : count}
                 </span>
               )}
@@ -432,16 +432,14 @@ export function Header({ user, onMenuClick, menuOpen = false, title, isSuperAdmi
             {isSuperAdmin && (
               <>
                 <div className="my-1 h-px bg-border" />
-                <p className="px-2.5 pb-1 pt-1.5 text-2xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                  Plataforma · global
-                </p>
+                <p className="px-2.5 pb-1 pt-1.5 text-2xs font-semibold text-muted-foreground">Plataforma · global</p>
                 <Link
                   href={`/${tenant}/settings/platform`}
                   className="flex items-center gap-2 rounded-md border border-brand-500/20 bg-brand-500/5 px-2.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-brand-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <Settings2 className="h-4 w-4 text-brand-400" aria-hidden="true" />
                   <span className="flex-1">Control de plataforma</span>
-                  <span className="rounded bg-brand-500/10 px-1.5 py-0.5 text-3xs font-semibold uppercase text-brand-400">
+                  <span className="rounded bg-brand-500/10 px-1.5 py-0.5 text-3xs font-semibold text-brand-400">
                     Global
                   </span>
                 </Link>
@@ -459,9 +457,7 @@ export function Header({ user, onMenuClick, menuOpen = false, title, isSuperAdmi
                   <Bot className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                   Conexiones IA (MCP)
                 </Link>
-                <p className="px-2.5 pb-1 pt-2 text-2xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                  Tenant actual
-                </p>
+                <p className="px-2.5 pb-1 pt-2 text-2xs font-semibold text-muted-foreground">Tenant actual</p>
                 <Link
                   href={`/${tenant}/settings/users`}
                   className="flex items-center gap-2 rounded-md px-2.5 py-2 text-sm text-foreground transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

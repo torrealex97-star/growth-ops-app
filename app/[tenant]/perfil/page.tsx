@@ -69,7 +69,7 @@ export default function PerfilPage() {
         <p className="text-sm text-muted-foreground mt-1">Tus datos de cuenta y seguridad.</p>
       </div>
 
-      <div className="rounded-xl border border-border bg-card/50 p-5 space-y-3">
+      <div className="dashboard-card bg-card/50 p-5 space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1">
             <Label className="text-muted-foreground">Nombre</Label>
@@ -82,7 +82,7 @@ export default function PerfilPage() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-border bg-card/50 p-5 space-y-4">
+      <div className="dashboard-card bg-card/50 p-5 space-y-4">
         <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
           <KeyRound className="w-4 h-4 text-brand-400" /> Cambiar contraseña
         </h2>

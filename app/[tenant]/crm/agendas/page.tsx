@@ -1,6 +1,7 @@
 'use client'
 
 import { reasignarCloserApi } from '@/lib/appointments/reasignar-cliente'
+import { tenantUsersQuery } from '@/lib/users'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useSesion, useTenant, useTenantId } from '@/lib/tenant-context'
 
@@ -407,7 +408,7 @@ export default function AppointmentsPage() {
 
     const [appRes, usersRes, salesRes, attributionRes, collaboratorProfilesRes] = await Promise.all([
       loadAllAppointments(),
-      supabase.from('users').select('*, roles(key)').eq('is_active', true),
+      tenantUsersQuery(supabase, tenantId, '*, roles(key)').eq('is_active', true),
       salesQuery,
       loadAllContactAttributions(),
       supabase.from('collaborator_profiles').select('id, name').eq('tenant_id', tenantId),
@@ -1487,7 +1488,7 @@ export default function AppointmentsPage() {
       </div>
 
       {/* View switcher */}
-      <div className="flex flex-wrap items-center gap-1 bg-card border border-border rounded-lg p-1 w-fit max-w-full">
+      <div className="flex flex-wrap items-center gap-1 dashboard-card p-1 w-fit max-w-full">
         <button
           onClick={() => setView('tabla')}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${

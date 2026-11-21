@@ -5,6 +5,8 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 import { makeNavFilter, NAV_SECTIONS } from '../lib/nav.ts'
+import { FORM_TEMPLATES } from '../lib/forms/templates/index.ts'
+import { evaluateSubmission } from '../lib/forms/submission.ts'
 
 const raiz = join(dirname(fileURLToPath(import.meta.url)), '..')
 const leer = (p) => readFileSync(join(raiz, p), 'utf8')
@@ -54,8 +56,60 @@ test('el feedback agregado va acotado al tenant, con ventana, tope y solo column
   assert.ok(n >= 3, `consultas acotadas: ${n}`)
 })
 
+test('el email se pide SIEMPRE, también cuando la valoración alta salta a la reseña', () => {
+  // Regresión: el email iba DESPUÉS de la valoración, y la regla 4+ estrellas / NPS 9+ termina el
+  // formulario en esa pregunta. El camino feliz (la mayoría) nunca llegaba al email: no se guardaba
+  // y la respuesta no encajaba con la ficha de la alumna.
+  for (const t of FORM_TEMPLATES.filter((x) => x.audience === 'alumnos')) {
+    const email = t.config.questions.find((q) => q.semantic === 'contact.email')
+    assert.ok(email, `${t.key}: sin pregunta de email`)
+    assert.equal(email.required, true, `${t.key}: el email debe ser obligatorio para poder vincular`)
+
+    const answers = { email: 'alumna@example.test' }
+    for (const q of t.config.questions) {
+      if (q.semantic === 'contact.email') continue
+      if (q.type === 'rating') answers[q.id] = q.scaleMax ?? 5
+      else if (q.type === 'nps') answers[q.id] = 10
+      else if (q.required) answers[q.id] = q.options?.[0]?.value ?? 'texto'
+    }
+    const ev = evaluateSubmission(t.config, { answers })
+    assert.equal(ev.ok, true, `${t.key}: ${ev.ok ? '' : JSON.stringify(ev.errors)}`)
+    assert.equal(ev.answers.email, 'alumna@example.test', `${t.key}: el email no viaja en el envío`)
+    assert.equal(ev.semantic.email, 'alumna@example.test', `${t.key}: el email no llega a la ficha`)
+    assert.equal(ev.endingId, 'resena', `${t.key}: el camino feliz sigue ofreciendo la reseña`)
+  }
+})
+
 test('Alumnos › Respuestas lista todos los formularios que el rol puede ver, agrupados por audiencia', () => {
   const p = leer('app/[tenant]/students/feedback/respuestas/page.tsx')
   for (const a of ['alumnos', 'cualificacion', 'captacion', 'empleados']) assert.ok(p.includes(a), a)
   assert.match(p, /<optgroup/)
+})
+
+test('respondentOf: ficha vinculada manda; si no, lo declarado; si no, sin identificar', async () => {
+  const { respondentOf } = await import('../lib/forms/respondent.ts')
+  const qs = [
+    { id: 'n', type: 'shortText', semantic: 'contact.name' },
+    { id: 'e', type: 'email', semantic: 'contact.email' },
+    { id: 'libre', type: 'email' },
+  ]
+  const ficha = new Map([['c1', { id: 'c1', full_name: 'Ana Ruiz', email: 'ANA@x.com' }]])
+  const a = respondentOf({ answers: { n: 'ana', e: 'otra@x.com' }, contact_id: 'c1' }, qs, ficha)
+  assert.deepEqual([a.name, a.email, a.linked, a.contactId], ['Ana Ruiz', 'ana@x.com', true, 'c1'])
+  const b = respondentOf({ answers: { n: ' Luz ', e: 'LUZ@x.com' }, contact_id: null }, qs, ficha)
+  assert.deepEqual([b.name, b.email, b.linked], ['Luz', 'luz@x.com', false])
+  const c = respondentOf({ answers: { libre: 'sin@rol.com' }, contact_id: null }, qs, ficha)
+  assert.equal(c.email, 'sin@rol.com')
+  const d = respondentOf({ answers: {}, hidden: {}, contact_id: null }, qs, ficha)
+  assert.deepEqual([d.name, d.email, d.linked], [null, null, false])
+})
+
+test('respondentOf: detecta email por título o por forma aunque la pregunta no tenga rol ni tipo email', async () => {
+  const { respondentOf } = await import('../lib/forms/respondent.ts')
+  const qs = [
+    { id: 'a', type: 'shortText', title: 'Tu correo electrónico' },
+    { id: 'b', type: 'shortText', title: '¿Cómo te llamas?' },
+  ]
+  const r = respondentOf({ answers: { a: 'Mar@X.com', b: 'Mar' }, contact_id: null }, qs, new Map())
+  assert.deepEqual([r.name, r.email], ['Mar', 'mar@x.com'])
 })

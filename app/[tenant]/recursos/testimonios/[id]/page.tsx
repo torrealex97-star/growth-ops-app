@@ -134,7 +134,7 @@ export default function TestimonioDetallePage() {
       </div>
 
       {editing && values ? (
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div className="dashboard-card p-5">
           <h2 className="text-sm font-semibold text-foreground mb-4">Editar testimonio</h2>
           <TestimonioForm values={values} onChange={setValues} disabled={saving} />
           <div className="flex justify-end gap-2 mt-5">
@@ -195,7 +195,7 @@ export default function TestimonioDetallePage() {
           )}
 
           <div className="grid md:grid-cols-2 gap-4 mb-6">
-            <div className="rounded-xl border border-border bg-card overflow-hidden">
+            <div className="dashboard-card overflow-hidden">
               <p className="text-3xs font-semibold uppercase tracking-wider text-muted-foreground px-3.5 pt-3">Foto</p>
               {t.photoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -208,7 +208,7 @@ export default function TestimonioDetallePage() {
               )}
             </div>
 
-            <div className="rounded-xl border border-border bg-card overflow-hidden">
+            <div className="dashboard-card overflow-hidden">
               <p className="text-3xs font-semibold uppercase tracking-wider text-muted-foreground px-3.5 pt-3">
                 Vídeo del testimonio
               </p>
@@ -257,7 +257,7 @@ export default function TestimonioDetallePage() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-card p-5 space-y-5">
+          <div className="dashboard-card p-5 space-y-5">
             <h2 className="text-sm font-semibold text-foreground">Su historia</h2>
             {t.cifra && (
               <div>

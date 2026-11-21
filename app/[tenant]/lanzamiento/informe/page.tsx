@@ -1,8 +1,8 @@
 'use client'
 
-import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, ArrowLeft, Info, Loader2 } from 'lucide-react'
+import { AlertTriangle, Info, Loader2 } from 'lucide-react'
+import { NavLanzamiento } from '@/components/lanzamiento/NavLanzamiento'
 import { useTenant } from '@/lib/tenant-context'
 import type { PasoEmbudo, Veredicto, Accion, DatoFaltante, ItemDistribucion } from '@/lib/launch/informe'
 
@@ -120,7 +120,7 @@ export default function InformeLanzamientoPage() {
     const a = new AbortController()
     ;(async () => {
       try {
-        const r = await fetch(base, { signal: a.signal })
+        const r = await fetch(`${base}?solo=calendario`, { signal: a.signal })
         const j = await r.json()
         if (!r.ok) throw new Error(j.error || 'No se pudo leer el calendario')
         const lista = (j.calendario ?? []) as Lanzamiento[]
@@ -146,17 +146,13 @@ export default function InformeLanzamientoPage() {
   return (
     <div className="space-y-6">
       <div>
-        <Link
-          href={`/${tenant}/lanzamiento`}
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" /> Lanzamientos
-        </Link>
-        <h1 className="mt-2 text-2xl font-bold text-foreground">Informe del lanzamiento</h1>
+        <h1 className="text-2xl font-bold text-foreground">Informe del lanzamiento</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Qué pasó, medido, y qué cambiar por culpa de eso. Lo que no se puede medir se dice.
         </p>
       </div>
+
+      <NavLanzamiento tenant={tenant} />
 
       {cal.length > 0 && (
         <select

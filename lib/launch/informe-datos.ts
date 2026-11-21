@@ -1,6 +1,4 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { isAttended } from '@/lib/appointments/status'
-import { esReservaAbierta } from '@/lib/metrics/agregados'
 import {
   computeAdQuality,
   resolveFields,
@@ -11,6 +9,8 @@ import {
   type LeadForQuality,
   type Qualification,
 } from './calidad'
+import { leerConversiones } from './conversiones'
+import { leerPaginado } from './filas'
 import {
   construirAcciones,
   construirEmbudo,
@@ -29,8 +29,6 @@ import {
 // Una reserva abierta no es venta (docs/MONEY.md, D8).
 
 const MAX_FILAS = 5000
-const TROZO = 150
-const CANCELADAS = new Set(['cancelled', 'cancelled_admin', 'rescheduled'])
 
 type FilaLead = {
   id: string
@@ -40,12 +38,6 @@ type FilaLead = {
   utm: Record<string, string> | null
   contact_id: string
   contacts: { qualification: Record<string, unknown> | null } | null
-}
-
-const trozos = <T>(xs: T[], n: number): T[][] => {
-  const out: T[][] = []
-  for (let i = 0; i < xs.length; i += n) out.push(xs.slice(i, i + n))
-  return out
 }
 
 export async function leerInforme(
@@ -69,72 +61,43 @@ export async function leerInforme(
     .eq('launch_id', launchId)
   if (errCount) throw new Error(`No se pudieron contar los registros: ${errCount.message}`)
 
-  const { data: filas, error } = await sb
-    .from('contact_launches')
-    .select('id, created_at, confirmed_at, invitado_at, utm, contact_id, contacts!inner(qualification)')
-    .eq('tenant_id', tenantId)
-    .eq('launch_id', launchId)
-    .order('created_at', { ascending: true })
-    .limit(MAX_FILAS)
-  if (error) throw new Error(`No se pudieron leer los registros: ${error.message}`)
-  const lista = (filas ?? []) as unknown as FilaLead[]
+  // Por bloques: un `.limit(5000)` a secas se queda en el max_rows de PostgREST (1000) y el informe
+  // salía cortado dándose por completo.
+  let lista: FilaLead[]
+  let truncado: boolean
+  try {
+    const leido = await leerPaginado<FilaLead>(
+      (desdeFila, hastaFila) =>
+        sb
+          .from('contact_launches')
+          .select('id, created_at, confirmed_at, invitado_at, utm, contact_id, contacts!inner(qualification)')
+          .eq('tenant_id', tenantId)
+          .eq('launch_id', launchId)
+          .order('created_at', { ascending: true })
+          .order('id', { ascending: true })
+          .range(desdeFila, hastaFila) as unknown as PromiseLike<{
+          data: FilaLead[] | null
+          error: { message: string } | null
+        }>,
+      { max: MAX_FILAS }
+    )
+    lista = leido.filas
+    truncado = leido.truncado
+  } catch (e) {
+    throw new Error(`No se pudieron leer los registros: ${e instanceof Error ? e.message : e}`)
+  }
 
   const contactIds = [...new Set(lista.map((f) => f.contact_id))]
   const desde = lista[0]?.created_at ?? null
 
-  // Agendas: contactos con al menos una cita no cancelada; asistencia: alguna cita con asistencia.
-  const conCita = new Set<string>()
-  const asistieron = new Set<string>()
-  const conVenta = new Set<string>()
-  let agendasLeidas = true
-  let ventasLeidas = true
-  if (desde && contactIds.length) {
-    for (const ids of trozos(contactIds, TROZO)) {
-      const { data: citas, error: eC } = await sb
-        .from('appointments')
-        .select('contact_id, status')
-        .eq('tenant_id', tenantId)
-        .in('contact_id', ids)
-        .gte('created_at', desde)
-      if (eC) {
-        agendasLeidas = false
-        break
-      }
-      for (const c of (citas ?? []) as { contact_id: string; status: string }[]) {
-        if (CANCELADAS.has(c.status)) continue
-        conCita.add(c.contact_id)
-        if (isAttended(c.status)) asistieron.add(c.contact_id)
-      }
-    }
-    for (const ids of trozos(contactIds, TROZO)) {
-      const { data: ventas, error: eV } = await sb
-        .from('sales')
-        .select('contact_id, status, reservation_completed_at, payment_plans(method)')
-        .eq('tenant_id', tenantId)
-        .eq('status', 'active')
-        .in('contact_id', ids)
-        .gte('created_at', desde)
-      if (eV) {
-        ventasLeidas = false
-        break
-      }
-      for (const v of (ventas ?? []) as unknown as {
-        contact_id: string
-        reservation_completed_at: string | null
-        payment_plans: { method: string | null } | { method: string | null }[] | null
-      }[]) {
-        const plan = Array.isArray(v.payment_plans) ? v.payment_plans[0] : v.payment_plans
-        if (
-          esReservaAbierta({
-            payment_plan_method: plan?.method ?? null,
-            reservation_completed_at: v.reservation_completed_at,
-          })
-        )
-          continue
-        conVenta.add(v.contact_id)
-      }
-    }
-  }
+  // Agendas y ventas: el mismo cruce que el panel (lib/launch/conversiones.ts), para que las dos
+  // pantallas cuenten lo mismo. Una reserva abierta no es venta (D8).
+  const { conCita, asistieron, conVenta, agendasLeidas, ventasLeidas } = await leerConversiones(
+    sb,
+    tenantId,
+    contactIds,
+    desde
+  )
 
   const leads: LeadForQuality[] = []
   const frenos: string[] = []
@@ -209,7 +172,7 @@ export async function leerInforme(
 
   return {
     lanzamiento: { id: lanz.id as string, label: lanz.label as string, fecha: lanz.fecha as string },
-    muestraCompleta: (totalReal ?? 0) <= MAX_FILAS,
+    muestraCompleta: !truncado && lista.length >= (totalReal ?? 0),
     registrados: totalReal ?? lista.length,
     conEncuesta: conEncuesta.length,
     embudo,

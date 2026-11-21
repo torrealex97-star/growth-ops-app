@@ -23,7 +23,7 @@ export type DepsEnvio = {
 }
 
 export type ResultadoEnvio =
-  { ok: true; messageId: string | null } | { ok: false; status: 400 | 404 | 409 | 502; error: string }
+  { ok: true; messageId: string | null } | { ok: false; status: 400 | 404 | 409 | 500 | 502; error: string }
 
 type FilaConv = {
   id: string
@@ -80,11 +80,13 @@ export async function enviarComoPersona(
     const d = (ev as { data: Record<string, unknown> } | null)?.data
     if (!ev || !d) return { ok: false, status: 404, error: 'Borrador no encontrado' }
     if (d.estado !== 'pendiente') return { ok: false, status: 409, error: 'Este borrador ya se resolvió' }
-    await sb
+    const { error: claimErr } = await sb
       .from('conversation_events')
       .update({ data: { ...d, estado: 'aprobado', por: usuarioId } })
       .eq('tenant_id', tenantId)
       .eq('id', origen.eventoId)
+    // El claim va ANTES del envío: si no se escribió, otra pestaña podría enviarlo también.
+    if (claimErr) return { ok: false, status: 500, error: 'No se pudo aprobar el borrador. Inténtalo de nuevo.' }
   }
 
   let messageId: string | null
@@ -105,11 +107,13 @@ export async function enviarComoPersona(
         .eq('id', origen.eventoId)
         .maybeSingle()
       const d = (ev as { data: Record<string, unknown> } | null)?.data ?? {}
-      await sb
+      const { error: revertErr } = await sb
         .from('conversation_events')
         .update({ data: { ...d, estado: 'pendiente' } })
         .eq('tenant_id', tenantId)
         .eq('id', origen.eventoId)
+      // Devolver el borrador a pendiente es la red de reintento: si falla, se dice.
+      if (revertErr) console.warn('[conversaciones] no se pudo devolver el borrador a pendiente:', revertErr.message)
     }
     return { ok: false, status: 502, error: e instanceof Error ? e.message : 'No se pudo enviar el mensaje' }
   }
@@ -158,10 +162,11 @@ export async function descartarBorrador(
   const d = (ev as { data: Record<string, unknown> } | null)?.data
   if (!ev || !d) return { ok: false, status: 404, error: 'Borrador no encontrado' }
   if (d.estado !== 'pendiente') return { ok: false, status: 409, error: 'Este borrador ya se resolvió' }
-  await sb
+  const { error: descartarErr } = await sb
     .from('conversation_events')
     .update({ data: { ...d, estado: 'descartado', por: usuarioId } })
     .eq('tenant_id', tenantId)
     .eq('id', eventoId)
+  if (descartarErr) return { ok: false, status: 500, error: 'No se pudo descartar el borrador. Inténtalo de nuevo.' }
   return { ok: true, messageId: null }
 }

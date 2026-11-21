@@ -115,7 +115,7 @@ export default function SetPasswordPage() {
           <p className="text-muted-foreground text-sm mt-1">Nueva contraseña</p>
         </div>
 
-        <div className="bg-card border border-border rounded-xl p-6">
+        <div className="dashboard-card p-6">
           {done ? (
             <div className="flex flex-col items-center text-center py-4">
               <CheckCircle2 className="w-12 h-12 text-emerald-400 mb-4" />

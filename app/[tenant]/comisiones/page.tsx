@@ -48,6 +48,7 @@ const PARTICIPANT_LABELS: Record<ParticipantType, string> = {
   closer: 'Closer',
   affiliate: 'Colaborador (clásico)',
   collaborator: 'Colaborador',
+  cold_caller: 'Cold Caller',
 }
 
 function csvEscape(value: string): string {

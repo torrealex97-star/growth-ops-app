@@ -89,13 +89,13 @@ test('migración y API: RLS por tenant y escritura solo admin/director', () => {
   assert.match(sql, /ENABLE ROW LEVEL SECURITY/)
   assert.match(sql, /AS RESTRICTIVE/)
   const api = readFileSync('app/api/[tenant]/evergreen/lanzamiento/contenido/route.ts', 'utf8')
-  assert.match(api, /\['admin', 'director'\]\.includes/)
+  assert.match(api, /if \(!puedeGestionarLanzamiento\(auth\)\)/)
   assert.match(api, /requireTenant/)
 })
 
 test('la pantalla solo ofrece edición a quien puede guardar y descarta respuestas viejas', () => {
   const api = readFileSync('app/api/[tenant]/evergreen/lanzamiento/contenido/route.ts', 'utf8')
-  assert.match(api, /puedeEditar: \['admin', 'director'\]/)
+  assert.match(api, /puedeEditar: puedeGestionarLanzamiento\(auth\)/)
   const ui = readFileSync('app/[tenant]/lanzamiento/contenido/page.tsx', 'utf8')
   assert.match(ui, /puedeEditar \? \(/)
   assert.match(ui, /abortPiezas\.current\?\.abort\(\)/)

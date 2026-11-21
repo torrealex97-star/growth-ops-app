@@ -254,7 +254,7 @@ export default function ProductsPage() {
       ) : (
         <div className="space-y-3">
           {products.map((product) => (
-            <div key={product.id} className="bg-card border border-border rounded-lg overflow-hidden">
+            <div key={product.id} className="dashboard-card overflow-hidden">
               <div
                 className="flex items-center gap-3 px-5 py-4 cursor-pointer hover:bg-muted/50 transition-colors"
                 onClick={() => setExpandedProduct(expandedProduct === product.id ? null : product.id)}

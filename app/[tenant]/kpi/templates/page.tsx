@@ -62,21 +62,21 @@ export default function KPITemplatesPage() {
           </TabsList>
 
           <TabsContent value="setter" className="mt-4">
-            <div className="bg-card border border-border rounded-lg p-6">
+            <div className="dashboard-card p-6">
               <h3 className="text-sm font-medium text-muted-foreground mb-4">Campos para Setters</h3>
               <KPITemplateEditor roleKey="setter" templates={setterTemplates} onUpdate={fetchTemplates} />
             </div>
           </TabsContent>
 
           <TabsContent value="closer" className="mt-4">
-            <div className="bg-card border border-border rounded-lg p-6">
+            <div className="dashboard-card p-6">
               <h3 className="text-sm font-medium text-muted-foreground mb-4">Campos para Closers</h3>
               <KPITemplateEditor roleKey="closer" templates={closerTemplates} onUpdate={fetchTemplates} />
             </div>
           </TabsContent>
 
           <TabsContent value="objetivos" className="mt-4">
-            <div className="bg-card border border-border rounded-lg p-6">
+            <div className="dashboard-card p-6">
               <TargetEditor />
             </div>
           </TabsContent>

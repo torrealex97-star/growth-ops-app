@@ -22,7 +22,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     // (o que tienes liderazgo / visibilidad de equipo) antes de cambiar su grabación o su transcripción.
     const { data: appt } = await sb
       .from('appointments')
-      .select('setter_id, closer_id')
+      .select('setter_id, closer_id, cold_caller_id')
       .eq('id', appointmentId)
       .eq('tenant_id', t.tenantId)
       .maybeSingle()

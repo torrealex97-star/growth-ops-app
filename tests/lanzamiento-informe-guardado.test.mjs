@@ -106,7 +106,7 @@ test('migración y ruta: RLS por tenant, escritura solo admin/director, descarga
   assert.match(sql, /AS RESTRICTIVE/)
   assert.match(sql, /momento IN \('intermedio', 'final'\)/)
   const api = readFileSync('app/api/[tenant]/evergreen/lanzamiento/informe/guardados/route.ts', 'utf8')
-  assert.match(api, /\['admin', 'director'\]\.includes/)
+  assert.match(api, /if \(!puedeGestionarLanzamiento\(auth\)\)/)
   assert.match(api, /attachment/)
   assert.match(api, /nosniff/)
 })

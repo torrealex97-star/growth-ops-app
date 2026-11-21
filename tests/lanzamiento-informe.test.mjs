@@ -156,6 +156,7 @@ function sb({ lanz = { id: 'L', label: 'Lanz', fecha: '2026-10-28' }, leads, cit
         gte: () => q,
         order: () => q,
         limit: () => q,
+        range: () => q,
         maybeSingle: async () => ({ data: f.tenant_id === 'T1' ? lanz : null }),
         then: (res) => {
           consultas.push({ tabla, tenant: f.tenant_id })
@@ -216,5 +217,7 @@ test('la ruta del informe exige sesión de la subcuenta y devuelve solo agregado
   assert.match(api, /requireTenant/)
   const datos = readFileSync('lib/launch/informe-datos.ts', 'utf8')
   assert.doesNotMatch(datos, /full_name|email|phone/, 'sin datos personales en el informe')
-  assert.match(datos, /esReservaAbierta/)
+  // El cruce con ventas (y su regla D8) es el compartido con el panel: una sola implementación.
+  assert.match(datos, /leerConversiones/)
+  assert.match(readFileSync('lib/launch/conversiones.ts', 'utf8'), /esReservaAbierta/)
 })

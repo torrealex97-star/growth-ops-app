@@ -378,7 +378,7 @@ export default function BandejaTab() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
-        <section aria-label="Lista de conversaciones" className="space-y-2">
+        <section aria-label="Lista de conversaciones" className="space-y-2 dashboard-card">
           {errorLista ? (
             <p
               role="alert"

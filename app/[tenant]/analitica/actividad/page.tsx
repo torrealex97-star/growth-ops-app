@@ -441,7 +441,7 @@ export default function ProspectingPage() {
           icon={PhoneCall}
           title="Aún no hay reportes de KPI diarios"
           description={'El equipo los rellena en "KPI Diario".'}
-          className="py-24 bg-card border border-border rounded-lg [&>p]:max-w-none"
+          className="py-24 dashboard-card [&>p]:max-w-none"
         />
       ) : (
         <>

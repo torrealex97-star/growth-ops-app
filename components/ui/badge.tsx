@@ -2,25 +2,22 @@ import * as React from 'react'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
-const badgeVariants = cva(
-  'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
-  {
-    variants: {
-      variant: {
-        default: 'border-transparent bg-brand-600 text-white shadow hover:bg-brand-700',
-        secondary: 'border-transparent bg-muted text-foreground hover:bg-muted',
-        destructive: 'border-transparent bg-red-500/20 text-red-400 border-red-500/30',
-        outline: 'border-border text-foreground',
-        success: 'border-transparent bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-        warning: 'border-transparent bg-amber-500/20 text-amber-400 border-amber-500/30',
-        info: 'border-transparent bg-blue-500/20 text-blue-400 border-blue-500/30',
-      },
+const badgeVariants = cva('inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-medium', {
+  variants: {
+    variant: {
+      default: 'border-transparent bg-brand-600 text-white',
+      secondary: 'border-transparent bg-muted text-foreground',
+      destructive: 'border-red-500/30 bg-red-500/20 text-red-400',
+      outline: 'border-border text-foreground',
+      success: 'border-emerald-500/30 bg-emerald-500/20 text-emerald-400',
+      warning: 'border-amber-500/30 bg-amber-500/20 text-amber-400',
+      info: 'border-brand-500/30 bg-brand-500/20 text-brand-400',
     },
-    defaultVariants: {
-      variant: 'default',
-    },
-  }
-)
+  },
+  defaultVariants: {
+    variant: 'default',
+  },
+})
 
 interface BadgeProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof badgeVariants> {}
 

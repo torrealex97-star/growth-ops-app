@@ -372,7 +372,7 @@ export default function TasksPage() {
                         draggable
                         onDragStart={() => setDragTaskId(t.id)}
                         onDragEnd={() => setDragTaskId(null)}
-                        className={`lift bg-card border border-border rounded-lg p-3 space-y-2 cursor-grab active:cursor-grabbing hover:border-brand-500/40 ${dragTaskId === t.id ? 'opacity-40' : ''}`}
+                        className={`lift dashboard-card p-3 space-y-2 cursor-grab active:cursor-grabbing hover:border-brand-500/40 ${dragTaskId === t.id ? 'opacity-40' : ''}`}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <p className="text-sm text-foreground leading-snug">{t.title}</p>

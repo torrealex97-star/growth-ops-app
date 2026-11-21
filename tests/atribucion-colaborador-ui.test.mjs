@@ -25,9 +25,9 @@ test('ContactAttribution incluye collaborator_id (ya existe en la tabla desde la
   assert.match(bloque, /collaborator_attribution_blocked: boolean/)
 })
 
-test('la ficha de contacto carga los colaboradores activos de la subcuenta', () => {
+test('la ficha de contacto carga los colaboradores asignables de la subcuenta (incluye invitados)', () => {
   assert.match(page, /from\('collaborator_profiles'\)/)
-  assert.match(page, /\.in\('status', \['active', 'pending_contract'\]\)/)
+  assert.match(page, /\.in\('status', \[\.\.\.ESTADOS_COLABORADOR_ASIGNABLES\]\)/)
 })
 
 test('el control de atribución está acotado a admin\\/director, igual que el endpoint', () => {

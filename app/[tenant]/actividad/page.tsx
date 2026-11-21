@@ -1,6 +1,7 @@
 'use client'
 
 import { Skeleton } from '@/components/ui/skeleton'
+import { tenantUsersQuery } from '@/lib/users'
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
@@ -47,7 +48,7 @@ export default function ActividadPage() {
     const load = async () => {
       const supabase = createClient()
       const [usersRes, apptRes, salesRes, notesRes, actRes] = await Promise.all([
-        supabase.from('users').select('id, full_name').order('full_name'),
+        tenantUsersQuery(supabase, tenantId, 'id, full_name').order('full_name'),
         supabase
           .from('appointments')
           .select('id, appointment_datetime, status, setter_id, closer_id, contact_id, contacts(full_name)')
@@ -205,7 +206,7 @@ export default function ActividadPage() {
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="bg-card border border-border rounded-lg p-10 text-center">
+        <div className="dashboard-card p-10 text-center">
           <Activity className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
           <p className="text-muted-foreground">Sin actividad registrada para esta selección.</p>
           <p className="text-muted-foreground text-sm mt-1">
@@ -222,7 +223,7 @@ export default function ActividadPage() {
                 <span className="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full bg-background border border-border flex items-center justify-center">
                   <Icon className={`w-2.5 h-2.5 ${color}`} />
                 </span>
-                <div className="bg-card border border-border rounded-lg px-4 py-2.5">
+                <div className="dashboard-card px-4 py-2.5">
                   <div className="flex items-center justify-between gap-3">
                     <span className={`text-3xs uppercase tracking-wider font-semibold ${color}`}>{label}</span>
                     <span className="text-xs text-muted-foreground">{formatDateTime(dt)}</span>
