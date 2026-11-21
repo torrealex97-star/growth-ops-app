@@ -64,10 +64,10 @@ const GOLDEN = {
   ultimaSyncPorFuente: { meta: hace(2), stripe: hace(49), fathom: null },
   // k1 es el único que cuenta: k2 es reserva abierta (no comisiona por diseño), k3 no tiene a quien comisionar, k4 está cancelada.
   cobrosNoElegibles: [
-    { id: 'k1', ventaCancelada: false, hayAQuienComisionar: true, reservaAbierta: false },
-    { id: 'k2', ventaCancelada: false, hayAQuienComisionar: true, reservaAbierta: true },
-    { id: 'k3', ventaCancelada: false, hayAQuienComisionar: false, reservaAbierta: false },
-    { id: 'k4', ventaCancelada: true, hayAQuienComisionar: true, reservaAbierta: false },
+    { id: 'k1', ventaNoVigente: false, hayAQuienComisionar: true, reservaAbierta: false },
+    { id: 'k2', ventaNoVigente: false, hayAQuienComisionar: true, reservaAbierta: true },
+    { id: 'k3', ventaNoVigente: false, hayAQuienComisionar: false, reservaAbierta: false },
+    { id: 'k4', ventaNoVigente: true, hayAQuienComisionar: true, reservaAbierta: false },
   ],
 }
 
@@ -206,13 +206,17 @@ test('cobro sin comisión visible: lo no leído es DESCONOCIDO y la importación
     new URL('../../app/api/[tenant]/evergreen/admin/backfill-stripe-sales/route.ts', import.meta.url),
     'utf8'
   )
-  assert.match(importacion, /is_eligible_for_commission: false,\s*needs_commission_review: true,/)
+  assert.match(importacion, /needs_commission_review: true/)
+  assert.doesNotMatch(importacion, /needs_commission_review: false/)
   const ruta = readFileSync(
     new URL('../../app/api/[tenant]/evergreen/settings/data-health/route.ts', import.meta.url),
     'utf8'
   )
   assert.match(ruta, /\.eq\('needs_commission_review', false\)/)
-  assert.match(ruta, /cobrosNoElegibles: cobrosNoElegiblesResult\.error/)
+  assert.match(ruta, /aCobroNoElegible\(/)
+  assert.match(ruta, /usuariosExentosDeComision\(/)
+  // lectura parcial (tope alcanzado) = no se pudo comprobar, nunca un recuento por debajo
+  assert.match(ruta, /length >= LIMITE_COBROS_NO_ELEGIBLES/)
 })
 
 test('los ejemplos se limitan a cinco: son para ir a mirar, no un volcado', () => {
@@ -246,4 +250,41 @@ test('la ruta de Data Health expone los controles cruzados sin abortar por una t
   assert.match(ruta, /cuentasSeleccionadas: parseAccountIds\(cfg\.META_AD_ACCOUNT_ID\)/)
   // Y "nunca sincronizada" es null, no undefined perdido.
   assert.match(ruta, /latest\(campaigns, 'synced_at'\) \?\? null/)
+})
+
+test('mapeo de cobros no elegibles: objeto o array, exentos, % 0, reservas y ventas no vigentes', async () => {
+  const { aCobroNoElegible } = await import('../../lib/data-health/cobros-no-elegibles.ts')
+  const venta = (extra = {}) => ({
+    status: 'active',
+    setter_id: null,
+    closer_id: null,
+    affiliate_id: null,
+    affiliate_commission_percent: null,
+    reservation_completed_at: null,
+    payment_plans: null,
+    ...extra,
+  })
+  const m = (sales, exentos = []) => aCobroNoElegible({ id: 'c', sales }, new Set(exentos))
+  // PostgREST puede devolver la venta (y el plan) como objeto o como array de uno.
+  assert.equal(m(venta({ setter_id: 's1' })).hayAQuienComisionar, true)
+  assert.equal(m([venta({ setter_id: 's1' })]).hayAQuienComisionar, true)
+  // D9: un exento no cuenta; si hay otro que sí cobra, sí.
+  assert.equal(m(venta({ closer_id: 'socio' }), ['socio']).hayAQuienComisionar, false)
+  assert.equal(m(venta({ closer_id: 'socio', setter_id: 's1' }), ['socio']).hayAQuienComisionar, true)
+  // Colaborador: % ausente o 0 no es a quien comisionar; > 0 sí (también como texto numérico).
+  assert.equal(m(venta({ affiliate_id: 'a', affiliate_commission_percent: null })).hayAQuienComisionar, false)
+  assert.equal(m(venta({ affiliate_id: 'a', affiliate_commission_percent: 0 })).hayAQuienComisionar, false)
+  assert.equal(m(venta({ affiliate_id: 'a', affiliate_commission_percent: '10.00' })).hayAQuienComisionar, true)
+  // Reserva abierta (plan como objeto o array) vs completada.
+  assert.equal(m(venta({ payment_plans: { method: 'reserva' } })).reservaAbierta, true)
+  assert.equal(m(venta({ payment_plans: [{ method: 'reserva' }] })).reservaAbierta, true)
+  assert.equal(
+    m(venta({ payment_plans: { method: 'reserva' }, reservation_completed_at: '2026-01-01' })).reservaAbierta,
+    false
+  )
+  // Ventas no vigentes: cancelada, devuelta y contracargo no son «comisión perdida»; la venta ausente tampoco.
+  for (const status of ['cancelled', 'refunded', 'chargeback'])
+    assert.equal(m(venta({ status })).ventaNoVigente, true, status)
+  assert.equal(m(venta()).ventaNoVigente, false)
+  assert.equal(m(null).ventaNoVigente, true)
 })

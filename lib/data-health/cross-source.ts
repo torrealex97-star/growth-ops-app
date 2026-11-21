@@ -98,8 +98,9 @@ export type CrossInput = {
    */
   cobrosNoElegibles: Array<{
     id: string
-    ventaCancelada: boolean
-    /** La venta tiene setter, closer o colaborador con % (alguien a quien comisionar). */
+    /** La venta no está vigente (cancelada, devuelta, contracargo). */
+    ventaNoVigente: boolean
+    /** Alguien que cobra comisión: setter/closer/colaborador con % > 0 y no exento (D9). */
     hayAQuienComisionar: boolean
     /** Reserva sin completar: no comisiona POR DISEÑO (D8 de MONEY.md). */
     reservaAbierta: boolean
@@ -185,7 +186,7 @@ export function runCrossChecks(input: CrossInput): CrossCheck[] {
     input.cobrosNoElegibles == null
       ? null
       : input.cobrosNoElegibles
-          .filter((c) => !c.ventaCancelada && c.hayAQuienComisionar && !c.reservaAbierta)
+          .filter((c) => !c.ventaNoVigente && c.hayAQuienComisionar && !c.reservaAbierta)
           .map((c) => c.id)
 
   // Una venta sin contacto, o apuntando a un contacto que ya no existe: se queda fuera de cualquier
@@ -269,7 +270,7 @@ export function runCrossChecks(input: CrossInput): CrossCheck[] {
       'cobro_sin_comision_visible',
       'Cobros que no comisionan y no están en revisión',
       cobrosSinComisionVisible,
-      'Están cobrados y su venta tiene a quien comisionar, pero no son elegibles ni están en la cola de revisión: nadie los ve y no generan comisión. Revísalos y apruébalos en Comisiones, o confirma que no deben comisionar.',
+      'Están cobrados y su venta tiene a quien comisionar, pero no son elegibles ni están en la cola de revisión: nadie los ve y no generan comisión. Abre su venta (Ventas › Registro) y pulsa «Aprobar» en el cobro si debe comisionar.',
       'critico'
     ),
     check(

@@ -322,7 +322,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
         is_eligible_for_commission: false,
         needs_commission_review: true,
         status: 'collected',
-        notes: 'Importado automáticamente desde Stripe (backfill)',
+        notes:
+          'Importado automáticamente desde Stripe (backfill). En revisión: el responsable de la venta es provisional.',
       })
       if (insertedCollection.error) {
         results.errors.push(

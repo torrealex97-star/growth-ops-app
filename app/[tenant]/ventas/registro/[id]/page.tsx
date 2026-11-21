@@ -1013,18 +1013,20 @@ export default function SaleDetailPage() {
                         {(isAdminOrDirector || canApproveReview) && (
                           <TableCell>
                             <div className="flex items-center gap-1">
-                              {c.needs_commission_review && canApproveReview && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 text-xs text-blue-400 border-blue-500/30 hover:bg-blue-500/10"
-                                  title="Aprobar comisión de esta cuota"
-                                  disabled={approvingCollId === c.id}
-                                  onClick={() => handleApproveCollectionReview(c.id)}
-                                >
-                                  {approvingCollId === c.id ? 'Aprobando...' : 'Aprobar'}
-                                </Button>
-                              )}
+                              {(c.needs_commission_review || !c.is_eligible_for_commission) &&
+                                c.status === 'collected' &&
+                                canApproveReview && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs text-blue-400 border-blue-500/30 hover:bg-blue-500/10"
+                                    title="Aprobar comisión de esta cuota"
+                                    disabled={approvingCollId === c.id}
+                                    onClick={() => handleApproveCollectionReview(c.id)}
+                                  >
+                                    {approvingCollId === c.id ? 'Aprobando...' : 'Aprobar'}
+                                  </Button>
+                                )}
                               {isAdminOrDirector && (
                                 <>
                                   <Button

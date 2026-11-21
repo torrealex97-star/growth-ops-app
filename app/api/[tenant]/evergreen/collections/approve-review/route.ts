@@ -33,8 +33,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       .eq('tenant_id', t.tenantId)
       .single()
     if (collErr || !coll) return NextResponse.json({ error: 'Cobro no encontrado' }, { status: 404 })
-    if (!coll.needs_commission_review) {
-      return NextResponse.json({ error: 'Este cobro no está en revisión' }, { status: 400 })
+    // Se aprueba lo que está en revisión Y lo que no es elegible sin estar en revisión (el limbo false/false que deja
+    // una importación o una carga manual: el control `cobro_sin_comision_visible` de Salud del dato lo señala).
+    if (coll.is_eligible_for_commission && !coll.needs_commission_review) {
+      return NextResponse.json({ error: 'Este cobro ya es elegible para comisión' }, { status: 400 })
+    }
+    if (coll.status !== 'collected') {
+      return NextResponse.json({ error: 'Solo se aprueban cobros ya cobrados' }, { status: 400 })
     }
 
     // La venta se lee ANTES de tocar el cobro: si esta lectura falla, no se ha mutado nada
@@ -69,6 +74,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     } catch (genErr) {
       const { error: revertErr } = await sb
         .from('collections')
+        // Siempre a la cola de revisión (aunque viniera de false/false): visible y reintentable, nunca en el limbo.
         .update({ is_eligible_for_commission: false, eligible_at: null, needs_commission_review: true })
         .eq('id', collectionId)
         .eq('tenant_id', t.tenantId)
@@ -93,7 +99,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       entity_type: 'collection',
       entity_id: collectionId,
       action: 'approve_commission_review',
-      old_values: { needs_commission_review: true, is_eligible_for_commission: false },
+      old_values: {
+        needs_commission_review: coll.needs_commission_review,
+        is_eligible_for_commission: coll.is_eligible_for_commission,
+      },
       new_values: { needs_commission_review: false, is_eligible_for_commission: true },
     })
     if (auditErr) {
