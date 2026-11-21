@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireTenant } from '@/lib/auth/requireTenant'
 import { ESTADOS_COLABORADOR_ASIGNABLES } from '@/lib/collaborators/estados-asignables'
-import { reconcileSaleCommissions } from '@/lib/commissions/generate'
+import { recalcularVentasTrasAsignar, type ResultadoRecalculo } from '@/lib/commissions/reasignar-colaborador'
 
 // OVERRIDE ADMINISTRATIVO DE ATRIBUCIÓN DE COLABORADOR (§12-§13 del brief).
 //
@@ -10,10 +10,10 @@ import { reconcileSaleCommissions } from '@/lib/commissions/generate'
 // un admin/director, con MOTIVO OBLIGATORIO, actor y timestamp registrados en
 // audit_logs (old → new). Nada en la app modifica atribución financiera en silencio.
 //
-// Al ASIGNAR un colaborador se recalculan las comisiones de las ventas YA HECHAS de ese contacto (idempotente, nunca
-// toca lo liquidado, solo rellena afiliado/% vacíos) y se devuelven `warnings` si algo impedirá que cobre: sin %
-// de comisión en ningún sitio o ficha no activa. Antes se cambiaba la atribución y «por pagar» se quedaba a cero sin
-// explicación.
+// Al ASIGNAR un colaborador se recalculan las comisiones DE ESE COLABORADOR en las ventas YA HECHAS del contacto
+// (lib/commissions/reasignar-colaborador.ts: idempotente, nunca toca lo liquidado ni las de setter/closer) y se
+// devuelven `warnings` si algo impedirá que cobre: sin % de comisión en ningún sitio o ficha no activa. Antes se
+// cambiaba la atribución y «por pagar» se quedaba a cero sin explicación.
 //
 // Cuerpo: { contactId, collaboratorId | null, reason }
 //   collaboratorId = null → "Directo / Sin colaborador" (estado válido, §14; NULL
@@ -55,15 +55,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
 
     // Si se asigna colaborador, tiene que ser un perfil asignable (no suspendido/inactivo) de esta subcuenta.
     let estadoPerfil: string | null = null
+    let colaboradorUserId: string | null = null
     if (collaboratorId) {
       const { data: perfil } = await sb
         .from('collaborator_profiles')
-        .select('id, status')
+        .select('id, status, user_id')
         .eq('id', collaboratorId)
         .eq('tenant_id', t.tenantId)
         .maybeSingle()
-      const p = perfil as { id: string; status: string } | null
+      const p = perfil as { id: string; status: string; user_id: string | null } | null
       estadoPerfil = p?.status ?? null
+      colaboradorUserId = p?.user_id ?? null
       if (!p) return NextResponse.json({ error: 'Colaborador no encontrado en esta subcuenta' }, { status: 404 })
       if (!(ESTADOS_COLABORADOR_ASIGNABLES as readonly string[]).includes(p.status)) {
         return NextResponse.json({ error: 'El colaborador está suspendido o inactivo' }, { status: 400 })
@@ -145,41 +147,33 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       )
     }
 
-    // RECÁLCULO de lo ya vendido. Un fallo aquí NO deshace la atribución (ya aplicada y auditada): se declara.
-    const warnings: string[] = []
-    let comisionesNuevas = 0
-    let ventasRevisadas = 0
+    // RECÁLCULO de lo ya vendido (solo las comisiones de ESTE colaborador). Un fallo aquí NO deshace la atribución
+    // (ya aplicada y auditada): se declara en `warnings`. Lo que escribe (afiliado/% de la venta, comisiones) queda
+    // en audit_logs: este endpoint no permite cambios financieros sin rastro.
+    let recalculo: ResultadoRecalculo = { ventasRevisadas: 0, comisionesNuevas: 0, warnings: [], detalle: [] }
     if (collaboratorId) {
-      if (estadoPerfil && estadoPerfil !== 'active') {
-        warnings.push(
-          `El colaborador está en estado «${estadoPerfil}», no activo: su comisión saldrá como «Colaborador (clásico)» hasta que lo actives.`
-        )
-      }
-      try {
-        const { data: ventas, error: ventasErr } = await sb
-          .from('sales')
-          .select('id')
-          .eq('tenant_id', t.tenantId)
-          .eq('contact_id', contactId)
-          .neq('status', 'cancelled')
-          .limit(50)
-        if (ventasErr) throw new Error(ventasErr.message)
-        let sinPorcentaje = 0
-        for (const v of ventas ?? []) {
-          const r = await reconcileSaleCommissions(sb, t.tenantId, (v as { id: string }).id)
-          ventasRevisadas++
-          comisionesNuevas += r.created
-          if (r.afiliadoSinPorcentaje) sinPorcentaje++
-        }
-        if (sinPorcentaje > 0) {
-          warnings.push(
-            `${sinPorcentaje === 1 ? '1 venta de este contacto tiene' : `${sinPorcentaje} ventas de este contacto tienen`} colaborador pero NO tiene % de comisión (ni en la venta ni en la ficha del colaborador): no genera comisión hasta que pongas el %.`
+      recalculo = await recalcularVentasTrasAsignar({
+        sb,
+        tenantId: t.tenantId,
+        contactId,
+        colaboradorUserId,
+        estadoPerfil,
+      })
+      if (recalculo.detalle.length > 0) {
+        const { error: recalcAuditErr } = await sb.from('audit_logs').insert({
+          tenant_id: t.tenantId,
+          actor_user_id: t.userId,
+          entity_type: 'contact_attribution',
+          entity_id: contactId,
+          action: 'collaborator_attribution_recalc',
+          old_values: {},
+          new_values: { collaborator_id: collaboratorId, reason, ventas: recalculo.detalle },
+        })
+        if (recalcAuditErr) {
+          recalculo.warnings.push(
+            `Las comisiones se recalcularon pero no se pudo auditar el recálculo (${recalcAuditErr.message}). Revisar a mano.`
           )
         }
-      } catch (e) {
-        warnings.push(
-          `La atribución se guardó, pero no se pudieron recalcular las comisiones de sus ventas (${e instanceof Error ? e.message : 'error desconocido'}). Edita la venta o usa «Reparar comisiones».`
-        )
       }
     }
 
@@ -187,9 +181,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       ok: true,
       from: anterior,
       to: collaboratorId,
-      ventasRevisadas,
-      comisionesNuevas,
-      warnings,
+      ventasRevisadas: recalculo.ventasRevisadas,
+      comisionesNuevas: recalculo.comisionesNuevas,
+      warnings: recalculo.warnings,
     })
   } catch (err) {
     console.error('[api/colaboradores/attribution]', err)

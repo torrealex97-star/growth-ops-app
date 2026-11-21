@@ -231,6 +231,25 @@ contaminando `campaign_daily` y `expenses` de este tenant.
   en una pantalla de selección de cuentas de una integración compartida es, en la
   práctica, un atajo hacia este mismo incidente.
 
+## 11b. % de comisión del colaborador y reasignación de contactos — D11
+
+**Incidente que fija esta decisión:** contactos reasignados a una colaboradora cuyas ventas ya apuntaban a ella con
+`sales.affiliate_commission_percent = NULL`. El motor solo comisiona al afiliado si la venta lleva %, así que no generó
+nada y «por pagar» salió a cero sin ningún aviso. El % tampoco estaba en su ficha ni en su usuario.
+
+- **Origen del % (en este orden):** el de la venta → el de su ficha de colaborador (`collaborator_profiles.
+  default_commission_percent`, donde se gestiona) → el del usuario (`users.default_affiliate_commission_percent`). Sin
+  % en ningún sitio no se inventa ninguno: la venta no comisiona y la pantalla lo avisa.
+- **`null` no es 0.** Un 0 % explícito es una decisión y no se toca; `null` es «sin decidir».
+- **Completar el % de una venta que ya tenía afiliado es RETROACTIVO** (genera comisión sobre cobros ya hechos donde
+  `null` significaba «sin comisión»), así que solo ocurre a petición explícita: al asignar un colaborador a un contacto.
+  Reparaciones masivas y ediciones de venta no lo hacen; solo avisan (`afiliadoSinPorcentaje`). Un afiliado recién
+  deducido del contacto sí recibe su %.
+- **Reasignar recalcula solo al colaborador asignado** (`lib/commissions/reasignar-colaborador.ts`): no borra ni
+  recrea las comisiones —quizá ya aprobadas— de setter/closer, no toca lo liquidado, y deja en `audit_logs`
+  (`collaborator_attribution_recalc`) qué ventas y qué % escribió.
+- **D9 sigue mandando:** quien tiene `pays_commissions = false` no genera aviso de «falta %» ni comisión.
+
 ## 12. Decisiones abiertas (requieren a Alex)
 
 | Id | Decisión | Qué bloquea | Riesgo de decidir mal |
@@ -271,6 +290,9 @@ contaminando `campaign_daily` y `expenses` de este tenant.
 
 ## Changelog
 
+- **v1.3.0 (2026-11-21)** — D11 (% de comisión del colaborador: venta → ficha → usuario; completar un %
+  ausente es retroactivo y solo a petición al reasignar; el recálculo es solo del colaborador asignado y queda
+  auditado).
 - **v1.2.0 (2026-11-03)** — D4 ampliada: el fee de pasarela se guarda en la moneda
   del cobro (conversión con el tipo del cargo), la corrección de datos no toca
   comisiones liquidadas, y el mes de una comisión futura es el de PAGO (siguiente al

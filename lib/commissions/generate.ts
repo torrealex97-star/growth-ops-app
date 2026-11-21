@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { sincronizarTrasVenta } from '@/lib/cold-calling/comisiones'
 import { calculateCommissionsForCollection, pickCommissionRule } from './calculator'
-import { resolveSaleAttribution } from './attribution'
+import { resolveSaleAttribution, type AttributionPatch } from './attribution'
 import { tramoIdByReps } from './tramos'
 import { usuariosColaboradoresActivos } from '@/lib/collaborators/scope'
 import { fetchStripeFeesForReferences } from '@/lib/finance/stripeFees'
@@ -345,15 +345,36 @@ export async function reconcileSaleCommissions(
   tenantId: string,
   saleId: string,
   alsoRecompute: { repId: string | null | undefined; role: Role }[] = [],
-  opts: { skipTierRecompute?: boolean } = {}
-): Promise<{ created: number; deleted: number; keptLiquidated: number; afiliadoSinPorcentaje: boolean }> {
+  opts: {
+    skipTierRecompute?: boolean
+    /**
+     * Reconstruir SOLO las comisiones de esta persona: ni borra ni recrea las de setter/closer/otros (que pueden
+     * estar ya aprobadas) ni recalcula tramos. Lo usa la reasignación de colaborador.
+     */
+    soloUsuarioId?: string
+    /** Completar el % ausente del afiliado de la venta (ver resolveSaleAttribution). */
+    completarPorcentaje?: boolean
+  } = {}
+): Promise<{
+  created: number
+  deleted: number
+  keptLiquidated: number
+  afiliadoSinPorcentaje: boolean
+  afiliadoId: string | null
+  /** Lo que se escribió en la venta (afiliado/setter/%), para dejarlo en auditoría. */
+  atribucion: AttributionPatch
+}> {
   const { data: sale } = await sb.from('sales').select('*').eq('tenant_id', tenantId).eq('id', saleId).maybeSingle()
-  if (!sale) return { created: 0, deleted: 0, keptLiquidated: 0, afiliadoSinPorcentaje: false }
+  if (!sale) {
+    return { created: 0, deleted: 0, keptLiquidated: 0, afiliadoSinPorcentaje: false, afiliadoId: null, atribucion: {} }
+  }
   const s = sale as Sale
 
   // Si le falta setter/afiliado, dedúcelos de la atribución (UTM) del contacto antes de reconciliar,
   // para que el rep atribuido por utm_term/utm_content reciba su comisión (también en reparación masiva).
-  const attrPatch = await resolveSaleAttribution(sb, s, tenantId)
+  const attrPatch = await resolveSaleAttribution(sb, s, tenantId, {
+    completarPorcentaje: opts.completarPorcentaje,
+  })
   Object.assign(s, attrPatch)
 
   const { data: collsData } = await sb
@@ -389,7 +410,13 @@ export async function reconcileSaleCommissions(
 
   // Borra las positivas ligadas a cobro que NO estén liquidadas (se reconstruyen abajo).
   // Las negativas (devoluciones) y las liquidadas quedan fuera.
-  const toDelete = existing.filter((c) => c.direction === 'positive' && c.status !== 'liquidated' && c.collection_id)
+  const toDelete = existing.filter(
+    (c) =>
+      c.direction === 'positive' &&
+      c.status !== 'liquidated' &&
+      c.collection_id &&
+      (!opts.soloUsuarioId || c.user_id === opts.soloUsuarioId)
+  )
   let deleted = 0
   if (toDelete.length) {
     const { data: gone, error } = await sb
@@ -440,6 +467,7 @@ export async function reconcileSaleCommissions(
     for (const r of rows) {
       const key = `${r.collection_id}|${r.user_id}|${r.participant_type}`
       if (liqKeys.has(key)) continue // ya pagada, no duplicar
+      if (opts.soloUsuarioId && r.user_id !== opts.soloUsuarioId) continue
       toInsert.push(r)
     }
   }
@@ -455,7 +483,7 @@ export async function reconcileSaleCommissions(
   // DESPUÉS de cada una de sus N ventas (en vez de una vez al final, con el cash ya consolidado)
   // es trabajo repetido — recomputeRepCommissionTiers es idempotente, así que el resultado final
   // es el mismo, pero recalculándolo N veces por rep en vez de 1 es el N+1 real de ese endpoint.
-  if (!opts.skipTierRecompute) {
+  if (!opts.skipTierRecompute && !opts.soloUsuarioId) {
     await recomputeRepCommissionTiers(sb, tenantId, [
       { repId: s.setter_id, role: 'setter' },
       { repId: s.closer_id, role: 'closer' },
@@ -465,11 +493,20 @@ export async function reconcileSaleCommissions(
 
   // Idem para la cold caller: una venta anulada, completada desde reserva o reasignada puede
   // cambiar si le cuenta. Sus filas no llevan cobro, así que el borrado de arriba no las toca.
-  await sincronizarTrasVenta(sb, tenantId, s.contact_id)
+  if (!opts.soloUsuarioId) await sincronizarTrasVenta(sb, tenantId, s.contact_id)
 
   // La venta tiene afiliado/colaborador pero NINGÚN % (ni suyo ni por defecto): el motor no le genera comisión.
   // Se devuelve para que la pantalla lo diga en vez de dejar «por pagar» a cero sin explicación.
-  const afiliadoSinPorcentaje = !!s.affiliate_id && s.affiliate_commission_percent == null
+  // Quien no comisiona (pays_commissions = false, D9) no «tiene un % que falta»: no se avisa por él.
+  const afiliadoSinPorcentaje =
+    !!s.affiliate_id && s.affiliate_commission_percent == null && !noComisionan.has(s.affiliate_id)
 
-  return { created, deleted, keptLiquidated: liqKeys.size, afiliadoSinPorcentaje }
+  return {
+    created,
+    deleted,
+    keptLiquidated: liqKeys.size,
+    afiliadoSinPorcentaje,
+    afiliadoId: s.affiliate_id ?? null,
+    atribucion: attrPatch,
+  }
 }

@@ -26,13 +26,21 @@ type SaleForAttribution = {
 export async function resolveSaleAttribution(
   sb: SupabaseClient,
   sale: SaleForAttribution,
-  tenantId: string
+  tenantId: string,
+  opts: {
+    /**
+     * Completar el % AUSENTE de una venta cuyo afiliado/colaborador ya estaba puesto. Es una decisión de dinero
+     * RETROACTIVA (genera comisión sobre cobros ya hechos donde hasta ahora `null` significaba «sin comisión»), así
+     * que solo se activa a petición explícita (reasignar un colaborador a un contacto), nunca en reparaciones
+     * masivas ni al editar una venta cualquiera. Un afiliado recién deducido del contacto sí recibe su %.
+     */
+    completarPorcentaje?: boolean
+  } = {}
 ): Promise<AttributionPatch> {
   const needSetter = !sale.setter_id
   const needAffiliate = !sale.affiliate_id
-  // Afiliado/colaborador YA puesto pero sin % (`null`, no 0: un 0 % explícito es una decisión). Sin % el motor no
-  // genera comisión y no dice nada, así que se completa desde el % por defecto de la persona (ver más abajo).
-  const needPercent = !!sale.affiliate_id && sale.affiliate_commission_percent == null
+  // `null`, no 0: un 0 % explícito es una decisión y no se toca.
+  const needPercent = !!opts.completarPorcentaje && !!sale.affiliate_id && sale.affiliate_commission_percent == null
   if (!needSetter && !needAffiliate && !needPercent) return {}
 
   const patch: AttributionPatch = {}
@@ -57,6 +65,8 @@ export async function resolveSaleAttribution(
   let content = ''
   let colaboradorIdDelContacto: string | null = null
   let collaboratorAttributionBlocked = false
+  // La ficha del colaborador ya se leyó en 2b (con su % vacío): no se vuelve a consultar en el paso 5.
+  let fichaYaLeida = false
   if (sale.contact_id && ((needSetter && !patch.setter_id) || needAffiliate)) {
     const { data: attr } = await sb
       .from('contact_attributions')
@@ -100,6 +110,7 @@ export async function resolveSaleAttribution(
       .maybeSingle()
     const p = perfil as { user_id: string; default_commission_percent: number | string | null } | null
     if (p?.user_id) {
+      fichaYaLeida = true
       patch.affiliate_id = p.user_id
       if (sale.affiliate_commission_percent == null && p.default_commission_percent != null) {
         patch.affiliate_commission_percent = Number(p.default_commission_percent)
@@ -137,13 +148,18 @@ export async function resolveSaleAttribution(
     }
   }
 
-  // 5) % de comisión que falta. Aplica tanto al afiliado recién deducido arriba como al que ya traía la venta (caso
-  // real: contactos reasignados a una colaboradora cuyas ventas ya apuntaban a ella con el % vacío → cero comisión
-  // sin ningún aviso). Solo rellena un % AUSENTE; nunca pisa uno puesto a mano. Si no hay % en ningún sitio no se
-  // inventa ninguno: quien llama lo detecta (`afiliadoSinPorcentaje`) y avisa.
+  // 5) % de comisión que falta. Al afiliado recién deducido arriba siempre; al que ya traía la venta solo con
+  // `completarPorcentaje` (caso real: contactos reasignados a una colaboradora cuyas ventas ya apuntaban a ella con
+  // el % vacío → cero comisión sin ningún aviso). Solo rellena un % AUSENTE; nunca pisa uno puesto a mano. Si no hay
+  // % en ningún sitio no se inventa ninguno: quien llama lo detecta (`afiliadoSinPorcentaje`) y avisa.
   const afiliadoFinal = patch.affiliate_id ?? sale.affiliate_id
-  if (afiliadoFinal && sale.affiliate_commission_percent == null && patch.affiliate_commission_percent === undefined) {
-    const pct = await porcentajePorDefecto(sb, tenantId, afiliadoFinal)
+  if (
+    afiliadoFinal &&
+    (patch.affiliate_id !== undefined || opts.completarPorcentaje) &&
+    sale.affiliate_commission_percent == null &&
+    patch.affiliate_commission_percent === undefined
+  ) {
+    const pct = await porcentajePorDefecto(sb, tenantId, afiliadoFinal, { saltarFicha: fichaYaLeida })
     if (pct !== null) patch.affiliate_commission_percent = pct
   }
 
@@ -176,19 +192,22 @@ const comoPorcentaje = (v: unknown): number | null => {
 export async function porcentajePorDefecto(
   sb: SupabaseClient,
   tenantId: string,
-  userId: string
+  userId: string,
+  opts: { saltarFicha?: boolean } = {}
 ): Promise<number | null> {
-  const { data: perfil } = await sb
-    .from('collaborator_profiles')
-    .select('default_commission_percent')
-    .eq('tenant_id', tenantId)
-    .eq('user_id', userId)
-    .limit(1)
-    .maybeSingle()
-  const deLaFicha = comoPorcentaje(
-    (perfil as { default_commission_percent?: unknown } | null)?.default_commission_percent
-  )
-  if (deLaFicha !== null) return deLaFicha
+  if (!opts.saltarFicha) {
+    const { data: perfil } = await sb
+      .from('collaborator_profiles')
+      .select('default_commission_percent')
+      .eq('tenant_id', tenantId)
+      .eq('user_id', userId)
+      .limit(1)
+      .maybeSingle()
+    const deLaFicha = comoPorcentaje(
+      (perfil as { default_commission_percent?: unknown } | null)?.default_commission_percent
+    )
+    if (deLaFicha !== null) return deLaFicha
+  }
   const { data: usuario } = await sb
     .from('users')
     .select('default_affiliate_commission_percent')
