@@ -316,8 +316,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
         payment_reference: payment.reference,
         is_confirmed: true,
         // No se marca elegible para comisión: el responsable asignado a la venta importada no es
-        // necesariamente quien cerró la venta original — evita generar comisiones incorrectas.
+        // necesariamente quien cerró la venta original — evita generar comisiones incorrectas. PERO entra en la
+        // cola de revisión (`needs_commission_review`): antes quedaba en `false`/`false`, un limbo donde nadie lo
+        // veía ni podía aprobarlo y la comisión se perdía en silencio (58 cobros de la importación de septiembre).
         is_eligible_for_commission: false,
+        needs_commission_review: true,
         status: 'collected',
         notes: 'Importado automáticamente desde Stripe (backfill)',
       })

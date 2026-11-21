@@ -20,6 +20,7 @@ type CrossCheckId =
   | 'pago_stripe_sin_venta'
   | 'pago_stripe_sin_cobro'
   | 'cobro_de_pago_devuelto'
+  | 'cobro_sin_comision_visible'
   | 'venta_sin_contacto'
   | 'cliente_sin_emparejar'
   | 'campana_sin_atribucion'
@@ -91,6 +92,18 @@ export type CrossInput = {
   referenciasCobro: string[] | null
   /** contact_id de los contactos que tienen al menos una venta. */
   contactosConVenta: string[] | null
+  /**
+   * Cobros COBRADOS que no son elegibles para comisión (`is_eligible_for_commission = false`) Y no están en
+   * revisión (`needs_commission_review = false`), con lo mínimo de su venta para juzgarlos.
+   */
+  cobrosNoElegibles: Array<{
+    id: string
+    ventaCancelada: boolean
+    /** La venta tiene setter, closer o colaborador con % (alguien a quien comisionar). */
+    hayAQuienComisionar: boolean
+    /** Reserva sin completar: no comisiona POR DISEÑO (D8 de MONEY.md). */
+    reservaAbierta: boolean
+  }> | null
   /** Ventas: id + contacto. */
   ventas: Array<{ id: string; contactId: string | null }> | null
   /** Ids de contacto existentes. */
@@ -161,6 +174,19 @@ export function runCrossChecks(input: CrossInput): CrossCheck[] {
       : input.pagosStripe
           .filter((p) => p.status === 'refunded' && p.refs.some((r) => referencias.has(r)))
           .map((p) => p.id)
+
+  // UN COBRO QUE NO COMISIONA Y NADIE LO SABE. Un cobro cobrado, de una venta con alguien a quien comisionar, que
+  // ni es elegible ni está en la cola de revisión, no genera comisión y tampoco aparece en ninguna pantalla donde
+  // alguien pudiera aprobarlo: la comisión se pierde en silencio. Caso real: una importación histórica dejó 58 así
+  // (columna con valor por defecto `false`) y dos personas llevaban meses sin ver su comisión. Las reservas abiertas
+  // no cuentan: no comisionan a propósito (D8) y es un estado conocido.
+  const cobrosSinComisionVisible =
+    // `== null`: un campo ausente (quien llama aún no lo lee) es «no leído», igual que null — nunca un cero.
+    input.cobrosNoElegibles == null
+      ? null
+      : input.cobrosNoElegibles
+          .filter((c) => !c.ventaCancelada && c.hayAQuienComisionar && !c.reservaAbierta)
+          .map((c) => c.id)
 
   // Una venta sin contacto, o apuntando a un contacto que ya no existe: se queda fuera de cualquier
   // informe por persona y de la atribución.
@@ -237,6 +263,13 @@ export function runCrossChecks(input: CrossInput): CrossCheck[] {
       'Cobros de pagos que Stripe devolvió',
       cobrosDeDevueltos,
       'El dinero volvió al cliente pero el cobro sigue contando como ingreso y su comisión no se ha revertido. Registra la devolución en la venta.',
+      'critico'
+    ),
+    check(
+      'cobro_sin_comision_visible',
+      'Cobros que no comisionan y no están en revisión',
+      cobrosSinComisionVisible,
+      'Están cobrados y su venta tiene a quien comisionar, pero no son elegibles ni están en la cola de revisión: nadie los ve y no generan comisión. Revísalos y apruébalos en Comisiones, o confirma que no deben comisionar.',
       'critico'
     ),
     check(

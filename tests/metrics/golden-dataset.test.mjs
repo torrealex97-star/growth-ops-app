@@ -62,6 +62,13 @@ const GOLDEN = {
   ],
   // meta reciente; stripe justo pasado de las 48 h; fathom nunca → 2 incidencias.
   ultimaSyncPorFuente: { meta: hace(2), stripe: hace(49), fathom: null },
+  // k1 es el único que cuenta: k2 es reserva abierta (no comisiona por diseño), k3 no tiene a quien comisionar, k4 está cancelada.
+  cobrosNoElegibles: [
+    { id: 'k1', ventaCancelada: false, hayAQuienComisionar: true, reservaAbierta: false },
+    { id: 'k2', ventaCancelada: false, hayAQuienComisionar: true, reservaAbierta: true },
+    { id: 'k3', ventaCancelada: false, hayAQuienComisionar: false, reservaAbierta: false },
+    { id: 'k4', ventaCancelada: true, hayAQuienComisionar: true, reservaAbierta: false },
+  ],
 }
 
 const porId = (checks) => Object.fromEntries(checks.map((c) => [c.id, c]))
@@ -84,6 +91,9 @@ test('golden dataset: cada control da el número exacto contado a mano', () => {
   assert.equal(c.campana_sin_atribucion.afectados, 1)
   assert.equal(c.agenda_sin_contacto.afectados, 1)
   assert.equal(c.llamada_sin_agenda.afectados, 1)
+  assert.equal(c.cobro_sin_comision_visible.afectados, 1)
+  assert.deepEqual(c.cobro_sin_comision_visible.ejemplos, ['k1'])
+  assert.equal(c.cobro_sin_comision_visible.gravedad, 'critico')
   assert.equal(c.sync_obsoleta.afectados, 2)
   assert.deepEqual(c.sync_obsoleta.ejemplos, ['stripe', 'fathom'])
 })
@@ -102,6 +112,7 @@ test('golden dataset: un universo sano da CERO en todos los controles', () => {
     agendas: [{ id: 'a1', contactId: 'c1' }],
     llamadas: [{ id: 'l1', appointmentId: 'a1' }],
     ultimaSyncPorFuente: { meta: hace(1), stripe: hace(2) },
+    cobrosNoElegibles: [],
   }
   const checks = runCrossChecks(sano)
   for (const c of checks) {
@@ -146,6 +157,7 @@ test('el resumen prioriza crítico, y "incompleto" gana a "ok"', () => {
     referenciasCobro: ['pi_1'],
     ventas: [{ id: 's1', contactId: 'c1' }],
     agendas: [{ id: 'a1', contactId: 'c1' }],
+    cobrosNoElegibles: [],
   }
   assert.equal(resumenCross(runCrossChecks(soloAvisos)).estado, 'aviso')
   // Todo sano salvo algo sin comprobar: no es "ok", es "incompleto".
@@ -161,6 +173,7 @@ test('el resumen prioriza crítico, y "incompleto" gana a "ok"', () => {
     agendas: [{ id: 'a1', contactId: 'c1' }],
     llamadas: [{ id: 'l1', appointmentId: 'a1' }],
     ultimaSyncPorFuente: null,
+    cobrosNoElegibles: [],
   }
   const r = resumenCross(runCrossChecks(incompleto))
   assert.equal(r.estado, 'incompleto')
@@ -181,6 +194,25 @@ test('la obsolescencia usa el umbral, y una fecha ilegible cuenta como obsoleta'
   // Ni se asume fresca ni se rompe: una fecha que no se puede leer es obsoleta.
   const ilegible = runCrossChecks({ ...GOLDEN, ultimaSyncPorFuente: { meta: 'no-es-fecha' } })
   assert.equal(porId(ilegible).sync_obsoleta.afectados, 1)
+})
+
+test('cobro sin comisión visible: lo no leído es DESCONOCIDO y la importación nunca lo deja en el limbo', async () => {
+  const c = porId(runCrossChecks({ ...GOLDEN, cobrosNoElegibles: null }))
+  assert.equal(c.cobro_sin_comision_visible.afectados, null)
+  assert.equal(c.cobro_sin_comision_visible.gravedad, 'desconocido')
+  // El origen del caso real: la importación de Stripe debe dejar el cobro en la cola de revisión, no en false/false.
+  const { readFileSync } = await import('node:fs')
+  const importacion = readFileSync(
+    new URL('../../app/api/[tenant]/evergreen/admin/backfill-stripe-sales/route.ts', import.meta.url),
+    'utf8'
+  )
+  assert.match(importacion, /is_eligible_for_commission: false,\s*needs_commission_review: true,/)
+  const ruta = readFileSync(
+    new URL('../../app/api/[tenant]/evergreen/settings/data-health/route.ts', import.meta.url),
+    'utf8'
+  )
+  assert.match(ruta, /\.eq\('needs_commission_review', false\)/)
+  assert.match(ruta, /cobrosNoElegibles: cobrosNoElegiblesResult\.error/)
 })
 
 test('los ejemplos se limitan a cinco: son para ir a mirar, no un volcado', () => {
